@@ -1,0 +1,14 @@
+{
+  "name": "tytbatxat",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@netlify/database": "^1.0.0",
+    "@google/genai": "^2.8.0",
+    "drizzle-orm": "beta"
+  },
+  "devDependencies": {
+    "drizzle-kit": "beta",
+    "typescript": "^5.4.5"
+  }
+}
