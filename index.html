@@ -1046,13 +1046,9 @@
         </div>
     </div>
 
-    <!-- ================= JAVASCRIPT ENGINE (LOGIC & FIREBASE) ================= -->
+    <!-- ================= JAVASCRIPT ENGINE (LOGIC & PORTAL) ================= -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // 1. CƠ SỞ DỮ LIỆU LOCAL (MẶC ĐỊNH & DỰ PHÒNG CHỐNG SẬP MẠNG)
+        // 1. CƠ SỞ DỮ LIỆU LOCAL/FALLBACK
         let serviceManagers = [
             { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'BS. Trạm Trưởng', zalo: '0382103002' },
             { id: 'S2', name: 'Phòng Khám Sản - Phụ Khoa', person: 'Nữ hộ sinh chuyên trách', zalo: '0382103002' },
@@ -1077,48 +1073,6 @@
             { id: 'V1', date: 'Sáng 05/06/2026', time: '07:30 - 11:30', target: 'Trẻ em & Phụ nữ mang thai thuộc: Thôn 1, Thôn 2, Thôn 3, Thôn 4, Thôn 5', ts: 2 },
             { id: 'V2', date: 'Sáng 06/06/2026', time: '07:30 - 11:30', target: 'Trẻ em & Phụ nữ mang thai thuộc: Thôn 6, Thôn 7, Thôn 8, Thôn 9, Thôn 10', ts: 1 }
         ];
-
-        // 2. KẾT NỐI ĐÁM MÂY (FIREBASE)
-        const fcfg = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tytbatxat-prod';
-        let db, auth, cUser;
-
-        if(fcfg) {
-            try {
-                const appInstance = initializeApp(JSON.parse(fcfg));
-                auth = getAuth(appInstance);
-                db = getFirestore(appInstance);
-                
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                        else await signInAnonymously(auth);
-                    } catch(err) { console.warn("Lỗi Auth Firebase", err); }
-                };
-                initAuth();
-
-                onAuthStateChanged(auth, user => {
-                    cUser = user;
-                    if(!user) return;
-                    const cloudStatus = document.getElementById('cloud-status');
-                    if(cloudStatus) cloudStatus.innerText = "Đồng bộ Đám mây";
-                    
-                    // Đồng bộ 4 bảng dữ liệu cốt lõi
-                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'news'), snap => {
-                        let tmp = []; snap.forEach(d => tmp.push({id: d.id, ...d.data()})); if(tmp.length > 0) { newsData = tmp; window.renderAll(); }
-                    });
-                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'vaccines'), snap => {
-                        let tmp = []; snap.forEach(d => tmp.push({id: d.id, ...d.data()})); if(tmp.length > 0) { vaccineScheduleData = tmp; window.renderAll(); }
-                    });
-                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'documents'), snap => {
-                        let tmp = []; snap.forEach(d => tmp.push({id: d.id, ...d.data()})); if(tmp.length > 0) { documentsData = tmp; window.renderAll(); }
-                    });
-                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'services'), snap => {
-                        let tmp = []; snap.forEach(d => tmp.push({id: d.id, ...d.data()})); if(tmp.length > 0) { serviceManagers = tmp; window.renderAll(); }
-                    });
-                });
-            } catch(e) { console.warn("Chạy chế độ Local Mode"); }
-        }
 
         // 3. UI TƯƠNG TÁC (TABS & MODALS)
         window.switchPage = function(page) {
@@ -1210,33 +1164,69 @@
             if(deptSel) deptSel.innerHTML = `<option value="" disabled selected>-- Chọn khoa/phòng cần khám --</option>` + serviceManagers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
         };
 
-        // 5. QUẢN TRỊ CMS: XỬ LÝ THÊM & XÓA ĐỒNG BỘ TOÀN DIỆN
+        // 5. QUẢN TRỊ CMS: XỬ LÝ THÊM & XÓA ĐỒNG BỘ TOÀN DIỆN QUA API POSTGRES
         window.saveToDb = async function(collectionName, dataObj) {
-            if(db && cUser) {
-                await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', collectionName), dataObj.id), dataObj);
-            } else {
-                if(collectionName==='news') newsData.push(dataObj);
-                if(collectionName==='vaccines') vaccineScheduleData.push(dataObj);
-                if(collectionName==='documents') documentsData.push(dataObj);
-                if(collectionName==='services') serviceManagers.push(dataObj);
+            try {
+                // Cập nhật mảng local để phản hồi UI ngay lập tức
+                if(collectionName==='news') {
+                    newsData = newsData.filter(x => x.id !== dataObj.id);
+                    newsData.push(dataObj);
+                }
+                if(collectionName==='vaccines') {
+                    vaccineScheduleData = vaccineScheduleData.filter(x => x.id !== dataObj.id);
+                    vaccineScheduleData.push(dataObj);
+                }
+                if(collectionName==='documents') {
+                    documentsData = documentsData.filter(x => x.id !== dataObj.id);
+                    documentsData.push(dataObj);
+                }
+                if(collectionName==='services') {
+                    serviceManagers = serviceManagers.filter(x => x.id !== dataObj.id);
+                    serviceManagers.push(dataObj);
+                }
+                if(collectionName==='users') {
+                    adminUsers = adminUsers.filter(x => x.id !== dataObj.id);
+                    adminUsers.push(dataObj);
+                }
                 window.renderAll();
+
+                // Lưu dữ liệu vào Postgres DB qua Netlify Function
+                const res = await fetch('/api/cms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: "save", type: collectionName, data: dataObj })
+                });
+                if (!res.ok) throw new Error();
+                window.showToast("Lưu dữ liệu thành công!");
+            } catch(e) {
+                console.error(e);
+                window.showToast("Lỗi lưu dữ liệu đám mây (đã lưu tạm local)!");
             }
-            window.showToast("Lưu dữ liệu thành công!");
         };
 
         window.deleteItem = async function(collectionName, id) {
             if(confirm("Xác nhận xóa dữ liệu này khỏi hệ thống?")) {
-                if(db && cUser) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, id));
-                } else {
+                try {
+                    // Xóa trên local trước
                     if(collectionName==='news') newsData = newsData.filter(x => x.id !== id);
                     if(collectionName==='vaccines') vaccineScheduleData = vaccineScheduleData.filter(x => x.id !== id);
                     if(collectionName==='documents') documentsData = documentsData.filter(x => x.id !== id);
                     if(collectionName==='services') serviceManagers = serviceManagers.filter(x => x.id !== id);
                     if(collectionName==='users') adminUsers = adminUsers.filter(x => x.id !== id);
                     window.renderAll();
+
+                    // Gửi lệnh xóa tới Postgres DB qua Netlify Function
+                    const res = await fetch('/api/cms', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: "delete", type: collectionName, id: id })
+                    });
+                    if (!res.ok) throw new Error();
+                    window.showToast("Đã xóa dữ liệu thành công!");
+                } catch(e) {
+                    console.error(e);
+                    window.showToast("Lỗi xóa dữ liệu đám mây (đã xóa tạm local)!");
                 }
-                window.showToast("Đã xóa dữ liệu!");
             }
         };
 
@@ -1245,7 +1235,14 @@
         window.handleAddVaccine = function(e) { e.preventDefault(); window.saveToDb('vaccines', { id: 'V'+Date.now(), date: document.getElementById('vac-date').value, time: document.getElementById('vac-time').value, target: document.getElementById('vac-target').value, ts: Date.now() }); e.target.reset(); };
         window.handleAddDoc = function(e) { e.preventDefault(); window.saveToDb('documents', { id: 'D'+Date.now(), title: document.getElementById('doc-title').value, type: document.getElementById('doc-type').value, url: document.getElementById('doc-url').value, date: new Date().toLocaleDateString('vi-VN'), ts: Date.now() }); e.target.reset(); };
         window.handleAddService = function(e) { e.preventDefault(); window.saveToDb('services', { id: 'S'+Date.now(), name: document.getElementById('srv-name').value, person: document.getElementById('srv-person').value, zalo: document.getElementById('srv-zalo').value, ts: Date.now() }); e.target.reset(); };
-        window.handleAddUser = function(e) { e.preventDefault(); const u = document.getElementById('cfg-user-acc').value; if(adminUsers.find(x=>x.username===u)) return window.showToast("Tài khoản đã tồn tại!"); adminUsers.push({ id: 'U'+Date.now(), username: u, name: document.getElementById('cfg-user-name').value, role: document.getElementById('cfg-user-role').value }); window.renderAll(); window.showToast('Lưu user thành công!'); e.target.reset(); };
+        window.handleAddUser = function(e) { 
+            e.preventDefault(); 
+            const u = document.getElementById('cfg-user-acc').value; 
+            if(adminUsers.find(x=>x.username===u)) return window.showToast("Tài khoản đã tồn tại!"); 
+            const newUser = { id: 'U'+Date.now(), username: u, name: document.getElementById('cfg-user-name').value, role: document.getElementById('cfg-user-role').value };
+            window.saveToDb('users', newUser);
+            e.target.reset(); 
+        };
 
         // 6. XỬ LÝ LOGIN ADMIN
         window.switchAdminTab = function(tabName) {
@@ -1282,13 +1279,16 @@
             setTimeout(() => { box.innerHTML = `<div class="bg-green-50 border border-green-200 p-4 rounded-xl"><h4 class="font-bold text-green-800 mb-2"><i class="fas fa-check-circle mr-1"></i> Trạng thái Hồ sơ</h4><p class="text-sm text-gray-700">Mã BHYT/CCCD: <b>${id.toUpperCase()}</b></p><p class="text-sm text-gray-700 mt-1">Kết quả: <b>Đã có kết quả khám gần nhất.</b> Vui lòng mang sổ khám bệnh đến Trạm để lấy bản cứng.</p></div>`; }, 1500);
         };
 
-        // 8. GEMINI AI ENGINE
-        const apiKey = ""; 
+        // 8. GEMINI AI GATEWAY CLIENT (KHÔNG LỘ API KEY)
         async function callGemini(prompt, sys, isJson=false) {
-            const payload = { contents: [{parts:[{text:prompt}]}], systemInstruction: {parts:[{text:sys}]} };
-            if(isJson) payload.generationConfig = { responseMimeType: "application/json", responseSchema: {type:"OBJECT", properties:{title:{type:"STRING"},description:{type:"STRING"}}} };
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-            if(!res.ok) throw new Error(); const data = await res.json(); return data.candidates[0].content.parts[0].text;
+            const res = await fetch('/api/ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, systemInstruction: sys, isJson })
+            });
+            if(!res.ok) throw new Error();
+            const data = await res.json();
+            return data.text;
         }
 
         window.askExpertAI = async function() {
@@ -1339,7 +1339,28 @@
         };
 
         // KÍCH HOẠT HỆ THỐNG
-        window.onload = () => { window.renderAll(); };
+        window.onload = async () => {
+            try {
+                const res = await fetch('/api/cms');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.news) newsData = data.news;
+                    if (data.vaccines) vaccineScheduleData = data.vaccines;
+                    if (data.documents) documentsData = data.documents;
+                    if (data.services) serviceManagers = data.services;
+                    if (data.users) adminUsers = data.users;
+                    
+                    const cloudStatus = document.getElementById('cloud-status');
+                    if (cloudStatus) {
+                        cloudStatus.innerHTML = `<div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div><span>Cơ sở dữ liệu đám mây (Postgres)</span>`;
+                        cloudStatus.classList.remove('hidden');
+                    }
+                }
+            } catch(e) {
+                console.warn("Lỗi kết nối API Postgres, sử dụng dữ liệu mặc định", e);
+            }
+            window.renderAll();
+        };
     </script>
 </body>
 </html>
