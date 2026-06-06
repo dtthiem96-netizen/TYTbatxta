@@ -41,3 +41,8 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   role: text("role").notNull(),
 });
+
+export const siteConfigs = pgTable("site_configs", {
+  id: text("id").primaryKey(),
+  value: text("value").notNull(),
+});
