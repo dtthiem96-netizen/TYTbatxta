@@ -1283,13 +1283,235 @@
         };
 
         // 8. GEMINI AI ENGINE
-        const apiKey = ""; 
         async function callGemini(prompt, sys, isJson=false) {
-            const payload = { contents: [{parts:[{text:prompt}]}], systemInstruction: {parts:[{text:sys}]} };
-            if(isJson) payload.generationConfig = { responseMimeType: "application/json", responseSchema: {type:"OBJECT", properties:{title:{type:"STRING"},description:{type:"STRING"}}} };
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-            if(!res.ok) throw new Error(); const data = await res.json(); return data.candidates[0].content.parts[0].text;
+            const res = await fetch('/api/ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, sys, isJson })
+            });
+            if(!res.ok) throw new Error();
+            const data = await res.json();
+            return data.text;
         }
+
+        // 9. CHATBOT AI & INTERACTIVE FUNCTIONS
+        window.toggleAIChat = function() {
+            const chatWindow = document.getElementById('ai-chat-window');
+            if (chatWindow.classList.contains('hidden')) {
+                chatWindow.classList.remove('hidden');
+                document.getElementById('ai-chat-input').focus();
+            } else {
+                chatWindow.classList.add('hidden');
+            }
+        };
+
+        window.handleAIChatSubmit = async function(e) {
+            e.preventDefault();
+            const inputEl = document.getElementById('ai-chat-input');
+            const messageText = inputEl.value.trim();
+            if (!messageText) return;
+
+            const chatMessages = document.getElementById('ai-chat-messages');
+
+            // Add user message to UI
+            const userMsgDiv = document.createElement('div');
+            userMsgDiv.className = "bg-purple-600 text-white p-3.5 rounded-2xl rounded-tr-none self-end max-w-[85%] shadow-sm leading-relaxed";
+            userMsgDiv.textContent = messageText;
+            chatMessages.appendChild(userMsgDiv);
+
+            // Clear input and scroll
+            inputEl.value = "";
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Add typing indicator
+            const aiMsgDiv = document.createElement('div');
+            aiMsgDiv.className = "bg-white border border-gray-200 text-gray-800 p-3.5 rounded-2xl rounded-tl-none self-start max-w-[85%] shadow-sm leading-relaxed markdown-body";
+            aiMsgDiv.innerHTML = `<i class="fas fa-spinner fa-spin mr-1 text-purple-600"></i> AI đang suy nghĩ...`;
+            chatMessages.appendChild(aiMsgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            try {
+                const response = await callGemini(messageText, "Bạn là Trợ lý Y tế AI mộc mạc, gần gũi, tận tình của Trạm Y tế Bát Xát, Lào Cai. Giúp người dân tra cứu thủ tục hành chính, dịch vụ khám chữa bệnh, lịch tiêm chủng, tư vấn thông tin y tế cơ bản cực kỳ ngắn gọn.");
+                aiMsgDiv.innerHTML = response.replace(/```html/g, '').replace(/```/g, '').replace(/\n/g, '<br>');
+            } catch (error) {
+                aiMsgDiv.innerHTML = `<span class="text-red-500"><i class="fas fa-exclamation-triangle mr-1"></i> Không thể kết nối tới Trợ lý AI. Vui lòng thử lại sau!</span>`;
+            }
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        };
+
+        window.lookupMedicineAI = async function() {
+            const name = document.getElementById('medicine-name').value.trim();
+            const resDiv = document.getElementById('medicine-result');
+            const status = document.getElementById('medicine-ai-status');
+            if(!name) return window.showToast("Vui lòng nhập tên thuốc!");
+            status.classList.remove('hidden'); resDiv.classList.add('hidden');
+            try {
+                const ans = await callGemini(name, "Bạn là Dược sĩ tư vấn chuyên nghiệp. Hãy tra cứu thông tin chi tiết về thuốc này bao gồm: Công dụng, Liều dùng khuyến cáo, Chống chỉ định và Lưu ý quan trọng. Trả về HTML mộc mạc.");
+                resDiv.innerHTML = ans.replace(/```html/g, '').replace(/```/g, '');
+                resDiv.classList.remove('hidden');
+            } catch(e) { window.showToast("Lỗi tra cứu thông tin thuốc!"); }
+            status.classList.add('hidden');
+        };
+
+        window.adviseHealthAI = async function() {
+            const cond = document.getElementById('health-condition').value.trim();
+            const resDiv = document.getElementById('health-result');
+            const status = document.getElementById('health-ai-status');
+            if(!cond) return window.showToast("Vui lòng nhập tình trạng bệnh lý!");
+            status.classList.remove('hidden'); resDiv.classList.add('hidden');
+            try {
+                const ans = await callGemini(cond, "Bạn là Chuyên gia Dinh dưỡng Y khoa. Hãy gợi ý thực đơn ăn uống lành mạnh hàng ngày, những thứ nên ăn, nên kiêng và thói quen sinh hoạt tốt nhất theo tình trạng bệnh lý này. Trả về HTML mộc mạc.");
+                resDiv.innerHTML = ans.replace(/```html/g, '').replace(/```/g, '');
+                resDiv.classList.remove('hidden');
+            } catch(e) { window.showToast("Lỗi tư vấn dinh dưỡng!"); }
+            status.classList.add('hidden');
+        };
+
+        window.previewAIVisionImage = function(event) {
+            const input = event.target;
+            const previewContainer = document.getElementById('aivision-preview-container');
+            const preview = document.getElementById('aivision-preview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    previewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.analyzeImageAI = async function() {
+            const fileInput = document.getElementById('aivision-file');
+            const resDiv = document.getElementById('aivision-result');
+            const status = document.getElementById('aivision-status');
+            if(!fileInput.files || !fileInput.files[0]) return window.showToast("Vui lòng chọn hoặc chụp ảnh đơn thuốc!");
+            status.classList.remove('hidden'); resDiv.classList.add('hidden');
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                const mimeType = fileInput.files[0].type;
+                try {
+                    const res = await fetch('/api/ai', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            prompt: "Hãy phân tích đơn thuốc, phiếu xét nghiệm hoặc vỉ thuốc này. Đọc rõ các loại thuốc, liều lượng, công dụng và giải thích các chỉ số xét nghiệm nếu có bằng tiếng Việt bình dân dễ hiểu.",
+                            sys: "Bạn là Bác sĩ Trí tuệ Nhân tạo có khả năng thị giác phân tích ảnh y tế cực tốt.",
+                            image: { mimeType, data: base64Data }
+                        })
+                    });
+                    if(!res.ok) throw new Error();
+                    const data = await res.json();
+                    resDiv.innerHTML = data.text.replace(/```html/g, '').replace(/```/g, '');
+                    resDiv.classList.remove('hidden');
+                } catch(err) { window.showToast("Lỗi phân tích hình ảnh từ AI!"); }
+                status.classList.add('hidden');
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        };
+
+        window.translateMedicalAI = async function() {
+            const inp = document.getElementById('aidich-input').value.trim();
+            const resDiv = document.getElementById('aidich-result');
+            const status = document.getElementById('aidich-status');
+            if(!inp) return window.showToast("Vui lòng nhập thuật ngữ y khoa!");
+            status.classList.remove('hidden'); resDiv.classList.add('hidden');
+            try {
+                const ans = await callGemini(inp, "Bạn là Thông dịch viên Y khoa. Hãy dịch và giải thích các thuật ngữ chuyên môn, từ ngữ Latin, chẩn đoán phức tạp sang tiếng Việt bình dân, mộc mạc và dễ hiểu cho người dân vùng cao.");
+                resDiv.innerHTML = ans.replace(/```html/g, '').replace(/```/g, '');
+                resDiv.classList.remove('hidden');
+            } catch(e) { window.showToast("Lỗi thông dịch y khoa!"); }
+            status.classList.add('hidden');
+        };
+
+        window.generateMedScheduleAI = async function() {
+            const inp = document.getElementById('med-schedule-input').value.trim();
+            const resDiv = document.getElementById('med-schedule-result');
+            const status = document.getElementById('med-schedule-status');
+            if(!inp) return window.showToast("Vui lòng nhập danh sách thuốc!");
+            status.classList.remove('hidden'); resDiv.classList.add('hidden');
+            try {
+                const ans = await callGemini(inp, "Bạn là Dược sĩ lâm sàng. Hãy thiết lập một bảng hướng dẫn lịch uống thuốc chi tiết Sáng - Trưa - Chiều - Tối dựa trên thông tin thuốc cung cấp. Trả về kết quả dưới dạng một bảng HTML mộc mạc, dễ nhìn cho người bệnh.");
+                resDiv.innerHTML = ans.replace(/```html/g, '').replace(/```/g, '');
+                resDiv.classList.remove('hidden');
+            } catch(e) { window.showToast("Lỗi tạo lịch uống thuốc!"); }
+            status.classList.add('hidden');
+        };
+
+        window.previewCayThuocImage = function(event) {
+            const input = event.target;
+            const previewContainer = document.getElementById('caythuoc-preview-container');
+            const preview = document.getElementById('caythuoc-preview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    previewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.analyzeHerbalAI = async function() {
+            const fileInput = document.getElementById('caythuoc-file');
+            const resDiv = document.getElementById('caythuoc-result');
+            const status = document.getElementById('caythuoc-status');
+            if(!fileInput.files || !fileInput.files[0]) return window.showToast("Vui lòng chọn hoặc chụp ảnh cây thuốc!");
+            status.classList.remove('hidden'); resDiv.classList.add('hidden');
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                const mimeType = fileInput.files[0].type;
+                try {
+                    const res = await fetch('/api/ai', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            prompt: "Hãy nhận diện cây thuốc trong ảnh này. Cho biết tên khoa học/tên dân gian, công dụng chữa bệnh và cách dùng hoặc lưu ý độc tính nếu có.",
+                            sys: "Bạn là Chuyên gia Thảo dược và Y học cổ truyền Tây Bắc có kiến thức sâu rộng về các cây thuốc Nam.",
+                            image: { mimeType, data: base64Data }
+                        })
+                    });
+                    if(!res.ok) throw new Error();
+                    const data = await res.json();
+                    resDiv.innerHTML = data.text.replace(/```html/g, '').replace(/```/g, '');
+                    resDiv.classList.remove('hidden');
+                } catch(err) { window.showToast("Lỗi nhận diện thảo dược!"); }
+                status.classList.add('hidden');
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        };
+
+        window.analyzeVitalsAI = async function() {
+            const inp = document.getElementById('vitals-input').value.trim();
+            const resDiv = document.getElementById('vitals-result');
+            const status = document.getElementById('vitals-ai-status');
+            if(!inp) return window.showToast("Vui lòng nhập chỉ số sức khỏe!");
+            status.classList.remove('hidden'); resDiv.classList.add('hidden');
+            try {
+                const ans = await callGemini(inp, "Bạn là Bác sĩ phân tích chỉ số sức khỏe (Huyết áp, Đường huyết, Nhịp tim, BMI, v.v.). Hãy giải thích các chỉ số này có ở mức bình thường, cao hay thấp, cảnh báo nguy cơ và đưa ra lời khuyên phù hợp bằng HTML mộc mạc.");
+                resDiv.innerHTML = ans.replace(/```html/g, '').replace(/```/g, '');
+                resDiv.classList.remove('hidden');
+            } catch(e) { window.showToast("Lỗi phân tích chỉ số sức khỏe!"); }
+            status.classList.add('hidden');
+        };
+
+        window.firstAidAI = async function() {
+            const inp = document.getElementById('firstaid-input').value.trim();
+            const resDiv = document.getElementById('firstaid-result');
+            const status = document.getElementById('firstaid-ai-status');
+            if(!inp) return window.showToast("Vui lòng nhập tình huống tai nạn!");
+            status.classList.remove('hidden'); resDiv.classList.add('hidden');
+            try {
+                const ans = await callGemini(inp, "Bạn là Chuyên gia Hướng dẫn Sơ cấp cứu Y tế. Hãy đưa ra các bước sơ cứu khẩn cấp nhanh, rõ ràng, an toàn nhất cho tình huống tai nạn này bằng HTML mộc mạc.");
+                resDiv.innerHTML = ans.replace(/```html/g, '').replace(/```/g, '');
+                resDiv.classList.remove('hidden');
+            } catch(e) { window.showToast("Lỗi tải cẩm nang sơ cứu!"); }
+            status.classList.add('hidden');
+        };
 
         window.askExpertAI = async function() {
             const topic = document.getElementById('support-topic').value; const q = document.getElementById('support-question').value.trim(); if(!q) return window.showToast("Vui lòng nhập câu hỏi!");
