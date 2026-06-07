@@ -1,5 +1,5 @@
 import { db } from "../../db/index.js";
-import { news, vaccines, documents, services, users } from "../../db/schema.js";
+import { news, vaccines, documents, services, users, siteConfigs } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 
 const defaultUsers = [
@@ -71,12 +71,15 @@ export default async (req: Request) => {
         usersList = await db.select().from(users);
       }
 
+      let configsList = await db.select().from(siteConfigs);
+
       return new Response(JSON.stringify({
         news: newsList,
         vaccines: vaccinesList,
         documents: docsList,
         services: servicesList,
-        users: usersList
+        users: usersList,
+        siteConfigs: configsList
       }), { headers, status: 200 });
     }
 
@@ -120,6 +123,13 @@ export default async (req: Request) => {
           } else {
             await db.insert(users).values(data);
           }
+        } else if (type === "siteConfigs") {
+          const existing = await db.select().from(siteConfigs).where(eq(siteConfigs.id, data.id));
+          if (existing.length > 0) {
+            await db.update(siteConfigs).set(data).where(eq(siteConfigs.id, data.id));
+          } else {
+            await db.insert(siteConfigs).values(data);
+          }
         } else {
           return new Response(JSON.stringify({ error: "Invalid type" }), { headers, status: 400 });
         }
@@ -137,6 +147,8 @@ export default async (req: Request) => {
           await db.delete(services).where(eq(services.id, id));
         } else if (type === "users") {
           await db.delete(users).where(eq(users.id, id));
+        } else if (type === "siteConfigs") {
+          await db.delete(siteConfigs).where(eq(siteConfigs.id, id));
         } else {
           return new Response(JSON.stringify({ error: "Invalid type" }), { headers, status: 400 });
         }

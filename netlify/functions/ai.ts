@@ -20,18 +20,29 @@ export default async (req: Request) => {
   }
 
   try {
-    const { prompt, systemInstruction, isJson } = await req.json();
+    const { prompt, systemInstruction, sys, isJson, image } = await req.json();
 
     if (!prompt) {
       return new Response(JSON.stringify({ error: "Missing prompt" }), { headers, status: 400 });
     }
 
+    const contents: any[] = [];
+    if (image && image.data && image.mimeType) {
+      contents.push({
+        inlineData: {
+          mimeType: image.mimeType,
+          data: image.data
+        }
+      });
+    }
+    contents.push(prompt);
+
     // Call Gemini using AI Gateway
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: prompt,
+      contents: contents,
       config: {
-        systemInstruction: systemInstruction || "You are a helpful medical assistant for Trạm Y Tế Bát Xát.",
+        systemInstruction: systemInstruction || sys || "Bạn là Trợ lý Y tế AI mộc mạc, gần gũi, tận tình của Trạm Y tế Bát Xát, Lào Cai. Giúp người dân tra cứu thủ tục hành chính, dịch vụ khám chữa bệnh, lịch tiêm chủng, tư vấn thông tin y tế cơ bản cực kỳ ngắn gọn.",
         responseMimeType: isJson ? "application/json" : "text/plain",
       }
     });
