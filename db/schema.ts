@@ -8,6 +8,7 @@ export const news = pgTable("news", {
   ts: bigint("ts", { mode: "number" }).notNull(),
   icon: text("icon"),
   color: text("color"),
+  image: text("image"),
 });
 
 export const vaccines = pgTable("vaccines", {
@@ -32,6 +33,14 @@ export const services = pgTable("services", {
   name: text("name").notNull(),
   person: text("person").notNull(),
   zalo: text("zalo").notNull(),
+  ts: bigint("ts", { mode: "number" }).notNull(),
+});
+
+export const contacts = pgTable("contacts", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  role: text("role").notNull(),
+  phone: text("phone").notNull(),
   ts: bigint("ts", { mode: "number" }).notNull(),
 });
 

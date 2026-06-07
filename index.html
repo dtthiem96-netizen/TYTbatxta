@@ -895,6 +895,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     <li><a href="#" onclick="window.switchAdminTab('vaccine')" id="tab-btn-vaccine" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-bullhorn mr-3"></i> Quản lý Thông báo Trạm</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('docs')" id="tab-btn-docs" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-pdf mr-3"></i> Kho Tài liệu & Biểu mẫu</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('service')" id="tab-btn-service" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-list mr-3"></i> Quản lý Dịch vụ (Luồng Zalo)</a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-address-book mr-3"></i> Quản lý Danh bạ Cán bộ</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-users-cog mr-3"></i> Phân quyền Hệ thống</a></li>
                     <li><a href="#" onclick="window.enableVisualEditingMode()" class="block p-3.5 text-purple-600 hover:bg-purple-50 rounded-xl font-black border border-purple-200 shadow-sm transition"><i class="fas fa-laptop-code mr-3"></i> Chỉnh sửa Giao diện trực quan</a></li>
                 </ul>
@@ -924,6 +925,16 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                             <div class="mb-6">
                                 <label class="block text-sm font-bold text-gray-700 mb-2 uppercase">Nội dung thông báo</label>
                                 <textarea rows="4" id="news-desc" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-medical-500 font-medium text-gray-900"></textarea>
+                            </div>
+                            <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2 uppercase">Đường dẫn ảnh bài viết (URL)</label>
+                                    <input type="text" id="news-image-url" placeholder="https://..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-medical-500 font-medium text-gray-900">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2 uppercase">Hoặc tải ảnh từ thiết bị</label>
+                                    <input type="file" id="news-image-file" accept="image/*" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 font-medium text-gray-900 bg-white">
+                                </div>
                             </div>
                             <div class="flex justify-end">
                                 <button type="submit" class="bg-medical-600 text-white font-bold px-8 py-3.5 rounded-xl hover:bg-medical-700 transition shadow-lg flex items-center gap-2">
@@ -975,7 +986,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <div class="col-span-1 md:col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1">Tên tài liệu / Biểu mẫu</label><input type="text" id="doc-title" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
                                 <div><label class="block text-xs font-bold text-gray-700 mb-1">Phân loại hiển thị</label><select id="doc-type" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white"><option value="Biểu mẫu y tế">Biểu mẫu y tế</option><option value="Tài liệu y tế">Tài liệu y tế</option></select></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Đường dẫn tải về (Drive URL)</label><input type="url" id="doc-url" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Đường dẫn tải về (Drive URL)</label><input type="text" id="doc-url" required placeholder="https://..." class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
                             </div>
                             <button type="submit" class="bg-blue-600 text-white font-bold px-6 py-2.5 rounded-lg hover:bg-blue-700 transition">Đăng tải lên hệ thống</button>
                         </form>
@@ -1004,6 +1015,29 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                             <thead class="bg-gray-100 text-gray-600 text-xs uppercase"><tr><th class="p-3 font-bold">Khoa / Phòng</th><th class="p-3 font-bold">Cán bộ phụ trách</th><th class="p-3 font-bold">SĐT Zalo</th><th class="p-3 font-bold text-center">Xóa</th></tr></thead>
                             <tbody id="admin-service-list" class="divide-y divide-gray-100 text-gray-900"></tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- ADMIN TAB: CONTACTS (DANH BẠ CÁN BỘ) -->
+                <div id="admin-contact-section" class="admin-tab space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+                        <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Quản lý Danh bạ Cán bộ</h2></div>
+                        <form onsubmit="window.handleAddContact(event)" class="bg-emerald-50 p-5 rounded-xl border border-emerald-200 mb-6">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Họ tên Cán bộ</label><input type="text" id="cnt-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: BS. Nguyễn Văn A"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Chức vụ / Bộ phận</label><input type="text" id="cnt-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: Trạm trưởng Trạm Y tế"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Số điện thoại liên hệ</label><input type="tel" id="cnt-phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: 0382103002"></div>
+                            </div>
+                            <div class="flex gap-3">
+                                <button type="submit" class="bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-lg hover:bg-emerald-700 transition"><i class="fas fa-plus mr-1"></i> Thêm Cán bộ</button>
+                            </div>
+                        </form>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden">
+                                <thead class="bg-gray-100 text-gray-600 text-xs uppercase"><tr><th class="p-3 font-bold">Họ tên Cán bộ</th><th class="p-3 font-bold">Chức vụ / Bộ phận</th><th class="p-3 font-bold">Số điện thoại</th><th class="p-3 font-bold text-center">Hành động</th></tr></thead>
+                                <tbody id="admin-contact-list" class="divide-y divide-gray-100 text-gray-900"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -1080,6 +1114,12 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             { id: 'V2', date: 'Sáng 06/06/2026', time: '07:30 - 11:30', target: 'Trẻ em & Phụ nữ mang thai thuộc: Thôn 6, Thôn 7, Thôn 8, Thôn 9, Thôn 10', ts: 1 }
         ];
 
+        let contactsData = [
+            { id: 'C1', name: 'BS. Trạm Trưởng', role: 'Trạm trưởng Trạm Y tế', phone: '0382103002', ts: 3 },
+            { id: 'C2', name: 'Nữ hộ sinh chuyên trách', role: 'Phòng Khám Sản - Phụ Khoa', phone: '0382103002', ts: 2 },
+            { id: 'C3', name: 'Cán bộ Đông Y', role: 'Phòng Y Học Cổ Truyền', phone: '0382103002', ts: 1 }
+        ];
+
         // 3. UI TƯƠNG TÁC (TABS & MODALS)
         window.switchPage = function(page) {
             const home = document.getElementById('trang-chu-container');
@@ -1109,8 +1149,8 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             document.body.style.overflow = 'hidden';
             
             if(id === 'modal-danhba') {
-                document.getElementById('contact-list').innerHTML = serviceManagers.map(s => `
-                    <li class="p-4 border-b flex justify-between items-center"><div class="font-bold text-gray-800">${s.name}<br><span class="text-xs font-normal text-gray-500">${s.person}</span></div><a href="tel:${s.zalo}" class="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition hover:bg-green-600 hover:text-white"><i class="fas fa-phone-alt"></i> Gọi</a></li>
+                document.getElementById('contact-list').innerHTML = contactsData.map(c => `
+                    <li class="p-4 border-b flex justify-between items-center"><div class="font-bold text-gray-800">${c.name}<br><span class="text-xs font-normal text-gray-500">${c.role}</span></div><a href="tel:${c.phone}" class="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition hover:bg-green-600 hover:text-white"><i class="fas fa-phone-alt"></i> Gọi</a></li>
                 `).join('');
             }
         };
@@ -1168,22 +1208,29 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             const newsPub = document.getElementById('news-container'); const newsAdm = document.getElementById('admin-news-list');
             if(newsPub) newsPub.innerHTML = newsData.map(n => {
                 const isLong = n.description && n.description.length > 120;
-                return `<div class="flex gap-4 bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-${n.color||'medical'}-300">
-                    <div class="w-14 h-14 bg-${n.color||'medical'}-100 rounded-xl flex items-center justify-center text-${n.color||'medical'}-600 text-2xl shrink-0">
-                        <i class="fas ${n.icon||'fa-bullhorn'}"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h4 class="font-bold text-gray-900 leading-tight mb-1">${n.title}</h4>
-                        ${n.description ? `
-                            <p id="news-desc-${n.id}" class="text-sm text-gray-600 mb-2 leading-relaxed whitespace-pre-line ${isLong ? 'line-clamp-2' : ''}">${n.description}</p>
-                            ${isLong ? `
-                                <button onclick="window.toggleNewsDescription('${n.id}')" id="news-btn-${n.id}" class="text-xs font-bold text-medical-600 hover:text-medical-800 transition mb-2 focus:outline-none flex items-center gap-1 uppercase tracking-wider">
-                                    <span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>
-                                </button>
+                return `<div class="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-${n.color||'medical'}-300">
+                    <div class="flex gap-4 items-start flex-1">
+                        <div class="w-14 h-14 bg-${n.color||'medical'}-100 rounded-xl flex items-center justify-center text-${n.color||'medical'}-600 text-2xl shrink-0">
+                            <i class="fas ${n.icon||'fa-bullhorn'}"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-900 leading-tight mb-1">${n.title}</h4>
+                            ${n.description ? `
+                                <p id="news-desc-${n.id}" class="text-sm text-gray-600 mb-2 leading-relaxed whitespace-pre-line ${isLong ? 'line-clamp-2' : ''}">${n.description}</p>
+                                ${isLong ? `
+                                    <button onclick="window.toggleNewsDescription('${n.id}')" id="news-btn-${n.id}" class="text-xs font-bold text-medical-600 hover:text-medical-800 transition mb-2 focus:outline-none flex items-center gap-1 uppercase tracking-wider">
+                                        <span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>
+                                    </button>
+                                ` : ''}
                             ` : ''}
-                        ` : ''}
-                        <div class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">
-                            <i class="far fa-clock mr-1"></i> ${n.date}
+                            ${n.image ? `
+                                <div class="my-3 overflow-hidden rounded-xl border border-gray-100 max-h-64 flex justify-center bg-gray-50">
+                                    <img src="${n.image}" alt="${n.title}" class="object-cover w-full h-full max-h-64 transition hover:scale-105 duration-300">
+                                </div>
+                            ` : ''}
+                            <div class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">
+                                <i class="far fa-clock mr-1"></i> ${n.date}
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -1204,6 +1251,19 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             if(usrAdm) usrAdm.innerHTML = adminUsers.map(u => `<tr class="hover:bg-gray-50"><td class="p-3 font-bold text-gray-800">${u.username}</td><td class="p-3 text-gray-700">${u.name}</td><td class="p-3"><span class="px-2 py-1 bg-gray-200 rounded text-xs font-bold text-gray-700">${u.role}</span></td><td class="p-3 text-center"><button type="button" onclick="window.deleteItem('users', '${u.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
             if(srvAdm) srvAdm.innerHTML = serviceManagers.map(s => `<tr class="hover:bg-gray-50"><td class="p-3 font-bold text-blue-900">${s.name}</td><td class="p-3 text-gray-700">${s.person}</td><td class="p-3 font-bold text-green-600"><i class="fas fa-phone mr-1"></i> ${s.zalo}</td><td class="p-3 text-center"><button type="button" onclick="window.deleteItem('services', '${s.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
             if(deptSel) deptSel.innerHTML = `<option value="" disabled selected>-- Chọn khoa/phòng cần khám --</option>` + serviceManagers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+            // RENDER CONTACTS
+            const cntAdm = document.getElementById('admin-contact-list');
+            if(cntAdm) cntAdm.innerHTML = contactsData.map(c => `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-3 font-bold text-gray-900">${c.name}</td>
+                    <td class="p-3 text-gray-700">${c.role}</td>
+                    <td class="p-3 font-bold text-green-600"><i class="fas fa-phone mr-1"></i> ${c.phone}</td>
+                    <td class="p-3 text-center">
+                        <button type="button" onclick="window.deleteItem('contacts', '${c.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                </tr>
+            `).join('');
         };
 
         // 5. QUẢN TRỊ CMS: XỬ LÝ THÊM & XÓA ĐỒNG BỘ TOÀN DIỆN QUA API POSTGRES
@@ -1225,6 +1285,10 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                 if(collectionName==='services') {
                     serviceManagers = serviceManagers.filter(x => x.id !== dataObj.id);
                     serviceManagers.push(dataObj);
+                }
+                if(collectionName==='contacts') {
+                    contactsData = contactsData.filter(x => x.id !== dataObj.id);
+                    contactsData.push(dataObj);
                 }
                 if(collectionName==='users') {
                     adminUsers = adminUsers.filter(x => x.id !== dataObj.id);
@@ -1254,6 +1318,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     if(collectionName==='vaccines') vaccineScheduleData = vaccineScheduleData.filter(x => x.id !== id);
                     if(collectionName==='documents') documentsData = documentsData.filter(x => x.id !== id);
                     if(collectionName==='services') serviceManagers = serviceManagers.filter(x => x.id !== id);
+                    if(collectionName==='contacts') contactsData = contactsData.filter(x => x.id !== id);
                     if(collectionName==='users') adminUsers = adminUsers.filter(x => x.id !== id);
                     window.renderAll();
 
@@ -1273,9 +1338,69 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
         };
 
         // Gắn sự kiện submit cho các form trong Admin
-        window.handleAddNews = function(e) { e.preventDefault(); window.saveToDb('news', { id: 'N'+Date.now(), title: document.getElementById('news-title').value, description: document.getElementById('news-desc').value, date: new Date().toLocaleDateString('vi-VN'), ts: Date.now(), icon: 'fa-bullhorn', color: 'medical' }); e.target.reset(); };
+        window.handleAddNews = async function(e) {
+            e.preventDefault();
+            const title = document.getElementById('news-title').value;
+            const desc = document.getElementById('news-desc').value;
+            const imageUrlInput = document.getElementById('news-image-url').value.trim();
+            const fileInput = document.getElementById('news-image-file');
+            
+            let finalImage = imageUrlInput || null;
+            
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                if (file.size > 2 * 1024 * 1024) {
+                    window.showToast("Ảnh quá lớn! Vui lòng chọn ảnh dưới 2MB.");
+                    return;
+                }
+                const reader = new FileReader();
+                const base64Promise = new Promise((resolve) => {
+                    reader.onload = (event) => resolve(reader.result);
+                    reader.readAsDataURL(file);
+                });
+                finalImage = await base64Promise;
+            }
+            
+            window.saveToDb('news', {
+                id: 'N'+Date.now(),
+                title: title,
+                description: desc,
+                date: new Date().toLocaleDateString('vi-VN'),
+                ts: Date.now(),
+                icon: 'fa-bullhorn',
+                color: 'medical',
+                image: finalImage
+            });
+            e.target.reset();
+        };
         window.handleAddVaccine = function(e) { e.preventDefault(); window.saveToDb('vaccines', { id: 'V'+Date.now(), date: document.getElementById('vac-date').value, time: document.getElementById('vac-time').value, target: document.getElementById('vac-target').value, ts: Date.now() }); e.target.reset(); };
-        window.handleAddDoc = function(e) { e.preventDefault(); window.saveToDb('documents', { id: 'D'+Date.now(), title: document.getElementById('doc-title').value, type: document.getElementById('doc-type').value, url: document.getElementById('doc-url').value, date: new Date().toLocaleDateString('vi-VN'), ts: Date.now() }); e.target.reset(); };
+        window.handleAddDoc = function(e) {
+            e.preventDefault();
+            let url = document.getElementById('doc-url').value.trim();
+            if (url && !url.startsWith('http://') && !url.startsWith('https://') && url !== '#') {
+                url = 'https://' + url;
+            }
+            window.saveToDb('documents', {
+                id: 'D'+Date.now(),
+                title: document.getElementById('doc-title').value,
+                type: document.getElementById('doc-type').value,
+                url: url,
+                date: new Date().toLocaleDateString('vi-VN'),
+                ts: Date.now()
+            });
+            e.target.reset();
+        };
+        window.handleAddContact = function(e) {
+            e.preventDefault();
+            window.saveToDb('contacts', {
+                id: 'C'+Date.now(),
+                name: document.getElementById('cnt-name').value,
+                role: document.getElementById('cnt-role').value,
+                phone: document.getElementById('cnt-phone').value,
+                ts: Date.now()
+            });
+            e.target.reset();
+        };
         window.handleAddService = function(e) { e.preventDefault(); window.saveToDb('services', { id: 'S'+Date.now(), name: document.getElementById('srv-name').value, person: document.getElementById('srv-person').value, zalo: document.getElementById('srv-zalo').value, ts: Date.now() }); e.target.reset(); };
         window.handleAddUser = function(e) { 
             e.preventDefault(); 
@@ -1702,6 +1827,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     if (data.documents) documentsData = data.documents;
                     if (data.services) serviceManagers = data.services;
                     if (data.users) adminUsers = data.users;
+                    if (data.contacts) contactsData = data.contacts;
                     
                     if (data.siteConfigs) {
                         data.siteConfigs.forEach(conf => {
