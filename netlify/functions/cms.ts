@@ -1,5 +1,5 @@
 import { db } from "../../db/index.js";
-import { news, vaccines, documents, services, users, siteConfigs } from "../../db/schema.js";
+import { news, vaccines, documents, services, users, siteConfigs, contacts } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 
 const defaultUsers = [
@@ -7,8 +7,8 @@ const defaultUsers = [
 ];
 
 const defaultNews = [
-  { id: 'N3', title: 'Cảnh báo khẩn: Gia tăng ca mắc sốt xuất huyết tại địa bàn xã', description: 'Trạm Y tế Bát Xát khuyến cáo bà con diệt bọ gậy, dọn dẹp vật chứa nước.', date: '29/05/2026', icon: 'fa-mosquito', color: 'red', ts: 3 },
-  { id: 'N2', title: 'Hướng dẫn phòng tránh ngộ độc nấm độc rừng mùa hè', description: 'Tuyệt đối không hái nấm lạ, nấm có màu sắc sặc sỡ để ăn.', date: '25/05/2026', icon: 'fa-skull-crossbones', color: 'orange', ts: 2 }
+  { id: 'N3', title: 'Cảnh báo khẩn: Gia tăng ca mắc sốt xuất huyết tại địa bàn xã', description: 'Trạm Y tế Bát Xát khuyến cáo bà con diệt bọ gậy, dọn dẹp vật chứa nước.', date: '29/05/2026', icon: 'fa-mosquito', color: 'red', ts: 3, image: null },
+  { id: 'N2', title: 'Hướng dẫn phòng tránh ngộ độc nấm độc rừng mùa hè', description: 'Tuyệt đối không hái nấm lạ, nấm có màu sắc sặc sỡ để ăn.', date: '25/05/2026', icon: 'fa-skull-crossbones', color: 'orange', ts: 2, image: null }
 ];
 
 const defaultDocuments = [
@@ -25,6 +25,12 @@ const defaultServices = [
   { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'BS. Trạm Trưởng', zalo: '0382103002', ts: 3 },
   { id: 'S2', name: 'Phòng Khám Sản - Phụ Khoa', person: 'Nữ hộ sinh chuyên trách', zalo: '0382103002', ts: 2 },
   { id: 'S3', name: 'Phòng Y Học Cổ Truyền', person: 'Cán bộ Đông Y', zalo: '0382103002', ts: 1 }
+];
+
+const defaultContacts = [
+  { id: 'C1', name: 'BS. Trạm Trưởng', role: 'Trạm trưởng Trạm Y tế', phone: '0382103002', ts: 3 },
+  { id: 'C2', name: 'Nữ hộ sinh chuyên trách', role: 'Phòng Khám Sản - Phụ Khoa', phone: '0382103002', ts: 2 },
+  { id: 'C3', name: 'Cán bộ Đông Y', role: 'Phòng Y Học Cổ Truyền', phone: '0382103002', ts: 1 }
 ];
 
 export default async (req: Request) => {
@@ -71,6 +77,12 @@ export default async (req: Request) => {
         usersList = await db.select().from(users);
       }
 
+      let contactsList = await db.select().from(contacts);
+      if (contactsList.length === 0) {
+        await db.insert(contacts).values(defaultContacts);
+        contactsList = await db.select().from(contacts);
+      }
+
       let configsList = await db.select().from(siteConfigs);
 
       return new Response(JSON.stringify({
@@ -79,6 +91,7 @@ export default async (req: Request) => {
         documents: docsList,
         services: servicesList,
         users: usersList,
+        contacts: contactsList,
         siteConfigs: configsList
       }), { headers, status: 200 });
     }
@@ -116,6 +129,13 @@ export default async (req: Request) => {
           } else {
             await db.insert(services).values(data);
           }
+        } else if (type === "contacts") {
+          const existing = await db.select().from(contacts).where(eq(contacts.id, data.id));
+          if (existing.length > 0) {
+            await db.update(contacts).set(data).where(eq(contacts.id, data.id));
+          } else {
+            await db.insert(contacts).values(data);
+          }
         } else if (type === "users") {
           const existing = await db.select().from(users).where(eq(users.id, data.id));
           if (existing.length > 0) {
@@ -145,6 +165,8 @@ export default async (req: Request) => {
           await db.delete(documents).where(eq(documents.id, id));
         } else if (type === "services") {
           await db.delete(services).where(eq(services.id, id));
+        } else if (type === "contacts") {
+          await db.delete(contacts).where(eq(contacts.id, id));
         } else if (type === "users") {
           await db.delete(users).where(eq(users.id, id));
         } else if (type === "siteConfigs") {
