@@ -308,9 +308,9 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             <div onclick="window.openSupportModal('Báo cáo & Xử lý Dịch bệnh truyền nhiễm')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-mosquito text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Phòng chống dịch</h4></div>
-                            <div onclick="window.openSupportModal('Cảnh báo Ngộ độc nấm/thực phẩm')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-skull-crossbones text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Ngộ độc nấm rừng</h4></div>
+                            <div onclick="window.openSupportModal('Ý kiến ATTP')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-skull-crossbones text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Ý kiến ATTP</h4></div>
                             <div onclick="window.openSupportModal('Tư vấn An toàn Thực phẩm')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-utensils text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">An toàn thực phẩm</h4></div>
-                            <div onclick="window.openSupportModal('Phòng bệnh Mùa hè / Thiên tai')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-cloud-showers-heavy text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Bệnh mùa hè/mưa</h4></div>
+                            <div onclick="window.openSupportModal('Phòng bệnh theo mùa/ Thiên tai')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-cloud-showers-heavy text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Phòng bệnh theo mùa/ Thiên tai</h4></div>
                             <div onclick="window.openDocsModal('Tài liệu y tế')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-book-medical text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Tài liệu sức khỏe</h4></div>
                             <div onclick="window.openModal('modal-video')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fab fa-youtube text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Video Y khoa</h4></div>
                             <div onclick="window.openModal('modal-socuu')" class="service-card bg-gradient-to-br from-red-50 to-orange-50 p-5 rounded-2xl border border-red-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-red-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-briefcase-medical text-3xl text-red-600 mb-3"></i><h4 class="font-bold text-red-900 text-sm md:text-base">Sơ cứu Khẩn cấp</h4></div>
@@ -839,9 +839,11 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
         </div>
 
         <!-- VIDEO Y KHOA -->
-        <div id="modal-video" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
-            <div class="bg-red-600 p-5 flex justify-between items-center text-white"><h3 class="font-bold text-xl"><i class="fab fa-youtube mr-2"></i> Video Y Khoa</h3><button onclick="window.closeModal()"><i class="fas fa-times"></i></button></div>
-            <div class="p-8 text-center bg-gray-50"><i class="fas fa-photo-video text-6xl text-gray-300 mb-4"></i><h4 class="font-bold text-gray-600">Đang cập nhật luồng Video y khoa</h4><p class="text-sm text-gray-500 mt-2">Các video hướng dẫn chăm sóc sức khỏe sẽ sớm được Trạm Y tế cập nhật tại đây.</p></div>
+        <div id="modal-video" class="modal-content hidden bg-white rounded-3xl w-full max-w-2xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+            <div class="bg-red-600 p-5 flex justify-between items-center text-white"><h3 class="font-bold text-xl"><i class="fab fa-youtube mr-2"></i> Video Y Khoa & Truyền Thông Sức Khỏe</h3><button onclick="window.closeModal()"><i class="fas fa-times"></i></button></div>
+            <div id="public-video-list" class="p-6 space-y-6 max-h-[500px] overflow-y-auto bg-gray-50">
+                <div class="p-8 text-center bg-gray-50"><i class="fas fa-photo-video text-6xl text-gray-300 mb-4"></i><h4 class="font-bold text-gray-600">Đang cập nhật luồng Video y khoa</h4><p class="text-sm text-gray-500 mt-2">Các video hướng dẫn chăm sóc sức khỏe sẽ sớm được Trạm Y tế cập nhật tại đây.</p></div>
+            </div>
         </div>
 
         <!-- SÀNG LỌC TƯƠNG TÁC THUỐC (AI) -->
@@ -896,6 +898,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     <li><a href="#" onclick="window.switchAdminTab('docs')" id="tab-btn-docs" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-pdf mr-3"></i> Kho Tài liệu & Biểu mẫu</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('service')" id="tab-btn-service" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-list mr-3"></i> Quản lý Dịch vụ (Luồng Zalo)</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-address-book mr-3"></i> Quản lý Danh bạ Cán bộ</a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fab fa-youtube mr-3"></i> Quản lý Video Y khoa</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-users-cog mr-3"></i> Phân quyền Hệ thống</a></li>
                     <li><a href="#" onclick="window.enableVisualEditingMode()" class="block p-3.5 text-purple-600 hover:bg-purple-50 rounded-xl font-black border border-purple-200 shadow-sm transition"><i class="fas fa-laptop-code mr-3"></i> Chỉnh sửa Giao diện trực quan</a></li>
                 </ul>
@@ -1041,6 +1044,51 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     </div>
                 </div>
 
+                <!-- ADMIN TAB: VIDEO Y KHOA -->
+                <div id="admin-video-section" class="admin-tab space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+                        <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Quản lý Video Y khoa & Truyền thông</h2></div>
+                        <form onsubmit="window.handleSaveVideo(event)" class="bg-red-50 p-5 rounded-xl border border-red-200 mb-6">
+                            <input type="hidden" id="vid-id">
+                            <div class="mb-4">
+                                <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Tiêu đề Video</label>
+                                <input type="text" id="vid-title" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900 focus:outline-none focus:border-red-500">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Mô tả chi tiết</label>
+                                <textarea id="vid-desc" required rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900 focus:outline-none focus:border-red-500"></textarea>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Đường dẫn Video (YouTube Embed/Watch hoặc URL)</label>
+                                    <input type="text" id="vid-url" placeholder="https://www.youtube.com/watch?v=..." class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900 focus:outline-none focus:border-red-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Hoặc tải lên Video từ thiết bị</label>
+                                    <input type="file" id="vid-file" accept="video/*" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 font-medium text-sm text-gray-900 focus:outline-none focus:border-red-500 bg-white">
+                                </div>
+                            </div>
+                            <div class="flex gap-3">
+                                <button type="submit" id="vid-submit-btn" class="bg-red-600 text-white font-bold px-6 py-2.5 rounded-lg hover:bg-red-700 transition flex items-center gap-2 shadow-sm"><i class="fas fa-paper-plane"></i> <span id="vid-submit-text">Đăng tải Video</span></button>
+                                <button type="button" id="vid-cancel-btn" onclick="window.cancelVideoEdit()" class="hidden bg-gray-500 text-white font-bold px-6 py-2.5 rounded-lg hover:bg-gray-600 transition">Hủy bỏ</button>
+                            </div>
+                        </form>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden">
+                                <thead class="bg-gray-100 text-gray-600 text-xs uppercase">
+                                    <tr>
+                                        <th class="p-3 font-bold">Tiêu đề Video</th>
+                                        <th class="p-3 font-bold w-32">Ngày đăng</th>
+                                        <th class="p-3 font-bold w-32 text-center">Trạng thái</th>
+                                        <th class="p-3 font-bold w-48 text-center">Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-video-list" class="divide-y divide-gray-100 text-gray-900"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ADMIN TAB: CONFIG & USERS -->
                 <div id="admin-config-section" class="admin-tab space-y-6">
                     <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
@@ -1120,6 +1168,11 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             { id: 'C3', name: 'Cán bộ Đông Y', role: 'Phòng Y Học Cổ Truyền', phone: '0382103002', ts: 1 }
         ];
 
+        let videosData = [
+            { id: 'VD1', title: 'Hướng dẫn rửa tay 6 bước chuẩn Bộ Y tế', description: 'Video hướng dẫn rửa tay bằng xà phòng đúng cách phòng tránh dịch bệnh truyền nhiễm hiệu quả.', url: 'https://www.youtube.com/embed/fA4P9B2U-q0', date: '01/06/2026', ts: 101, isCollapsed: 'false' },
+            { id: 'VD2', title: 'Sơ cứu dị vật đường thở ở trẻ em', description: 'Hướng dẫn phụ huynh và giáo viên cách xử trí nhanh khi trẻ bị hóc dị vật bằng nghiệm pháp Heimlich an toàn.', url: 'https://www.youtube.com/embed/T00O3IitfRE', date: '28/05/2026', ts: 100, isCollapsed: 'false' }
+        ];
+
         // 3. UI TƯƠNG TÁC (TABS & MODALS)
         window.switchPage = function(page) {
             const home = document.getElementById('trang-chu-container');
@@ -1142,6 +1195,39 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             }
         };
 
+        window.getEmbedUrl = function(url) {
+            if (!url) return '';
+            if (url.includes('youtube.com/embed/')) return url;
+            let videoId = '';
+            if (url.includes('youtube.com/watch')) {
+                try {
+                    const urlParams = new URLSearchParams(new URL(url).search);
+                    videoId = urlParams.get('v');
+                } catch(e){}
+            } else if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1]?.split('?')[0];
+            }
+            if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            return url;
+        };
+
+        window.toggleVideoDescription = function(id) {
+            const p = document.getElementById(`video-desc-${id}`);
+            const btn = document.getElementById(`video-btn-${id}`);
+            if(p && btn) {
+                const isClamped = p.classList.contains('line-clamp-2');
+                if(isClamped) {
+                    p.classList.remove('line-clamp-2');
+                    btn.innerHTML = `<span>Thu gọn</span> <i class="fas fa-chevron-up text-[9px]"></i>`;
+                } else {
+                    p.classList.add('line-clamp-2');
+                    btn.innerHTML = `<span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>`;
+                }
+            }
+        };
+
         window.openModal = function(id) {
             document.getElementById('modal-overlay').classList.remove('hidden');
             document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
@@ -1152,6 +1238,47 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                 document.getElementById('contact-list').innerHTML = contactsData.map(c => `
                     <li class="p-4 border-b flex justify-between items-center"><div class="font-bold text-gray-800">${c.name}<br><span class="text-xs font-normal text-gray-500">${c.role}</span></div><a href="tel:${c.phone}" class="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition hover:bg-green-600 hover:text-white"><i class="fas fa-phone-alt"></i> Gọi</a></li>
                 `).join('');
+            }
+
+            if(id === 'modal-video') {
+                const activeVideos = videosData.filter(v => v.isCollapsed !== 'true' && v.isCollapsed !== true);
+                const container = document.getElementById('public-video-list');
+                if(activeVideos.length === 0) {
+                    container.innerHTML = `<div class="p-8 text-center bg-gray-50"><i class="fas fa-photo-video text-6xl text-gray-300 mb-4"></i><h4 class="font-bold text-gray-600">Đang cập nhật luồng Video y khoa</h4><p class="text-sm text-gray-500 mt-2">Các video hướng dẫn chăm sóc sức khỏe sẽ sớm được Trạm Y tế cập nhật tại đây.</p></div>`;
+                } else {
+                    container.innerHTML = activeVideos.map(v => {
+                        const isLong = v.description && v.description.length > 120;
+                        const embedUrl = window.getEmbedUrl(v.url);
+                        const isUploadedFile = v.url.startsWith('data:video/') || v.url.startsWith('blob:') || v.url.includes('.mp4');
+                        
+                        let playerHtml = '';
+                        if (isUploadedFile) {
+                            playerHtml = `<video controls class="w-full h-64 md:h-80 rounded-2xl shadow-md bg-black mb-4"><source src="${v.url}">Trình duyệt không hỗ trợ video.</video>`;
+                        } else if (embedUrl) {
+                            playerHtml = `<div class="relative w-full h-0 pb-[56.25%] rounded-2xl overflow-hidden shadow-md mb-4 bg-black">
+                                <iframe class="absolute top-0 left-0 w-full h-full" src="${embedUrl}" title="${v.title}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                            </div>`;
+                        } else {
+                            playerHtml = `<div class="p-6 bg-gray-100 rounded-2xl text-center text-gray-500 mb-4"><i class="fas fa-exclamation-circle mr-1"></i> Không thể phát video</div>`;
+                        }
+
+                        return `<div class="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm mb-6">
+                            ${playerHtml}
+                            <h4 class="font-bold text-gray-900 text-lg leading-tight mb-2">${v.title}</h4>
+                            ${v.description ? `
+                                <p id="video-desc-${v.id}" class="text-sm text-gray-600 mb-2 leading-relaxed whitespace-pre-line ${isLong ? 'line-clamp-2' : ''}">${v.description}</p>
+                                ${isLong ? `
+                                    <button onclick="window.toggleVideoDescription('${v.id}')" id="video-btn-${v.id}" class="text-xs font-bold text-red-600 hover:text-red-800 transition mb-3 focus:outline-none flex items-center gap-1 uppercase tracking-wider">
+                                        <span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>
+                                    </button>
+                                ` : ''}
+                            ` : ''}
+                            <div class="text-xs font-bold text-gray-400 mt-2 uppercase tracking-wider">
+                                <i class="far fa-clock mr-1"></i> Đăng ngày: ${v.date}
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
             }
         };
 
@@ -1264,6 +1391,36 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     </td>
                 </tr>
             `).join('');
+
+            // RENDER VIDEOS
+            const vidAdm = document.getElementById('admin-video-list');
+            if(vidAdm) {
+                videosData.sort((a,b)=>b.ts-a.ts);
+                vidAdm.innerHTML = videosData.map(v => {
+                    const statusText = (v.isCollapsed === 'true' || v.isCollapsed === true) 
+                        ? '<span class="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold border border-amber-200"><i class="fas fa-eye-slash mr-1"></i> Thu gọn (Ẩn)</span>' 
+                        : '<span class="px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-xs font-bold border border-green-200"><i class="fas fa-eye mr-1"></i> Đăng tải</span>';
+                    
+                    const toggleBtnText = (v.isCollapsed === 'true' || v.isCollapsed === true) ? 'Hiện' : 'Ẩn';
+                    const toggleBtnIcon = (v.isCollapsed === 'true' || v.isCollapsed === true) ? 'fa-eye' : 'fa-eye-slash';
+                    const toggleBtnColor = (v.isCollapsed === 'true' || v.isCollapsed === true) ? 'text-green-600 hover:text-green-800' : 'text-amber-600 hover:text-amber-800';
+
+                    return `<tr class="hover:bg-gray-50 transition">
+                        <td class="p-3 font-bold text-gray-900">
+                            <div class="line-clamp-1">${v.title}</div>
+                        </td>
+                        <td class="p-3 text-gray-600 text-sm font-medium whitespace-nowrap">${v.date}</td>
+                        <td class="p-3 text-center whitespace-nowrap">${statusText}</td>
+                        <td class="p-3 text-center whitespace-nowrap">
+                            <div class="flex items-center justify-center gap-3">
+                                <button type="button" onclick="window.editVideo('${v.id}')" class="text-blue-500 hover:text-blue-700 font-bold text-xs flex items-center gap-1"><i class="fas fa-edit"></i> Sửa</button>
+                                <button type="button" onclick="window.toggleVideoCollapseState('${v.id}')" class="${toggleBtnColor} font-bold text-xs flex items-center gap-1"><i class="fas ${toggleBtnIcon}"></i> ${toggleBtnText}</button>
+                                <button type="button" onclick="window.deleteItem('videos', '${v.id}')" class="text-red-500 hover:text-red-700 font-bold text-xs flex items-center gap-1"><i class="fas fa-trash-alt"></i> Xóa</button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
         };
 
         // 5. QUẢN TRỊ CMS: XỬ LÝ THÊM & XÓA ĐỒNG BỘ TOÀN DIỆN QUA API POSTGRES
@@ -1289,6 +1446,10 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                 if(collectionName==='contacts') {
                     contactsData = contactsData.filter(x => x.id !== dataObj.id);
                     contactsData.push(dataObj);
+                }
+                if(collectionName==='videos') {
+                    videosData = videosData.filter(x => x.id !== dataObj.id);
+                    videosData.push(dataObj);
                 }
                 if(collectionName==='users') {
                     adminUsers = adminUsers.filter(x => x.id !== dataObj.id);
@@ -1319,6 +1480,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     if(collectionName==='documents') documentsData = documentsData.filter(x => x.id !== id);
                     if(collectionName==='services') serviceManagers = serviceManagers.filter(x => x.id !== id);
                     if(collectionName==='contacts') contactsData = contactsData.filter(x => x.id !== id);
+                    if(collectionName==='videos') videosData = videosData.filter(x => x.id !== id);
                     if(collectionName==='users') adminUsers = adminUsers.filter(x => x.id !== id);
                     window.renderAll();
 
@@ -1409,6 +1571,84 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             const newUser = { id: 'U'+Date.now(), username: u, name: document.getElementById('cfg-user-name').value, role: document.getElementById('cfg-user-role').value };
             window.saveToDb('users', newUser);
             e.target.reset(); 
+        };
+
+        window.handleSaveVideo = async function(e) {
+            e.preventDefault();
+            const idInput = document.getElementById('vid-id').value;
+            const title = document.getElementById('vid-title').value;
+            const desc = document.getElementById('vid-desc').value;
+            const urlInput = document.getElementById('vid-url').value.trim();
+            const fileInput = document.getElementById('vid-file');
+
+            let finalUrl = urlInput;
+
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                if (file.size > 25 * 1024 * 1024) {
+                    window.showToast("Video quá lớn! Vui lòng chọn video dưới 25MB.");
+                    return;
+                }
+                const reader = new FileReader();
+                const base64Promise = new Promise((resolve) => {
+                    reader.onload = (event) => resolve(reader.result);
+                    reader.readAsDataURL(file);
+                });
+                finalUrl = await base64Promise;
+            }
+
+            if (!finalUrl) {
+                window.showToast("Vui lòng nhập đường dẫn URL hoặc tải lên tệp video!");
+                return;
+            }
+
+            const id = idInput || 'VD' + Date.now();
+            const existingVideo = videosData.find(v => v.id === id);
+            const isCollapsed = existingVideo ? existingVideo.isCollapsed : 'false';
+
+            const videoObj = {
+                id: id,
+                title: title,
+                description: desc,
+                url: finalUrl,
+                date: existingVideo ? existingVideo.date : new Date().toLocaleDateString('vi-VN'),
+                ts: existingVideo ? existingVideo.ts : Date.now(),
+                isCollapsed: isCollapsed
+            };
+
+            await window.saveToDb('videos', videoObj);
+            e.target.reset();
+            window.cancelVideoEdit();
+        };
+
+        window.editVideo = function(id) {
+            const v = videosData.find(x => x.id === id);
+            if (!v) return;
+            document.getElementById('vid-id').value = v.id;
+            document.getElementById('vid-title').value = v.title;
+            document.getElementById('vid-desc').value = v.description;
+            document.getElementById('vid-url').value = v.url.startsWith('data:') ? '' : v.url;
+            document.getElementById('vid-submit-text').innerText = "Cập nhật Video";
+            document.getElementById('vid-cancel-btn').classList.remove('hidden');
+            document.getElementById('admin-video-section').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        window.cancelVideoEdit = function() {
+            document.getElementById('vid-id').value = '';
+            document.getElementById('vid-title').value = '';
+            document.getElementById('vid-desc').value = '';
+            document.getElementById('vid-url').value = '';
+            const fileInput = document.getElementById('vid-file');
+            if (fileInput) fileInput.value = '';
+            document.getElementById('vid-submit-text').innerText = "Đăng tải Video";
+            document.getElementById('vid-cancel-btn').classList.add('hidden');
+        };
+
+        window.toggleVideoCollapseState = async function(id) {
+            const v = videosData.find(x => x.id === id);
+            if (!v) return;
+            v.isCollapsed = (v.isCollapsed === 'true' || v.isCollapsed === true) ? 'false' : 'true';
+            await window.saveToDb('videos', v);
         };
 
         // 6. XỬ LÝ LOGIN ADMIN
@@ -1828,6 +2068,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     if (data.services) serviceManagers = data.services;
                     if (data.users) adminUsers = data.users;
                     if (data.contacts) contactsData = data.contacts;
+                    if (data.videos) videosData = data.videos;
                     
                     if (data.siteConfigs) {
                         data.siteConfigs.forEach(conf => {

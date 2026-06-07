@@ -55,3 +55,13 @@ export const siteConfigs = pgTable("site_configs", {
   id: text("id").primaryKey(),
   value: text("value").notNull(),
 });
+
+export const videos = pgTable("videos", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  url: text("url").notNull(),
+  date: text("date").notNull(),
+  ts: bigint("ts", { mode: "number" }).notNull(),
+  isCollapsed: text("is_collapsed").default("false"),
+});
