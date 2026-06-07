@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-   bash <(curl -sSL \
-https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -66,15 +64,98 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CHẾ ĐỘ TƯƠNG PHẢN CAO CHO NGƯỜI LỚN TUỔI & NGƯỜI DÂN */
+        body.high-contrast {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        body.high-contrast * {
+            background-image: none !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+        }
+        body.high-contrast .glass-effect {
+            background: #000000 !important;
+            border-color: #ffffff !important;
+        }
+        body.high-contrast a, 
+        body.high-contrast button {
+            color: #ffff00 !important;
+            text-decoration: underline !important;
+        }
+        body.high-contrast p,
+        body.high-contrast span,
+        body.high-contrast h1,
+        body.high-contrast h2,
+        body.high-contrast h3,
+        body.high-contrast h4,
+        body.high-contrast h5,
+        body.high-contrast h6,
+        body.high-contrast div,
+        body.high-contrast td,
+        body.high-contrast th {
+            color: #ffffff !important;
+            background-color: transparent !important;
+        }
+        body.high-contrast input,
+        body.high-contrast textarea,
+        body.high-contrast select {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+            border: 2px solid #ffffff !important;
+        }
+        body.high-contrast .bg-white,
+        body.high-contrast .bg-gray-50,
+        body.high-contrast .bg-gray-100,
+        body.high-contrast .bg-medical-50,
+        body.high-contrast .bg-medical-100 {
+            background-color: #111111 !important;
+            border: 1px solid #ffffff !important;
+        }
+        body.high-contrast .text-medical-900,
+        body.high-contrast .text-medical-800,
+        body.high-contrast .text-medical-700,
+        body.high-contrast .text-medical-600 {
+            color: #ffff00 !important;
+        }
+        body.high-contrast .border-gray-200,
+        body.high-contrast .border-gray-100,
+        body.high-contrast .border-medical-200 {
+            border-color: #ffffff !important;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased relative">
 
     <!-- ================= GIAO DIỆN NGƯỜI DÂN (FRONTEND) ================= -->
     <div id="main-website">
-        
+
         <!-- HEADER -->
         <header class="glass-effect fixed w-full top-0 z-40 border-b border-gray-200 shadow-sm">
+            <!-- ACCESSIBILITY TOOLBAR (Thanh hỗ trợ tiếp cận cho người dân) -->
+            <div class="bg-medical-700 text-white py-1.5 px-4 text-xs font-semibold border-b border-white/10">
+                <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="flex items-center gap-1 text-blue-100 font-bold"><i class="fas fa-universal-access"></i> HỖ TRỢ BÀ CON:</span>
+                        <span class="text-white/30">|</span>
+                        <span class="text-blue-100 font-bold">Cỡ chữ:</span>
+                        <button onclick="window.changeFontSize('small')" class="px-2 py-0.5 rounded hover:bg-white/10 text-[10px] font-bold border border-white/20 transition-all" id="font-btn-small" title="Cỡ chữ Nhỏ">A-</button>
+                        <button onclick="window.changeFontSize('normal')" class="bg-white/20 px-2 py-0.5 rounded text-white font-bold border border-white/30 transition-all" id="font-btn-normal" title="Cỡ chữ Bình thường">A</button>
+                        <button onclick="window.changeFontSize('large')" class="px-2 py-0.5 rounded hover:bg-white/10 text-sm font-bold border border-white/20 transition-all" id="font-btn-large" title="Cỡ chữ Lớn">A+</button>
+                        <button onclick="window.changeFontSize('xlarge')" class="px-2 py-0.5 rounded hover:bg-white/10 text-base font-extrabold border border-white/20 transition-all" id="font-btn-xlarge" title="Cỡ chữ Cực lớn">A++</button>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="window.toggleTextToSpeech()" id="tts-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm">
+                            <i class="fas fa-volume-up text-xs"></i> <span id="tts-btn-text">Đọc thành tiếng (Tắt)</span>
+                        </button>
+                        <button onclick="window.toggleHighContrast()" id="contrast-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm">
+                            <i class="fas fa-adjust text-xs"></i> <span id="contrast-btn-text">Độ tương phản cao (Tắt)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-20">
                     <div class="flex items-center gap-3">
@@ -118,7 +199,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
 
         <!-- KHOẢNG TRANG CHỦ -->
         <div id="trang-chu-container" class="block animate-[fadeIn_0.3s_ease-in-out]">
-            <section class="pt-28 pb-12 bg-gradient-to-br from-medical-50 to-white relative overflow-hidden">
+            <section class="pt-36 pb-12 bg-gradient-to-br from-medical-50 to-white relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-20">
                     <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-medical-200 blur-3xl"></div>
                     <div class="absolute top-1/2 -left-24 w-72 h-72 rounded-full bg-blue-200 blur-3xl"></div>
@@ -236,7 +317,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
         </div>
 
         <!-- ================= KHU VỰC KHOA PHÒNG & CHỨC NĂNG (TÁCH BIỆT) ================= -->
-        <div id="khoa-phong-container" class="hidden pt-28 pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
+        <div id="khoa-phong-container" class="hidden pt-36 pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-10">
                     <h2 data-cms-id="dept-section-title" class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide">Dịch Vụ & Khoa Phòng</h2>
@@ -1172,6 +1253,110 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             { id: 'VD1', title: 'Hướng dẫn rửa tay 6 bước chuẩn Bộ Y tế', description: 'Video hướng dẫn rửa tay bằng xà phòng đúng cách phòng tránh dịch bệnh truyền nhiễm hiệu quả.', url: 'https://www.youtube.com/embed/fA4P9B2U-q0', date: '01/06/2026', ts: 101, isCollapsed: 'false' },
             { id: 'VD2', title: 'Sơ cứu dị vật đường thở ở trẻ em', description: 'Hướng dẫn phụ huynh và giáo viên cách xử trí nhanh khi trẻ bị hóc dị vật bằng nghiệm pháp Heimlich an toàn.', url: 'https://www.youtube.com/embed/T00O3IitfRE', date: '28/05/2026', ts: 100, isCollapsed: 'false' }
         ];
+
+        // ================= HỖ TRỢ TIẾP CẬN CHO NGƯỜI DÂN (ACCESSIBILITY) =================
+        let ttsEnabled = false;
+        let highContrastEnabled = false;
+
+        window.changeFontSize = function(size) {
+            let px = '16px';
+            if (size === 'small') px = '14px';
+            else if (size === 'normal') px = '16px';
+            else if (size === 'large') px = '20px';
+            else if (size === 'xlarge') px = '24px';
+            
+            document.documentElement.style.fontSize = px;
+            
+            // Cập nhật lớp giao diện của các nút cỡ chữ
+            const btns = ['small', 'normal', 'large', 'xlarge'];
+            btns.forEach(b => {
+                const btn = document.getElementById(`font-btn-${b}`);
+                if (btn) {
+                    if (b === size) {
+                        btn.className = "bg-white/20 px-2 py-0.5 rounded text-white font-bold border border-white/30 transition-all";
+                    } else {
+                        btn.className = "px-2 py-0.5 rounded hover:bg-white/10 font-bold border border-white/20 transition-all " + (b === 'small' ? 'text-[10px]' : b === 'normal' ? 'text-xs' : b === 'large' ? 'text-sm' : 'text-base font-extrabold');
+                    }
+                }
+            });
+            window.showToast("Đã điều chỉnh cỡ chữ màn hình!");
+        };
+
+        window.toggleTextToSpeech = function() {
+            ttsEnabled = !ttsEnabled;
+            const btnText = document.getElementById('tts-btn-text');
+            const btn = document.getElementById('tts-toggle-btn');
+            if (ttsEnabled) {
+                if (btnText) btnText.innerText = "Đọc thành tiếng (Bật)";
+                if (btn) {
+                    btn.classList.add('bg-orange-500', 'text-white');
+                    btn.classList.remove('bg-white/10');
+                }
+                window.showToast("BẬT hỗ trợ giọng đọc! Bà con nhấp vào bất kỳ dòng chữ nào để nghe đọc.");
+                speakText("Hệ thống trợ lý giọng đọc đã được kích hoạt. Bà con hãy nhấp vào các đoạn văn bản trên màn hình để nghe đọc.");
+            } else {
+                if (btnText) btnText.innerText = "Đọc thành tiếng (Tắt)";
+                if (btn) {
+                    btn.classList.remove('bg-orange-500', 'text-white');
+                    btn.classList.add('bg-white/10');
+                }
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
+                }
+                window.showToast("Đã tắt hỗ trợ giọng đọc.");
+            }
+        };
+
+        function speakText(text) {
+            if (!window.speechSynthesis) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'vi-VN';
+            const voices = window.speechSynthesis.getVoices();
+            const viVoice = voices.find(voice => voice.lang.includes('vi'));
+            if (viVoice) {
+                utterance.voice = viVoice;
+            }
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Đọc đoạn văn khi bấm vào
+        document.addEventListener('click', function(e) {
+            if (!ttsEnabled) return;
+            const target = e.target;
+            if (target.closest('button') || target.closest('input') || target.closest('textarea') || target.closest('select') || target.closest('a')) {
+                if (target.closest('#tts-toggle-btn') || target.closest('#contrast-toggle-btn') || target.id?.startsWith('font-btn-')) return;
+            }
+            let text = target.innerText || target.textContent;
+            text = text ? text.trim() : "";
+            if (text.length > 0 && text.length < 600) {
+                speakText(text);
+            }
+        });
+
+        window.toggleHighContrast = function() {
+            highContrastEnabled = !highContrastEnabled;
+            const btnText = document.getElementById('contrast-btn-text');
+            const btn = document.getElementById('contrast-toggle-btn');
+            if (highContrastEnabled) {
+                document.body.classList.add('high-contrast');
+                if (btnText) btnText.innerText = "Độ tương phản cao (Bật)";
+                if (btn) {
+                    btn.classList.add('bg-yellow-500', 'text-black');
+                    btn.classList.remove('bg-white/10');
+                }
+                window.showToast("Đã kích hoạt chế độ tương phản cao!");
+            } else {
+                document.body.classList.remove('high-contrast');
+                if (btnText) btnText.innerText = "Độ tương phản cao (Tắt)";
+                if (btn) {
+                    btn.classList.remove('bg-yellow-500', 'text-black');
+                    btn.classList.add('bg-white/10');
+                }
+                window.showToast("Đã tắt chế độ tương phản cao.");
+            }
+        };
 
         // 3. UI TƯƠNG TÁC (TABS & MODALS)
         window.switchPage = function(page) {
