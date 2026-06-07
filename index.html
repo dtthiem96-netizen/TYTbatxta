@@ -157,7 +157,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             <!-- KÊNH LIÊN HỆ KHẨN CẤP -->
             <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-20 mb-16">
                 <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border-t-8 border-red-500">
-                    <h3 class="text-xl font-black text-gray-800 mb-6 text-center uppercase tracking-wider"><i class="fas fa-ambulance text-red-500 mr-2"></i> Kênh liên hệ khẩn cấp</h3>
+                    <h3 data-cms-id="emergency-title" class="text-xl font-black text-gray-800 mb-6 text-center uppercase tracking-wider"><i class="fas fa-ambulance text-red-500 mr-2"></i> Kênh liên hệ khẩn cấp</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <a href="tel:0382103002" class="group bg-red-50 hover:bg-red-600 text-red-700 hover:text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-red-100 shadow-sm">
                             <i class="fas fa-phone-volume text-4xl mb-2 group-hover:scale-110 transition-transform"></i><div class="font-bold text-lg">Gọi Trạm Y tế Bát Xát</div><div class="text-2xl font-black">0382.103.002</div>
@@ -181,7 +181,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                             <div>
                                 <div class="flex items-center gap-3 mb-6 border-b pb-3">
                                     <i class="fas fa-calendar-alt text-3xl text-medical-600"></i>
-                                    <h3 class="text-2xl font-black text-gray-900">Thông báo Trạm</h3>
+                                    <h3 data-cms-id="notice-title" class="text-2xl font-black text-gray-900">Thông báo Trạm</h3>
                                 </div>
                                 <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                                     <table class="w-full text-left border-collapse">
@@ -191,12 +191,12 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                                         </tbody>
                                     </table>
                                 </div>
-                                <p class="mt-3 text-sm italic text-gray-500 font-medium"><i class="fas fa-info-circle text-medical-500"></i> Ghi chú: Bà con nhớ mang theo Sổ tiêm chủng và CCCD gắn chíp.</p>
+                                <p data-cms-id="notice-note" class="mt-3 text-sm italic text-gray-500 font-medium"><i class="fas fa-info-circle text-medical-500"></i> Ghi chú: Bà con nhớ mang theo Sổ tiêm chủng và CCCD gắn chíp.</p>
                             </div>
                             <!-- Block Tin tức Render từ CMS -->
                             <div>
                                 <div class="flex items-center justify-between mb-6 border-b pb-3">
-                                    <div class="flex items-center gap-3"><i class="fas fa-bullhorn text-3xl text-orange-500"></i><h3 class="text-2xl font-black text-gray-900">Bản tin Y tế</h3></div>
+                                    <div class="flex items-center gap-3"><i class="fas fa-bullhorn text-3xl text-orange-500"></i><h3 data-cms-id="news-title" class="text-2xl font-black text-gray-900">Bản tin Y tế</h3></div>
                                 </div>
                                 <div class="space-y-4" id="news-container">
                                     <!-- Dữ liệu được đẩy từ Admin CMS -->
@@ -207,8 +207,8 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                         <!-- Cột Phải: Dịch vụ AI & Mạng Xã Hội -->
                         <div class="space-y-8">
                             <div class="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl">
-                                <h3 class="text-2xl font-black mb-2"><i class="fas fa-robot text-purple-200 mr-2"></i> Khám phá Trợ lý AI</h3>
-                                <p class="mb-6 text-purple-100">Ứng dụng trí tuệ nhân tạo để tra cứu y tế mộc mạc, dễ hiểu cho bà con vùng cao.</p>
+                                <h3 data-cms-id="ai-box-title" class="text-2xl font-black mb-2"><i class="fas fa-robot text-purple-200 mr-2"></i> Khám phá Trợ lý AI</h3>
+                                <p data-cms-id="ai-box-desc" class="mb-6 text-purple-100">Ứng dụng trí tuệ nhân tạo để tra cứu y tế mộc mạc, dễ hiểu cho bà con vùng cao.</p>
                                 <div class="grid grid-cols-2 gap-3">
                                     <button onclick="window.openModal('modal-tracuuthuoc')" class="bg-white/10 hover:bg-white/20 p-3 rounded-xl font-bold transition text-sm text-left"><i class="fas fa-pills mr-2 text-purple-300"></i> Tra cứu Thuốc AI</button>
                                     <button onclick="window.openModal('modal-aidich')" class="bg-white/10 hover:bg-white/20 p-3 rounded-xl font-bold transition text-sm text-left"><i class="fas fa-language mr-2 text-purple-300"></i> Dịch thuật Y khoa</button>
@@ -220,7 +220,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                             <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 flex flex-col items-center">
                                 <div class="flex items-center gap-3 mb-4 self-start text-blue-800">
                                     <i class="fab fa-facebook text-3xl text-blue-600"></i>
-                                    <h3 class="text-xl font-black text-gray-900">Bản tin Fanpage Trạm Y Tế</h3>
+                                    <h3 data-cms-id="fanpage-title" class="text-xl font-black text-gray-900">Bản tin Fanpage Trạm Y Tế</h3>
                                 </div>
                                 <div class="w-full rounded-2xl overflow-hidden shadow-md bg-white border border-blue-200">
                                     <iframe src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2Fprofile.php%3Fid%3D61556920635321&tabs=timeline&width=340&height=500&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=false&appId" width="100%" height="500" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>
@@ -239,15 +239,15 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
         <div id="khoa-phong-container" class="hidden pt-28 pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-10">
-                    <h2 class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide">Dịch Vụ & Khoa Phòng</h2>
-                    <p class="text-medical-600 font-bold mt-2 text-lg">Mọi chức năng đã được số hóa và hỗ trợ bởi Trí tuệ Nhân tạo AI</p>
+                    <h2 data-cms-id="dept-section-title" class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide">Dịch Vụ & Khoa Phòng</h2>
+                    <p data-cms-id="dept-section-desc" class="text-medical-600 font-bold mt-2 text-lg">Mọi chức năng đã được số hóa và hỗ trợ bởi Trí tuệ Nhân tạo AI</p>
                 </div>
 
                 <!-- THANH ĐIỀU HƯỚNG TABS -->
                 <div class="flex justify-start md:justify-center border-b-2 border-gray-200 mb-8 overflow-x-auto hide-scrollbar snap-x">
                     <button onclick="window.switchFrontendTab('kham-benh', event)" class="frontend-tab-btn active snap-center px-6 py-4 text-base md:text-lg font-black whitespace-nowrap border-b-4 border-medical-600 text-medical-700 transition-colors"><i class="fas fa-stethoscope mr-2"></i> Khám & Chữa Bệnh</button>
                     <button onclick="window.switchFrontendTab('hanh-chinh', event)" class="frontend-tab-btn snap-center px-6 py-4 text-base md:text-lg font-bold whitespace-nowrap border-b-4 border-transparent text-gray-500 hover:text-medical-600 transition-colors"><i class="fas fa-building mr-2"></i> Hành Chính & Tổng Hợp</button>
-                    <button onclick="window.switchFrontendTab('phong-benh', event)" class="frontend-tab-btn snap-center px-6 py-4 text-base md:text-lg font-bold whitespace-nowrap border-b-4 border-transparent text-gray-500 hover:text-medical-600 transition-colors"><i class="fas fa-shield-virus mr-2"></i> Y Tế Dự Phòng</button>
+                    <button onclick="window.switchFrontendTab('phong-benh', event)" class="frontend-tab-btn snap-center px-6 py-4 text-base md:text-lg font-bold whitespace-nowrap border-b-4 border-transparent text-gray-500 hover:text-medical-600 transition-colors"><i class="fas fa-shield-virus mr-2"></i> Khoa Phòng bệnh và ATTP</button>
                     <button onclick="window.switchFrontendTab('ai-hub', event)" class="frontend-tab-btn snap-center px-6 py-4 text-base md:text-lg font-bold whitespace-nowrap border-b-4 border-transparent text-purple-500 hover:text-purple-600 transition-colors"><i class="fas fa-robot mr-2"></i> Trung tâm AI</button>
                 </div>
 
@@ -257,8 +257,8 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                         <div class="flex items-center gap-4 mb-8 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-green-100 text-green-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-stethoscope"></i></div>
                             <div>
-                                <h3 class="text-2xl font-black text-gray-900">Khoa Khám Bệnh & Lâm Sàng</h3>
-                                <p class="text-sm font-bold text-gray-500">Chăm sóc sức khỏe, tiêm chủng, tư vấn dinh dưỡng</p>
+                                <h3 data-cms-id="dept-khambenh-title" class="text-2xl font-black text-gray-900">Khoa Khám Bệnh & Lâm Sàng</h3>
+                                <p data-cms-id="dept-khambenh-desc" class="text-sm font-bold text-gray-500">Chăm sóc sức khỏe, tiêm chủng, tư vấn dinh dưỡng</p>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -280,8 +280,8 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                         <div class="flex items-center gap-4 mb-8 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-building"></i></div>
                             <div>
-                                <h3 class="text-2xl font-black text-gray-900">Phòng Hành Chính & Tổng Hợp</h3>
-                                <p class="text-sm font-bold text-gray-500">Thủ tục BHYT, tra cứu thuốc, tiếp nhận phản ánh</p>
+                                <h3 data-cms-id="dept-hanhchinh-title" class="text-2xl font-black text-gray-900">Phòng Hành Chính & Tổng Hợp</h3>
+                                <p data-cms-id="dept-hanhchinh-desc" class="text-sm font-bold text-gray-500">Thủ tục BHYT, tra cứu thuốc, tiếp nhận phản ánh</p>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -302,8 +302,8 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                         <div class="flex items-center gap-4 mb-8 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-orange-100 text-orange-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-shield-virus"></i></div>
                             <div>
-                                <h3 class="text-2xl font-black text-gray-900">Khoa Y Tế Dự Phòng & ATTP</h3>
-                                <p class="text-sm font-bold text-gray-500">Phòng chống dịch bệnh truyền nhiễm, an toàn thực phẩm</p>
+                                <h3 data-cms-id="dept-phongbenh-title" class="text-2xl font-black text-gray-900">Khoa Phòng bệnh và ATTP</h3>
+                                <p data-cms-id="dept-phongbenh-desc" class="text-sm font-bold text-gray-500">Phòng chống dịch bệnh truyền nhiễm, an toàn thực phẩm</p>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -2033,7 +2033,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                         <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-xl animate-pulse"><i class="fas fa-laptop-code"></i></div>
                         <div>
                             <div class="font-extrabold text-base tracking-wide">CHẾ ĐỘ CHỈNH SỬA TRỰC QUAN (VISUAL CMS)</div>
-                            <div class="text-xs text-purple-200">Nhấp chuột trực tiếp vào các vùng chữ có viền nét đứt màu tím để sửa, sau đó ấn "Lưu Trang".</div>
+                            <div class="text-xs text-purple-200">Nhấp trực tiếp vào vùng chữ có viền nét đứt màu tím để sửa. Dùng thanh điều hướng để qua các trang/tab (Khoa & Phòng...) rồi sửa tiếp, cuối cùng ấn "Lưu Trang".</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 w-full md:w-auto">
