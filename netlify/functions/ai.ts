@@ -1,7 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Zero-config AI Gateway client
-const ai = new GoogleGenAI();
+// Initialize the Google Gemini AI client with the GEMINI_API_KEY environment variable
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY
+});
 
 export default async (req: Request) => {
   const headers = {
