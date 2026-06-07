@@ -1,5 +1,5 @@
 import { db } from "../../db/index.js";
-import { news, vaccines, documents, services, users, siteConfigs, contacts } from "../../db/schema.js";
+import { news, vaccines, documents, services, users, siteConfigs, contacts, videos } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 
 const defaultUsers = [
@@ -31,6 +31,11 @@ const defaultContacts = [
   { id: 'C1', name: 'BS. Trạm Trưởng', role: 'Trạm trưởng Trạm Y tế', phone: '0382103002', ts: 3 },
   { id: 'C2', name: 'Nữ hộ sinh chuyên trách', role: 'Phòng Khám Sản - Phụ Khoa', phone: '0382103002', ts: 2 },
   { id: 'C3', name: 'Cán bộ Đông Y', role: 'Phòng Y Học Cổ Truyền', phone: '0382103002', ts: 1 }
+];
+
+const defaultVideos = [
+  { id: 'VD1', title: 'Hướng dẫn rửa tay 6 bước chuẩn Bộ Y tế', description: 'Video hướng dẫn rửa tay bằng xà phòng đúng cách phòng tránh dịch bệnh truyền nhiễm hiệu quả.', url: 'https://www.youtube.com/embed/fA4P9B2U-q0', date: '01/06/2026', ts: 101, isCollapsed: 'false' },
+  { id: 'VD2', title: 'Sơ cứu dị vật đường thở ở trẻ em', description: 'Hướng dẫn phụ huynh và giáo viên cách xử trí nhanh khi trẻ bị hóc dị vật bằng nghiệm pháp Heimlich an toàn.', url: 'https://www.youtube.com/embed/T00O3IitfRE', date: '28/05/2026', ts: 100, isCollapsed: 'false' }
 ];
 
 export default async (req: Request) => {
@@ -83,6 +88,12 @@ export default async (req: Request) => {
         contactsList = await db.select().from(contacts);
       }
 
+      let videosList = await db.select().from(videos);
+      if (videosList.length === 0) {
+        await db.insert(videos).values(defaultVideos);
+        videosList = await db.select().from(videos);
+      }
+
       let configsList = await db.select().from(siteConfigs);
 
       return new Response(JSON.stringify({
@@ -92,6 +103,7 @@ export default async (req: Request) => {
         services: servicesList,
         users: usersList,
         contacts: contactsList,
+        videos: videosList,
         siteConfigs: configsList
       }), { headers, status: 200 });
     }
@@ -150,6 +162,13 @@ export default async (req: Request) => {
           } else {
             await db.insert(siteConfigs).values(data);
           }
+        } else if (type === "videos") {
+          const existing = await db.select().from(videos).where(eq(videos.id, data.id));
+          if (existing.length > 0) {
+            await db.update(videos).set(data).where(eq(videos.id, data.id));
+          } else {
+            await db.insert(videos).values(data);
+          }
         } else {
           return new Response(JSON.stringify({ error: "Invalid type" }), { headers, status: 400 });
         }
@@ -171,6 +190,8 @@ export default async (req: Request) => {
           await db.delete(users).where(eq(users.id, id));
         } else if (type === "siteConfigs") {
           await db.delete(siteConfigs).where(eq(siteConfigs.id, id));
+        } else if (type === "videos") {
+          await db.delete(videos).where(eq(videos.id, id));
         } else {
           return new Response(JSON.stringify({ error: "Invalid type" }), { headers, status: 400 });
         }
