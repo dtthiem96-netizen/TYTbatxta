@@ -1249,7 +1249,7 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     container.innerHTML = activeVideos.map(v => {
                         const isLong = v.description && v.description.length > 120;
                         const embedUrl = window.getEmbedUrl(v.url);
-                        const isUploadedFile = v.url.startsWith('data:video/') || v.url.startsWith('blob:') || v.url.includes('.mp4');
+                        const isUploadedFile = v.url.startsWith('data:video/') || v.url.startsWith('blob:') || v.url.includes('.mp4') || v.url.startsWith('/api/video');
                         
                         let playerHtml = '';
                         if (isUploadedFile) {
@@ -1581,6 +1581,10 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
             const urlInput = document.getElementById('vid-url').value.trim();
             const fileInput = document.getElementById('vid-file');
 
+            const id = idInput || 'VD' + Date.now();
+            const existingVideo = videosData.find(v => v.id === id);
+            const isCollapsed = existingVideo ? existingVideo.isCollapsed : 'false';
+
             let finalUrl = urlInput;
 
             if (fileInput && fileInput.files && fileInput.files[0]) {
@@ -1589,22 +1593,67 @@ https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
                     window.showToast("Video quá lớn! Vui lòng chọn video dưới 25MB.");
                     return;
                 }
-                const reader = new FileReader();
-                const base64Promise = new Promise((resolve) => {
-                    reader.onload = (event) => resolve(reader.result);
-                    reader.readAsDataURL(file);
-                });
-                finalUrl = await base64Promise;
+
+                window.showToast("Bắt đầu tải video lên đám mây... Vui lòng chờ.");
+
+                const chunkSize = 4 * 1024 * 1024; // 4MB
+                const totalChunks = Math.ceil(file.size / chunkSize);
+                let uploadSuccess = true;
+
+                for (let i = 0; i < totalChunks; i++) {
+                    const start = i * chunkSize;
+                    const end = Math.min(start + chunkSize, file.size);
+                    const chunkFile = file.slice(start, end);
+
+                    const reader = new FileReader();
+                    const base64Promise = new Promise((resolve) => {
+                        reader.onload = (event) => resolve(reader.result);
+                        reader.readAsDataURL(chunkFile);
+                    });
+                    const chunkBase64 = await base64Promise;
+
+                    const progress = Math.round(((i + 1) / totalChunks) * 100);
+                    window.showToast(`Đang tải lên đám mây: ${progress}%`);
+
+                    try {
+                        const res = await fetch('/api/cms', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: "upload_chunk",
+                                id: id,
+                                index: i,
+                                total: totalChunks,
+                                chunk: chunkBase64,
+                                mimeType: file.type
+                            })
+                        });
+                        if (!res.ok) throw new Error();
+                        const result = await res.json();
+                        if (result.complete) {
+                            finalUrl = result.url;
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        uploadSuccess = false;
+                        break;
+                    }
+                }
+
+                if (!uploadSuccess) {
+                    window.showToast("Lỗi trong quá trình tải tệp video lên đám mây!");
+                    return;
+                }
+            }
+
+            if (!finalUrl && existingVideo) {
+                finalUrl = existingVideo.url;
             }
 
             if (!finalUrl) {
                 window.showToast("Vui lòng nhập đường dẫn URL hoặc tải lên tệp video!");
                 return;
             }
-
-            const id = idInput || 'VD' + Date.now();
-            const existingVideo = videosData.find(v => v.id === id);
-            const isCollapsed = existingVideo ? existingVideo.isCollapsed : 'false';
 
             const videoObj = {
                 id: id,

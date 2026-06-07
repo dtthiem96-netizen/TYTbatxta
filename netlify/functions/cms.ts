@@ -1,6 +1,7 @@
 import { db } from "../../db/index.js";
 import { news, vaccines, documents, services, users, siteConfigs, contacts, videos } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
+import { getStore } from "@netlify/blobs";
 
 const defaultUsers = [
   { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)' }
@@ -111,6 +112,46 @@ export default async (req: Request) => {
     if (req.method === "POST") {
       const body = await req.json();
       const { action, type, data, id } = body;
+
+      if (action === "upload_chunk") {
+        const { id: videoId, index, total, chunk, mimeType } = body;
+        if (!videoId || index === undefined || !total || !chunk) {
+          return new Response(JSON.stringify({ error: "Missing parameters" }), { headers, status: 400 });
+        }
+
+        const base64Data = chunk.split(",")[1] || chunk;
+        const buffer = Buffer.from(base64Data, "base64");
+
+        const chunkStore = getStore("video-chunks");
+        await chunkStore.set(`${videoId}/${index}`, buffer);
+
+        let allUploaded = true;
+        const chunkList: Buffer[] = [];
+        for (let i = 0; i < total; i++) {
+          const got = await chunkStore.get(`${videoId}/${i}`, { type: "arrayBuffer" });
+          if (!got) {
+            allUploaded = false;
+            break;
+          }
+          chunkList.push(Buffer.from(got));
+        }
+
+        if (allUploaded) {
+          const finalBuffer = Buffer.concat(chunkList);
+          const videoStore = getStore("videos");
+          await videoStore.set(videoId, finalBuffer, {
+            metadata: { contentType: mimeType || "video/mp4" }
+          });
+
+          for (let i = 0; i < total; i++) {
+            await chunkStore.delete(`${videoId}/${i}`);
+          }
+
+          return new Response(JSON.stringify({ success: true, complete: true, url: `/api/video?id=${videoId}` }), { headers, status: 200 });
+        }
+
+        return new Response(JSON.stringify({ success: true, complete: false }), { headers, status: 200 });
+      }
 
       if (action === "save") {
         if (type === "news") {
