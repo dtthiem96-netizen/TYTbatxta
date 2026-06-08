@@ -123,7 +123,7 @@ export default async (req: Request) => {
         const buffer = Buffer.from(base64Data, "base64");
 
         const chunkStore = getStore("video-chunks");
-        await chunkStore.set(`${videoId}/${index}`, buffer);
+        await chunkStore.set(`${videoId}/${index}`, new Blob([buffer]));
 
         let allUploaded = true;
         const chunkList: Buffer[] = [];
@@ -139,7 +139,7 @@ export default async (req: Request) => {
         if (allUploaded) {
           const finalBuffer = Buffer.concat(chunkList);
           const videoStore = getStore("videos");
-          await videoStore.set(videoId, finalBuffer, {
+          await videoStore.set(videoId, new Blob([finalBuffer]), {
             metadata: { contentType: mimeType || "video/mp4" }
           });
 
