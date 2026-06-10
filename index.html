@@ -172,7 +172,7 @@
                     <nav class="hidden lg:flex space-x-6 items-center">
                         <a href="#" onclick="window.switchPage('home')" id="nav-home" class="text-medical-600 border-b-2 border-medical-600 pb-1 font-bold transition text-[15px]">Trang chủ</a>
                         <a href="#" onclick="window.switchPage('dept')" id="nav-dept" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Khoa & Phòng</a>
-                        <a href="#tin-tuc" onclick="window.switchPage('home'); setTimeout(() => document.getElementById('tin-tuc').scrollIntoView(), 100)" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Tin tức & Lịch tiêm</a>
+                        <a href="#" onclick="window.switchPage('news')" id="nav-news" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Tin tức & Lịch tiêm</a>
                         <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế')" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Tải Tài Liệu</a>
                         
                         <button onclick="window.openModal('modal-aisearch')" class="text-purple-600 hover:text-white hover:bg-purple-600 font-bold transition text-[15px] flex items-center gap-2 bg-purple-50 px-5 py-2 rounded-full border border-purple-200 shadow-sm">
@@ -191,7 +191,7 @@
             <div id="mobile-menu" class="hidden lg:hidden bg-white border-t border-gray-100 px-4 pt-2 pb-4 space-y-1 shadow-2xl absolute w-full left-0 z-50">
                 <a href="#" onclick="window.switchPage('home'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-medical-600 bg-gray-50 border-b border-gray-100">Trang chủ</a>
                 <a href="#" onclick="window.switchPage('dept'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Khoa & Phòng Chức năng</a>
-                <a href="#tin-tuc" onclick="window.switchPage('home'); setTimeout(() => document.getElementById('tin-tuc').scrollIntoView(), 100); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Tin tức & Lịch tiêm</a>
+                <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Tin tức & Lịch tiêm</a>
                 <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Kho Tài liệu & Biểu mẫu</a>
                 <a href="tel:0382103002" class="block mt-4 text-center px-4 py-3 text-white font-bold bg-red-600 rounded-xl shadow-md"><i class="fas fa-phone-alt mr-2"></i> Gọi Cấp Cứu 115</a>
             </div>
@@ -281,6 +281,11 @@
                                 </div>
                                 <div class="space-y-4" id="news-container">
                                     <!-- Dữ liệu được đẩy từ Admin CMS -->
+                                </div>
+                                <div class="mt-6 text-center">
+                                    <button onclick="window.switchPage('news')" class="w-full sm:w-auto bg-gradient-to-r from-medical-600 to-medical-500 hover:from-medical-700 hover:to-medical-600 text-white px-6 py-3.5 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2 text-base">
+                                        <span>Xem tất cả tin tức & lịch tiêm</span> <i class="fas fa-arrow-right text-sm"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -421,6 +426,66 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- ================= KHU VỰC TIN TỨC & LỊCH TIÊM (TÁCH BIỆT) ================= -->
+        <div id="tin-tuc-container" class="hidden pt-36 pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide"><i class="fas fa-newspaper text-medical-600 mr-2"></i>Tin tức & Lịch tiêm</h2>
+                    <p class="text-medical-600 font-bold mt-2 text-lg">Cập nhật tin tức phòng dịch, bảo vệ sức khỏe và lịch tiêm chủng mới nhất</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <!-- Column 1: Lịch Tiêm Chủng / Thông báo Trạm -->
+                    <div class="space-y-8">
+                        <div class="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
+                            <div class="flex items-center gap-3 mb-6 border-b pb-3">
+                                <i class="fas fa-calendar-alt text-3xl text-medical-600"></i>
+                                <h3 class="text-2xl font-black text-gray-900">Thông báo & Lịch tiêm chủng</h3>
+                            </div>
+                            <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-medical-50 text-medical-900">
+                                            <th class="p-4 font-bold border-b text-lg">Ngày/Giờ</th>
+                                            <th class="p-4 font-bold border-b text-lg">Đối tượng & Thôn bản</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="page-vaccine-list">
+                                        <!-- Dữ liệu được đẩy từ Admin CMS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="mt-3 text-sm italic text-gray-500 font-medium">
+                                <i class="fas fa-info-circle text-medical-500"></i> Ghi chú: Bà con nhớ mang theo Sổ tiêm chủng và CCCD gắn chíp.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Kho lưu trữ tin bài (Archive) với phân trang -->
+                    <div class="space-y-8">
+                        <div class="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
+                            <div class="flex items-center justify-between mb-6 border-b pb-3">
+                                <div class="flex items-center gap-3">
+                                    <i class="fas fa-archive text-3xl text-orange-500"></i>
+                                    <h3 class="text-2xl font-black text-gray-900">Kho lưu trữ tin bài (Tin tức tổng hợp)</h3>
+                                </div>
+                            </div>
+                            
+                            <!-- Tin tức trong Kho lưu trữ -->
+                            <div class="space-y-4" id="archive-news-container">
+                                <!-- Dữ liệu được đẩy từ Admin CMS, có phân trang -->
+                            </div>
+
+                            <!-- Bộ điều hướng phân trang (Pagination) -->
+                            <div class="mt-8 flex justify-center items-center gap-2" id="news-pagination">
+                                <!-- Các nút trang 1, 2, 3... -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1362,10 +1427,33 @@
         window.switchPage = function(page) {
             const home = document.getElementById('trang-chu-container');
             const dept = document.getElementById('khoa-phong-container');
+            const newsPage = document.getElementById('tin-tuc-container');
             const navHome = document.getElementById('nav-home');
             const navDept = document.getElementById('nav-dept');
-            if(page === 'home') { home.classList.remove('hidden'); dept.classList.add('hidden'); if(navHome){navHome.classList.add('border-medical-600','text-medical-600'); navDept.classList.remove('border-medical-600','text-medical-600');} } 
-            else if (page === 'dept') { home.classList.add('hidden'); dept.classList.remove('hidden'); if(navDept){navDept.classList.add('border-medical-600','text-medical-600'); navHome.classList.remove('border-medical-600','text-medical-600');} }
+            const navNews = document.getElementById('nav-news');
+
+            if (page === 'home') {
+                if (home) home.classList.remove('hidden');
+                if (dept) dept.classList.add('hidden');
+                if (newsPage) newsPage.classList.add('hidden');
+                if (navHome) navHome.classList.add('border-medical-600', 'text-medical-600');
+                if (navDept) navDept.classList.remove('border-medical-600', 'text-medical-600');
+                if (navNews) navNews.classList.remove('border-medical-600', 'text-medical-600');
+            } else if (page === 'dept') {
+                if (home) home.classList.add('hidden');
+                if (dept) dept.classList.remove('hidden');
+                if (newsPage) newsPage.classList.add('hidden');
+                if (navDept) navDept.classList.add('border-medical-600', 'text-medical-600');
+                if (navHome) navHome.classList.remove('border-medical-600', 'text-medical-600');
+                if (navNews) navNews.classList.remove('border-medical-600', 'text-medical-600');
+            } else if (page === 'news') {
+                if (home) home.classList.add('hidden');
+                if (dept) dept.classList.add('hidden');
+                if (newsPage) newsPage.classList.remove('hidden');
+                if (navNews) navNews.classList.add('border-medical-600', 'text-medical-600');
+                if (navHome) navHome.classList.remove('border-medical-600', 'text-medical-600');
+                if (navDept) navDept.classList.remove('border-medical-600', 'text-medical-600');
+            }
             window.scrollTo(0,0);
         };
 
@@ -1510,27 +1598,85 @@
         };
 
         // 4. RENDER TOÀN BỘ GIAO DIỆN CMS VÀ PUBLIC
-        window.renderAll = function() {
-            // Sort data
-            newsData.sort((a,b)=>b.ts-a.ts);
-            vaccineScheduleData.sort((a,b)=>b.ts-a.ts);
-            documentsData.sort((a,b)=>b.ts-a.ts);
+        let currentNewsPage = 1;
+        const newsPerPage = 10;
 
-            // RENDER NEWS
-            const newsPub = document.getElementById('news-container'); const newsAdm = document.getElementById('admin-news-list');
-            if(newsPub) newsPub.innerHTML = newsData.map(n => {
+        window.changeNewsPage = function(pageNumber) {
+            currentNewsPage = pageNumber;
+            window.renderNewsArchive();
+            const container = document.getElementById('archive-news-container');
+            if (container) {
+                container.scrollIntoView({ behavior: 'smooth' });
+            }
+        };
+
+        window.toggleArchiveNewsDescription = function(id) {
+            const p = document.getElementById(`archive-news-desc-${id}`);
+            const btn = document.getElementById(`archive-news-btn-${id}`);
+            if(p && btn) {
+                const isClamped = p.classList.contains('line-clamp-2');
+                if(isClamped) {
+                    p.classList.remove('line-clamp-2');
+                    btn.innerHTML = `<span>Thu gọn</span> <i class="fas fa-chevron-up text-[9px]"></i>`;
+                } else {
+                    p.classList.add('line-clamp-2');
+                    btn.innerHTML = `<span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>`;
+                }
+            }
+        };
+
+        window.renderNewsArchive = function() {
+            const archivePub = document.getElementById('archive-news-container');
+            const paginationEl = document.getElementById('news-pagination');
+            if (!archivePub) return;
+
+            newsData.sort((a,b)=>b.ts-a.ts);
+
+            const totalNews = newsData.length;
+            const totalPages = Math.ceil(totalNews / newsPerPage) || 1;
+            
+            if (currentNewsPage > totalPages) {
+                currentNewsPage = totalPages;
+            }
+            if (currentNewsPage < 1) {
+                currentNewsPage = 1;
+            }
+
+            const startIndex = (currentNewsPage - 1) * newsPerPage;
+            const endIndex = startIndex + newsPerPage;
+            const paginatedNews = newsData.slice(startIndex, endIndex);
+
+            if (paginatedNews.length === 0) {
+                archivePub.innerHTML = `<div class="text-center py-8 text-gray-500 font-medium"><i class="fas fa-folder-open text-4xl mb-2 block"></i>Chưa có bài viết nào trong kho lưu trữ.</div>`;
+                if (paginationEl) paginationEl.innerHTML = '';
+                return;
+            }
+
+            archivePub.innerHTML = paginatedNews.map((n, i) => {
+                const globalIndex = startIndex + i;
+                const isArchived = globalIndex >= 7; // Bài thứ 8 trở đi (index >= 7) là bài cũ
                 const isLong = n.description && n.description.length > 120;
-                return `<div class="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-${n.color||'medical'}-300">
+                
+                return `<div class="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-${n.color||'medical'}-300 relative">
+                    ${isArchived ? `
+                        <div class="absolute top-3 right-3 bg-amber-50 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded border border-amber-200 uppercase tracking-wider">
+                            <i class="fas fa-archive mr-1"></i> Đã lưu trữ
+                        </div>
+                    ` : `
+                        <div class="absolute top-3 right-3 bg-green-50 text-green-700 text-[10px] font-black px-2 py-0.5 rounded border border-green-200 uppercase tracking-wider">
+                            <i class="fas fa-star mr-1"></i> Mới nhất
+                        </div>
+                    `}
                     <div class="flex gap-4 items-start flex-1">
                         <div class="w-14 h-14 bg-${n.color||'medical'}-100 rounded-xl flex items-center justify-center text-${n.color||'medical'}-600 text-2xl shrink-0">
                             <i class="fas ${n.icon||'fa-bullhorn'}"></i>
                         </div>
-                        <div class="flex-1">
+                        <div class="flex-1 pr-16 md:pr-20">
                             <h4 class="font-bold text-gray-900 leading-tight mb-1">${n.title}</h4>
                             ${n.description ? `
-                                <p id="news-desc-${n.id}" class="text-sm text-gray-600 mb-2 leading-relaxed whitespace-pre-line ${isLong ? 'line-clamp-2' : ''}">${n.description}</p>
+                                <p id="archive-news-desc-${n.id}" class="text-sm text-gray-600 mb-2 leading-relaxed whitespace-pre-line ${isLong ? 'line-clamp-2' : ''}">${n.description}</p>
                                 ${isLong ? `
-                                    <button onclick="window.toggleNewsDescription('${n.id}')" id="news-btn-${n.id}" class="text-xs font-bold text-medical-600 hover:text-medical-800 transition mb-2 focus:outline-none flex items-center gap-1 uppercase tracking-wider">
+                                    <button onclick="window.toggleArchiveNewsDescription('${n.id}')" id="archive-news-btn-${n.id}" class="text-xs font-bold text-medical-600 hover:text-medical-800 transition mb-2 focus:outline-none flex items-center gap-1 uppercase tracking-wider">
                                         <span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>
                                     </button>
                                 ` : ''}
@@ -1547,11 +1693,84 @@
                     </div>
                 </div>`;
             }).join('');
+
+            if (paginationEl) {
+                if (totalPages <= 1) {
+                    paginationEl.innerHTML = '';
+                    return;
+                }
+
+                let buttonsHtml = '';
+                
+                buttonsHtml += `<button onclick="window.changeNewsPage(${currentNewsPage - 1})" ${currentNewsPage === 1 ? 'disabled' : ''} class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold transition flex items-center justify-center bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-chevron-left"></i>
+                </button>`;
+
+                for (let p = 1; p <= totalPages; p++) {
+                    const isActive = p === currentNewsPage;
+                    buttonsHtml += `<button onclick="window.changeNewsPage(${p})" class="w-10 h-10 rounded-lg border text-sm font-bold transition flex items-center justify-center ${isActive ? 'bg-medical-600 border-medical-600 text-white' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}">
+                        ${p}
+                    </button>`;
+                }
+
+                buttonsHtml += `<button onclick="window.changeNewsPage(${currentNewsPage + 1})" ${currentNewsPage === totalPages ? 'disabled' : ''} class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold transition flex items-center justify-center bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-chevron-right"></i>
+                </button>`;
+
+                paginationEl.innerHTML = buttonsHtml;
+            }
+        };
+
+        window.renderAll = function() {
+            // Sort data
+            newsData.sort((a,b)=>b.ts-a.ts);
+            vaccineScheduleData.sort((a,b)=>b.ts-a.ts);
+            documentsData.sort((a,b)=>b.ts-a.ts);
+
+            // RENDER NEWS (Trang chủ - Chỉ hiển thị 5 bài mới nhất)
+            const newsPub = document.getElementById('news-container'); const newsAdm = document.getElementById('admin-news-list');
+            if(newsPub) {
+                const top5News = newsData.slice(0, 5);
+                newsPub.innerHTML = top5News.map(n => {
+                    const isLong = n.description && n.description.length > 120;
+                    return `<div class="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-${n.color||'medical'}-300">
+                        <div class="flex gap-4 items-start flex-1">
+                            <div class="w-14 h-14 bg-${n.color||'medical'}-100 rounded-xl flex items-center justify-center text-${n.color||'medical'}-600 text-2xl shrink-0">
+                                <i class="fas ${n.icon||'fa-bullhorn'}"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-bold text-gray-900 leading-tight mb-1">${n.title}</h4>
+                                ${n.description ? `
+                                    <p id="news-desc-${n.id}" class="text-sm text-gray-600 mb-2 leading-relaxed whitespace-pre-line ${isLong ? 'line-clamp-2' : ''}">${n.description}</p>
+                                    ${isLong ? `
+                                        <button onclick="window.toggleNewsDescription('${n.id}')" id="news-btn-${n.id}" class="text-xs font-bold text-medical-600 hover:text-medical-800 transition mb-2 focus:outline-none flex items-center gap-1 uppercase tracking-wider">
+                                            <span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>
+                                        </button>
+                                    ` : ''}
+                                ` : ''}
+                                ${n.image ? `
+                                    <div class="my-3 overflow-hidden rounded-xl border border-gray-100 max-h-64 flex justify-center bg-gray-50">
+                                        <img src="${n.image}" alt="${n.title}" class="object-cover w-full h-full max-h-64 transition hover:scale-105 duration-300">
+                                    </div>
+                                ` : ''}
+                                <div class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">
+                                    <i class="far fa-clock mr-1"></i> ${n.date}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
             if(newsAdm) newsAdm.innerHTML = newsData.map(n => `<tr class="hover:bg-blue-50 transition"><td class="p-4 font-bold text-gray-900">${n.title}</td><td class="p-4 text-center text-sm font-medium text-gray-500">${n.date}</td><td class="p-4 text-center"><button type="button" onclick="window.deleteItem('news', '${n.id}')" class="text-red-500 bg-white hover:bg-red-500 hover:text-white px-4 py-2 rounded-lg transition text-sm font-bold border border-red-200 shadow-sm"><i class="fas fa-trash-alt mr-1"></i> Xóa</button></td></tr>`).join('');
 
-            // RENDER VACCINE
-            const vacPub = document.getElementById('public-vaccine-list'); const vacAdm = document.getElementById('admin-vaccine-list');
-            if(vacPub) vacPub.innerHTML = vaccineScheduleData.map(v => `<tr class="border-b hover:bg-gray-50 transition"><td class="p-4 font-bold text-gray-800">${v.date}<br><span class="text-sm font-normal text-gray-500">${v.time}</span></td><td class="p-4 text-gray-700 font-medium leading-relaxed">${v.target.replace(/(Thôn [0-9, ]+)/g, '<span class="font-bold text-blue-700">$1</span>')}</td></tr>`).join('');
+            // RENDER VACCINE (Cả trang chủ và trang Tin tức & Lịch tiêm mới)
+            const vacPub = document.getElementById('public-vaccine-list'); 
+            const vacPage = document.getElementById('page-vaccine-list');
+            const vacAdm = document.getElementById('admin-vaccine-list');
+            const vacHtml = vaccineScheduleData.map(v => `<tr class="border-b hover:bg-gray-50 transition"><td class="p-4 font-bold text-gray-800">${v.date}<br><span class="text-sm font-normal text-gray-500">${v.time}</span></td><td class="p-4 text-gray-700 font-medium leading-relaxed">${v.target.replace(/(Thôn [0-9, ]+)/g, '<span class="font-bold text-blue-700">$1</span>')}</td></tr>`).join('');
+            
+            if(vacPub) vacPub.innerHTML = vacHtml;
+            if(vacPage) vacPage.innerHTML = vacHtml;
             if(vacAdm) vacAdm.innerHTML = vaccineScheduleData.map(v => `<tr class="hover:bg-gray-50"><td class="p-3 font-bold text-gray-800">${v.date}<br><span class="text-xs text-gray-500">${v.time}</span></td><td class="p-3 font-medium text-gray-700">${v.target}</td><td class="p-3 text-center"><button type="button" onclick="window.deleteItem('vaccines', '${v.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button></td></tr>`).join('');
 
             // RENDER DOCS
@@ -1606,6 +1825,9 @@
                     </tr>`;
                 }).join('');
             }
+
+            // Gọi hàm render Kho lưu trữ tin tức có phân trang
+            window.renderNewsArchive();
         };
 
         // 5. QUẢN TRỊ CMS: XỬ LÝ THÊM & XÓA ĐỒNG BỘ TOÀN DIỆN QUA API POSTGRES
