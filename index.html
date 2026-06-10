@@ -1003,6 +1003,61 @@
             </div>
         </div>
 
+        <!-- CHIA SẺ BÀI VIẾT TIN TỨC & THÔNG BÁO -->
+        <div id="modal-share-news" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+            <div class="bg-gradient-to-r from-medical-600 to-medical-500 p-5 flex justify-between items-center text-white">
+                <h3 class="font-bold text-xl"><i class="fas fa-share-alt mr-2"></i> Chia sẻ bài viết</h3>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-6">
+                <!-- Preview card of the shared news -->
+                <div class="p-4 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div id="share-news-icon-container" class="w-10 h-10 bg-medical-100 rounded-xl flex items-center justify-center text-medical-600 text-lg shrink-0">
+                            <i id="share-news-icon" class="fas fa-bullhorn"></i>
+                        </div>
+                        <h4 id="share-news-title" class="font-bold text-gray-900 line-clamp-1">Tiêu đề bài viết</h4>
+                    </div>
+                    <p id="share-news-desc" class="text-xs text-gray-600 line-clamp-2 leading-relaxed">Mô tả bài viết...</p>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Link input with copy button -->
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1.5 tracking-wider">Liên kết chia sẻ</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="share-news-link" readonly class="flex-1 bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-xs font-medium text-gray-700 outline-none">
+                            <button onclick="window.copyShareNewsLink()" class="bg-medical-600 hover:bg-medical-700 text-white font-bold px-4 py-2.5 rounded-xl transition text-xs shrink-0 flex items-center gap-1.5 shadow-md">
+                                <i class="far fa-copy"></i> Sao chép
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Actions grid -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="window.copyShareNewsSummary()" class="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-2xl transition gap-2 group text-center">
+                            <div class="w-11 h-11 bg-teal-50 group-hover:bg-teal-100 text-teal-600 rounded-full flex items-center justify-center text-lg transition">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <span class="text-xs font-bold text-gray-700">Sao chép tóm tắt</span>
+                        </button>
+                        <a id="share-news-fb" target="_blank" href="#" class="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-200 rounded-2xl transition gap-2 group text-center">
+                            <div class="w-11 h-11 bg-blue-50 group-hover:bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-lg transition">
+                                <i class="fab fa-facebook-f"></i>
+                            </div>
+                            <span class="text-xs font-bold text-gray-700">Chia sẻ Facebook</span>
+                        </a>
+                    </div>
+
+                    <div class="grid grid-cols-1">
+                        <a id="share-news-zalo" target="_blank" href="#" class="flex items-center justify-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-2xl transition text-blue-700 font-bold text-sm shadow-sm">
+                            <i class="fas fa-paper-plane"></i> Chia sẻ qua Zalo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div> <!-- KẾT THÚC MODAL OVERLAY -->
 
     <!-- TOAST NOTIFICATION -->
@@ -1568,6 +1623,95 @@
             setTimeout(() => toast.classList.add('translate-x-full', 'opacity-0'), 3000);
         };
 
+        window.openShareNewsModal = function(id) {
+            const newsItem = newsData.find(n => n.id === id);
+            if (!newsItem) return;
+            
+            document.getElementById('share-news-title').innerText = newsItem.title;
+            document.getElementById('share-news-desc').innerText = newsItem.description || '';
+            
+            const iconEl = document.getElementById('share-news-icon');
+            if (iconEl) iconEl.className = `fas ${newsItem.icon || 'fa-bullhorn'}`;
+            
+            const iconCont = document.getElementById('share-news-icon-container');
+            if (iconCont) iconCont.className = `w-10 h-10 bg-${newsItem.color || 'medical'}-100 rounded-xl flex items-center justify-center text-${newsItem.color || 'medical'}-600 text-lg shrink-0`;
+            
+            const shareUrl = window.location.origin + window.location.pathname + '?news=' + newsItem.id;
+            const shareInput = document.getElementById('share-news-link');
+            if (shareInput) shareInput.value = shareUrl;
+            
+            const fbEl = document.getElementById('share-news-fb');
+            if (fbEl) fbEl.href = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(shareUrl);
+            
+            const zaloEl = document.getElementById('share-news-zalo');
+            if (zaloEl) zaloEl.href = 'https://sp.zalo.me/share_to_zalo?url=' + encodeURIComponent(shareUrl);
+            
+            document.getElementById('modal-share-news').dataset.newsId = id;
+            
+            window.openModal('modal-share-news');
+        };
+
+        window.copyShareNewsLink = function() {
+            const linkInput = document.getElementById('share-news-link');
+            if (!linkInput) return;
+            linkInput.select();
+            linkInput.setSelectionRange(0, 99999);
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(linkInput.value).then(() => {
+                    window.showToast("Đã sao chép liên kết vào bộ nhớ tạm!");
+                }).catch(() => {
+                    window.showToast("Không thể sao chép liên kết!");
+                });
+            } else {
+                try {
+                    document.execCommand('copy');
+                    window.showToast("Đã sao chép liên kết vào bộ nhớ tạm!");
+                } catch (err) {
+                    window.showToast("Không thể sao chép liên kết!");
+                }
+            }
+        };
+
+        window.copyShareNewsSummary = function() {
+            const id = document.getElementById('modal-share-news').dataset.newsId;
+            const newsItem = newsData.find(n => n.id === id);
+            if (!newsItem) return;
+            
+            const shareUrl = window.location.origin + window.location.pathname + '?news=' + newsItem.id;
+            const summaryText = `📢 ${newsItem.title}\n\n${newsItem.description || ''}\n\n👉 Xem chi tiết tại: ${shareUrl}`;
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(summaryText).then(() => {
+                    window.showToast("Đã sao chép tóm tắt bài viết!");
+                }).catch(() => {
+                    const tempInput = document.createElement('textarea');
+                    tempInput.value = summaryText;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    try {
+                        document.execCommand('copy');
+                        window.showToast("Đã sao chép tóm tắt bài viết!");
+                    } catch (err) {
+                        window.showToast("Không thể sao chép tóm tắt!");
+                    }
+                    document.body.removeChild(tempInput);
+                });
+            } else {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = summaryText;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                try {
+                    document.execCommand('copy');
+                    window.showToast("Đã sao chép tóm tắt bài viết!");
+                } catch (err) {
+                    window.showToast("Không thể sao chép tóm tắt!");
+                }
+                document.body.removeChild(tempInput);
+            }
+        };
+
         window.openSupportModal = function(topic) {
             document.getElementById('support-topic').value = topic; document.getElementById('support-title').innerText = topic;
             document.getElementById('support-result').classList.add('hidden'); window.openModal('modal-hotrochuyenmon');
@@ -1657,7 +1801,7 @@
                 const isArchived = globalIndex >= 7; // Bài thứ 8 trở đi (index >= 7) là bài cũ
                 const isLong = n.description && n.description.length > 120;
                 
-                return `<div class="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-${n.color||'medical'}-300 relative">
+                return `<div id="archive-news-card-${n.id}" class="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-${n.color||'medical'}-300 relative">
                     ${isArchived ? `
                         <div class="absolute top-3 right-3 bg-amber-50 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded border border-amber-200 uppercase tracking-wider">
                             <i class="fas fa-archive mr-1"></i> Đã lưu trữ
@@ -1686,8 +1830,11 @@
                                     <img src="${n.image}" alt="${n.title}" class="object-cover w-full h-full max-h-64 transition hover:scale-105 duration-300">
                                 </div>
                             ` : ''}
-                            <div class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">
-                                <i class="far fa-clock mr-1"></i> ${n.date}
+                            <div class="text-xs font-bold text-gray-400 mt-3 uppercase tracking-wider flex items-center justify-between">
+                                <span><i class="far fa-clock mr-1"></i> ${n.date}</span>
+                                <button onclick="window.openShareNewsModal('${n.id}')" class="text-medical-600 hover:text-medical-800 transition flex items-center gap-1.5 bg-medical-50 hover:bg-medical-100 px-3 py-1.5 rounded-xl border border-medical-200">
+                                    <i class="fas fa-share-alt"></i> Chia sẻ
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1733,7 +1880,7 @@
                 const top5News = newsData.slice(0, 5);
                 newsPub.innerHTML = top5News.map(n => {
                     const isLong = n.description && n.description.length > 120;
-                    return `<div class="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-${n.color||'medical'}-300">
+                    return `<div id="news-card-${n.id}" class="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm transition hover:border-${n.color||'medical'}-300">
                         <div class="flex gap-4 items-start flex-1">
                             <div class="w-14 h-14 bg-${n.color||'medical'}-100 rounded-xl flex items-center justify-center text-${n.color||'medical'}-600 text-2xl shrink-0">
                                 <i class="fas ${n.icon||'fa-bullhorn'}"></i>
@@ -1753,8 +1900,11 @@
                                         <img src="${n.image}" alt="${n.title}" class="object-cover w-full h-full max-h-64 transition hover:scale-105 duration-300">
                                     </div>
                                 ` : ''}
-                                <div class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">
-                                    <i class="far fa-clock mr-1"></i> ${n.date}
+                                <div class="text-xs font-bold text-gray-400 mt-2 uppercase tracking-wider flex items-center justify-between">
+                                    <span><i class="far fa-clock mr-1"></i> ${n.date}</span>
+                                    <button onclick="window.openShareNewsModal('${n.id}')" class="text-medical-600 hover:text-medical-800 transition flex items-center gap-1.5 bg-medical-50 hover:bg-medical-100 px-3 py-1.5 rounded-xl border border-medical-200">
+                                        <i class="fas fa-share-alt"></i> Chia sẻ
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -2545,6 +2695,50 @@
                 console.warn("Lỗi kết nối API Postgres, sử dụng dữ liệu mặc định", e);
             }
             window.renderAll();
+
+            // Tự động tìm kiếm và làm nổi bật tin tức được chia sẻ
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const sharedNewsId = urlParams.get('news');
+                if (sharedNewsId) {
+                    // Cần sắp xếp newsData giống hệt trong renderNewsArchive để tìm đúng index
+                    const sortedNews = [...newsData].sort((a,b)=>b.ts-a.ts);
+                    const index = sortedNews.findIndex(n => n.id === sharedNewsId);
+                    if (index !== -1) {
+                        // Chuyển hướng sang trang Tin tức
+                        window.switchPage('news');
+                        // Tính toán trang chứa tin tức này
+                        const pageNumber = Math.floor(index / newsPerPage) + 1;
+                        window.changeNewsPage(pageNumber);
+
+                        // Cuộn màn hình và highlight phần tử
+                        setTimeout(() => {
+                            const el = document.getElementById(`archive-news-card-${sharedNewsId}`);
+                            if (el) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                el.classList.remove('border-gray-100');
+                                el.classList.add('ring-4', 'ring-medical-500', 'border-medical-500', 'bg-medical-50/50');
+
+                                // Mở rộng phần nội dung nếu nó quá dài
+                                const descEl = document.getElementById(`archive-news-desc-${sharedNewsId}`);
+                                if (descEl && descEl.classList.contains('line-clamp-2')) {
+                                    window.toggleArchiveNewsDescription(sharedNewsId);
+                                }
+
+                                // Hủy hiệu ứng nổi bật sau 4 giây
+                                setTimeout(() => {
+                                    if (el) {
+                                        el.classList.remove('ring-4', 'ring-medical-500', 'border-medical-500', 'bg-medical-50/50');
+                                        el.classList.add('border-gray-100');
+                                    }
+                                }, 4000);
+                            }
+                        }, 500);
+                    }
+                }
+            } catch(e) {
+                console.error("Lỗi khi tải bài viết được chia sẻ:", e);
+            }
         };
     </script>
 </body>
