@@ -153,6 +153,46 @@ export default async (req: Request) => {
         return new Response(JSON.stringify({ success: true, complete: false }), { headers, status: 200 });
       }
 
+      if (action === "upload_attachment_chunk") {
+        const { id: fileId, index, total, chunk, mimeType, fileName } = body;
+        if (!fileId || index === undefined || !total || !chunk) {
+          return new Response(JSON.stringify({ error: "Missing parameters" }), { headers, status: 400 });
+        }
+
+        const base64Data = chunk.split(",")[1] || chunk;
+        const buffer = Buffer.from(base64Data, "base64");
+
+        const chunkStore = getStore("attachment-chunks");
+        await chunkStore.set(`${fileId}/${index}`, new Blob([buffer]));
+
+        let allUploaded = true;
+        const chunkList: Buffer[] = [];
+        for (let i = 0; i < total; i++) {
+          const got = await chunkStore.get(`${fileId}/${i}`, { type: "arrayBuffer" });
+          if (!got) {
+            allUploaded = false;
+            break;
+          }
+          chunkList.push(Buffer.from(got));
+        }
+
+        if (allUploaded) {
+          const finalBuffer = Buffer.concat(chunkList);
+          const attachmentStore = getStore("attachments");
+          await attachmentStore.set(fileId, new Blob([finalBuffer]), {
+            metadata: { contentType: mimeType || "application/octet-stream" }
+          });
+
+          for (let i = 0; i < total; i++) {
+            await chunkStore.delete(`${fileId}/${i}`);
+          }
+
+          return new Response(JSON.stringify({ success: true, complete: true, url: `/api/attachment?id=${fileId}`, name: fileName }), { headers, status: 200 });
+        }
+
+        return new Response(JSON.stringify({ success: true, complete: false }), { headers, status: 200 });
+      }
+
       if (action === "save") {
         if (type === "news") {
           const existing = await db.select().from(news).where(eq(news.id, data.id));
