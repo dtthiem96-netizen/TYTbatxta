@@ -9,6 +9,7 @@ export const news = pgTable("news", {
   icon: text("icon"),
   color: text("color"),
   image: text("image"),
+  attachments: text("attachments"),
 });
 
 export const vaccines = pgTable("vaccines", {

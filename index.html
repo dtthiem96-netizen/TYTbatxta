@@ -707,6 +707,20 @@
                             <textarea id="feedback-reason" name="message" rows="4" required placeholder="Nội dung đóng góp ý kiến để Trạm nâng cao chất lượng dịch vụ..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium"></textarea>
                             <p id="feedback-ai-status" class="text-xs text-purple-600 hidden mt-1 font-bold animate-pulse"><i class="fas fa-spinner fa-spin"></i> Trợ lý AI đang tinh chỉnh văn phong...</p>
                         </div>
+                        <div class="grid grid-cols-1 gap-4 pt-2">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1.5">Email liên hệ (Nếu có)</label>
+                                <input type="email" name="sender_email" placeholder="email@example.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1.5">Địa chỉ người gửi</label>
+                                <input type="text" name="sender_address" required placeholder="Thôn bản, xã, thị trấn..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1.5">Vị trí nơi phản ánh</label>
+                                <input type="text" name="reflection_location" required placeholder="Khoa/Phòng hoặc địa điểm cụ thể..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
+                            </div>
+                        </div>
                     </div>
                     <div class="mt-6">
                         <button type="submit" class="w-full bg-yellow-500 text-white font-bold py-3.5 rounded-xl hover:bg-yellow-600 transition shadow-lg text-lg">Gửi phản ánh an toàn</button>
@@ -1141,6 +1155,11 @@
                                     <label class="block text-sm font-bold text-gray-700 mb-2 uppercase">Hoặc tải ảnh từ thiết bị (Có thể chọn nhiều ảnh)</label>
                                     <input type="file" id="news-image-file" accept="image/*" multiple class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 font-medium text-gray-900 bg-white">
                                 </div>
+                            </div>
+                            <div class="mb-6 p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                                <label class="block text-sm font-bold text-gray-700 mb-2 uppercase"><i class="fas fa-paperclip mr-1.5 text-medical-600"></i>Đăng kèm tài liệu / Văn bản (PDF, Word, Ảnh... Số lượng nhiều)</label>
+                                <input type="file" id="news-document-files" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif" multiple class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900 bg-white">
+                                <p class="text-xs text-gray-500 mt-1">Được tải lên nhiều tài liệu cùng lúc.</p>
                             </div>
                             <div class="flex justify-end">
                                 <button type="submit" class="bg-medical-600 text-white font-bold px-8 py-3.5 rounded-xl hover:bg-medical-700 transition shadow-lg flex items-center gap-2">
@@ -1786,6 +1805,47 @@
             }
         };
 
+        window.renderNewsAttachments = function(n) {
+            if (!n.attachments) return '';
+            let files = [];
+            try {
+                files = JSON.parse(n.attachments);
+            } catch (e) {
+                return '';
+            }
+            if (!Array.isArray(files) || files.length === 0) return '';
+
+            return `
+                <div class="my-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                    <h5 class="text-xs font-black text-gray-700 uppercase mb-2 tracking-wider"><i class="fas fa-paperclip mr-1.5 text-medical-600"></i>Tài liệu đính kèm (${files.length})</h5>
+                    <div class="space-y-1.5">
+                        ${files.map(f => {
+                            let icon = 'fa-file-alt';
+                            let iconColor = 'text-gray-500';
+                            const lowerName = f.name.toLowerCase();
+                            if (lowerName.endsWith('.pdf')) {
+                                icon = 'fa-file-pdf';
+                                iconColor = 'text-red-500';
+                            } else if (lowerName.endsWith('.doc') || lowerName.endsWith('.docx')) {
+                                icon = 'fa-file-word';
+                                iconColor = 'text-blue-500';
+                            } else if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png') || lowerName.endsWith('.webp')) {
+                                icon = 'fa-file-image';
+                                iconColor = 'text-green-500';
+                            }
+                            return `
+                                <a href="${f.url}" target="_blank" class="flex items-center gap-2 p-2 bg-white hover:bg-medical-50 border border-gray-100 hover:border-medical-200 rounded-lg transition text-xs font-bold text-gray-800 hover:text-medical-700 shadow-sm">
+                                    <i class="fas ${icon} ${iconColor} text-sm"></i>
+                                    <span class="truncate flex-1">${f.name}</span>
+                                    <i class="fas fa-download text-gray-400 hover:text-medical-600 ml-auto"></i>
+                                </a>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        };
+
         window.viewImageFull = function(src) {
             let lightbox = document.getElementById('lightbox-modal');
             if (!lightbox) {
@@ -1809,7 +1869,7 @@
 
         // 4. RENDER TOÀN BỘ GIAO DIỆN CMS VÀ PUBLIC
         let currentNewsPage = 1;
-        const newsPerPage = 10;
+        const newsPerPage = 5;
 
         window.changeNewsPage = function(pageNumber) {
             currentNewsPage = pageNumber;
@@ -1892,6 +1952,7 @@
                                 ` : ''}
                             ` : ''}
                             ${window.renderNewsImages(n)}
+                            ${window.renderNewsAttachments(n)}
                             <div class="text-xs font-bold text-gray-400 mt-3 uppercase tracking-wider flex items-center justify-between">
                                 <span><i class="far fa-clock mr-1"></i> ${n.date}</span>
                                 <button onclick="window.openShareNewsModal('${n.id}')" class="text-medical-600 hover:text-medical-800 transition flex items-center gap-1.5 bg-medical-50 hover:bg-medical-100 px-3 py-1.5 rounded-xl border border-medical-200">
@@ -1958,6 +2019,7 @@
                                     ` : ''}
                                 ` : ''}
                                 ${window.renderNewsImages(n)}
+                                ${window.renderNewsAttachments(n)}
                                 <div class="text-xs font-bold text-gray-400 mt-2 uppercase tracking-wider flex items-center justify-between">
                                     <span><i class="far fa-clock mr-1"></i> ${n.date}</span>
                                     <button onclick="window.openShareNewsModal('${n.id}')" class="text-medical-600 hover:text-medical-800 transition flex items-center gap-1.5 bg-medical-50 hover:bg-medical-100 px-3 py-1.5 rounded-xl border border-medical-200">
@@ -2121,8 +2183,10 @@
             const desc = document.getElementById('news-desc').value;
             const imageUrlInput = document.getElementById('news-image-url').value.trim();
             const fileInput = document.getElementById('news-image-file');
+            const docInput = document.getElementById('news-document-files');
             
             let finalImages = [];
+            let finalAttachments = [];
             
             if (imageUrlInput) {
                 // Support multiple URLs separated by commas
@@ -2145,8 +2209,75 @@
                     finalImages.push(base64Data);
                 }
             }
+
+            if (docInput && docInput.files && docInput.files.length > 0) {
+                window.showToast(`Bắt đầu tải lên ${docInput.files.length} tài liệu...`);
+                for (let i = 0; i < docInput.files.length; i++) {
+                    const file = docInput.files[i];
+                    if (file.size > 15 * 1024 * 1024) {
+                        window.showToast(`Tài liệu "${file.name}" vượt quá 15MB giới hạn!`);
+                        return;
+                    }
+                    
+                    const fileId = 'DOC_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                    const chunkSize = 3 * 1024 * 1024; // 3MB chunks
+                    const totalChunks = Math.ceil(file.size / chunkSize);
+                    let uploadedUrl = null;
+
+                    for (let c = 0; c < totalChunks; c++) {
+                        const start = c * chunkSize;
+                        const end = Math.min(start + chunkSize, file.size);
+                        const chunkFile = file.slice(start, end);
+
+                        const reader = new FileReader();
+                        const base64Promise = new Promise((resolve) => {
+                            reader.onload = (event) => resolve(reader.result);
+                            reader.readAsDataURL(chunkFile);
+                        });
+                        const chunkBase64 = await base64Promise;
+
+                        const progress = Math.round(((c + 1) / totalChunks) * 100);
+                        window.showToast(`Đang tải tệp "${file.name}": ${progress}%`);
+
+                        try {
+                            const res = await fetch('/api/cms', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: "upload_attachment_chunk",
+                                    id: fileId,
+                                    index: c,
+                                    total: totalChunks,
+                                    chunk: chunkBase64,
+                                    mimeType: file.type,
+                                    fileName: file.name
+                                })
+                            });
+                            if (!res.ok) throw new Error();
+                            const result = await res.json();
+                            if (result.complete) {
+                                uploadedUrl = result.url;
+                                break;
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            window.showToast(`Lỗi tải lên phần của tệp ${file.name}`);
+                            return;
+                        }
+                    }
+
+                    if (uploadedUrl) {
+                        finalAttachments.push({
+                            name: file.name,
+                            url: uploadedUrl
+                        });
+                    }
+                }
+                window.showToast("Tải lên tất cả tài liệu thành công!");
+            }
             
             const finalImageValue = finalImages.length > 0 ? JSON.stringify(finalImages) : null;
+            const finalAttachmentValue = finalAttachments.length > 0 ? JSON.stringify(finalAttachments) : null;
             
             window.saveToDb('news', {
                 id: 'N'+Date.now(),
@@ -2156,7 +2287,8 @@
                 ts: Date.now(),
                 icon: 'fa-bullhorn',
                 color: 'medical',
-                image: finalImageValue
+                image: finalImageValue,
+                attachments: finalAttachmentValue
             });
             e.target.reset();
         };
@@ -2826,6 +2958,113 @@
                 }
             } catch(e) {
                 console.error("Lỗi khi tải bài viết được chia sẻ:", e);
+            }
+
+            // KHỞI TẠO VÀ CHẠY NHẠC NỀN TRẠM Y TẾ BÁT XÁT
+            try {
+                const audioContainer = document.createElement('div');
+                audioContainer.id = 'bg-music-player';
+                audioContainer.className = 'fixed bottom-6 left-6 z-[9999] bg-white/90 backdrop-blur border border-medical-200 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-3 transition-transform duration-300 hover:scale-105';
+                audioContainer.innerHTML = `
+                    <audio id="station-bg-audio" src="assets/tram_music.mp3" autoplay loop></audio>
+                    <div class="flex items-center justify-center w-8 h-8 bg-medical-100 text-medical-600 rounded-full animate-pulse" id="music-wave">
+                        <i class="fas fa-music text-xs"></i>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[11px] font-black text-gray-800 leading-none">Bản nhạc truyền thống</span>
+                        <span class="text-[9px] text-gray-500 font-bold">Trạm Y Tế Bát Xát</span>
+                    </div>
+                    <div class="flex items-center gap-1 ml-2">
+                        <button onclick="window.toggleMusic()" id="btn-music-play" class="w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md" title="Phát/Tạm dừng">
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        <button onclick="window.toggleMusicLoop()" id="btn-music-loop" class="w-7 h-7 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs transition border border-gray-200" title="Bật/Tắt Lặp lại">
+                            <i class="fas fa-redo text-[10px]"></i>
+                        </button>
+                    </div>
+                `;
+                document.body.appendChild(audioContainer);
+
+                const audio = document.getElementById('station-bg-audio');
+                const playBtn = document.getElementById('btn-music-play');
+                const loopBtn = document.getElementById('btn-music-loop');
+                const musicWave = document.getElementById('music-wave');
+
+                // State persistence
+                let isMuted = localStorage.getItem('bg_music_muted') === 'true';
+                let isLooping = localStorage.getItem('bg_music_loop') !== 'false'; // Default to loop is true
+
+                audio.loop = isLooping;
+                if (isLooping) {
+                    loopBtn.classList.remove('bg-gray-100', 'text-gray-600');
+                    loopBtn.classList.add('bg-amber-100', 'text-amber-700', 'border-amber-300');
+                }
+
+                window.toggleMusic = function() {
+                    if (audio.paused) {
+                        audio.play().then(() => {
+                            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                            playBtn.className = 'w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md';
+                            musicWave.classList.add('animate-pulse');
+                            localStorage.setItem('bg_music_muted', 'false');
+                        }).catch(e => console.log("Không thể tự động phát nhạc do chính sách bảo mật trình duyệt:", e));
+                    } else {
+                        audio.pause();
+                        playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
+                        playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
+                        musicWave.classList.remove('animate-pulse');
+                        localStorage.setItem('bg_music_muted', 'true');
+                    }
+                };
+
+                window.toggleMusicLoop = function() {
+                    audio.loop = !audio.loop;
+                    localStorage.setItem('bg_music_loop', audio.loop);
+                    if (audio.loop) {
+                        loopBtn.classList.remove('bg-gray-100', 'text-gray-600');
+                        loopBtn.classList.add('bg-amber-100', 'text-amber-700', 'border-amber-300');
+                        window.showToast("Đã bật lặp lại bản nhạc");
+                    } else {
+                        loopBtn.classList.add('bg-gray-100', 'text-gray-600');
+                        loopBtn.classList.remove('bg-amber-100', 'text-amber-700', 'border-amber-300');
+                        window.showToast("Đã tắt lặp lại bản nhạc");
+                    }
+                };
+
+                // Play music on interaction if blocked by autoplay policy
+                const startAudioOnInteraction = () => {
+                    if (!isMuted) {
+                        audio.play().then(() => {
+                            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                            playBtn.className = 'w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md';
+                            musicWave.classList.add('animate-pulse');
+                        }).catch(e => console.log("Autoplay policy still active", e));
+                    } else {
+                        audio.pause();
+                        playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
+                        playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
+                        musicWave.classList.remove('animate-pulse');
+                    }
+                    document.removeEventListener('click', startAudioOnInteraction);
+                    document.removeEventListener('scroll', startAudioOnInteraction);
+                };
+
+                document.addEventListener('click', startAudioOnInteraction);
+                document.addEventListener('scroll', startAudioOnInteraction);
+
+                // Initial load
+                if (!isMuted) {
+                    audio.play().catch(err => {
+                        console.log("Trình duyệt yêu cầu tương tác của người dùng để bắt đầu phát nhạc.", err);
+                    });
+                } else {
+                    audio.pause();
+                    playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
+                    playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
+                    musicWave.classList.remove('animate-pulse');
+                }
+            } catch (err) {
+                console.error("Lỗi thiết lập nhạc nền:", err);
             }
         };
     </script>
