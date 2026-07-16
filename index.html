@@ -2534,8 +2534,8 @@
 
             if (fileInput && fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                if (file.size > 25 * 1024 * 1024) {
-                    window.showToast("Video quá lớn! Vui lòng chọn video dưới 25MB.");
+                if (file.size > 75 * 1024 * 1024) {
+                    window.showToast("Video quá lớn! Vui lòng chọn video dưới 75MB.");
                     return;
                 }
 
