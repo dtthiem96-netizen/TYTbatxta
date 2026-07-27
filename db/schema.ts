@@ -1,4 +1,4 @@
-import { pgTable, text, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, bigint, serial, index } from "drizzle-orm/pg-core";
 
 export const news = pgTable("news", {
   id: text("id").primaryKey(),
@@ -67,6 +67,45 @@ export const videos = pgTable("videos", {
   ts: bigint("ts", { mode: "number" }).notNull(),
   isCollapsed: text("is_collapsed").default("false"),
 });
+
+// Phòng khám từ xa: trạng thái phòng, sinh hiệu mới nhất và ghi chép lâm sàng
+export const telehealthRooms = pgTable("telehealth_rooms", {
+  id: text("id").primaryKey(),
+  patientName: text("patient_name"),
+  symptoms: text("symptoms"),
+  vitals: text("vitals"),
+  notes: text("notes"),
+  status: text("status").default("WAITING"),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+});
+
+// Danh sách thành viên đang có mặt trong phòng (presence) dùng cho signaling WebRTC
+export const telehealthPeers = pgTable(
+  "telehealth_peers",
+  {
+    id: text("id").primaryKey(),
+    roomId: text("room_id").notNull(),
+    role: text("role").notNull(),
+    name: text("name").notNull(),
+    lastSeen: bigint("last_seen", { mode: "number" }).notNull(),
+  },
+  (table) => [index("telehealth_peers_room_idx").on(table.roomId)]
+);
+
+// Hộp thư signaling (offer / answer / ICE candidate / chat / sinh hiệu)
+export const telehealthSignals = pgTable(
+  "telehealth_signals",
+  {
+    seq: serial("seq").primaryKey(),
+    roomId: text("room_id").notNull(),
+    fromPeer: text("from_peer").notNull(),
+    toPeer: text("to_peer"),
+    type: text("type").notNull(),
+    payload: text("payload"),
+    ts: bigint("ts", { mode: "number" }).notNull(),
+  },
+  (table) => [index("telehealth_signals_room_seq_idx").on(table.roomId, table.seq)]
+);
 
 export const appointments = pgTable("appointments", {
   id: text("id").primaryKey(),
