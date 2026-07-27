@@ -2,11 +2,16 @@
   "name": "tytbatxat",
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
     "@google/genai": "^2.8.0",
     "@netlify/blobs": "^10.7.9",
     "@netlify/database": "^1.0.0",
-    "drizzle-orm": "beta"
+    "drizzle-orm": "beta",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "drizzle-kit": "beta",

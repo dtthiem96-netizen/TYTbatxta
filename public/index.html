@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Khám Chữa Bệnh Từ Xa (Telehealth) - Điểm Trạm Y Tế</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            navy: {
+              800: '#112240',
+              900: '#0f2942',
+              950: '#0a192f'
+            },
+            medical: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #0b1329; color: #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .pulse-ring { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .hud-overlay { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); }
+    @media print {
+      body * { visibility: hidden; }
+      #printable-report, #printable-report * { visibility: visible; }
+      #printable-report { position: absolute; left: 0; top: 0; width: 100%; color: #000; background: #fff; }
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-100">
+
+  <!-- TOP HEADER / NAV BAR -->
+  <header class="bg-navy-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between shadow-md z-20">
+    <div class="flex items-center space-x-3">
+      <div class="bg-red-600 text-white p-2 rounded-lg flex items-center justify-center shadow-lg">
+        <i class="fa-solid fa-staff-snake text-xl"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-lg text-white leading-tight flex items-center gap-2">
+          TELEHEALTH STATION <span class="bg-blue-600 text-[10px] uppercase font-semibold px-2 py-0.5 rounded text-white tracking-wider">Tuyến Cơ Sở</span>
+        </h1>
+        <p class="text-xs text-slate-400">Hệ Thống Khám Chữa Bệnh Từ Xa Hỗ Trợ Cán Bộ Điểm Trạm Y Tế</p>
+      </div>
+    </div>
+
+    <!-- STATION & OPERATOR INFO BADGES -->
+    <div class="flex items-center space-x-3">
+      <!-- Connection Status Indicator -->
+      <div id="connection-badge" class="flex items-center space-x-2 bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 text-xs px-3 py-1.5 rounded-full">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+        <span id="connection-status-text" class="font-medium">Đã kết nối Máy chủ WebRTC</span>
+      </div>
+
+      <!-- Station Info -->
+      <div class="bg-slate-800/80 border border-slate-700/80 px-3 py-1 rounded-lg text-xs flex items-center gap-2">
+        <i class="fa-solid fa-hospital-user text-blue-400"></i>
+        <div>
+          <div class="text-[10px] text-slate-400 uppercase tracking-wider">Mã Điểm Trạm</div>
+          <div id="display-station-code" class="font-bold text-slate-200">TYT-BATXAT-01</div>
+        </div>
+      </div>
+
+      <!-- Operator Info -->
+      <div class="bg-slate-800/80 border border-slate-700/80 px-3 py-1 rounded-lg text-xs flex items-center gap-2">
+        <i class="fa-solid fa-user-doctor text-emerald-400"></i>
+        <div>
+          <div class="text-[10px] text-slate-400 uppercase tracking-wider">Cán Bộ Trực</div>
+          <div id="display-operator-name" class="font-bold text-slate-200">Y sĩ Nguyễn Văn A</div>
+        </div>
+      </div>
+
+      <!-- Station Login Button -->
+      <button onclick="openLoginModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-2 rounded-lg text-xs transition border border-slate-600" title="Thay đổi thông tin điểm trạm">
+        <i class="fa-solid fa-gear text-sm"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- EMERGENCY VITALS ALERT BANNER (HIDDEN BY DEFAULT) -->
+  <div id="alert-banner" class="hidden bg-red-900/90 border-b border-red-700 px-4 py-2 text-red-200 text-xs flex items-center justify-between animate-bounce">
+    <div class="flex items-center space-x-2">
+      <i class="fa-solid fa-triangle-exclamation text-red-400 text-base"></i>
+      <span id="alert-banner-msg" class="font-semibold">CẢNH BÁO CẤP CỨU: Chỉ số sinh hiệu bệnh nhân bất thường!</span>
+    </div>
+    <button onclick="closeAlertBanner()" class="text-red-300 hover:text-white font-bold"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <!-- MAIN MAIN WORKSPACE LAYOUT (3 COLUMNS) -->
+  <main class="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden bg-slate-950">
+
+    <!-- LEFT COLUMN: STATION OPERATOR PANEL & PATIENT VITALS (3 COLS) -->
+    <section class="col-span-3 bg-navy-900/90 border border-slate-800 rounded-xl p-3 flex flex-col justify-between overflow-hidden shadow-xl">
+      <div class="flex flex-col h-full overflow-y-auto custom-scrollbar pr-1 space-y-3">
+        
+        <!-- Section Title -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h2 class="font-bold text-sm text-blue-400 flex items-center gap-2">
+            <i class="fa-solid fa-notes-medical"></i> Bảng Nhập & Đồng Bộ Sinh Hiệu
+          </h2>
+          <span class="text-[10px] bg-blue-900/60 text-blue-300 px-2 py-0.5 rounded font-mono">Bệnh nhân</span>
+        </div>
+
+        <!-- Patient Demographics Inputs -->
+        <div class="space-y-2 bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/50">
+          <div>
+            <label class="text-[11px] font-medium text-slate-300">Họ và tên Bệnh nhân</label>
+            <input type="text" id="patient-name" value="Trần Văn Nam" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[11px] font-medium text-slate-300">Tuổi</label>
+              <input type="number" id="patient-age" value="58" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+              <label class="text-[11px] font-medium text-slate-300">Giới tính</label>
+              <select id="patient-gender" class="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rapid Vitals Form Inputs -->
+        <div class="space-y-2 bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/50">
+          <div class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex justify-between">
+            <span>Chỉ Số Sinh Tồn (Vitals)</span>
+            <span class="text-emerald-400 font-normal text-[10px]">Đồng bộ trực tiếp</span>
+          </div>
+
+          <!-- Blood Pressure (mmHg) -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-slate-400">HA Tâm Thu (mmHg)</label>
+              <input type="number" id="vitals-bp-sys" value="135" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono font-bold focus:border-blue-500">
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-400">HA Tâm Trương (mmHg)</label>
+              <input type="number" id="vitals-bp-dia" value="85" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono font-bold focus:border-blue-500">
+            </div>
+          </div>
+
+          <!-- Heart Rate & SpO2 -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-slate-400">Nhịp tim (bpm)</label>
+              <input type="number" id="vitals-hr" value="82" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono font-bold focus:border-blue-500">
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-400">SpO2 (%)</label>
+              <input type="number" id="vitals-spo2" value="97" step="0.1" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono font-bold focus:border-blue-500">
+            </div>
+          </div>
+
+          <!-- Temperature & Weight -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-slate-400">Nhiệt độ (°C)</label>
+              <input type="number" id="vitals-temp" value="37.2" step="0.1" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono font-bold focus:border-blue-500">
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-400">Cân nặng (kg)</label>
+              <input type="number" id="vitals-weight" value="62" step="0.5" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono font-bold focus:border-blue-500">
+            </div>
+          </div>
+
+          <!-- Rapid Symptoms Note -->
+          <div>
+            <label class="text-[10px] text-slate-400">Triệu chứng chính / Lý do khám</label>
+            <input type="text" id="patient-symptoms" value="Đau đầu nhẹ, ho hắng sốt nhẹ rải rác 2 ngày nay" class="w-full mt-0.5 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:border-blue-500">
+          </div>
+
+          <!-- Submit Vitals Button -->
+          <button onclick="sendVitalsToDoctor()" class="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs py-2 rounded-lg shadow-md transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-paper-plane"></i> Gửi & Đồng Bộ Sinh Hiệu Đến Bác Sĩ
+          </button>
+        </div>
+
+        <!-- REAL-TIME VITALS DISPLAY CARDS -->
+        <div class="space-y-2">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Bảng Theo Dõi Hiện Thời</div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <!-- Blood Pressure Card -->
+            <div id="card-bp" class="bg-slate-900 p-2 rounded-lg border border-slate-800 text-center">
+              <div class="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-heart-pulse text-red-400"></i> Huyết Áp
+              </div>
+              <div id="display-bp" class="text-sm font-bold font-mono text-white mt-1">135/85</div>
+              <div class="text-[9px] text-slate-500">mmHg</div>
+            </div>
+
+            <!-- Heart Rate Card -->
+            <div id="card-hr" class="bg-slate-900 p-2 rounded-lg border border-slate-800 text-center">
+              <div class="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-wave-square text-emerald-400"></i> Nhịp Tim
+              </div>
+              <div id="display-hr" class="text-sm font-bold font-mono text-white mt-1">82</div>
+              <div class="text-[9px] text-slate-500">bpm</div>
+            </div>
+
+            <!-- SpO2 Card -->
+            <div id="card-spo2" class="bg-slate-900 p-2 rounded-lg border border-slate-800 text-center">
+              <div class="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-lungs text-blue-400"></i> SpO2
+              </div>
+              <div id="display-spo2" class="text-sm font-bold font-mono text-white mt-1">97%</div>
+              <div class="text-[9px] text-slate-500">Độ bão hòa Oxy</div>
+            </div>
+
+            <!-- Temp Card -->
+            <div id="card-temp" class="bg-slate-900 p-2 rounded-lg border border-slate-800 text-center">
+              <div class="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-temperature-three-quarters text-amber-400"></i> Nhiệt Độ
+              </div>
+              <div id="display-temp" class="text-sm font-bold font-mono text-white mt-1">37.2°C</div>
+              <div class="text-[9px] text-slate-500">Đo trán / Tai</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- CENTER COLUMN: TELE-CONSULTATION ROOM - VIDEO CALL & DUAL CAMERAS (6 COLS) -->
+    <section class="col-span-6 bg-navy-900/90 border border-slate-800 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden shadow-xl">
+      
+      <!-- Video Container Header -->
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center space-x-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+          <h2 class="font-bold text-sm text-slate-200">Phòng Khám Từ Xa Trực Tuyến</h2>
+        </div>
+        <div class="flex items-center space-x-2 text-xs">
+          <span id="active-cam-mode-badge" class="bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full font-medium text-[11px]">
+            <i class="fa-solid fa-video"></i> Camera 1: Toàn Cảnh
+          </span>
+          <span class="text-slate-400 font-mono text-[11px]" id="call-timer">00:00</span>
+        </div>
+      </div>
+
+      <!-- MAIN VIDEO FEED CONTAINER -->
+      <div class="relative flex-1 bg-slate-950 rounded-xl border border-slate-800 overflow-hidden flex items-center justify-center group">
+        
+        <!-- Main Video Stream (Doctor / Remote Expert or Simulated AI Avatar) -->
+        <video id="remote-video" autoplay playsinline class="w-full h-full object-cover hidden"></video>
+        
+        <!-- Simulated Remote Doctor Display when WebRTC Peer is connecting/simulated -->
+        <div id="remote-placeholder" class="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950">
+          <!-- Remote Doctor Avatar -->
+          <div class="relative">
+            <div class="w-28 h-28 rounded-full bg-gradient-to-tr from-blue-700 to-indigo-600 flex items-center justify-center text-white text-4xl shadow-2xl border-4 border-slate-800">
+              <i class="fa-solid fa-user-doctor"></i>
+            </div>
+            <span class="absolute bottom-1 right-1 w-5 h-5 bg-emerald-500 border-2 border-slate-900 rounded-full"></span>
+          </div>
+          <div class="mt-3 text-center">
+            <h3 class="font-bold text-base text-white">BS.CKII Nguyễn Thanh Tùng</h3>
+            <p class="text-xs text-blue-400">Bệnh Viện Đa Khoa Tuyến Trên - Khoa Khám Bệnh</p>
+            <p class="text-[11px] text-slate-400 mt-1"><i class="fa-solid fa-shield-halved text-emerald-400"></i> Đã kết nối kênh mã hóa bảo mật y tế</p>
+          </div>
+        </div>
+
+        <!-- IN-VIDEO HUD OVERLAY (Real-time Vitals & Patient Data on Video) -->
+        <div class="absolute top-3 left-3 hud-overlay border border-slate-700/60 rounded-lg p-2 text-xs flex items-center space-x-3 text-slate-200 shadow-2xl z-10">
+          <div class="border-r border-slate-700 pr-2">
+            <div class="text-[10px] text-slate-400">Bệnh nhân</div>
+            <div id="hud-patient-name" class="font-bold text-blue-300">Trần Văn Nam (58T)</div>
+          </div>
+          <div class="flex items-center space-x-2 font-mono">
+            <div><span class="text-[10px] text-slate-400">HA:</span> <span id="hud-bp" class="font-bold text-white">135/85</span></div>
+            <div><span class="text-[10px] text-slate-400">HR:</span> <span id="hud-hr" class="font-bold text-emerald-400">82</span></div>
+            <div><span class="text-[10px] text-slate-400">SpO2:</span> <span id="hud-spo2" class="font-bold text-blue-400">97%</span></div>
+          </div>
+        </div>
+
+        <!-- PIP WINDOW: STATION LOCAL CAMERA FEED (Wide / Close-up) -->
+        <div id="pip-container" class="absolute bottom-3 right-3 w-44 h-32 bg-slate-900 rounded-lg border-2 border-blue-500/80 shadow-2xl overflow-hidden cursor-pointer transition hover:scale-105 z-10">
+          <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+          <div class="absolute top-1 left-1 bg-black/60 text-[9px] px-1.5 py-0.5 rounded text-white flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="pip-label">Cam Điểm Trạm</span>
+          </div>
+          <!-- Click to switch camera quickly -->
+          <button onclick="toggleCameraDevice()" class="absolute bottom-1 right-1 bg-blue-600/90 hover:bg-blue-500 text-white p-1 rounded text-[10px]" title="Chuyển Camera Cận cảnh / Soi tổn thương">
+            <i class="fa-solid fa-camera-rotate"></i>
+          </button>
+        </div>
+
+        <!-- DUAL AUDIO INDICATOR (Visual Spectrum Bar) -->
+        <div class="absolute bottom-3 left-3 hud-overlay border border-slate-700/60 px-2.5 py-1.5 rounded-lg flex items-center space-x-2 text-[11px] z-10">
+          <i class="fa-solid fa-microphone text-emerald-400 animate-pulse"></i>
+          <span class="text-slate-300 font-medium">Âm thanh Kép (Dual Audio):</span>
+          <div class="flex items-center space-x-0.5 h-3">
+            <span class="w-1 bg-emerald-400 h-2 rounded animate-bounce"></span>
+            <span class="w-1 bg-emerald-400 h-3 rounded animate-bounce delay-75"></span>
+            <span class="w-1 bg-emerald-400 h-1.5 rounded animate-bounce delay-150"></span>
+            <span class="w-1 bg-emerald-400 h-2.5 rounded animate-bounce"></span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- IN-CALL CHAT & SYSTEM EVENT MESSAGES -->
+      <div class="mt-2 bg-slate-950 border border-slate-800 rounded-lg p-2 h-24 flex flex-col justify-between text-xs">
+        <div id="chat-box" class="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1 text-[11px]">
+          <div class="text-slate-400 text-[10px] italic text-center">[Hệ thống] Phòng khám Telehealth khởi tạo thành công. Luồng truyền tin bảo mật đã bật.</div>
+        </div>
+        <div class="flex items-center space-x-2 mt-1 pt-1 border-t border-slate-800">
+          <input type="text" id="chat-input" placeholder="Gõ tin nhắn trao đổi với Bác sĩ..." class="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500" onkeypress="handleChatKeyPress(event)">
+          <button onclick="sendChatMessage()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-xs"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: CLINICAL CO-PILOT & AI ASSISTANT (3 COLS) -->
+    <section class="col-span-3 bg-navy-900/90 border border-slate-800 rounded-xl p-3 flex flex-col justify-between overflow-hidden shadow-xl">
+      <div class="flex flex-col h-full overflow-y-auto custom-scrollbar pr-1 space-y-3">
+        
+        <!-- Section Header -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h2 class="font-bold text-sm text-emerald-400 flex items-center gap-2">
+            <i class="fa-solid fa-brain"></i> Trợ Lý Lâm Sàng AI (Co-Pilot)
+          </h2>
+          <span class="text-[10px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">Chẩn đoán</span>
+        </div>
+
+        <!-- CLINICAL NOTES & SPEECH-TO-TEXT -->
+        <div class="space-y-2 bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/50">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-semibold text-slate-300">Ghi Chép Lâm Sàng (Notes)</label>
+            <!-- Speech-to-Text Button -->
+            <button id="stt-btn" onclick="toggleSpeechToText()" class="bg-slate-700 hover:bg-slate-600 text-emerald-400 border border-emerald-500/40 text-[10px] px-2 py-1 rounded flex items-center gap-1 transition">
+              <i class="fa-solid fa-microphone"></i> <span id="stt-btn-text">Giọng nói (STT)</span>
+            </button>
+          </div>
+
+          <textarea id="clinical-notes" rows="4" placeholder="Gõ diễn biến bệnh, kết quả nghe tim phổi, khám họng/da... hoặc bấm nút Giọng nói để AI tự động chuyển thành văn bản..." class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500 leading-relaxed"></textarea>
+
+          <!-- Speech-to-text Status indicator -->
+          <div id="stt-status" class="hidden text-[10px] text-emerald-400 flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>Đang lắng nghe tiếng nói cán bộ trạm (Tiếng Việt vi-VN)...</span>
+          </div>
+        </div>
+
+        <!-- AI CLINICAL CO-PILOT ANALYSIS TRIGGER BUTTON -->
+        <button onclick="requestAIConsultation()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs py-2 rounded-lg shadow-lg transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích Lâm Sàng & Gợi Ý AI
+        </button>
+
+        <!-- AI DIAGNOSTIC SUGGESTIONS DISPLAY -->
+        <div id="ai-results-container" class="space-y-2.5 bg-slate-900 p-3 rounded-lg border border-slate-800 text-xs">
+          
+          <div class="text-[11px] font-bold text-slate-300 flex items-center justify-between border-b border-slate-800 pb-1.5">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-lightbulb text-amber-400"></i> Gợi Ý Khám & Xử Trí</span>
+            <span id="ai-confidence" class="text-[10px] text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">Độ tin cậy AI: 94%</span>
+          </div>
+
+          <!-- Red Flag Alerts -->
+          <div id="ai-red-flags" class="hidden bg-red-950/70 border border-red-800 p-2 rounded text-red-200 text-[11px] leading-tight space-y-1"></div>
+
+          <!-- Suggested Diagnosis & ICD-10 -->
+          <div>
+            <div class="text-[10px] font-semibold text-slate-400 uppercase">Chẩn Đoán Sơ Bộ & Mã ICD-10</div>
+            <ul id="ai-diagnosis-list" class="mt-1 space-y-1 text-slate-200 text-[11px] list-disc list-inside">
+              <li>1. Viêm đường hô hấp trên cấp tính (J06.9)</li>
+              <li>2. Theo dõi Cúm mùa / Nhiễm siêu vi</li>
+            </ul>
+          </div>
+
+          <!-- Paraclinical Recommendations -->
+          <div>
+            <div class="text-[10px] font-semibold text-slate-400 uppercase">Chỉ Định Cận Lâm Sàng Nhanh</div>
+            <ul id="ai-paraclinicals-list" class="mt-1 space-y-1 text-slate-300 text-[11px] list-disc list-inside">
+              <li>• Soi vòm họng cận cảnh bằng camera điểm trạm</li>
+              <li>• Test nhanh Cúm A/B</li>
+            </ul>
+          </div>
+
+          <!-- Recommended Prescriptions -->
+          <div>
+            <div class="text-[10px] font-semibold text-slate-400 uppercase">Đơn Thuốc Tham Khảo</div>
+            <div id="ai-prescription-list" class="mt-1 space-y-1.5">
+              <div class="bg-slate-800/80 p-1.5 rounded border border-slate-700/60">
+                <div class="font-semibold text-emerald-300">Paracetamol 500mg</div>
+                <div class="text-[10px] text-slate-300">Uống 1 viên x 3 lần/ngày khi sốt >= 38.5°C</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BOTTOM CALL CONTROL BAR (FIXED) -->
+  <footer class="bg-navy-900 border-t border-slate-800 px-6 py-2.5 flex items-center justify-between z-20">
+    
+    <!-- Left Info -->
+    <div class="flex items-center space-x-3 text-xs text-slate-400">
+      <span><i class="fa-solid fa-tower-cell text-blue-400"></i> Trạm Y tế Xã - Tỉnh Lào Cai</span>
+      <span>•</span>
+      <span id="camera-status-text" class="text-slate-300">Camera: Góc Rộng Phòng Khám</span>
+    </div>
+
+    <!-- Center Controls -->
+    <div class="flex items-center space-x-3">
+      <!-- Switch Camera (Góc Rộng / Cận Cảnh) -->
+      <button onclick="toggleCameraDevice()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs font-medium border border-slate-700 transition flex items-center gap-2 shadow">
+        <i class="fa-solid fa-camera-rotate text-blue-400 text-sm"></i>
+        <span>Chuyển Camera (Góc Rộng / Cận Cảnh)</span>
+      </button>
+
+      <!-- Toggle Mic -->
+      <button id="btn-toggle-mic" onclick="toggleMic()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl text-xs font-medium border border-slate-700 transition flex items-center justify-center w-10 h-10 shadow" title="Bật/Tắt Micro">
+        <i id="icon-mic" class="fa-solid fa-microphone text-emerald-400 text-sm"></i>
+      </button>
+
+      <!-- Toggle Video -->
+      <button id="btn-toggle-video" onclick="toggleVideo()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl text-xs font-medium border border-slate-700 transition flex items-center justify-center w-10 h-10 shadow" title="Bật/Tắt Video">
+        <i id="icon-video" class="fa-solid fa-video text-blue-400 text-sm"></i>
+      </button>
+
+      <!-- Quick Send Vitals -->
+      <button onclick="sendVitalsToDoctor()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-lg transition flex items-center gap-2">
+        <i class="fa-solid fa-heart-pulse"></i>
+        <span>Gửi Chỉ Số Sinh Hiệu</span>
+      </button>
+
+      <!-- End Consultation & Export Report -->
+      <button onclick="finishAndExportReport()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-xl transition flex items-center gap-2">
+        <i class="fa-solid fa-file-medical text-sm"></i>
+        <span>Hoàn Thành & Xuất Phiếu Khám</span>
+      </button>
+    </div>
+
+    <!-- Right Quick Actions -->
+    <div class="flex items-center space-x-2">
+      <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg text-xs border border-slate-700" title="In giao diện màn hình">
+        <i class="fa-solid fa-print"></i>
+      </button>
+    </div>
+  </footer>
+
+  <!-- MODAL 1: STATION OPERATOR LOGIN MODAL -->
+  <div id="login-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-navy-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl text-slate-100">
+      <div class="flex items-center space-x-3 mb-4 border-b border-slate-800 pb-3">
+        <div class="bg-blue-600 p-2.5 rounded-xl text-white">
+          <i class="fa-solid fa-hospital-user text-2xl"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-white">Đăng Nhập Điểm Trạm Y Tế</h3>
+          <p class="text-xs text-slate-400">Nhập thông tin mã điểm trạm và cán bộ phụ trách</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Mã Điểm Trạm Y Tế</label>
+          <input type="text" id="input-station-code" value="TYT-BATXAT-01" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Tên Cán Bộ Trực Khám</label>
+          <input type="text" id="input-operator-name" value="Y sĩ Nguyễn Văn A" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Vai Trò</label>
+          <select id="input-role" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500">
+            <option value="station_operator">Cán bộ Y tế Điểm trạm</option>
+            <option value="superior_doctor">Bác sĩ Tư vấn Tuyến trên</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-6 flex items-center justify-end space-x-3">
+        <button onclick="closeLoginModal()" class="px-4 py-2 text-slate-400 hover:text-slate-200 text-xs">Hủy</button>
+        <button onclick="submitLogin()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2 rounded-xl text-xs shadow-lg">Vào Phòng Khám</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: MEDICAL EXAMINATION SHEET REPORT (PHIẾU KHÁM BỆNH TỪ XA) -->
+  <div id="report-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-white text-slate-900 rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl relative">
+      
+      <!-- Close Modal Button -->
+      <button onclick="closeReportModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-xl font-bold"><i class="fa-solid fa-xmark"></i></button>
+
+      <!-- PRINTABLE CONTENT SECTION -->
+      <div id="printable-report" class="space-y-4 p-2">
+        <!-- Header -->
+        <div class="flex items-center justify-between border-b-2 border-slate-800 pb-3">
+          <div class="flex items-center space-x-3">
+            <i class="fa-solid fa-square-plus text-red-600 text-3xl"></i>
+            <div>
+              <h2 class="font-bold text-base uppercase text-slate-900">SỞ Y TẾ TỈNH LÀO CAI - TRẠM Y TẾ BÁT XÁT</h2>
+              <p class="text-xs text-slate-600">Hệ Thống Khám Chữa Bệnh Từ Xa (Telehealth)</p>
+            </div>
+          </div>
+          <div class="text-right text-xs">
+            <div class="font-bold text-blue-800" id="rpt-code">MÃ PHIẾU: PKTX-882910</div>
+            <div class="text-slate-500" id="rpt-date">Ngày: 27/07/2026</div>
+          </div>
+        </div>
+
+        <h3 class="text-center font-bold text-lg text-slate-900 uppercase tracking-wide my-2">PHIẾU KHÁM BỆNH TỪ XA & TƯ VẤN Y TẾ</h3>
+
+        <!-- Patient & Station Info Table -->
+        <div class="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
+          <div>
+            <p><span class="font-semibold">Họ tên Bệnh nhân:</span> <span id="rpt-patient-name" class="font-bold">Trần Văn Nam</span></p>
+            <p><span class="font-semibold">Tuổi / Giới tính:</span> <span id="rpt-patient-age-gender">58 tuổi - Nam</span></p>
+            <p><span class="font-semibold">Lý do khám / Triệu chứng:</span> <span id="rpt-symptoms">Sốt nhẹ, ho hắng, đau đầu</span></p>
+          </div>
+          <div>
+            <p><span class="font-semibold">Điểm trạm Y tế:</span> <span id="rpt-station">TYT-BATXAT-01</span></p>
+            <p><span class="font-semibold">Cán bộ thực hiện:</span> <span id="rpt-operator">Y sĩ Nguyễn Văn A</span></p>
+            <p><span class="font-semibold">Bác sĩ tư vấn:</span> <span id="rpt-doctor">BS.CKII Nguyễn Thanh Tùng</span></p>
+          </div>
+        </div>
+
+        <!-- Vitals Summary Table -->
+        <div>
+          <h4 class="font-bold text-xs uppercase text-slate-800 mb-1">1. Chỉ số sinh tồn (Vitals)</h4>
+          <table class="w-full text-xs text-center border-collapse border border-slate-300">
+            <thead>
+              <tr class="bg-slate-100 font-semibold border-b border-slate-300">
+                <th class="p-1.5 border border-slate-300">Huyết áp (mmHg)</th>
+                <th class="p-1.5 border border-slate-300">Nhịp tim (bpm)</th>
+                <th class="p-1.5 border border-slate-300">SpO2 (%)</th>
+                <th class="p-1.5 border border-slate-300">Nhiệt độ (°C)</th>
+                <th class="p-1.5 border border-slate-300">Cân nặng (kg)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="rpt-vitals-row" class="font-mono font-bold text-slate-800">
+                <td class="p-1.5 border border-slate-300">135/85</td>
+                <td class="p-1.5 border border-slate-300">82</td>
+                <td class="p-1.5 border border-slate-300">97%</td>
+                <td class="p-1.5 border border-slate-300">37.2</td>
+                <td class="p-1.5 border border-slate-300">62</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Clinical Progression Notes -->
+        <div>
+          <h4 class="font-bold text-xs uppercase text-slate-800 mb-1">2. Diễn biến lâm sàng & Khám thực thể</h4>
+          <div id="rpt-clinical-notes" class="p-2.5 bg-slate-50 rounded border border-slate-200 text-xs text-slate-800 leading-relaxed italic">
+            Bệnh nhân tỉnh táo, tiếp xúc tốt. Họng đỏ nhẹ, không có giả mạc. Tim đều, phổi thông khí rõ chưa rốn ngái.
+          </div>
+        </div>
+
+        <!-- Diagnosis & ICD-10 -->
+        <div>
+          <h4 class="font-bold text-xs uppercase text-slate-800 mb-1">3. Chẩn đoán lâm sàng & Mã ICD-10</h4>
+          <div id="rpt-diagnosis" class="p-2.5 bg-blue-50 rounded border border-blue-200 text-xs text-blue-900 font-semibold">
+            Viêm đường hô hấp trên cấp tính (Mã ICD-10: J06.9)
+          </div>
+        </div>
+
+        <!-- Prescriptions & Treatment Plan -->
+        <div>
+          <h4 class="font-bold text-xs uppercase text-slate-800 mb-1">4. Hướng xử trí & Đơn thuốc chỉ định</h4>
+          <div id="rpt-prescriptions" class="p-2.5 bg-slate-50 rounded border border-slate-200 text-xs text-slate-800 space-y-1">
+            <p>1. Paracetamol 500mg - Uống 1 viên x 3 lần/ngày khi sốt >= 38.5°C</p>
+            <p>2. Oresol 245 - Pha 1 gói trong 1 lít nước nguội, uống rải rác trong ngày</p>
+          </div>
+        </div>
+
+        <!-- Signatures Section -->
+        <div class="grid grid-cols-2 gap-4 text-center text-xs mt-6 pt-4 border-t border-slate-200">
+          <div>
+            <p class="font-bold uppercase text-slate-800">CÁN BỘ ĐIỂM TRẠM</p>
+            <p class="text-[10px] text-slate-500 italic mb-10">(Ký và ghi rõ họ tên)</p>
+            <p id="rpt-sig-operator" class="font-semibold text-slate-900">Y sĩ Nguyễn Văn A</p>
+          </div>
+          <div>
+            <p class="font-bold uppercase text-slate-800">BÁC SĨ TƯ VẤN TUYẾN TRÊN</p>
+            <p class="text-[10px] text-slate-500 italic mb-10">(Đã duyệt qua hệ thống Telehealth)</p>
+            <p id="rpt-sig-doctor" class="font-semibold text-blue-900">BS.CKII Nguyễn Thanh Tùng</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mt-6 flex items-center justify-end space-x-3 pt-3 border-t border-slate-200">
+        <button onclick="closeReportModal()" class="px-4 py-2 text-slate-600 hover:text-slate-800 text-xs font-medium">Đóng</button>
+        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-2 rounded-xl text-xs shadow-lg flex items-center gap-2">
+          <i class="fa-solid fa-print"></i> In Phiếu Khám Bệnh
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC JS -->
+  <script src="/public/app.js"></script>
+</body>
+</html>
