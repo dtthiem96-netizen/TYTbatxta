@@ -50,6 +50,7 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   name: text("name").notNull(),
   role: text("role").notNull(),
+  canReceiveVideo: text("can_receive_video").default("true"),
 });
 
 export const siteConfigs = pgTable("site_configs", {
@@ -65,4 +66,21 @@ export const videos = pgTable("videos", {
   date: text("date").notNull(),
   ts: bigint("ts", { mode: "number" }).notNull(),
   isCollapsed: text("is_collapsed").default("false"),
+});
+
+export const appointments = pgTable("appointments", {
+  id: text("id").primaryKey(),
+  patientName: text("patient_name").notNull(),
+  phone: text("phone").notNull(),
+  dob: text("dob"),
+  gender: text("gender"),
+  idCard: text("id_card"),
+  service: text("service"),
+  appointmentDate: text("appointment_date").notNull(),
+  symptoms: text("symptoms"),
+  isTelehealth: text("is_telehealth").default("false"),
+  status: text("status").default("PENDING"),
+  roomId: text("room_id"),
+  assignedDoctor: text("assigned_doctor"),
+  ts: bigint("ts", { mode: "number" }).notNull(),
 });

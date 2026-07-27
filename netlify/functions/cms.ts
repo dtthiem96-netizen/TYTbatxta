@@ -1,10 +1,12 @@
 import { db } from "../../db/index.js";
-import { news, vaccines, documents, services, users, siteConfigs, contacts, videos } from "../../db/schema.js";
+import { news, vaccines, documents, services, users, siteConfigs, contacts, videos, appointments } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 import { getStore } from "@netlify/blobs";
 
 const defaultUsers = [
-  { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)' }
+  { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' },
+  { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true' },
+  { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false' }
 ];
 
 const defaultNews = [
@@ -95,6 +97,8 @@ export default async (req: Request) => {
         videosList = await db.select().from(videos);
       }
 
+      let appointmentsList = await db.select().from(appointments);
+
       let configsList = await db.select().from(siteConfigs);
 
       return new Response(JSON.stringify({
@@ -105,6 +109,7 @@ export default async (req: Request) => {
         users: usersList,
         contacts: contactsList,
         videos: videosList,
+        appointments: appointmentsList,
         siteConfigs: configsList
       }), { headers, status: 200 });
     }
@@ -250,6 +255,13 @@ export default async (req: Request) => {
           } else {
             await db.insert(videos).values(data);
           }
+        } else if (type === "appointments") {
+          const existing = await db.select().from(appointments).where(eq(appointments.id, data.id));
+          if (existing.length > 0) {
+            await db.update(appointments).set(data).where(eq(appointments.id, data.id));
+          } else {
+            await db.insert(appointments).values(data);
+          }
         } else {
           return new Response(JSON.stringify({ error: "Invalid type" }), { headers, status: 400 });
         }
@@ -273,6 +285,8 @@ export default async (req: Request) => {
           await db.delete(siteConfigs).where(eq(siteConfigs.id, id));
         } else if (type === "videos") {
           await db.delete(videos).where(eq(videos.id, id));
+        } else if (type === "appointments") {
+          await db.delete(appointments).where(eq(appointments.id, id));
         } else {
           return new Response(JSON.stringify({ error: "Invalid type" }), { headers, status: 400 });
         }
