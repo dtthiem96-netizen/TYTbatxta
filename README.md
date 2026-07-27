@@ -60,15 +60,30 @@ qua HTTP long-poll tới `/api/signal`:
 
 | Bước | Hành động |
 |------|-----------|
-| 1 | Điểm trạm mở phòng khám → `POST /api/signal { action: 'join' }` (ghi nhận presence vào Postgres) |
-| 2 | Bác sĩ trực CMS thấy phòng đang gọi trong khung **"Cuộc gọi trực tuyến đang chờ tiếp nhận"** và bấm tiếp nhận |
-| 3 | Bên vào sau tạo `offer`, hai bên trao đổi `offer` / `answer` / `ICE candidate` qua `/api/signal` |
-| 4 | Video & âm thanh chạy **ngang hàng (peer-to-peer)** trực tiếp giữa hai máy, không qua máy chủ |
-| 5 | Sinh hiệu, tin nhắn và kết luận của bác sĩ tiếp tục đồng bộ qua `/api/signal` |
+| 1 | Cán bộ đăng nhập CMS → tự động `POST /api/signal { action: 'standby' }` mỗi 5 giây vào phòng ảo `__lobby__` (báo "đang trực") |
+| 2 | Người dân bấm **"Gọi khám từ xa"** (thanh điều hướng, nút nổi góc phải, hoặc CTA trang chủ) → `POST /api/signal { action: 'join' }` (ghi nhận presence vào Postgres) |
+| 3 | Cùng lượt `standby` đó trả về hàng đợi phòng đang chờ → CMS đổ chuông, hiện thẻ **"Có cuộc gọi khám từ xa"** ở mọi tab; cán bộ bấm tiếp nhận |
+| 4 | Bên vào sau tạo `offer`, hai bên trao đổi `offer` / `answer` / `ICE candidate` qua `/api/signal` |
+| 5 | Video & âm thanh chạy **ngang hàng (peer-to-peer)** trực tiếp giữa hai máy, không qua máy chủ |
+| 6 | Sinh hiệu, tin nhắn và kết luận của bác sĩ tiếp tục đồng bộ qua `/api/signal` |
+
+Các action của `/api/signal`:
+
+| Action | Vai trò |
+|--------|---------|
+| `POST join` / `leave` | Vào / rời phòng khám, phát bản tin `peer-joined` / `peer-left` |
+| `POST signal` | Chuyển `offer` / `answer` / `ice` giữa hai bên |
+| `POST standby` | Cán bộ báo đang trực **và** lấy hàng đợi cuộc gọi trong một lượt gọi duy nhất |
+| `POST vitals` / `notes` / `chat` / `complete` | Đồng bộ sinh hiệu, ghi chép, tin nhắn, kết thúc ca khám |
+| `GET ?action=rooms` | Hàng đợi phòng đang mở kèm số cán bộ trực |
+| `GET ?action=on-duty` | Chỉ số cán bộ đang trực — trang công khai dùng để hiện "Có N cán bộ đang trực" |
+| `GET ?roomId=&peerId=&cursor=` | Long-poll nhận bản tin mới (tối đa 7 giây/lượt, trong giới hạn 10 giây của Netlify Function) |
 
 Lưu ý vận hành:
 - Trình duyệt chỉ cấp quyền camera/micro trên **HTTPS** (tên miền Netlify đã có HTTPS) hoặc `localhost`.
 - Hệ thống dùng STUN công cộng. Với mạng doanh nghiệp/4G chặn P2P chặt, cần bổ sung TURN server riêng.
+- Presence hết hạn sau 45 giây không nhận nhịp, bản tin signaling hết hạn sau 180 giây — bảng tự dọn.
+- Nếu chờ quá 45 giây chưa có cán bộ vào phòng, màn hình chờ tự hiện số điện thoại và Zalo trực để người dân không bị kẹt.
 
 ---
 
@@ -145,21 +160,35 @@ http://localhost:8889
 
 ## 🔬 HƯỚNG DẪN SỬ DỤNG KHI THỰC HIỆN KHÁM (BẢN XUẤT BẢN)
 
-**Phía Cán bộ Y tế điểm trạm (trang chủ):**
-1. Bấm **"Gọi Bác Sĩ Telehealth"** trên thanh điều hướng (hoặc đặt lịch và chọn *Khám Video Từ Xa*).
-2. Điền thông tin bệnh nhân rồi bấm **"VÀO PHÒNG KHÁM VIDEO TỪ XA NGAY"**, cho phép trình duyệt dùng Camera và Micro.
-3. Nhập **Sinh hiệu** (huyết áp, nhịp tim, SpO2, nhiệt độ, cân nặng) — chỉ số tự động đồng bộ sang màn hình
+**Phía người dân / cán bộ điểm trạm (trang chủ):**
+1. Có 4 lối vào cuộc gọi, tất cả đều hiện sẵn trạng thái trực (đèn xanh = có cán bộ, đèn vàng = chưa có ai):
+   - Nút **"Gọi khám từ xa"** trên thanh điều hướng (và biểu tượng video trên menu di động).
+   - Nút nổi **"Gọi khám từ xa"** ở góc dưới phải mọi trang.
+   - Nút **"Gọi khám từ xa ngay"** ngay dưới tiêu đề trang chủ.
+   - Nút **"Gọi Bác Sĩ Telehealth"** / đặt lịch và chọn *Khám Video Từ Xa* (luồng đầy đủ như trước).
+2. Ba lối vào nhanh mở hộp **Gọi khám từ xa nhanh**: chỉ cần **họ tên** (điện thoại và lý do khám không bắt buộc)
+   rồi bấm gọi — hệ thống tự tạo phòng, tự lưu vào Lịch khám của CMS.
+3. Cho phép trình duyệt dùng Camera và Micro khi được hỏi.
+4. Màn hình chờ hiện đồng hồ đếm thời gian chờ và số cán bộ đang trực. Chờ quá 45 giây, màn hình tự đưa ra
+   số điện thoại và Zalo trực để gọi thay.
+5. Nhập **Sinh hiệu** (huyết áp, nhịp tim, SpO2, nhiệt độ, cân nặng) — chỉ số tự động đồng bộ sang màn hình
    bác sĩ, hoặc bấm **"Gửi chỉ số sinh hiệu tới tuyến trên"** để gửi ngay.
-4. Dùng **"Chuyển Camera (Góc rộng / Cận cảnh)"** để đổi giữa camera toàn cảnh phòng khám và camera soi
+6. Dùng **"Chuyển Camera (Góc rộng / Cận cảnh)"** để đổi giữa camera toàn cảnh phòng khám và camera soi
    cận cảnh tổn thương/họng/da; **Micro** bật/tắt bằng nút biểu tượng micro.
-5. Bấm **"Hoàn thành & Xuất Phiếu khám"** để kết xuất và in Phiếu khám bệnh từ xa.
+7. Bấm **"Hoàn thành & Xuất Phiếu khám"** để kết xuất và in Phiếu khám bệnh từ xa.
 
 **Phía Bác sĩ tuyến trên (CMS):**
-1. Đăng nhập CMS → tab **"Khám từ xa (Telehealth)"**.
-2. Khung **"Cuộc gọi trực tuyến đang chờ tiếp nhận"** tự làm mới mỗi 5 giây; bấm **"Tiếp nhận cuộc gọi"**.
-3. Theo dõi sinh hiệu điểm trạm gửi lên, trao đổi hình ảnh/âm thanh và tin nhắn hai chiều.
-4. Bấm **"AI Co-Pilot Chẩn đoán"** để nhận gợi ý chẩn đoán ICD-10, cận lâm sàng và đơn thuốc tham khảo.
-5. Bấm **"Lưu & gửi kết luận về điểm trạm"** để đẩy kết luận về màn hình cán bộ trạm, sau đó
+1. Đăng nhập CMS — **trực cuộc gọi bật tự động ngay sau khi đăng nhập**, không cần mở tab nào.
+2. Khi có cuộc gọi tới, CMS **đổ chuông** và hiện thẻ **"Có cuộc gọi khám từ xa"** ở góc dưới phải,
+   kể cả khi đang làm việc ở tab Tin tức, Lịch khám hay Kho thuốc. Mục **"Khám từ xa (Telehealth)"**
+   trên thanh bên hiện thêm huy hiệu đỏ *"N đang gọi"*.
+3. Bấm **"Tiếp nhận cuộc gọi"** ngay trên thẻ báo — CMS tự chuyển sang tab Khám từ xa và vào phòng.
+   Có thể tắt tiếng bằng biểu tượng chuông, hoặc ẩn thẻ bằng dấu ✕ (huy hiệu đỏ vẫn còn).
+4. Nút **"Trạng thái: SẴN SÀNG TRỰC"** dùng để tạm ngưng / bật lại trực mà không cần đăng xuất.
+   Khi tạm ngưng hoặc đăng xuất, trang công khai lập tức báo "hiện chưa có cán bộ trực".
+5. Theo dõi sinh hiệu điểm trạm gửi lên, trao đổi hình ảnh/âm thanh và tin nhắn hai chiều.
+6. Bấm **"AI Co-Pilot Chẩn đoán"** để nhận gợi ý chẩn đoán ICD-10, cận lâm sàng và đơn thuốc tham khảo.
+7. Bấm **"Lưu & gửi kết luận về điểm trạm"** để đẩy kết luận về màn hình cán bộ trạm, sau đó
    **"Hoàn thành & Xuất Phiếu khám"**.
 
 > Tài khoản CMS phải được bật quyền `canReceiveVideo` trong mục **Phân quyền Hệ thống** mới tiếp nhận được

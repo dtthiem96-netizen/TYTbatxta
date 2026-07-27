@@ -6,10 +6,14 @@ import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
  * Signaling WebRTC không dùng WebSocket (Netlify không giữ kết nối socket lâu dài).
  * Mỗi thành viên trong phòng khám gửi/nhận bản tin signaling qua HTTP:
  *   - POST /api/signal  { action: 'join' | 'signal' | 'leave' | 'vitals' | 'notes' | 'complete', ... }
+ *   - POST /api/signal  { action: 'standby', roomId: '__lobby__', peerId, name }  (cán bộ báo đang trực + lấy hàng đợi)
  *   - GET  /api/signal?roomId=...&peerId=...&cursor=...   (long-poll ngắn, trả về bản tin mới)
  *   - GET  /api/signal?action=rooms                       (danh sách phòng đang chờ bác sĩ)
+ *   - GET  /api/signal?action=on-duty                     (số cán bộ đang trực, cho màn hình người dân)
  */
 
+// Phòng ảo giữ danh sách cán bộ/bác sĩ đang trực (không phải phòng khám thật).
+const LOBBY_ROOM = "__lobby__";
 const PEER_TTL_MS = 45_000;
 const SIGNAL_TTL_MS = 180_000;
 // Giữ dưới ngưỡng timeout 10s của Netlify Functions.
@@ -83,6 +87,48 @@ async function touchRoom(roomId: string, patch: Record<string, unknown>, now: nu
   }
 }
 
+/** Số cán bộ/bác sĩ đang trực (đăng nhập CMS và mở kênh tiếp nhận cuộc gọi). */
+async function countOnDuty(now: number) {
+  const rows = await db
+    .select()
+    .from(telehealthPeers)
+    .where(and(eq(telehealthPeers.roomId, LOBBY_ROOM), gt(telehealthPeers.lastSeen, now - PEER_TTL_MS)));
+  return { count: rows.length, names: rows.map((r) => r.name) };
+}
+
+/** Danh sách phòng khám đang mở kèm thông tin để bác sĩ quyết định tiếp nhận. */
+async function listRooms(now: number) {
+  const peers = await db
+    .select()
+    .from(telehealthPeers)
+    .where(gt(telehealthPeers.lastSeen, now - PEER_TTL_MS));
+
+  const grouped = new Map<string, typeof peers>();
+  for (const peer of peers) {
+    if (peer.roomId === LOBBY_ROOM) continue;
+    const entry = grouped.get(peer.roomId) || ([] as typeof peers);
+    entry.push(peer);
+    grouped.set(peer.roomId, entry);
+  }
+
+  const rooms = [];
+  for (const [roomId, entry] of grouped.entries()) {
+    const room = await getRoom(roomId);
+    const waiting = entry.filter((p) => p.role !== "doctor");
+    rooms.push({
+      roomId,
+      patientName: room?.patientName || null,
+      symptoms: room?.symptoms || null,
+      status: room?.status || "WAITING",
+      vitals: room?.vitals ? JSON.parse(room.vitals) : null,
+      hasDoctor: entry.some((p) => p.role === "doctor"),
+      since: waiting.length ? Math.min(...waiting.map((p) => Number(p.lastSeen))) : now,
+      waiting: waiting.map((p) => ({ name: p.name, role: p.role, since: Number(p.lastSeen) }))
+    });
+  }
+  return rooms;
+}
+
 async function fetchMessages(roomId: string, peerId: string, cursor: number) {
   const rows = await db
     .select()
@@ -111,35 +157,13 @@ async function handleGet(url: URL) {
 
   if (url.searchParams.get("action") === "rooms") {
     await pruneStale(now);
-    const peers = await db
-      .select()
-      .from(telehealthPeers)
-      .where(gt(telehealthPeers.lastSeen, now - PEER_TTL_MS));
+    const onDuty = await countOnDuty(now);
+    return json({ ok: true, rooms: await listRooms(now), doctorsOnline: onDuty.count, doctorNames: onDuty.names });
+  }
 
-    const grouped = new Map<string, { roomId: string; peers: typeof peers }>();
-    for (const peer of peers) {
-      const entry = grouped.get(peer.roomId) || { roomId: peer.roomId, peers: [] as typeof peers };
-      entry.peers.push(peer);
-      grouped.set(peer.roomId, entry);
-    }
-
-    const rooms = [];
-    for (const entry of grouped.values()) {
-      const room = await getRoom(entry.roomId);
-      rooms.push({
-        roomId: entry.roomId,
-        patientName: room?.patientName || null,
-        symptoms: room?.symptoms || null,
-        status: room?.status || "WAITING",
-        vitals: room?.vitals ? JSON.parse(room.vitals) : null,
-        hasDoctor: entry.peers.some((p) => p.role === "doctor"),
-        waiting: entry.peers
-          .filter((p) => p.role !== "doctor")
-          .map((p) => ({ name: p.name, role: p.role, since: Number(p.lastSeen) }))
-      });
-    }
-
-    return json({ ok: true, rooms });
+  if (url.searchParams.get("action") === "on-duty") {
+    const onDuty = await countOnDuty(now);
+    return json({ ok: true, doctorsOnline: onDuty.count, doctorNames: onDuty.names });
   }
 
   const roomId = url.searchParams.get("roomId");
@@ -166,12 +190,15 @@ async function handleGet(url: URL) {
   const pollNow = Date.now();
   const peers = await activePeers(roomId, pollNow);
   const room = await getRoom(roomId);
+  const onDuty = await countOnDuty(pollNow);
   const nextCursor = messages.length ? messages[messages.length - 1].seq : cursor;
 
   return json({
     ok: true,
     cursor: nextCursor,
     messages,
+    doctorsOnline: onDuty.count,
+    doctorNames: onDuty.names,
     room: room
       ? {
           status: room.status,
@@ -240,6 +267,21 @@ async function handlePost(req: Request) {
     });
   }
 
+  if (action === "standby") {
+    // Cán bộ CMS mở kênh tiếp nhận: vừa báo đang trực, vừa lấy hàng đợi trong 1 lượt gọi.
+    await pruneStale(now);
+    const name = String((body as any).name || "Cán bộ trực");
+    await db
+      .insert(telehealthPeers)
+      .values({ id: peerId, roomId: LOBBY_ROOM, role: "doctor", name, lastSeen: now })
+      .onConflictDoUpdate({
+        target: telehealthPeers.id,
+        set: { roomId: LOBBY_ROOM, role: "doctor", name, lastSeen: now }
+      });
+    const onDuty = await countOnDuty(now);
+    return json({ ok: true, rooms: await listRooms(now), doctorsOnline: onDuty.count, doctorNames: onDuty.names });
+  }
+
   if (action === "signal") {
     const type = String((body as any).type || "");
     if (!type) return json({ error: "Thiếu type" }, 400);
@@ -280,6 +322,10 @@ async function handlePost(req: Request) {
 
   if (action === "leave") {
     await db.delete(telehealthPeers).where(eq(telehealthPeers.id, peerId));
+    if (roomId === LOBBY_ROOM) {
+      // Rời kênh trực: không phát bản tin vào phòng khám nào.
+      return json({ ok: true });
+    }
     await pushSignal({ roomId, fromPeer: peerId, type: "peer-left", payload: null, now });
     const remaining = await activePeers(roomId, now);
     if (remaining.length === 0) {
