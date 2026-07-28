@@ -4184,7 +4184,7 @@
                     teleStopWaitTicker();
                     teleStatus(TELE.role === 'doctor'
                         ? `Đang khám: ${TELE.patientName || 'Bệnh nhân'} (${TELE.roomId})`
-                        : `Đã kết nối trực tiếp với ${TELE.remotePeerName || 'Y sỹ/Bác sỹ'}`);
+                        : `Đã kết nối trực tiếp với ${TELE.remotePeerName || 'Y sĩ/Bác sĩ'}`);
                     window.showToast("Kết nối video/âm thanh hai chiều đã thiết lập.");
                     if (TELE.role !== 'doctor') window.teleSendVitals(false);
                     if (TELE.role !== 'doctor' && TELE.patientId) teleSendSignal('patient-info', { patientId: TELE.patientId, patientName: TELE.patientName });
@@ -4582,7 +4582,7 @@
             const input = document.getElementById('cms-chat-input');
             if (!input || !input.value.trim()) return;
             const txt = input.value.trim();
-            const sender = (currentCmsUser && currentCmsUser.name) || 'Bác sĩ tuyến trên';
+            const sender = (currentCmsUser && currentCmsUser.name) || 'Y sĩ/ Bác sĩ';
             teleSendSignal('chat', { sender, text: txt });
             teleAppendChat(sender, txt);
             input.value = '';
@@ -4605,7 +4605,7 @@
         }
 
         /* Định danh bệnh nhân (số thẻ BHYT / CCCD): bắt buộc phải có trên đơn thuốc,
-           nên được đồng bộ hai chiều giữa điểm trạm và bác sĩ tuyến trên. */
+           nên được đồng bộ hai chiều giữa điểm trạm và bác sĩ. */
         function teleRenderPatientIdentity() {
             const cmsInput = document.getElementById('cms-patient-idcard');
             if (cmsInput && document.activeElement !== cmsInput) cmsInput.value = TELE.patientId || '';
@@ -4911,7 +4911,7 @@
                 <table>
                     <tr>${cell('Họ tên bệnh nhân', TELE.patientName)}${cell('Thời gian khám', new Date().toLocaleString('vi-VN'))}</tr>
                     ${wide('Số thẻ BHYT / CCCD', patientId)}
-                    <tr>${cell('Cán bộ điểm trạm', stationName)}${cell('Bác sĩ tuyến trên', doctorName)}</tr>
+                    <tr>${cell('Cán bộ điểm trạm', stationName)}${cell('Y sĩ/ Bác sĩ', doctorName)}</tr>
                     ${wide('Lý do khám / triệu chứng', TELE.symptoms)}
                 </table>
                 <table class="vitals">
@@ -4930,16 +4930,16 @@
                 <div class="box short">${teleEscape(dx.plan || 'Chưa ghi nhận hướng xử trí.')}</div>
                 <p class="sec">Thuốc kê đơn:</p>
                 <div class="box">${teleEscape(dx.drugs || 'Không kê thuốc.')}</div>
-                <p class="sec">Lời dặn của bác sỹ:</p>
+                <p class="sec">Lời dặn của Y sỹ/ bác sỹ:</p>
                 <div class="box advice">${teleEscape(advice || 'Không có.')}</div>
                 <div class="sign">
                     <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)</i><div class="gap"></div>${teleEscape(stationName || '')}</div>
                     <div>Y sỹ/ bác sỹ kê đơn<br><i>(Ký, ghi rõ họ tên)</i>
-                        ${signerImage
-                            ? `<div class="sig-img"><img src="${signerImage}" alt="Chữ ký số"></div><div class="sig-note">Đã ký số từ xa</div>`
-                            : '<div class="gap"></div>'}
-                        <div class="sig-name">${teleEscape(signerLabel)}</div>
-                        ${signer && signer.license ? `<div class="sig-note">CCHN: ${teleEscape(signer.license)}</div>` : ''}
+                            ${signerImage
+                               ? `<div class="sig-img"><img src="${signerImage}" alt="Chữ ký số"></div><div class="sig-note">Đã ký số từ xa</div>`
+                               : '<div class="gap"></div>'}
+                            <div class="sig-name">${teleEscape(signerLabel)}</div>
+                           ${signer && signer.license ? `<div class="sig-note">CCHN: ${teleEscape(signer.license)}</div>` : ''}
                     </div>
                 </div>
                 <p class="muted">Đơn thuốc kết xuất tự động từ Hệ thống Khám chữa bệnh Từ xa - Trạm Y tế Bát Xát. Khổ giấy A5.</p>
