@@ -16,7 +16,9 @@
         "npm:@netlify/database@1",
         "npm:drizzle-kit@beta",
         "npm:drizzle-orm@beta",
-        "npm:typescript@^5.4.5"
+        "npm:express@^4.19.2",
+        "npm:typescript@^5.4.5",
+        "npm:ws@^8.18.0"
       ]
     }
   }

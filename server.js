@@ -212,6 +212,26 @@ app.post('/api/vitals', (req, res) => {
       data: payload
     });
 
+    // Đẩy vào hộp thư signaling để màn hình khám (dùng HTTP long-poll) nhận được ngay,
+    // đúng định dạng mà cổng thông tin đang đọc.
+    const now = Date.now();
+    const wireVitals = {
+      bp: `${vitalsData.bp_sys}/${vitalsData.bp_dia}`,
+      hr: String(vitalsData.heart_rate),
+      spo2: String(vitalsData.spo2),
+      temp: String(vitalsData.temperature),
+      weight: String(vitalsData.weight),
+      at: new Date(now).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    };
+    touchSignalRoom(roomId, { patientName, symptoms, vitals: wireVitals }, now);
+    pushSignalEntry({
+      roomId,
+      fromPeer: String(req.body?.peerId || 'station'),
+      type: 'vitals',
+      payload: wireVitals,
+      now
+    });
+
     return res.json({
       success: true,
       message: 'Sinh hiệu bệnh nhân đã được đồng bộ trực tiếp lên màn hình khám.',
@@ -390,6 +410,238 @@ app.post('/api/examination-report', (req, res) => {
     console.error('Error creating report:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
+});
+
+// 6. Signaling qua HTTP (cùng giao thức với Netlify Function /api/signal)
+//
+// Bảng điều khiển điểm trạm dùng chung một giao thức signaling cho cả hai môi trường:
+// chạy nội bộ bằng server.js, và chạy trên Netlify bằng netlify/functions/signal.ts.
+// Nhờ vậy public/app.js không cần biết mình đang chạy ở đâu.
+
+const LOBBY_ROOM = '__lobby__';
+const PEER_TTL_MS = 45_000;
+const SIGNAL_TTL_MS = 180_000;
+const POLL_WINDOW_MS = 7_000;
+const POLL_INTERVAL_MS = 700;
+
+const signalPeers = new Map(); // peerId -> { roomId, role, name, lastSeen }
+const signalRooms = new Map(); // roomId -> { patientName, symptoms, vitals, notes, status, updatedAt }
+let signalLog = []; // { seq, roomId, fromPeer, toPeer, type, payload, ts }
+let signalSeq = 0;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function pruneSignalState(now) {
+  for (const [peerId, peer] of signalPeers.entries()) {
+    if (peer.lastSeen < now - PEER_TTL_MS) signalPeers.delete(peerId);
+  }
+  signalLog = signalLog.filter((entry) => entry.ts >= now - SIGNAL_TTL_MS);
+}
+
+function activeSignalPeers(roomId, now) {
+  const result = [];
+  for (const [peerId, peer] of signalPeers.entries()) {
+    if (peer.roomId === roomId && peer.lastSeen > now - PEER_TTL_MS) {
+      result.push({ peerId, role: peer.role, name: peer.name, lastSeen: peer.lastSeen });
+    }
+  }
+  return result;
+}
+
+function pushSignalEntry({ roomId, fromPeer, toPeer = null, type, payload = null, now }) {
+  signalSeq += 1;
+  signalLog.push({ seq: signalSeq, roomId, fromPeer, toPeer, type, payload, ts: now });
+}
+
+function touchSignalRoom(roomId, patch, now) {
+  const existing = signalRooms.get(roomId) || {};
+  signalRooms.set(roomId, { ...existing, ...patch, updatedAt: now });
+}
+
+function signalRoomView(roomId) {
+  const room = signalRooms.get(roomId);
+  if (!room) return null;
+  return {
+    status: room.status || 'WAITING',
+    patientName: room.patientName || null,
+    vitals: room.vitals || null,
+    notes: room.notes || ''
+  };
+}
+
+function countOnDuty(now) {
+  const peers = activeSignalPeers(LOBBY_ROOM, now);
+  return { count: peers.length, names: peers.map((p) => p.name) };
+}
+
+function listSignalRooms(now) {
+  const grouped = new Map();
+  for (const [peerId, peer] of signalPeers.entries()) {
+    if (peer.roomId === LOBBY_ROOM || peer.lastSeen <= now - PEER_TTL_MS) continue;
+    const entry = grouped.get(peer.roomId) || [];
+    entry.push({ peerId, ...peer });
+    grouped.set(peer.roomId, entry);
+  }
+
+  const result = [];
+  for (const [roomId, entry] of grouped.entries()) {
+    const room = signalRooms.get(roomId);
+    const waiting = entry.filter((p) => p.role !== 'doctor');
+    result.push({
+      roomId,
+      patientName: room?.patientName || null,
+      symptoms: room?.symptoms || null,
+      status: room?.status || 'WAITING',
+      vitals: room?.vitals || null,
+      hasDoctor: entry.some((p) => p.role === 'doctor'),
+      since: waiting.length ? Math.min(...waiting.map((p) => p.lastSeen)) : now,
+      waiting: waiting.map((p) => ({ name: p.name, role: p.role, since: p.lastSeen }))
+    });
+  }
+  return result;
+}
+
+function fetchSignalMessages(roomId, peerId, cursor) {
+  return signalLog
+    .filter(
+      (entry) =>
+        entry.roomId === roomId &&
+        entry.seq > cursor &&
+        entry.fromPeer !== peerId &&
+        (entry.toPeer === null || entry.toPeer === peerId)
+    )
+    .sort((a, b) => a.seq - b.seq)
+    .map((entry) => ({ seq: entry.seq, from: entry.fromPeer, type: entry.type, payload: entry.payload }));
+}
+
+app.post('/api/signal', (req, res) => {
+  const { action, roomId, peerId } = req.body || {};
+  if (!action) return res.status(400).json({ error: 'Thiếu action' });
+  if (!roomId || !peerId) return res.status(400).json({ error: 'Thiếu roomId hoặc peerId' });
+
+  const now = Date.now();
+
+  if (action === 'join') {
+    pruneSignalState(now);
+    const role = req.body.role === 'doctor' ? 'doctor' : 'station';
+    const name = String(req.body.name || 'Thành viên');
+    const others = activeSignalPeers(roomId, now).filter((p) => p.peerId !== peerId);
+
+    signalPeers.set(peerId, { roomId, role, name, lastSeen: now });
+
+    const patch = { status: role === 'doctor' || others.length ? 'IN_CALL' : 'WAITING' };
+    if (req.body.patientName) patch.patientName = String(req.body.patientName);
+    if (req.body.symptoms) patch.symptoms = String(req.body.symptoms);
+    touchSignalRoom(roomId, patch, now);
+
+    const cursor = signalSeq;
+    pushSignalEntry({ roomId, fromPeer: peerId, type: 'peer-joined', payload: { role, name }, now });
+
+    return res.json({
+      ok: true,
+      cursor,
+      shouldOffer: others.length > 0,
+      peers: others.map((p) => ({ peerId: p.peerId, role: p.role, name: p.name })),
+      room: signalRoomView(roomId)
+    });
+  }
+
+  if (action === 'standby') {
+    pruneSignalState(now);
+    signalPeers.set(peerId, {
+      roomId: LOBBY_ROOM,
+      role: 'doctor',
+      name: String(req.body.name || 'Cán bộ trực'),
+      lastSeen: now
+    });
+    const onDuty = countOnDuty(now);
+    return res.json({ ok: true, rooms: listSignalRooms(now), doctorsOnline: onDuty.count, doctorNames: onDuty.names });
+  }
+
+  if (action === 'signal') {
+    const type = String(req.body.type || '');
+    if (!type) return res.status(400).json({ error: 'Thiếu type' });
+    pushSignalEntry({ roomId, fromPeer: peerId, toPeer: req.body.to || null, type, payload: req.body.payload ?? null, now });
+    return res.json({ ok: true });
+  }
+
+  if (action === 'vitals') {
+    const vitals = req.body.vitals || {};
+    touchSignalRoom(roomId, { vitals }, now);
+    pushSignalEntry({ roomId, fromPeer: peerId, type: 'vitals', payload: vitals, now });
+    return res.json({ ok: true });
+  }
+
+  if (action === 'notes') {
+    const notes = String(req.body.notes || '');
+    touchSignalRoom(roomId, { notes }, now);
+    pushSignalEntry({ roomId, fromPeer: peerId, type: 'notes', payload: { notes }, now });
+    return res.json({ ok: true });
+  }
+
+  if (action === 'complete') {
+    touchSignalRoom(roomId, { status: 'COMPLETED' }, now);
+    pushSignalEntry({ roomId, fromPeer: peerId, type: 'call-ended', payload: { reason: 'completed' }, now });
+    return res.json({ ok: true });
+  }
+
+  if (action === 'leave') {
+    signalPeers.delete(peerId);
+    if (roomId === LOBBY_ROOM) return res.json({ ok: true });
+
+    pushSignalEntry({ roomId, fromPeer: peerId, type: 'peer-left', payload: null, now });
+    if (activeSignalPeers(roomId, now).length === 0) {
+      const room = signalRooms.get(roomId);
+      if (room && room.status !== 'COMPLETED') touchSignalRoom(roomId, { status: 'ENDED' }, now);
+    }
+    return res.json({ ok: true });
+  }
+
+  return res.status(400).json({ error: 'Action không hợp lệ' });
+});
+
+app.get('/api/signal', async (req, res) => {
+  const now = Date.now();
+
+  if (req.query.action === 'rooms') {
+    pruneSignalState(now);
+    const onDuty = countOnDuty(now);
+    return res.json({ ok: true, rooms: listSignalRooms(now), doctorsOnline: onDuty.count, doctorNames: onDuty.names });
+  }
+
+  if (req.query.action === 'on-duty') {
+    const onDuty = countOnDuty(now);
+    return res.json({ ok: true, doctorsOnline: onDuty.count, doctorNames: onDuty.names });
+  }
+
+  const roomId = req.query.roomId;
+  const peerId = req.query.peerId;
+  if (!roomId || !peerId) return res.status(400).json({ error: 'Thiếu roomId hoặc peerId' });
+
+  const cursor = Number(req.query.cursor || 0);
+  const peer = signalPeers.get(peerId);
+  if (peer) peer.lastSeen = now;
+
+  // Long-poll ngắn để bắt tay WebRTC nhanh mà không cần giữ socket.
+  const deadline = now + POLL_WINDOW_MS;
+  let messages = fetchSignalMessages(roomId, peerId, cursor);
+  while (messages.length === 0 && Date.now() < deadline) {
+    await sleep(POLL_INTERVAL_MS);
+    messages = fetchSignalMessages(roomId, peerId, cursor);
+  }
+
+  const pollNow = Date.now();
+  const onDuty = countOnDuty(pollNow);
+
+  return res.json({
+    ok: true,
+    cursor: messages.length ? messages[messages.length - 1].seq : cursor,
+    messages,
+    doctorsOnline: onDuty.count,
+    doctorNames: onDuty.names,
+    room: signalRoomView(roomId),
+    peers: activeSignalPeers(roomId, pollNow).map((p) => ({ peerId: p.peerId, role: p.role, name: p.name }))
+  });
 });
 
 // Broadcast Helper

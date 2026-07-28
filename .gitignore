@@ -1,2 +1,5 @@
 # Local Netlify folder
 .netlify
+
+# Dependencies (cài lại bằng `npm install`)
+node_modules

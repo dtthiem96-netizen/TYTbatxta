@@ -6,7 +6,7 @@ Hệ thống ứng dụng CNTT y tế nâng cao hỗ trợ Cán bộ Y tế tạ
 
 ## 🌟 TÍNH NĂNG NỔI BẬT
 
-1. **Bảng Điều Khiển Cán Bộ Y Tế (Station Operator Panel)**
+1. **Bảng Điều Khiển Cán Bộ Y Tế (Station Operator Panel)** — mở tại đường dẫn **`/tram`**
    - Đăng nhập linh hoạt theo Mã điểm trạm & Tên cán bộ trực.
    - Nhập nhanh và đồng bộ thời gian thực chỉ số Sinh hiệu Bệnh nhân (Vitals):
      - Huyết áp (mmHg) [Tâm thu / Tâm trương]
@@ -41,13 +41,17 @@ Hệ thống ứng dụng CNTT y tế nâng cao hỗ trợ Cán bộ Y tế tạ
 ## 🛠️ CÔNG NGHỆ SỬ DỤNG
 
 - **Bản triển khai trên Netlify (bản đang chạy trên trang web công khai)**:
-  - Giao diện tĩnh `index.html` (HTML5 + Tailwind CSS + Vanilla JS) xuất bản từ thư mục gốc.
+  - Giao diện tĩnh `index.html` (HTML5 + Tailwind CSS + Vanilla JS) xuất bản từ thư mục gốc, kèm Bảng điều
+    khiển Điểm trạm tại `/tram`.
   - **Netlify Functions** đóng vai trò backend: `/api/signal` (signaling WebRTC), `/api/cms` (dữ liệu CMS),
-    `/api/ai` (trợ lý AI), `/api/video`, `/api/attachment`.
+    `/api/ai` (trợ lý AI), `/api/video`, `/api/attachment`, `/api/vitals` (lưu & phát sinh hiệu điểm trạm),
+    `/api/clinical-ai` (gợi ý lâm sàng theo phác đồ), `/api/examination-report` (phiếu khám từ xa).
   - **Netlify Database (Postgres + Drizzle ORM)** lưu phòng khám, thành viên đang trực tuyến, hộp thư
     signaling, chỉ số sinh hiệu và lịch đăng ký khám.
   - **WebRTC** truyền video/âm thanh ngang hàng trực tiếp giữa điểm trạm và bác sĩ tuyến trên (STUN công cộng).
-- **Bản chạy nội bộ (LAN điểm trạm)**: Node.js (Express.js) + WebSocket (`ws`) trong `server.js`, SQLite `telehealth.db`.
+- **Bản chạy nội bộ (LAN điểm trạm)**: Node.js (Express.js) + WebSocket (`ws`) trong `server.js`, SQLite
+  `telehealth.db`. `server.js` cũng cài đặt cùng giao thức HTTP `/api/signal` (lưu trong bộ nhớ tiến trình),
+  nên `public/app.js` chạy được ở cả hai môi trường mà không cần sửa mã.
 - **Media / WebRTC**: HTML5 MediaDevices API (`getUserMedia`, `enumerateDevices`, `replaceTrack`), RTCPeerConnection.
 - **AI & Speech**: Web Speech API (`webkitSpeechRecognition`), trợ lý lâm sàng qua Netlify AI Gateway.
 
@@ -85,6 +89,20 @@ Lưu ý vận hành:
 - Presence hết hạn sau 45 giây không nhận nhịp, bản tin signaling hết hạn sau 180 giây — bảng tự dọn.
 - Nếu chờ quá 45 giây chưa có cán bộ vào phòng, màn hình chờ tự hiện số điện thoại và Zalo trực để người dân không bị kẹt.
 
+### Các API riêng của Bảng điều khiển Điểm trạm
+
+Bảng điều khiển tại `/tram` dùng **đúng giao thức `/api/signal` ở trên** (cùng hộp thư, cùng hàng đợi cuộc
+gọi với CMS), nên một điểm trạm vào phòng sẽ hiện ngay trong hàng đợi cuộc gọi của CMS. Ngoài ra bảng điều
+khiển gọi thêm ba endpoint sau:
+
+| Endpoint | Vai trò |
+|----------|---------|
+| `POST /api/vitals` | Lưu sinh hiệu vào Postgres (bảng `station_vitals`), tự đánh giá mức độ (`NORMAL` / `WARNING` / `CRITICAL`) và phát bản tin `vitals` tới màn hình bác sĩ |
+| `GET /api/vitals/:roomId` | Lịch sử 10 lần đo gần nhất của phòng khám |
+| `POST /api/clinical-ai` | Gợi ý chẩn đoán sơ bộ, mã ICD-10, chỉ định cận lâm sàng, hướng xử trí và dấu hiệu cảnh báo — chạy bằng bộ quy tắc tất định nên không cần khóa AI và cho kết quả tái lập được |
+| `POST /api/examination-report` | Lưu phiếu khám từ xa vào bảng `examination_reports` và trả về mã phiếu |
+| `GET /api/examination-report?roomId=` | 20 phiếu khám gần nhất của phòng |
+
 ---
 
 ## 🚀 HƯỚNG DẪN CÀI ĐẶT VÀ CHẠY CHƯƠNG TRÌNH
@@ -100,8 +118,12 @@ npm install
 netlify dev --port 8889
 ```
 
-Truy cập `http://localhost:8889`. Netlify Dev mô phỏng đầy đủ Functions và Netlify Database, nên khung
-signaling `/api/signal` hoạt động y như trên trang web đã xuất bản.
+Truy cập `http://localhost:8889` cho cổng thông tin và CMS, `http://localhost:8889/tram` cho Bảng điều khiển
+Điểm trạm. Netlify Dev mô phỏng đầy đủ Functions và Netlify Database, nên khung signaling `/api/signal`
+hoạt động y như trên trang web đã xuất bản.
+
+> Luôn truyền `--port 8889`. Nếu Netlify Dev báo lỗi command của site, chạy
+> `netlify dev --port 8889 --command "sleep 86400"` để bỏ qua lệnh build (trang là tĩnh, không cần build).
 
 Khi thay đổi cấu trúc bảng dữ liệu, sinh migration mới (không bao giờ sửa migration đã áp dụng):
 
@@ -126,8 +148,11 @@ Khi máy chủ khởi chạy thành công, console sẽ hiển thị:
 
 Mở trình duyệt web và truy cập địa chỉ:
 ```text
-http://localhost:8889
+http://localhost:8889          # Bảng điều khiển Điểm trạm
 ```
+
+Bản nội bộ dùng SQLite và hộp thư signaling trong bộ nhớ, phù hợp khi điểm trạm mất Internet nhưng vẫn còn
+mạng LAN. Dữ liệu của bản nội bộ **không** đồng bộ với Netlify Database của trang xuất bản.
 
 ---
 
@@ -140,18 +165,21 @@ http://localhost:8889
 │   ├── signal.ts                 # Signaling WebRTC, presence, đồng bộ sinh hiệu & ghi chép (HTTP long-poll)
 │   ├── cms.ts                    # API dữ liệu CMS (tin tức, lịch tiêm, tài khoản, lịch khám)
 │   ├── ai.ts                     # Trợ lý AI lâm sàng qua Netlify AI Gateway
+│   ├── vitals.ts                 # Lưu sinh hiệu điểm trạm & đánh giá cảnh báo, phát tới màn hình bác sĩ
+│   ├── clinical-ai.ts            # Bộ quy tắc gợi ý chẩn đoán / ICD-10 / cận lâm sàng / hướng xử trí
+│   ├── examination-report.ts     # Lưu & tra cứu phiếu khám bệnh từ xa
 │   ├── video.ts                  # Phát video đã tải lên từ Netlify Blobs
 │   └── attachment.ts             # Tải tệp đính kèm từ Netlify Blobs
 ├── netlify/database/migrations/   # Migration Postgres (Netlify Database)
 ├── db/
 │   ├── schema.ts                 # Định nghĩa bảng Drizzle ORM
 │   └── index.ts                  # Kết nối Netlify Database
-├── server.js                     # Bản chạy nội bộ: Express + WebSocket signaling + SQLite
+├── server.js                     # Bản chạy nội bộ: Express + WebSocket + /api/signal trong bộ nhớ + SQLite
 ├── public/
-│   ├── index.html                # Giao diện bản nội bộ (Navy Blue & White)
-│   └── app.js                    # Logic camera kép, mic, WebSocket WebRTC, Speech-to-Text
-├── telehealth.db                 # SQLite của bản chạy nội bộ
-├── netlify.toml                  # Cấu hình xuất bản & thư mục Functions
+│   ├── index.html                # Bảng điều khiển Điểm trạm (Navy Blue & White) — xuất bản tại /tram
+│   └── app.js                    # Logic camera kép, mic, WebRTC qua /api/signal, Speech-to-Text
+├── telehealth.db                 # SQLite của bản chạy nội bộ (bị chặn tải về trên trang xuất bản)
+├── netlify.toml                  # Cấu hình xuất bản, đường dẫn /tram & thư mục Functions
 ├── package.json                  # Cấu hình dự án & dependencies
 └── README.md                     # Tài liệu hướng dẫn sử dụng
 ```
