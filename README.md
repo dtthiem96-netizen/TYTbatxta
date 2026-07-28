@@ -175,7 +175,10 @@ http://localhost:8889
    bác sĩ, hoặc bấm **"Gửi chỉ số sinh hiệu tới tuyến trên"** để gửi ngay.
 6. Dùng **"Chuyển Camera (Góc rộng / Cận cảnh)"** để đổi giữa camera toàn cảnh phòng khám và camera soi
    cận cảnh tổn thương/họng/da; **Micro** bật/tắt bằng nút biểu tượng micro.
-7. Bấm **"Hoàn thành & Xuất Phiếu khám"** để kết xuất và in Phiếu khám bệnh từ xa.
+7. Nhập **Số thẻ BHYT hoặc số CCCD** của người bệnh ở khung *"Định danh bệnh nhân"* và bấm
+   **"Gửi định danh tới Bác sĩ"** — thông tin này bắt buộc phải có trên đơn thuốc.
+8. Xem **"Kết luận của Bác sĩ"** và **"Lời dặn của bác sỹ"** hiện trực tiếp trên màn hình khi bác sĩ gửi về.
+9. Bấm **"Hoàn thành & In đơn thuốc (A5)"** để kết xuất và in đơn thuốc khổ A5.
 
 **Phía Bác sĩ tuyến trên (CMS):**
 1. Đăng nhập CMS — **trực cuộc gọi bật tự động ngay sau khi đăng nhập**, không cần mở tab nào.
@@ -188,8 +191,15 @@ http://localhost:8889
    Khi tạm ngưng hoặc đăng xuất, trang công khai lập tức báo "hiện chưa có cán bộ trực".
 5. Theo dõi sinh hiệu điểm trạm gửi lên, trao đổi hình ảnh/âm thanh và tin nhắn hai chiều.
 6. Bấm **"AI Co-Pilot Chẩn đoán"** để nhận gợi ý chẩn đoán ICD-10, cận lâm sàng và đơn thuốc tham khảo.
-7. Bấm **"Lưu & gửi kết luận về điểm trạm"** để đẩy kết luận về màn hình cán bộ trạm, sau đó
-   **"Hoàn thành & Xuất Phiếu khám"**.
+   Gợi ý của Trợ lý AI **chỉ hiển thị trên màn hình, không bao giờ được in vào đơn thuốc**.
+7. Kiểm tra/bổ sung **Số thẻ BHYT hoặc số CCCD** ở khung *"Định danh bệnh nhân"* (tự điền khi điểm trạm
+   hoặc phiếu đăng ký đã có thông tin), ghi **Kết luận & thuốc kê** và **Lời dặn của bác sỹ**.
+8. Bấm **"Lưu & gửi kết luận + lời dặn về điểm trạm"** để đẩy nội dung về màn hình cán bộ trạm, sau đó
+   **"Hoàn thành & In đơn thuốc (A5)"**.
+
+Đơn thuốc kết xuất theo **khổ giấy A5 dọc**, gói gọn trong một trang, gồm: thông tin hành chính của người
+bệnh kèm **số thẻ BHYT/CCCD**, bảng sinh hiệu, phần chẩn đoán & thuốc được kê, phần **"Lời dặn của bác sỹ"**
+và chữ ký hai bên.
 
 > Tài khoản CMS phải được bật quyền `canReceiveVideo` trong mục **Phân quyền Hệ thống** mới tiếp nhận được
 > cuộc gọi video.

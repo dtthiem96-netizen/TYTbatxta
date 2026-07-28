@@ -664,6 +664,11 @@
                             <label class="block text-sm font-bold text-gray-700 mb-1">Họ và tên người bệnh</label>
                             <input type="text" id="booking-name" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 focus:ring-2 focus:ring-medical-100 font-medium" placeholder="Nhập đầy đủ họ tên">
                         </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Số thẻ BHYT hoặc số CCCD <span class="text-red-500">*</span></label>
+                            <input type="text" id="booking-idcard" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 focus:ring-2 focus:ring-medical-100 font-medium" placeholder="VD: HS4010112345678 hoặc 001099012345">
+                            <p class="text-[11px] text-gray-500 mt-1 font-medium"><i class="fas fa-id-card mr-1 text-medical-500"></i> Bắt buộc theo quy định để in trên đơn thuốc và thanh toán BHYT.</p>
+                        </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1">Số điện thoại</label>
@@ -738,6 +743,10 @@
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-1">Số điện thoại liên hệ</label>
                             <input type="tel" id="quick-call-phone" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Để cán bộ gọi lại nếu mất kết nối">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Số thẻ BHYT hoặc số CCCD <span class="text-red-500">*</span></label>
+                            <input type="text" id="quick-call-idcard" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="VD: HS4010112345678 hoặc 001099012345">
                         </div>
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-1">Triệu chứng / Lý do cần tư vấn</label>
@@ -822,6 +831,16 @@
 
                 <!-- Bảng Sinh hiệu & Chat -->
                 <div class="space-y-4 flex flex-col justify-between">
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                            <i class="fas fa-id-card"></i> Định danh bệnh nhân (in trên đơn thuốc)
+                        </h4>
+                        <label class="block text-[10px] text-slate-400">Số thẻ BHYT hoặc số CCCD</label>
+                        <input type="text" id="tele-patient-idcard" placeholder="VD: HS4010112345678 / 001099012345" onchange="window.teleSyncPatientIdentity(false)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white text-xs focus:outline-none focus:border-amber-500">
+                        <button onclick="window.teleSyncPatientIdentity(true)" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+                            <i class="fas fa-paper-plane"></i> Gửi định danh tới Bác sĩ
+                        </button>
+                    </div>
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-2">
                             <i class="fas fa-heartbeat"></i> Nhập nhanh Sinh hiệu Bệnh nhân
@@ -860,6 +879,10 @@
                             <i class="fas fa-file-medical"></i> Kết luận của Bác sĩ
                         </h4>
                         <p id="patient-doctor-note" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có kết luận. Bác sĩ tuyến trên sẽ gửi ghi chép sau khi thăm khám.</p>
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mt-3 mb-2 flex items-center gap-2">
+                            <i class="fas fa-comment-medical"></i> Lời dặn của bác sỹ
+                        </h4>
+                        <p id="patient-doctor-advice" class="text-[11px] text-slate-400 italic leading-relaxed">Bác sĩ chưa gửi lời dặn.</p>
                     </div>
 
                     <!-- Khung nhắn tin trực tiếp -->
@@ -879,7 +902,7 @@
                             </button>
                         </div>
                         <button onclick="window.teleExportReport()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
-                            <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; Xuất Phiếu khám
+                            <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; In đơn thuốc (A5)
                         </button>
                     </div>
                 </div>
@@ -1745,7 +1768,7 @@
                                             <i class="fas fa-brain"></i> AI Co-Pilot Chẩn đoán
                                         </button>
                                         <button onclick="window.teleExportReport()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition shadow">
-                                            <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; Xuất Phiếu khám
+                                            <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; In đơn thuốc (A5)
                                         </button>
                                         <button onclick="window.endCmsVideoCall()" class="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center text-base transition shadow">
                                             <i class="fas fa-phone-slash"></i>
@@ -1788,6 +1811,16 @@
 
                                 <!-- Ghi chép Lâm sàng & AI Suggestions -->
                                 <div class="space-y-4 flex flex-col justify-between">
+                                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                                                <i class="fas fa-id-card"></i> Định danh bệnh nhân
+                                            </h4>
+                                            <span id="cms-patient-idcard-badge" class="text-[10px] text-slate-500">Chưa có định danh</span>
+                                        </div>
+                                        <label class="block text-[10px] text-slate-400">Số thẻ BHYT hoặc số CCCD (bắt buộc in trên đơn thuốc)</label>
+                                        <input type="text" id="cms-patient-idcard" placeholder="VD: HS4010112345678 / 001099012345" onchange="window.teleSyncPatientIdentity(false)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white text-xs focus:outline-none focus:border-amber-500">
+                                    </div>
                                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
                                         <h4 class="font-bold text-xs uppercase tracking-wider text-purple-400 flex items-center gap-2">
                                             <i class="fas fa-robot"></i> Clinical Co-Pilot (AI Y tế)
@@ -1795,6 +1828,7 @@
                                         <div id="cms-ai-suggestion-box" class="bg-slate-800/80 p-3 rounded-xl border border-slate-700 text-xs space-y-2 text-slate-300">
                                             <div class="font-bold text-emerald-400">Gợi ý chẩn đoán sơ bộ:</div>
                                             <p id="cms-ai-diag-text" class="text-[11px] leading-relaxed italic">Nhấn "AI Co-Pilot Chẩn đoán" để hệ thống tự động phân tích sinh hiệu và triệu chứng bệnh nhân.</p>
+                                            <p class="text-[10px] text-slate-500 not-italic"><i class="fas fa-eye-slash mr-1"></i> Nội dung tham khảo, chỉ hiển thị trên màn hình - không in vào đơn thuốc.</p>
                                         </div>
                                     </div>
 
@@ -1803,8 +1837,15 @@
                                             <i class="fas fa-file-medical"></i> Ghi chú & Đơn thuốc tham khảo
                                         </h4>
                                         <textarea id="cms-doctor-notes" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="Ghi chép kết quả thăm khám, chẩn đoán và hướng điều trị..."></textarea>
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-emerald-400 mb-1 flex items-center gap-1.5">
+                                                <i class="fas fa-comment-medical"></i> Lời dặn của bác sỹ (in trên đơn thuốc)
+                                            </label>
+                                            <textarea id="cms-doctor-advice" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="VD: Uống thuốc sau ăn, uống nhiều nước, tái khám sau 3 ngày hoặc khi khó thở tăng..."></textarea>
+                                            <p class="text-[10px] text-slate-500 mt-1">Chỉ nội dung ở khung này được in vào đơn thuốc. Gợi ý của Trợ lý AI chỉ hiển thị trên màn hình.</p>
+                                        </div>
                                         <button onclick="window.saveDoctorClinicalNotes()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs transition">
-                                            <i class="fas fa-save mr-1"></i> Lưu & gửi kết luận về điểm trạm
+                                            <i class="fas fa-save mr-1"></i> Lưu & gửi kết luận + lời dặn về điểm trạm
                                         </button>
                                     </div>
 
@@ -2750,7 +2791,7 @@
                         if (a.status === 'COMPLETED') statusBadge = `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-xs font-bold">Hoàn thành</span>`;
 
                         return `<tr class="hover:bg-gray-50">
-                            <td class="p-3 font-bold text-gray-900">${a.patientName}</td>
+                            <td class="p-3 font-bold text-gray-900">${a.patientName}<br><span class="text-[11px] font-normal text-gray-500"><i class="fas fa-id-card mr-1"></i>${a.idCard || 'Chưa có BHYT/CCCD'}</span></td>
                             <td class="p-3 font-mono text-gray-700">${a.phone}</td>
                             <td class="p-3">${typeBadge}</td>
                             <td class="p-3 text-gray-600">${a.service || 'Khám chung'}<br><span class="text-[11px] text-gray-400 italic">${a.symptoms || ''}</span></td>
@@ -2758,7 +2799,7 @@
                             <td class="p-3 text-center">${statusBadge}</td>
                             <td class="p-3 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    ${isTele ? `<button type="button" class="cms-accept-call bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-lg text-xs transition flex items-center gap-1 shadow-sm" data-room="${teleEscape(a.roomId || 'room-' + a.id)}" data-patient="${teleEscape(a.patientName || 'Bệnh nhân')}" data-symptoms="${teleEscape(a.symptoms || '')}" data-appointment="${teleEscape(a.id)}"><i class="fas fa-video"></i> Gọi ngay</button>` : ''}
+                                    ${isTele ? `<button type="button" class="cms-accept-call bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-lg text-xs transition flex items-center gap-1 shadow-sm" data-room="${teleEscape(a.roomId || 'room-' + a.id)}" data-patient="${teleEscape(a.patientName || 'Bệnh nhân')}" data-symptoms="${teleEscape(a.symptoms || '')}" data-idcard="${teleEscape(a.idCard || '')}" data-appointment="${teleEscape(a.id)}"><i class="fas fa-video"></i> Gọi ngay</button>` : ''}
                                     <button onclick="window.completeAppointment('${a.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-lg text-xs transition" title="Đánh dấu hoàn thành"><i class="fas fa-check"></i></button>
                                     <button onclick="window.deleteItem('appointments', '${a.id}')" class="text-red-500 hover:text-red-700 p-1" title="Xóa"><i class="fas fa-trash-alt"></i></button>
                                 </div>
@@ -3363,6 +3404,7 @@
             const name = (document.getElementById('quick-call-name').value || '').trim();
             if (!name) return;
             const phone = (document.getElementById('quick-call-phone').value || '').trim();
+            const idCard = (document.getElementById('quick-call-idcard').value || '').trim();
             const reason = (document.getElementById('quick-call-reason').value || '').trim();
             const roomId = 'room-' + Date.now();
 
@@ -3371,6 +3413,7 @@
                 id: 'APP' + Date.now(),
                 patientName: name,
                 phone: phone || 'Chưa cung cấp',
+                idCard: idCard || '',
                 service: 'Khám từ xa Telehealth',
                 appointmentDate: new Date().toLocaleDateString('vi-VN'),
                 symptoms: reason,
@@ -3387,15 +3430,15 @@
                 console.warn('Không lưu được lượt gọi vào lịch khám:', err);
             }
 
-            window.openPatientTelehealthModal(roomId, name, reason);
+            window.openPatientTelehealthModal(roomId, name, reason, idCard);
         };
 
-        window.startTelehealthCallFromBooking = function(roomId, patientName, symptoms) {
+        window.startTelehealthCallFromBooking = function(roomId, patientName, symptoms, patientId) {
             window.closeModal();
-            window.openPatientTelehealthModal(roomId, patientName, symptoms);
+            window.openPatientTelehealthModal(roomId, patientName, symptoms, patientId);
         };
 
-        window.openPatientTelehealthModal = function(roomId, patientName, symptoms) {
+        window.openPatientTelehealthModal = function(roomId, patientName, symptoms, patientId) {
             activeRoomId = roomId || ('room-' + Date.now());
             isCmsCall = false;
 
@@ -3416,7 +3459,8 @@
                 role: 'station',
                 name: patientName ? ('Điểm trạm - ' + patientName) : 'Cán bộ điểm trạm',
                 patientName: patientName || 'Bệnh nhân',
-                symptoms: symptoms || ''
+                symptoms: symptoms || '',
+                patientId: patientId || ''
             });
         };
 
@@ -3425,7 +3469,7 @@
             teleStop(true);
         };
 
-        window.joinCmsTelehealthCall = function(roomId, patientName, symptoms, appointmentId) {
+        window.joinCmsTelehealthCall = function(roomId, patientName, symptoms, appointmentId, patientId) {
             if (!window.checkCmsVideoPermission()) {
                 window.showToast("Tài khoản của bạn chưa được cấp quyền nhận cuộc gọi Video!");
                 return;
@@ -3456,6 +3500,7 @@
                 name: (currentCmsUser && currentCmsUser.name) || 'Bác sĩ trực CMS',
                 patientName: patientName || 'Bệnh nhân',
                 symptoms: symptoms || '',
+                patientId: patientId || (appt && appt.idCard) || '',
                 appointmentId: appt ? appt.id : appointmentId
             });
         };
@@ -3502,6 +3547,7 @@
             name: null,
             peerId: null,
             patientName: null,
+            patientId: '',
             symptoms: '',
             appointmentId: null,
             cursor: 0,
@@ -3519,6 +3565,7 @@
             remotePeerName: null,
             vitals: {},
             doctorNotes: '',
+            doctorAdvice: '',
             chatLog: [],
             vitalsTimer: null,
             vitalsBound: false,
@@ -3712,6 +3759,7 @@
                         : `Đã kết nối trực tiếp với ${TELE.remotePeerName || 'Bác sĩ tuyến trên'}`);
                     window.showToast("Kết nối video/âm thanh hai chiều đã thiết lập.");
                     if (TELE.role !== 'doctor') window.teleSendVitals(false);
+                    if (TELE.role !== 'doctor' && TELE.patientId) teleSendSignal('patient-info', { patientId: TELE.patientId, patientName: TELE.patientName });
                 } else if (state === 'connecting') {
                     teleStatus('Đang thiết lập luồng video/âm thanh...');
                 } else if (state === 'disconnected') {
@@ -3756,7 +3804,9 @@
                 window.showToast(`${TELE.remotePeerName} đã tham gia phòng khám.`);
                 teleStatus(`${TELE.remotePeerName} đã vào phòng - đang bắt tay kết nối...`);
                 if (TELE.role !== 'doctor') window.teleSendVitals(false);
+                if (TELE.role !== 'doctor' && TELE.patientId) teleSendSignal('patient-info', { patientId: TELE.patientId, patientName: TELE.patientName });
                 if (TELE.doctorNotes) teleSendSignal('notes', { notes: TELE.doctorNotes });
+                if (TELE.role === 'doctor' && TELE.doctorAdvice) teleSendSignal('advice', { advice: TELE.doctorAdvice });
                 return;
             }
 
@@ -3825,6 +3875,22 @@
                 return;
             }
 
+            if (msg.type === 'patient-info') {
+                const incomingId = (msg.payload && msg.payload.patientId) || '';
+                if (incomingId) {
+                    TELE.patientId = incomingId;
+                    teleRenderPatientIdentity();
+                    if (TELE.role === 'doctor') window.showToast("Đã nhận số thẻ BHYT/CCCD của bệnh nhân từ điểm trạm.");
+                }
+                return;
+            }
+
+            if (msg.type === 'advice') {
+                TELE.doctorAdvice = (msg.payload && msg.payload.advice) || '';
+                teleRenderDoctorAdvice();
+                return;
+            }
+
             if (msg.type === 'peer-left' || msg.type === 'call-ended') {
                 TELE.connected = false;
                 teleStatus('Đầu bên kia đã rời phòng khám.');
@@ -3869,6 +3935,7 @@
             TELE.role = opts.role;
             TELE.name = opts.name;
             TELE.patientName = opts.patientName || 'Bệnh nhân';
+            TELE.patientId = opts.patientId || '';
             TELE.symptoms = opts.symptoms || '';
             TELE.appointmentId = opts.appointmentId || null;
             TELE.peerId = `${opts.role}-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
@@ -3879,6 +3946,11 @@
             TELE.chatLog = [];
             TELE.remotePeerName = null;
             TELE.connected = false;
+            TELE.doctorAdvice = '';
+            const adviceBox = document.getElementById('cms-doctor-advice');
+            if (adviceBox) adviceBox.value = '';
+            teleRenderPatientIdentity();
+            teleRenderDoctorAdvice();
             TELE.doctorsOnline = (TELE.role === 'doctor') ? null : publicDutyCount;
 
             teleShowRemotePlaceholder(true);
@@ -4092,6 +4164,43 @@
             };
         }
 
+        /* Định danh bệnh nhân (số thẻ BHYT / CCCD): bắt buộc phải có trên đơn thuốc,
+           nên được đồng bộ hai chiều giữa điểm trạm và bác sĩ tuyến trên. */
+        function teleRenderPatientIdentity() {
+            const cmsInput = document.getElementById('cms-patient-idcard');
+            if (cmsInput && document.activeElement !== cmsInput) cmsInput.value = TELE.patientId || '';
+            const stationInput = document.getElementById('tele-patient-idcard');
+            if (stationInput && document.activeElement !== stationInput) stationInput.value = TELE.patientId || '';
+            const badge = document.getElementById('cms-patient-idcard-badge');
+            if (badge) badge.textContent = TELE.patientId ? 'Đã có định danh' : 'Chưa có định danh';
+        }
+
+        function teleReadPatientId() {
+            const el = document.getElementById(TELE.role === 'doctor' ? 'cms-patient-idcard' : 'tele-patient-idcard');
+            const typed = el ? (el.value || '').trim() : '';
+            return typed || TELE.patientId || '';
+        }
+
+        window.teleSyncPatientIdentity = function(notify) {
+            const value = teleReadPatientId();
+            TELE.patientId = value;
+            teleRenderPatientIdentity();
+            if (TELE.roomId && TELE.peerId) teleSendSignal('patient-info', { patientId: value, patientName: TELE.patientName });
+            if (notify) {
+                window.showToast(value
+                    ? "Đã đồng bộ số thẻ BHYT/CCCD của bệnh nhân."
+                    : "Chưa nhập số thẻ BHYT/CCCD - đơn thuốc sẽ thiếu thông tin bắt buộc.");
+            }
+        };
+
+        function teleRenderDoctorAdvice() {
+            const adviceEl = document.getElementById('patient-doctor-advice');
+            if (adviceEl && TELE.role !== 'doctor') {
+                adviceEl.textContent = TELE.doctorAdvice || 'Bác sĩ chưa gửi lời dặn.';
+                if (TELE.doctorAdvice) adviceEl.classList.remove('italic');
+            }
+        }
+
         function teleRenderVitals(v) {
             if (!v) return;
             TELE.vitals = v;
@@ -4182,14 +4291,22 @@
         window.saveDoctorClinicalNotes = async function() {
             const notesEl = document.getElementById('cms-doctor-notes');
             const notes = notesEl ? notesEl.value.trim() : '';
+            const adviceEl = document.getElementById('cms-doctor-advice');
+            const advice = adviceEl ? adviceEl.value.trim() : '';
             TELE.doctorNotes = notes;
+            TELE.doctorAdvice = advice;
+            TELE.patientId = teleReadPatientId();
             if (!TELE.roomId) {
                 window.showToast("Đã lưu ghi chú tạm thời (chưa có cuộc gọi đang diễn ra).");
                 return;
             }
             try {
                 await teleApiPost({ action: 'notes', notes });
-                window.showToast("Đã lưu và gửi kết luận về điểm trạm.");
+                if (TELE.peerId) {
+                    teleSendSignal('advice', { advice });
+                    teleSendSignal('patient-info', { patientId: TELE.patientId, patientName: TELE.patientName });
+                }
+                window.showToast("Đã lưu và gửi kết luận, lời dặn về điểm trạm.");
             } catch (err) {
                 window.showToast("Không gửi được kết luận, kiểm tra kết nối mạng.");
             }
@@ -4200,11 +4317,17 @@
             const v = TELE.vitals || {};
             const notesEl = document.getElementById('cms-doctor-notes');
             const notes = TELE.role === 'doctor' && notesEl ? notesEl.value.trim() : (TELE.doctorNotes || '');
-            const aiEl = document.getElementById('cms-ai-diag-text');
-            const aiText = aiEl ? aiEl.textContent : '';
+            const adviceEl = document.getElementById('cms-doctor-advice');
+            const advice = TELE.role === 'doctor' && adviceEl ? adviceEl.value.trim() : (TELE.doctorAdvice || '');
+            // Số thẻ BHYT / CCCD là thông tin bắt buộc của đơn thuốc, lấy từ ô định danh đang mở.
+            const patientId = teleReadPatientId();
             const doctorName = TELE.role === 'doctor'
                 ? ((currentCmsUser && currentCmsUser.name) || 'Bác sĩ tuyến trên')
                 : (TELE.remotePeerName || 'Bác sĩ tuyến trên');
+
+            if (!patientId) {
+                window.showToast("Thiếu số thẻ BHYT/CCCD của bệnh nhân - hãy nhập trước khi in đơn thuốc.");
+            }
 
             if (TELE.roomId && TELE.peerId) {
                 try {
@@ -4215,59 +4338,78 @@
             }
             if (TELE.appointmentId) window.completeAppointment(TELE.appointmentId);
 
-            const row = (label, value) => `<tr><td class="lbl">${teleEscape(label)}</td><td>${teleEscape(value || '---')}</td></tr>`;
+            const cell = (label, value) => `<td class="lbl">${teleEscape(label)}</td><td>${teleEscape(value || '---')}</td>`;
+            const wide = (label, value) => `<tr><td class="lbl">${teleEscape(label)}</td><td colspan="3">${teleEscape(value || '---')}</td></tr>`;
+            const stationName = TELE.role === 'doctor' ? (TELE.remotePeerName || 'Cán bộ điểm trạm') : TELE.name;
             const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">
-                <title>Phiếu khám bệnh từ xa - ${teleEscape(roomId)}</title>
+                <title>Đơn thuốc khám từ xa - ${teleEscape(roomId)}</title>
                 <style>
-                    body { font-family: "Times New Roman", serif; color: #0f172a; padding: 32px; max-width: 780px; margin: 0 auto; }
-                    h1 { text-align: center; font-size: 20px; margin-bottom: 4px; text-transform: uppercase; color: #1e3a8a; }
-                    h2 { text-align: center; font-size: 14px; font-weight: normal; margin-top: 0; }
-                    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
-                    td { border: 1px solid #94a3b8; padding: 7px 10px; vertical-align: top; }
-                    td.lbl { width: 210px; font-weight: bold; background: #eff6ff; }
-                    .box { border: 1px solid #94a3b8; padding: 10px; min-height: 70px; font-size: 14px; white-space: pre-wrap; }
-                    .sign { display: flex; justify-content: space-between; margin-top: 36px; text-align: center; font-size: 14px; }
-                    .sign div { width: 45%; }
-                    .muted { color: #475569; font-size: 12px; text-align: center; margin-top: 26px; }
+                    /* Khổ A5 dọc theo quy định đơn thuốc - toàn bộ nội dung gói gọn trong 1 trang */
+                    @page { size: A5 portrait; margin: 9mm 8mm; }
+                    * { box-sizing: border-box; }
+                    html, body { margin: 0; padding: 0; }
+                    body { font-family: "Times New Roman", serif; color: #0f172a; font-size: 10.5pt; line-height: 1.28;
+                           width: 132mm; margin: 0 auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .head { text-align: center; border-bottom: 1.5px solid #1e3a8a; padding-bottom: 3mm; margin-bottom: 3mm; }
+                    .org { font-size: 9pt; text-transform: uppercase; font-weight: bold; letter-spacing: .2px; }
+                    h1 { font-size: 14pt; margin: 1.5mm 0 0.8mm; text-transform: uppercase; color: #1e3a8a; letter-spacing: .3px; }
+                    .sub { font-size: 8.5pt; font-style: italic; color: #334155; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 2.5mm; font-size: 9.5pt; }
+                    td, th { border: 0.6px solid #64748b; padding: 1.1mm 1.6mm; vertical-align: top; }
+                    td.lbl { width: 26%; font-weight: bold; background: #eff6ff; }
+                    .vitals th { background: #eff6ff; font-size: 8.5pt; text-align: center; font-weight: bold; }
+                    .vitals td { text-align: center; font-weight: bold; }
+                    .sec { font-weight: bold; font-size: 9.5pt; margin: 0 0 1mm; text-transform: uppercase; color: #1e3a8a; }
+                    .box { border: 0.6px solid #64748b; padding: 1.6mm; min-height: 16mm; font-size: 9.5pt; white-space: pre-wrap; margin-bottom: 2.5mm; }
+                    .box.advice { min-height: 12mm; }
+                    .sign { display: flex; justify-content: space-between; text-align: center; font-size: 9pt; margin-top: 2mm; }
+                    .sign div { width: 48%; }
+                    .sign i { font-size: 8pt; }
+                    .gap { height: 13mm; }
+                    .muted { color: #475569; font-size: 7.5pt; text-align: center; margin: 2.5mm 0 0; font-style: italic; }
                 </style></head><body>
-                <h1>Phiếu khám bệnh từ xa &amp; tư vấn y tế</h1>
-                <h2>Trạm Y tế xã Bát Xát - Hệ thống Telehealth điểm trạm</h2>
-                <table>
-                    ${row('Mã phòng khám', roomId)}
-                    ${row('Họ tên bệnh nhân', TELE.patientName)}
-                    ${row('Thời gian khám', new Date().toLocaleString('vi-VN'))}
-                    ${row('Cán bộ điểm trạm', TELE.role === 'doctor' ? (TELE.remotePeerName || 'Cán bộ điểm trạm') : TELE.name)}
-                    ${row('Bác sĩ tuyến trên', doctorName)}
-                    ${row('Lý do khám / triệu chứng', TELE.symptoms)}
-                </table>
-                <table>
-                    ${row('Huyết áp', v.bp ? v.bp + ' mmHg' : '')}
-                    ${row('Nhịp tim', v.hr ? v.hr + ' bpm' : '')}
-                    ${row('SpO2', v.spo2 ? v.spo2 + ' %' : '')}
-                    ${row('Nhiệt độ', v.temp ? v.temp + ' °C' : '')}
-                    ${row('Cân nặng', v.weight ? v.weight + ' kg' : '')}
-                </table>
-                <p><b>Kết luận &amp; hướng xử trí của Bác sĩ:</b></p>
-                <div class="box">${teleEscape(notes || 'Chưa ghi nhận kết luận.')}</div>
-                <p><b>Gợi ý tham khảo từ Trợ lý AI lâm sàng:</b></p>
-                <div class="box">${teleEscape(aiText || 'Không sử dụng.')}</div>
-                <div class="sign">
-                    <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)</i><br><br><br><br></div>
-                    <div>Bác sĩ tư vấn tuyến trên<br><i>(Ký, ghi rõ họ tên)</i><br><br><br><br>${teleEscape(doctorName)}</div>
+                <div class="head">
+                    <div class="org">Trạm Y tế xã Bát Xát - Hệ thống Khám chữa bệnh từ xa</div>
+                    <h1>Đơn thuốc &amp; Phiếu khám từ xa</h1>
+                    <div class="sub">Cấp sau buổi tư vấn khám bệnh từ xa (Telehealth) - Mã phòng khám: ${teleEscape(roomId)}</div>
                 </div>
-                <p class="muted">Phiếu được kết xuất tự động từ Hệ thống Khám chữa bệnh Từ xa - Trạm Y tế xã Bát Xát.</p>
+                <table>
+                    <tr>${cell('Họ tên bệnh nhân', TELE.patientName)}${cell('Thời gian khám', new Date().toLocaleString('vi-VN'))}</tr>
+                    ${wide('Số thẻ BHYT / CCCD', patientId)}
+                    <tr>${cell('Cán bộ điểm trạm', stationName)}${cell('Bác sĩ tuyến trên', doctorName)}</tr>
+                    ${wide('Lý do khám / triệu chứng', TELE.symptoms)}
+                </table>
+                <table class="vitals">
+                    <tr><th>Huyết áp</th><th>Nhịp tim</th><th>SpO2</th><th>Nhiệt độ</th><th>Cân nặng</th></tr>
+                    <tr>
+                        <td>${teleEscape(v.bp ? v.bp + ' mmHg' : '---')}</td>
+                        <td>${teleEscape(v.hr ? v.hr + ' bpm' : '---')}</td>
+                        <td>${teleEscape(v.spo2 ? v.spo2 + ' %' : '---')}</td>
+                        <td>${teleEscape(v.temp ? v.temp + ' °C' : '---')}</td>
+                        <td>${teleEscape(v.weight ? v.weight + ' kg' : '---')}</td>
+                    </tr>
+                </table>
+                <p class="sec">Chẩn đoán, hướng xử trí &amp; thuốc được kê:</p>
+                <div class="box">${teleEscape(notes || 'Chưa ghi nhận kết luận.')}</div>
+                <p class="sec">Lời dặn của bác sỹ:</p>
+                <div class="box advice">${teleEscape(advice || 'Không có.')}</div>
+                <div class="sign">
+                    <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)</i><div class="gap"></div>${teleEscape(stationName || '')}</div>
+                    <div>Bác sĩ tư vấn tuyến trên<br><i>(Ký, ghi rõ họ tên)</i><div class="gap"></div>${teleEscape(doctorName)}</div>
+                </div>
+                <p class="muted">Đơn thuốc kết xuất tự động từ Hệ thống Khám chữa bệnh Từ xa - Trạm Y tế xã Bát Xát. Khổ giấy A5.</p>
                 </body></html>`;
 
             const win = window.open('', '_blank');
             if (!win) {
-                window.showToast("Trình duyệt đã chặn cửa sổ in. Hãy cho phép pop-up để xuất phiếu khám.");
+                window.showToast("Trình duyệt đã chặn cửa sổ in. Hãy cho phép pop-up để xuất đơn thuốc.");
                 return;
             }
             win.document.open();
             win.document.write(html);
             win.document.close();
             setTimeout(() => { try { win.print(); } catch (e) {} }, 400);
-            window.showToast("Đã hoàn thành lượt khám và kết xuất phiếu khám.");
+            window.showToast("Đã hoàn thành lượt khám và kết xuất đơn thuốc khổ A5.");
         };
 
         /* Hàng đợi cuộc gọi: cán bộ CMS thấy và nghe ngay điểm trạm nào đang gọi tới,
@@ -4395,15 +4537,15 @@
             const btn = ev.target.closest && ev.target.closest('.cms-accept-call');
             if (!btn) return;
             ev.preventDefault();
-            window.acceptCmsCall(btn.dataset.room, btn.dataset.patient, btn.dataset.symptoms, btn.dataset.appointment || null);
+            window.acceptCmsCall(btn.dataset.room, btn.dataset.patient, btn.dataset.symptoms, btn.dataset.appointment || null, btn.dataset.idcard || '');
         });
 
-        window.acceptCmsCall = function(roomId, patientName, symptoms, appointmentId) {
+        window.acceptCmsCall = function(roomId, patientName, symptoms, appointmentId, patientId) {
             if (!cmsRingDismissed.includes(roomId)) cmsRingDismissed.push(roomId);
             window.renderCmsRingBanner([]);
             const section = document.getElementById('admin-telehealth-section');
             if (section && !section.classList.contains('active')) window.switchAdminTab('telehealth');
-            window.joinCmsTelehealthCall(roomId, patientName, symptoms, appointmentId);
+            window.joinCmsTelehealthCall(roomId, patientName, symptoms, appointmentId, patientId);
         };
 
         window.renderCmsRingBanner = function(rooms) {
@@ -4493,6 +4635,7 @@
             
             const name = document.getElementById('booking-name').value;
             const phone = document.getElementById('booking-phone').value;
+            const idCard = (document.getElementById('booking-idcard').value || '').trim();
             const date = document.getElementById('booking-date').value;
             const reason = document.getElementById('booking-reason').value;
             
@@ -4510,6 +4653,7 @@
                 id: 'APP' + Date.now(),
                 patientName: name,
                 phone,
+                idCard,
                 service: dept.name,
                 appointmentDate: date || new Date().toLocaleDateString('vi-VN'),
                 symptoms: reason,
@@ -4548,11 +4692,12 @@
                         </p>
                         <div class="bg-blue-50 border border-blue-200 p-4 rounded-2xl text-left space-y-1 text-xs text-blue-900">
                             <div><b>Mã phòng khám:</b> <span class="font-mono font-bold">${roomId}</span></div>
+                            <div><b>Số thẻ BHYT/CCCD:</b> <span class="font-mono font-bold">${idCard || 'Chưa cung cấp'}</span></div>
                             <div><b>Ngày khám:</b> ${date}</div>
                             <div><b>Trạng thái:</b> Sẵn sàng kết nối video</div>
                         </div>
                         <div class="flex flex-col gap-2 pt-2">
-                            <button onclick="window.startTelehealthCallFromBooking('${roomId}', '${name.replace(/'/g, "\\'")}', '${(reason || '').replace(/'/g, "\\'")}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-base transition animate-pulse">
+                            <button onclick="window.startTelehealthCallFromBooking('${roomId}', '${name.replace(/'/g, "\\'")}', '${(reason || '').replace(/'/g, "\\'")}', '${idCard.replace(/'/g, "\\'")}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-base transition animate-pulse">
                                 <i class="fas fa-phone-alt"></i> VÀO PHÒNG KHÁM VIDEO TỪ XA NGAY
                             </button>
                             <button onclick="window.closeModal()" class="w-full bg-gray-100 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-200 transition">
