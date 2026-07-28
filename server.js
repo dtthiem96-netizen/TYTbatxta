@@ -382,6 +382,7 @@ app.post('/api/examination-report', (req, res) => {
         operatorName,
         diagnosis,
         icd10,
+        treatmentPlan,
         prescription
       }
     });

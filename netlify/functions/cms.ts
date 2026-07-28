@@ -1,5 +1,5 @@
 import { db } from "../../db/index.js";
-import { news, vaccines, documents, services, users, siteConfigs, contacts, videos, appointments } from "../../db/schema.js";
+import { news, vaccines, documents, services, users, siteConfigs, contacts, videos, appointments, prescriptionSigners } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 import { getStore } from "@netlify/blobs";
 
@@ -101,6 +101,9 @@ export default async (req: Request) => {
 
       let configsList = await db.select().from(siteConfigs);
 
+      // Danh sách người ký đơn thuốc kèm chữ ký số đã lưu sẵn
+      const signersList = await db.select().from(prescriptionSigners);
+
       return new Response(JSON.stringify({
         news: newsList,
         vaccines: vaccinesList,
@@ -110,7 +113,8 @@ export default async (req: Request) => {
         contacts: contactsList,
         videos: videosList,
         appointments: appointmentsList,
-        siteConfigs: configsList
+        siteConfigs: configsList,
+        prescriptionSigners: signersList
       }), { headers, status: 200 });
     }
 
@@ -262,6 +266,13 @@ export default async (req: Request) => {
           } else {
             await db.insert(appointments).values(data);
           }
+        } else if (type === "prescriptionSigners") {
+          const existing = await db.select().from(prescriptionSigners).where(eq(prescriptionSigners.id, data.id));
+          if (existing.length > 0) {
+            await db.update(prescriptionSigners).set(data).where(eq(prescriptionSigners.id, data.id));
+          } else {
+            await db.insert(prescriptionSigners).values(data);
+          }
         } else {
           return new Response(JSON.stringify({ error: "Invalid type" }), { headers, status: 400 });
         }
@@ -287,6 +298,8 @@ export default async (req: Request) => {
           await db.delete(videos).where(eq(videos.id, id));
         } else if (type === "appointments") {
           await db.delete(appointments).where(eq(appointments.id, id));
+        } else if (type === "prescriptionSigners") {
+          await db.delete(prescriptionSigners).where(eq(prescriptionSigners.id, id));
         } else {
           return new Response(JSON.stringify({ error: "Invalid type" }), { headers, status: 400 });
         }

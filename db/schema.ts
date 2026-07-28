@@ -107,6 +107,18 @@ export const telehealthSignals = pgTable(
   (table) => [index("telehealth_signals_room_seq_idx").on(table.roomId, table.seq)]
 );
 
+// Người ký đơn thuốc & chữ ký số lưu sẵn (ký đơn từ xa)
+export const prescriptionSigners = pgTable("prescription_signers", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  title: text("title").notNull().default("Bác sỹ"),
+  license: text("license"),
+  workplace: text("workplace"),
+  signature: text("signature"),
+  isDefault: text("is_default").default("false"),
+  ts: bigint("ts", { mode: "number" }).notNull(),
+});
+
 export const appointments = pgTable("appointments", {
   id: text("id").primaryKey(),
   patientName: text("patient_name").notNull(),
