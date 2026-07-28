@@ -4911,7 +4911,7 @@
                 <table>
                     <tr>${cell('Họ tên bệnh nhân', TELE.patientName)}${cell('Thời gian khám', new Date().toLocaleString('vi-VN'))}</tr>
                     ${wide('Số thẻ BHYT / CCCD', patientId)}
-                    <tr>${cell('Cán bộ điểm trạm', stationName)}${cell('Y sĩ/ Bác sĩ', doctorName)}</tr>
+                    <tr>${cell('Cán bộ điểm trạm', (  )}${cell('Y sĩ/ Bác sĩ', doctorName)}</tr>
                     ${wide('Lý do khám / triệu chứng', TELE.symptoms)}
                 </table>
                 <table class="vitals">
@@ -4933,7 +4933,7 @@
                 <p class="sec">Lời dặn của Y sỹ/ bác sỹ:</p>
                 <div class="box advice">${teleEscape(advice || 'Không có.')}</div>
                 <div class="sign">
-                    <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)</i><div class="gap"></div>${teleEscape(stationName || '')}</div>
+                    <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)}</div>
                     <div>Y sỹ/ bác sỹ kê đơn<br><i>(Ký, ghi rõ họ tên)</i>
                             ${signerImage
                                ? `<div class="sig-img"><img src="${signerImage}" alt="Chữ ký số"></div><div class="sig-note">Đã ký số từ xa</div>`
@@ -5555,7 +5555,7 @@
         window.askExpertAI = async function() {
             const topic = document.getElementById('support-topic').value; const q = document.getElementById('support-question').value.trim(); if(!q) return window.showToast("Vui lòng nhập câu hỏi!");
             const resDiv = document.getElementById('support-result'); resDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Đang phân tích dữ liệu chuyên môn...'; resDiv.classList.remove('hidden');
-            try { const ans = await callGemini(q, `Bác sĩ tư vấn y tế xã Bát Xát về: ${topic}. Ngắn gọn, mộc mạc.`); resDiv.innerHTML = ans.replace(/```html/g, '').replace(/```/g, ''); } catch(e) { window.showToast("Lỗi kết nối Chuyên gia AI!"); }
+            try { const ans = await callGemini(q, `Bác sĩ tư vấn y tế Bát Xát về: ${topic}. Ngắn gọn, mộc mạc.`); resDiv.innerHTML = ans.replace(/```html/g, '').replace(/```/g, ''); } catch(e) { window.showToast("Lỗi kết nối Chuyên gia AI!"); }
         };
 
         window.checkDrugInteractionsAI = async function() {
