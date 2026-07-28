@@ -5,7 +5,18 @@ let operatorName = 'Y sĩ Nguyễn Văn A';
 let role = 'station_operator';
 let roomId = 'room-tytbatxat01';
 
-let ws = null;
+// Signaling chạy qua HTTP long-poll (/api/signal) thay cho WebSocket:
+// nền tảng serverless không giữ kết nối socket lâu dài, và đây cũng chính là
+// giao thức mà màn hình Y sĩ/ Bác sĩ trong trang chính đang dùng.
+const SIGNAL_URL = '/api/signal';
+let peerId = null;
+let signalCursor = 0;
+let polling = false;
+let pollToken = 0;
+let pendingCandidates = [];
+let remotePeerName = null;
+let isConnected = false;
+
 let peerConnection = null;
 let localStream = null;
 let videoDevices = [];
@@ -41,8 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Media Devices & Camera
   initLocalCamera();
 
-  // Initialize WebSocket Signaling
-  initWebSocket();
+  // Vào phòng khám qua kênh signaling HTTP
+  joinRoom();
 
   // Initialize Speech-to-Text Engine
   initSpeechRecognition();
@@ -51,96 +62,193 @@ document.addEventListener('DOMContentLoaded', () => {
   startCallTimer();
 });
 
-// 1. WebSocket & WebRTC Signaling Logic
-function initWebSocket() {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}`;
+// 1. HTTP Signaling & WebRTC Logic
+function newPeerId() {
+  return `station-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+}
 
-  ws = new WebSocket(wsUrl);
+/** Vai trò gửi lên máy chủ chỉ có 'station' hoặc 'doctor'. */
+function signalRole() {
+  return role === 'superior_doctor' ? 'doctor' : 'station';
+}
 
-  ws.onopen = () => {
-    console.log('✅ WebSocket Connected to Server');
-    updateConnectionBadge(true, 'Đã kết nối Máy chủ WebRTC');
+async function signalPost(body) {
+  const res = await fetch(SIGNAL_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ roomId, peerId }, body))
+  });
+  if (!res.ok) throw new Error('Signaling lỗi ' + res.status);
+  return res.json();
+}
 
-    // Join Telehealth Room
-    ws.send(JSON.stringify({
-      type: 'join-room',
-      roomId,
-      role,
-      stationCode,
-      operatorName
-    }));
-  };
+function sendSignal(type, payload, to) {
+  if (!roomId || !peerId) return Promise.resolve();
+  return signalPost({ action: 'signal', type, payload: payload === undefined ? null : payload, to: to || null })
+    .catch(err => console.warn(`Không gửi được bản tin "${type}":`, err.message));
+}
 
-  ws.onmessage = async (event) => {
+async function joinRoom() {
+  stopPolling();
+  peerId = newPeerId();
+  signalCursor = 0;
+  pendingCandidates = [];
+  isConnected = false;
+
+  initPeerConnection();
+
+  try {
+    const joined = await signalPost({
+      action: 'join',
+      role: signalRole(),
+      name: `${operatorName} (${stationCode})`,
+      patientName: document.getElementById('patient-name')?.value || 'Bệnh nhân',
+      symptoms: document.getElementById('patient-symptoms')?.value || ''
+    });
+
+    signalCursor = joined.cursor || 0;
+    updateConnectionBadge(true, 'Đã vào phòng khám - chờ tiếp nhận');
+    appendChatMessage('Hệ thống', `Đã vào phòng khám [${roomId}].`);
+
+    if (joined.room && joined.room.vitals) updateVitalsUIFromRemote(joined.room.vitals);
+    if (joined.room && joined.room.notes) {
+      const notesEl = document.getElementById('clinical-notes');
+      if (notesEl && !notesEl.value) notesEl.value = joined.room.notes;
+    }
+
+    // Bắt đầu nhận bản tin trước khi chào mời để không bỏ lỡ answer.
+    polling = true;
+    pollToken += 1;
+    pollLoop(pollToken);
+
+    // Bên vào phòng sau chịu trách nhiệm tạo offer -> chỉ có duy nhất một bên gọi.
+    if (joined.peers && joined.peers.length) {
+      remotePeerName = joined.peers[0].name;
+      appendChatMessage('Hệ thống', `${remotePeerName} đang trong phòng - đang bắt tay kết nối...`);
+      await createWebRTCOffer();
+    } else {
+      appendChatMessage('Hệ thống', 'Đang chờ Y sĩ/ Bác sĩ tuyến trên tiếp nhận cuộc gọi...');
+    }
+  } catch (err) {
+    console.error('Không vào được phòng khám:', err);
+    updateConnectionBadge(false, 'Mất kết nối - đang thử lại...');
+    setTimeout(joinRoom, 3000);
+  }
+}
+
+function stopPolling() {
+  polling = false;
+  pollToken += 1;
+}
+
+async function pollLoop(token) {
+  while (polling && pollToken === token) {
     try {
-      const msg = JSON.parse(event.data);
-      console.log('📩 WS Message:', msg.type);
+      const url = `${SIGNAL_URL}?roomId=${encodeURIComponent(roomId)}&peerId=${encodeURIComponent(peerId)}&cursor=${signalCursor}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('poll ' + res.status);
+      const data = await res.json();
+      if (!polling || pollToken !== token) return;
 
-      switch (msg.type) {
-        case 'room-joined':
-          appendChatMessage('Hệ thống', `Đã vào phòng khám [${msg.roomId}]. Số thiết bị trực tuyến: ${msg.peerCount}`);
-          initPeerConnection();
-          break;
+      if (typeof data.cursor === 'number') signalCursor = data.cursor;
+      updateConnectionBadge(true, isConnected ? 'Đang kết nối với tuyến trên' : 'Đã vào phòng khám - chờ tiếp nhận');
 
-        case 'peer-joined':
-          appendChatMessage('Hệ thống', `Bác sĩ / Cán bộ [${msg.operatorName || msg.peerId}] đã tham gia phòng khám.`);
-          createWebRTCOffer();
-          break;
-
-        case 'peer-left':
-          appendChatMessage('Hệ thống', 'Một thành viên đã rời phòng khám.');
-          break;
-
-        case 'webrtc-offer':
-          handleWebRTCOffer(msg.payload);
-          break;
-
-        case 'webrtc-answer':
-          handleWebRTCAnswer(msg.payload);
-          break;
-
-        case 'webrtc-ice-candidate':
-          handleWebRTCIceCandidate(msg.payload);
-          break;
-
-        case 'vitals-updated':
-          updateVitalsUIFromRemote(msg.data);
-          appendChatMessage('Sinh hiệu', `Đã đồng bộ sinh hiệu bệnh nhân [${msg.data.patientName}] lên màn hình Bác sĩ.`);
-          break;
-
-        case 'camera-mode-changed':
-          appendChatMessage('Hệ thống', `Điểm trạm đã chuyển camera: ${msg.cameraLabel || 'Cận cảnh'}`);
-          break;
-
-        case 'notes-updated':
-          if (msg.text) {
-            document.getElementById('clinical-notes').value = msg.text;
-          }
-          break;
-
-        case 'chat-received':
-          appendChatMessage(msg.senderName, msg.text, msg.time);
-          break;
-
-        default:
-          break;
+      for (const msg of (data.messages || [])) {
+        await handleSignalMessage(msg);
       }
     } catch (err) {
-      console.error('Error handling WebSocket message:', err);
+      if (!polling || pollToken !== token) return;
+      console.warn('Mất tín hiệu signaling, đang thử lại...', err.message);
+      updateConnectionBadge(false, 'Mất kết nối - đang thử lại...');
+      await new Promise(r => setTimeout(r, 2000));
     }
-  };
-
-  ws.onclose = () => {
-    console.warn('⚠️ WebSocket Disconnected. Retrying in 3s...');
-    updateConnectionBadge(false, 'Mất kết nối - Đang thử lại...');
-    setTimeout(initWebSocket, 3000);
-  };
-
-  ws.onerror = (err) => {
-    console.error('WebSocket Error:', err);
-  };
+  }
 }
+
+async function handleSignalMessage(msg) {
+  if (!msg || !msg.type) return;
+
+  switch (msg.type) {
+    case 'peer-joined': {
+      remotePeerName = (msg.payload && msg.payload.name) || 'Y sĩ/ Bác sĩ tuyến trên';
+      appendChatMessage('Hệ thống', `${remotePeerName} đã tham gia phòng khám.`);
+      // Không tạo offer ở đây: bên vừa vào phòng mới là bên gọi.
+      break;
+    }
+
+    case 'offer':
+      await handleWebRTCOffer(msg.payload);
+      break;
+
+    case 'answer':
+      await handleWebRTCAnswer(msg.payload);
+      break;
+
+    case 'ice':
+      await handleWebRTCIceCandidate(msg.payload);
+      break;
+
+    case 'chat':
+      appendChatMessage(
+        (msg.payload && msg.payload.sender) || remotePeerName || 'Tuyến trên',
+        (msg.payload && msg.payload.text) || '',
+        new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      );
+      break;
+
+    case 'vitals':
+      updateVitalsUIFromRemote(msg.payload);
+      break;
+
+    case 'notes': {
+      const text = msg.payload && msg.payload.notes;
+      const notesEl = document.getElementById('clinical-notes');
+      if (text && notesEl) notesEl.value = text;
+      break;
+    }
+
+    case 'advice': {
+      const advice = msg.payload && msg.payload.advice;
+      if (advice) appendChatMessage('Chỉ định tuyến trên', advice);
+      break;
+    }
+
+    case 'peer-left':
+    case 'call-ended':
+      isConnected = false;
+      remotePeerName = null;
+      appendChatMessage('Hệ thống', 'Đầu bên kia đã rời phòng khám.');
+      showRemotePlaceholder();
+      updateConnectionBadge(false, 'Tuyến trên đã rời phòng khám');
+      break;
+
+    default:
+      break;
+  }
+}
+
+function showRemotePlaceholder() {
+  const remoteVideo = document.getElementById('remote-video');
+  const remotePlaceholder = document.getElementById('remote-placeholder');
+  if (remoteVideo) {
+    remoteVideo.srcObject = null;
+    remoteVideo.classList.add('hidden');
+  }
+  if (remotePlaceholder) remotePlaceholder.classList.remove('hidden');
+}
+
+// Rời phòng gọn gàng khi đóng tab để tuyến trên không thấy trạm "treo" trong hàng đợi.
+window.addEventListener('pagehide', () => {
+  if (!roomId || !peerId) return;
+  try {
+    fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'leave', roomId, peerId }),
+      keepalive: true
+    }).catch(() => {});
+  } catch (err) {}
+});
 
 function updateConnectionBadge(connected, text) {
   const badge = document.getElementById('connection-badge');
@@ -157,11 +265,20 @@ function updateConnectionBadge(connected, text) {
 
 // 2. WebRTC Audio/Video Connection Setup
 function initPeerConnection() {
+  if (peerConnection) {
+    try {
+      peerConnection.ontrack = null;
+      peerConnection.onicecandidate = null;
+      peerConnection.close();
+    } catch (err) {}
+  }
+
   const configuration = {
     iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+      { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+      { urls: 'stun:stun.cloudflare.com:3478' }
+    ],
+    iceCandidatePoolSize: 4
   };
 
   peerConnection = new RTCPeerConnection(configuration);
@@ -186,16 +303,14 @@ function initPeerConnection() {
     if (remotePlaceholder) {
       remotePlaceholder.classList.add('hidden');
     }
+    isConnected = true;
+    updateConnectionBadge(true, 'Đang kết nối với tuyến trên');
   };
 
   // ICE Candidates
   peerConnection.onicecandidate = (event) => {
-    if (event.candidate && ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'webrtc-ice-candidate',
-        roomId,
-        payload: event.candidate
-      }));
+    if (event.candidate) {
+      sendSignal('ice', event.candidate);
     }
   };
 }
@@ -205,51 +320,63 @@ async function createWebRTCOffer() {
   try {
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
-
-    ws.send(JSON.stringify({
-      type: 'webrtc-offer',
-      roomId,
-      payload: offer
-    }));
+    await sendSignal('offer', offer);
   } catch (err) {
     console.error('Error creating WebRTC offer:', err);
   }
 }
 
 async function handleWebRTCOffer(offer) {
+  if (!offer) return;
   if (!peerConnection) initPeerConnection();
   try {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    await drainPendingCandidates();
+
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
-
-    ws.send(JSON.stringify({
-      type: 'webrtc-answer',
-      roomId,
-      payload: answer
-    }));
+    await sendSignal('answer', answer);
   } catch (err) {
     console.error('Error handling WebRTC offer:', err);
   }
 }
 
 async function handleWebRTCAnswer(answer) {
+  if (!answer || !peerConnection) return;
   try {
-    if (peerConnection) {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    }
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    await drainPendingCandidates();
   } catch (err) {
     console.error('Error handling WebRTC answer:', err);
   }
 }
 
 async function handleWebRTCIceCandidate(candidate) {
+  if (!candidate || !peerConnection) return;
+  const ice = new RTCIceCandidate(candidate);
+
+  // Ứng viên ICE đến trước khi có remote description thì phải xếp hàng, nếu không sẽ mất.
+  if (!peerConnection.remoteDescription || !peerConnection.remoteDescription.type) {
+    pendingCandidates.push(ice);
+    return;
+  }
+
   try {
-    if (peerConnection) {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    }
+    await peerConnection.addIceCandidate(ice);
   } catch (err) {
-    console.error('Error adding ICE candidate:', err);
+    console.warn('Error adding ICE candidate:', err.message);
+  }
+}
+
+async function drainPendingCandidates() {
+  const queued = pendingCandidates;
+  pendingCandidates = [];
+  for (const candidate of queued) {
+    try {
+      await peerConnection.addIceCandidate(candidate);
+    } catch (err) {
+      console.warn('Error adding queued ICE candidate:', err.message);
+    }
   }
 }
 
@@ -315,17 +442,11 @@ async function toggleCameraDevice() {
     await initLocalCamera(videoDevices[currentCamIndex].deviceId);
   }
 
-  // Notify remote doctor over WebSocket
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-      type: 'camera-switch',
-      roomId,
-      payload: {
-        cameraMode: isCloseup ? 'closeup' : 'wide',
-        cameraLabel: label
-      }
-    }));
-  }
+  // Báo cho tuyến trên biết điểm trạm vừa đổi góc quay để bác sĩ đọc đúng hình.
+  sendSignal('chat', {
+    sender: 'Điểm trạm',
+    text: `Đã chuyển camera: ${label}`
+  });
 
   appendChatMessage('Hệ thống', `Chuyển sang: ${label}`);
 }
@@ -373,6 +494,19 @@ function toggleVideo() {
 }
 
 // 4. Speech-to-Text (SpeechRecognition) Engine
+let notesSyncTimer = null;
+
+/** Đồng bộ ghi chép lâm sàng lên phòng khám (gộp nhịp để không spam khi đang đọc chính tả). */
+function scheduleNotesSync() {
+  if (notesSyncTimer) clearTimeout(notesSyncTimer);
+  notesSyncTimer = setTimeout(() => {
+    const notesInput = document.getElementById('clinical-notes');
+    if (!notesInput || !roomId || !peerId) return;
+    signalPost({ action: 'notes', notes: notesInput.value })
+      .catch(err => console.warn('Không đồng bộ được ghi chép:', err.message));
+  }, 1200);
+}
+
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -392,14 +526,8 @@ function initSpeechRecognition() {
       if (notesInput) {
         notesInput.value = (notesInput.value + ' ' + transcript).trim();
 
-        // Broadcast speech text to doctor via WS
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: 'notes-stream',
-            roomId,
-            payload: { text: notesInput.value }
-          }));
-        }
+        // Đẩy nội dung vừa đọc sang màn hình tuyến trên
+        scheduleNotesSync();
       }
     };
 
@@ -477,6 +605,7 @@ async function sendVitalsToDoctor() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         roomId,
+        peerId,
         stationCode,
         operatorName,
         patientName,
@@ -538,23 +667,38 @@ function updateVitalsCards(v) {
   }
 }
 
-function updateVitalsUIFromRemote(data) {
-  if (data && data.vitals) {
-    const v = data.vitals;
-    document.getElementById('vitals-bp-sys').value = v.bp_sys || 120;
-    document.getElementById('vitals-bp-dia').value = v.bp_dia || 80;
-    document.getElementById('vitals-hr').value = v.heart_rate || 75;
-    document.getElementById('vitals-spo2').value = v.spo2 || 98;
-    document.getElementById('vitals-temp').value = v.temperature || 36.8;
+/**
+ * Nhận sinh hiệu từ đầu bên kia. Bản tin dùng đúng định dạng của màn hình
+ * Y sĩ/ Bác sĩ: { bp: "135/85", hr, spo2, temp, weight, at }.
+ */
+function updateVitalsUIFromRemote(v) {
+  if (!v) return;
 
-    updateVitalsCards({
-      bpSys: v.bp_sys,
-      bpDia: v.bp_dia,
-      heartRate: v.heart_rate,
-      spo2: v.spo2,
-      temperature: v.temperature
-    });
-  }
+  const [bpSys, bpDia] = String(v.bp || '').split('/');
+  const merged = {
+    bpSys: bpSys || currentVitals.bpSys,
+    bpDia: bpDia || currentVitals.bpDia,
+    heartRate: v.hr || currentVitals.heartRate,
+    spo2: v.spo2 || currentVitals.spo2,
+    temperature: v.temp || currentVitals.temperature,
+    weight: v.weight || currentVitals.weight
+  };
+
+  currentVitals = merged;
+
+  const setValue = (id, value) => {
+    const el = document.getElementById(id);
+    if (el && value !== undefined && value !== null && value !== '') el.value = value;
+  };
+
+  setValue('vitals-bp-sys', merged.bpSys);
+  setValue('vitals-bp-dia', merged.bpDia);
+  setValue('vitals-hr', merged.heartRate);
+  setValue('vitals-spo2', merged.spo2);
+  setValue('vitals-temp', merged.temperature);
+  setValue('vitals-weight', merged.weight);
+
+  updateVitalsCards(merged);
 }
 
 // 6. Clinical AI Co-Pilot Assistant Integration
@@ -680,6 +824,10 @@ async function finishAndExportReport() {
 
       // Open Modal
       document.getElementById('report-modal').classList.remove('hidden');
+
+      // Đánh dấu buổi khám đã hoàn tất để phòng khám rời khỏi hàng đợi tuyến trên.
+      signalPost({ action: 'complete' })
+        .catch(err => console.warn('Không cập nhật được trạng thái phòng khám:', err.message));
     }
   } catch (err) {
     console.error('Error exporting report:', err);
@@ -705,6 +853,9 @@ function submitLogin() {
   const selectedRole = document.getElementById('input-role').value;
 
   if (code && name) {
+    const previousPeerId = peerId;
+    const previousRoomId = roomId;
+
     stationCode = code;
     operatorName = name;
     role = selectedRole;
@@ -715,16 +866,16 @@ function submitLogin() {
 
     closeLoginModal();
 
-    // Rejoin WebSocket room
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'join-room',
-        roomId,
-        role,
-        stationCode,
-        operatorName
-      }));
+    // Rời phòng cũ rồi vào lại phòng theo mã điểm trạm vừa nhập.
+    if (previousPeerId && previousRoomId) {
+      fetch(SIGNAL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'leave', roomId: previousRoomId, peerId: previousPeerId })
+      }).catch(() => {});
     }
+
+    joinRoom();
   }
 }
 
@@ -743,13 +894,7 @@ function sendChatMessage() {
   const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   appendChatMessage(operatorName, text, time);
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-      type: 'chat-message',
-      roomId,
-      payload: { senderName: operatorName, text }
-    }));
-  }
+  sendSignal('chat', { sender: operatorName, text });
 
   input.value = '';
 }

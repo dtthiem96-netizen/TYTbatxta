@@ -1,4 +1,4 @@
-import { pgTable, text, bigint, serial, index } from "drizzle-orm/pg-core";
+import { pgTable, text, bigint, serial, integer, real, index } from "drizzle-orm/pg-core";
 
 export const news = pgTable("news", {
   id: text("id").primaryKey(),
@@ -135,3 +135,51 @@ export const appointments = pgTable("appointments", {
   assignedDoctor: text("assigned_doctor"),
   ts: bigint("ts", { mode: "number" }).notNull(),
 });
+
+// Lịch sử sinh hiệu điểm trạm nhập trong buổi khám (tra cứu lại sau khi kết thúc cuộc gọi)
+export const stationVitals = pgTable(
+  "station_vitals",
+  {
+    id: serial("id").primaryKey(),
+    roomId: text("room_id").notNull(),
+    stationCode: text("station_code"),
+    operatorName: text("operator_name"),
+    patientName: text("patient_name"),
+    patientAge: integer("patient_age"),
+    patientGender: text("patient_gender"),
+    bpSys: integer("bp_sys"),
+    bpDia: integer("bp_dia"),
+    heartRate: integer("heart_rate"),
+    spo2: real("spo2"),
+    temperature: real("temperature"),
+    weight: real("weight"),
+    symptoms: text("symptoms"),
+    status: text("status").default("NORMAL"),
+    ts: bigint("ts", { mode: "number" }).notNull(),
+  },
+  (table) => [index("station_vitals_room_ts_idx").on(table.roomId, table.ts)]
+);
+
+// Phiếu khám từ xa xuất ra khi kết thúc buổi khám
+export const examinationReports = pgTable(
+  "examination_reports",
+  {
+    reportCode: text("report_code").primaryKey(),
+    roomId: text("room_id").notNull(),
+    stationCode: text("station_code"),
+    operatorName: text("operator_name"),
+    patientName: text("patient_name"),
+    patientAge: integer("patient_age"),
+    patientGender: text("patient_gender"),
+    vitalsJson: text("vitals_json"),
+    clinicalNotes: text("clinical_notes"),
+    diagnosis: text("diagnosis"),
+    icd10: text("icd10"),
+    treatmentPlan: text("treatment_plan"),
+    prescription: text("prescription"),
+    doctorNotes: text("doctor_notes"),
+    status: text("status").default("COMPLETED"),
+    ts: bigint("ts", { mode: "number" }).notNull(),
+  },
+  (table) => [index("examination_reports_room_idx").on(table.roomId)]
+);

@@ -8,3 +8,28 @@
   port = 8889
   publish = "."
   framework = "#static"
+
+# Đường dẫn gọn cho Bảng điều khiển Cán bộ Y tế Điểm trạm.
+[[redirects]]
+  from = "/tram"
+  to = "/public/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/tram/*"
+  to = "/public/index.html"
+  status = 200
+
+# Thư mục gốc được publish nguyên trạng, nên chặn các tệp chỉ dùng cho máy chủ nội bộ
+# để chúng không tải về được từ trang công khai.
+[[redirects]]
+  from = "/telehealth.db"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/server.js"
+  to = "/"
+  status = 404
+  force = true
