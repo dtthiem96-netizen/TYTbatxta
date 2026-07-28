@@ -533,7 +533,7 @@
                         <ul class="space-y-5 text-blue-100 text-base">
                             <li class="flex items-start gap-3">
                                 <i class="fas fa-map-marker-alt mt-1.5 text-xl text-medical-400"></i>
-                                <span class="font-medium">Trạm Y tế Bát Xát - Thôn 08, Xã Bát Xát, Tỉnh Lào Cai</span>
+                                <span class="font-medium">Trạm Y tế Bát Xát - Thôn Bát Xát 4, Xã Bát Xát, Tỉnh Lào Cai</span>
                             </li>
                             <li class="flex items-center gap-3">
                                 <i class="fas fa-phone-alt text-xl text-medical-400"></i>
@@ -556,7 +556,7 @@
                         <div class="w-full h-56 bg-gray-200 rounded-xl overflow-hidden relative shadow-inner border border-medical-700">
                             <div class="absolute inset-0 bg-medical-800 flex flex-col justify-center items-center text-center p-4">
                                 <i class="fas fa-map-marked-alt text-5xl text-medical-400 mb-3 drop-shadow-md"></i>
-                                <p class="text-base text-blue-100 font-bold leading-tight">Bản đồ vị trí Trạm Y Tế<br>Thôn 08, Xã Bát Xát</p>
+                                <p class="text-base text-blue-100 font-bold leading-tight">Bản đồ vị trí Trạm Y Tế<br>Thôn Bát Xát 4, Xã Bát Xát</p>
                                 <a href="https://maps.google.com" target="_blank" class="mt-4 text-sm bg-white text-medical-900 px-5 py-2.5 rounded-full font-black hover:bg-medical-50 transition shadow-lg active:scale-95 transform">Mở Google Maps</a>
                             </div>
                         </div>
@@ -869,17 +869,17 @@
                             </div>
                         </div>
                         <button onclick="window.teleSendVitals(true)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
-                            <i class="fas fa-paper-plane"></i> Gửi chỉ số sinh hiệu tới tuyến trên
+                            <i class="fas fa-paper-plane"></i> Gửi chỉ số sinh hiệu
                         </button>
                         <p id="tele-vital-sync-status" class="text-[10px] text-slate-500 text-center">Chỉ số tự động đồng bộ lên màn hình khám của Bác sĩ.</p>
                     </div>
 
-                    <!-- Kết luận từ Bác sĩ tuyến trên -->
+                    <!-- Kết luận từ Bác sĩ -->
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-2">
                             <i class="fas fa-stethoscope"></i> Chẩn đoán
                         </h4>
-                        <p id="patient-doctor-diagnosis" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có chẩn đoán. Bác sĩ tuyến trên sẽ gửi sau khi thăm khám.</p>
+                        <p id="patient-doctor-diagnosis" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có chẩn đoán. Bác sĩ sẽ gửi sau khi thăm khám.</p>
                         <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 mt-3 mb-2 flex items-center gap-2">
                             <i class="fas fa-route"></i> Hướng xử trí
                         </h4>
@@ -1214,7 +1214,7 @@
             <div class="p-6">
                 <div class="space-y-4">
                     <div class="bg-teal-50 p-3 rounded-xl border border-teal-100 text-sm font-medium text-teal-800">
-                        <i class="fas fa-info-circle mr-1"></i> Bà con không hiểu các từ ngữ phức tạp của bác sĩ tuyến trên? Nhập vào đây, AI sẽ "dịch" lại sang tiếng bình dân!
+                        <i class="fas fa-info-circle mr-1"></i> Bà con không hiểu các từ ngữ phức tạp của bác sĩ ? Nhập vào đây, AI sẽ "dịch" lại sang tiếng bình dân!
                     </div>
                     <textarea id="aidich-input" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 font-medium" placeholder="Ví dụ: Rối loạn lipid máu hỗn hợp..."></textarea>
                     <button type="button" onclick="window.translateMedicalAI()" class="w-full bg-teal-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg text-lg">✨ Dịch sang tiếng bình dân</button>
@@ -1641,7 +1641,7 @@
                         <form onsubmit="window.handleAddContact(event)" class="bg-emerald-50 p-5 rounded-xl border border-emerald-200 mb-6">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div><label class="block text-xs font-bold text-gray-700 mb-1">Họ tên Cán bộ</label><input type="text" id="cnt-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: BS. Nguyễn Văn A"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Chức vụ / Bộ phận</label><input type="text" id="cnt-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: Trạm trưởng Trạm Y tế"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Chức vụ/ Bộ phận</label><input type="text" id="cnt-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: Trạm trưởng Trạm Y tế"></div>
                                 <div><label class="block text-xs font-bold text-gray-700 mb-1">Số điện thoại liên hệ</label><input type="tel" id="cnt-phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: 0382103002"></div>
                             </div>
                             <div class="flex gap-3">
@@ -1886,7 +1886,7 @@
                                         </div>
                                         <div class="bg-slate-800/70 border border-slate-700 rounded-xl p-3 space-y-2">
                                             <label class="block text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
-                                                <i class="fas fa-file-signature"></i> Y sỹ / Bác sỹ kê đơn (ký đơn từ xa)
+                                                <i class="fas fa-file-signature"></i> Y sỹ/ Bác sỹ kê đơn (ký đơn từ xa)
                                             </label>
                                             <select id="cms-prescription-signer" onchange="window.selectPrescriptionSigner(this.value, true)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-purple-500">
                                                 <option value="">-- Chọn người ký đơn --</option>
@@ -1991,7 +1991,7 @@
                     <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
                         <div class="mb-6 pb-4 border-b border-gray-100">
                             <h2 class="text-2xl font-black text-gray-900">Chữ ký số &amp; Người ký đơn thuốc</h2>
-                            <p class="text-sm text-gray-500 mt-1">Lưu sẵn chữ ký của từng Y sỹ / Bác sỹ theo họ tên. Khi kê đơn khám từ xa, chỉ cần chọn tên người ký là chữ ký được đóng tự động lên đơn thuốc mà không cần ký tay tại chỗ.</p>
+                            <p class="text-sm text-gray-500 mt-1">Lưu sẵn chữ ký của từng Y sỹ/ Bác sỹ theo họ tên. Khi kê đơn khám từ xa, chỉ cần chọn tên người ký là chữ ký được đóng tự động lên đơn thuốc mà không cần ký tay tại chỗ.</p>
                         </div>
 
                         <form onsubmit="window.handleSaveSigner(event)" class="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-6">
@@ -2016,7 +2016,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 mb-1">Đơn vị công tác</label>
-                                    <input type="text" id="sig-workplace" placeholder="Trạm Y tế xã Bát Xát" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                    <input type="text" id="sig-workplace" placeholder="Trạm Y tế Bát Xát" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
                                 </div>
                             </div>
 
@@ -3701,7 +3701,7 @@
         // 7. TELEHEALTH VIDEO CALL ENGINE & FORM HANDLERS
         let activeRoomId = null;
         let isCmsCall = false;
-        let currentCmsUser = { username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' };
+        let currentCmsUser = { username: 'tytbatxat@laocai.gov.vn', name: 'Trạm Y tế Bát Xát', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' };
 
         window.checkCmsVideoPermission = function() {
             const alertBox = document.getElementById('cms-no-permission-alert');
@@ -4936,11 +4936,11 @@
                 <div class="sign">
                     <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)}</div>
                     <div>Y sỹ/ bác sỹ kê đơn<br><i>(Ký, ghi rõ họ tên)</i>
-                            ${signerImage
-                               ? `<div class="sig-img"><img src="${signerImage}" alt="Chữ ký số"></div><div class="sig-note">Đã ký số từ xa</div>`
-                               : '<div class="gap"></div>'}
-                            <div class="sig-name">${teleEscape(signerLabel)}</div>
-                           ${signer && signer.license ? `<div class="sig-note">CCHN: ${teleEscape(signer.license)}</div>` : ''}
+                    ${signerImage
+                    ? `<div class="sig-img"><img src="${signerImage}" alt="Chữ ký số"></div><div class="sig-note">Đã ký số từ xa</div>`
+                    : '<div class="gap"></div>'}
+                    <div class="sig-name">${teleEscape(signerLabel)}</div>
+                    ${signer && signer.license ? `<div class="sig-note">CCHN: ${teleEscape(signer.license)}</div>` : ''}
                     </div>
                 </div>
                 <p class="muted">Đơn thuốc kết xuất tự động từ Hệ thống Khám chữa bệnh Từ xa - Trạm Y tế Bát Xát. Khổ giấy A5.</p>
