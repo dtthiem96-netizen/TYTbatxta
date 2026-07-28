@@ -127,7 +127,7 @@ async function joinRoom() {
       appendChatMessage('Hệ thống', `${remotePeerName} đang trong phòng - đang bắt tay kết nối...`);
       await createWebRTCOffer();
     } else {
-      appendChatMessage('Hệ thống', 'Đang chờ Y sĩ/ Bác sĩ tuyến trên tiếp nhận cuộc gọi...');
+      appendChatMessage('Hệ thống', 'Đang chờ Y sĩ/ Bác sĩ tiếp nhận cuộc gọi...');
     }
   } catch (err) {
     console.error('Không vào được phòng khám:', err);
@@ -170,7 +170,7 @@ async function handleSignalMessage(msg) {
 
   switch (msg.type) {
     case 'peer-joined': {
-      remotePeerName = (msg.payload && msg.payload.name) || 'Y sĩ/ Bác sĩ tuyến trên';
+      remotePeerName = (msg.payload && msg.payload.name) || 'Y sĩ/ Bác sĩ';
       appendChatMessage('Hệ thống', `${remotePeerName} đã tham gia phòng khám.`);
       // Không tạo offer ở đây: bên vừa vào phòng mới là bên gọi.
       break;
@@ -190,7 +190,7 @@ async function handleSignalMessage(msg) {
 
     case 'chat':
       appendChatMessage(
-        (msg.payload && msg.payload.sender) || remotePeerName || 'Tuyến trên',
+        (msg.payload && msg.payload.sender) || remotePeerName || 'Trạm Y tế Bát Xát',
         (msg.payload && msg.payload.text) || '',
         new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       );
@@ -209,7 +209,7 @@ async function handleSignalMessage(msg) {
 
     case 'advice': {
       const advice = msg.payload && msg.payload.advice;
-      if (advice) appendChatMessage('Chỉ định tuyến trên', advice);
+      if (advice) appendChatMessage('Chỉ định', advice);
       break;
     }
 
@@ -304,7 +304,7 @@ function initPeerConnection() {
       remotePlaceholder.classList.add('hidden');
     }
     isConnected = true;
-    updateConnectionBadge(true, 'Đang kết nối với tuyến trên');
+    updateConnectionBadge(true, 'Đang kết nối với bác sĩ');
   };
 
   // ICE Candidates
@@ -792,7 +792,7 @@ async function finishAndExportReport() {
         icd10: currentAIAnalysis?.icd10Codes?.join(', ') || 'J06.9',
         treatmentPlan: 'Điều trị nội khoa tại điểm trạm / Theo dõi 48 giờ',
         prescription: prescriptionText,
-        doctorNotes: 'Bác sĩ tuyến trên nhất trí với hướng xử trí của điểm trạm.'
+        doctorNotes: ''
       })
     });
 
@@ -825,7 +825,7 @@ async function finishAndExportReport() {
       // Open Modal
       document.getElementById('report-modal').classList.remove('hidden');
 
-      // Đánh dấu buổi khám đã hoàn tất để phòng khám rời khỏi hàng đợi tuyến trên.
+      // Đánh dấu buổi khám đã hoàn tất.
       signalPost({ action: 'complete' })
         .catch(err => console.warn('Không cập nhật được trạng thái phòng khám:', err.message));
     }
