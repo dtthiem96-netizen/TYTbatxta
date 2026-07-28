@@ -178,9 +178,15 @@
                         <button onclick="window.openModal('modal-aisearch')" class="text-purple-600 hover:text-white hover:bg-purple-600 font-bold transition text-[15px] flex items-center gap-2 bg-purple-50 px-5 py-2 rounded-full border border-purple-200 shadow-sm">
                             <i class="fas fa-robot text-lg"></i> Tìm kiếm AI
                         </button>
+
+                        <button onclick="window.openTelehealthQuickCall()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold transition text-[15px] flex items-center gap-2 px-5 py-2 rounded-full shadow-md">
+                            <i class="fas fa-video text-lg"></i> Gọi khám từ xa
+                            <span id="nav-on-duty-dot" class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" title="Đang kiểm tra cán bộ trực"></span>
+                        </button>
                     </nav>
 
                     <div class="lg:hidden flex items-center gap-3">
+                        <button onclick="window.openTelehealthQuickCall()" class="text-white bg-blue-600 w-10 h-10 rounded-full shadow-md" title="Gọi khám từ xa"><i class="fas fa-video"></i></button>
                         <button onclick="window.openModal('modal-aisearch')" class="text-purple-600 bg-purple-50 w-10 h-10 rounded-full border border-purple-200"><i class="fas fa-search"></i></button>
                         <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="text-gray-700 text-2xl"><i class="fas fa-bars"></i></button>
                     </div>
@@ -193,7 +199,8 @@
                 <a href="#" onclick="window.switchPage('dept'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Khoa & Phòng Chức năng</a>
                 <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Tin tức & Lịch tiêm</a>
                 <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Kho Tài liệu & Biểu mẫu</a>
-                <a href="tel:0382103002" class="block mt-4 text-center px-4 py-3 text-white font-bold bg-red-600 rounded-xl shadow-md"><i class="fas fa-phone-alt mr-2"></i> Gọi Cấp Cứu 115</a>
+                <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-4 text-center px-4 py-3 text-white font-bold bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
+                <a href="tel:0382103002" class="block mt-2 text-center px-4 py-3 text-white font-bold bg-red-600 rounded-xl shadow-md"><i class="fas fa-phone-alt mr-2"></i> Gọi Cấp Cứu 115</a>
             </div>
         </header>
 
@@ -220,10 +227,14 @@
                                 <button onclick="window.switchPage('dept')" class="w-full sm:w-auto bg-gradient-to-r from-medical-600 to-medical-500 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
                                     <i class="fas fa-hospital text-xl"></i> Khám phá Khoa & Phòng
                                 </button>
+                                <button onclick="window.openTelehealthQuickCall()" class="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
+                                    <i class="fas fa-video text-xl"></i> Gọi khám từ xa ngay
+                                </button>
                                 <button onclick="window.openModal('modal-datlich')" class="w-full sm:w-auto bg-white text-medical-700 border-2 border-medical-200 px-8 py-4 rounded-2xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
                                     <i class="fas fa-calendar-check text-xl"></i> Đặt lịch khám bệnh
                                 </button>
                             </div>
+                            <p id="hero-on-duty" class="text-sm font-bold text-gray-500 pt-1"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang kiểm tra cán bộ y tế trực trực tuyến...</p>
                         </div>
                         <div class="md:w-2/5 flex justify-center mt-8 md:mt-0">
                             <div class="w-full max-w-sm aspect-square bg-medical-50 rounded-full shadow-2xl border-8 border-white flex flex-col items-center justify-center relative overflow-hidden">
@@ -561,6 +572,16 @@
                 </div>
             </div>
         </footer>
+
+        <!-- ================= NÚT GỌI KHÁM TỪ XA NỔI (LUÔN HIỂN THỊ) ================= -->
+        <button onclick="window.openTelehealthQuickCall()" class="fixed bottom-24 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white h-16 px-5 rounded-full shadow-[0_10px_25px_-5px_rgba(37,99,235,0.6)] flex items-center gap-3 transition z-40 border-2 border-white/20 hover:scale-105 duration-300">
+            <i class="fas fa-video text-2xl"></i>
+            <span class="hidden sm:flex flex-col items-start leading-tight text-left">
+                <span class="text-sm font-black">Gọi khám từ xa</span>
+                <span id="fab-on-duty-text" class="text-[11px] font-bold text-blue-100">Đang kiểm tra cán bộ trực...</span>
+            </span>
+            <span id="fab-on-duty-dot" class="w-3 h-3 rounded-full bg-emerald-300 animate-pulse"></span>
+        </button>
     </div> <!-- KẾT THÚC #main-website -->
 
     <!-- ================= CHATBOT AI NỔI ================= -->
@@ -695,6 +716,48 @@
             </div>
         </div>
 
+        <!-- GỌI NHANH KHÁM TỪ XA: CHỈ CẦN TÊN LÀ GỌI ĐƯỢC CÁN BỘ Y TẾ -->
+        <div id="modal-telehealth-quick" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 flex justify-between items-center text-white">
+                <div>
+                    <h3 class="font-bold text-xl flex items-center gap-2"><i class="fas fa-video"></i> Gọi khám từ xa</h3>
+                    <p class="text-xs text-blue-100 mt-0.5">Kết nối trực tiếp Cán bộ Y tế / Bác sĩ đang trực</p>
+                </div>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6">
+                <div id="quick-call-duty" class="mb-4 rounded-2xl border p-3.5 text-xs font-bold flex items-center gap-2 bg-gray-50 border-gray-200 text-gray-600">
+                    <i class="fas fa-circle-notch fa-spin"></i> Đang kiểm tra cán bộ y tế đang trực...
+                </div>
+                <form onsubmit="window.startQuickTelehealthCall(event)">
+                    <div class="space-y-3.5">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Họ và tên người bệnh <span class="text-red-500">*</span></label>
+                            <input type="text" id="quick-call-name" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: Nguyễn Văn A">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Số điện thoại liên hệ</label>
+                            <input type="tel" id="quick-call-phone" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Để cán bộ gọi lại nếu mất kết nối">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Triệu chứng / Lý do cần tư vấn</label>
+                            <textarea id="quick-call-reason" rows="2" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: ho, sốt 2 ngày, đau tức ngực..."></textarea>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-[11px] text-blue-900 font-medium leading-relaxed">
+                            <i class="fas fa-circle-info mr-1"></i> Khi bấm gọi, trình duyệt sẽ xin quyền dùng <b>Camera và Micro</b>. Hãy chọn
+                            <b>"Cho phép"</b> để cán bộ y tế nhìn và nghe được. Cuộc gọi cần mạng Internet ổn định.
+                        </div>
+                    </div>
+                    <button type="submit" class="mt-5 w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg text-lg flex items-center justify-center gap-2 transition">
+                        <i class="fas fa-phone-volume"></i> GỌI CÁN BỘ Y TẾ NGAY
+                    </button>
+                </form>
+                <button onclick="window.openModal('modal-datlich')" class="mt-2.5 w-full text-xs font-bold text-gray-500 hover:text-medical-700 py-2">
+                    Hoặc đăng ký lịch khám để cán bộ gọi lại sau
+                </button>
+            </div>
+        </div>
+
         <!-- MODAL PHÒNG KHÁM TỪ XA TELEHEALTH CHO NGƯỜI DÂN / ĐIỂM TRẠM -->
         <div id="modal-telehealth-call" class="modal-content hidden bg-slate-950 rounded-3xl w-full max-w-4xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800 text-white">
             <div class="bg-slate-900 px-6 py-4 flex justify-between items-center border-b border-slate-800">
@@ -720,19 +783,36 @@
                         <video id="patient-remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
                         <div id="patient-video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-6 text-center">
                             <i class="fas fa-user-md text-6xl text-blue-500 mb-3 animate-bounce"></i>
-                            <h4 class="font-bold text-lg text-white mb-1">Đang chờ Bác sĩ tiếp nhận cuộc gọi...</h4>
-                            <p class="text-xs text-slate-400">Vui lòng giữ kết nối. Bác sĩ trực CMS sẽ tham gia cuộc gọi ngay.</p>
+                            <h4 class="font-bold text-lg text-white mb-1">Đang chờ Cán bộ Y tế tiếp nhận cuộc gọi...</h4>
+                            <p id="patient-wait-duty" class="text-xs text-slate-400">Đang kiểm tra cán bộ trực...</p>
+                            <p id="patient-wait-timer" class="text-[11px] font-mono text-slate-500 mt-1">Thời gian chờ: 00:00</p>
+                            <div id="patient-wait-fallback" class="hidden mt-4 w-full max-w-sm bg-amber-500/10 border border-amber-500/40 rounded-2xl p-3 space-y-2">
+                                <p class="text-[11px] text-amber-200 font-bold leading-relaxed">
+                                    Chưa có cán bộ tiếp nhận. Bạn có thể gọi trực tiếp qua điện thoại hoặc Zalo trong lúc chờ.
+                                </p>
+                                <div class="flex gap-2">
+                                    <a href="tel:0382103002" class="flex-1 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
+                                        <i class="fas fa-phone-alt"></i> Gọi 0382 103 002
+                                    </a>
+                                    <a href="https://zalo.me/0382103002" target="_blank" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
+                                        <i class="fas fa-comment-sms"></i> Nhắn Zalo trạm
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                         <video id="patient-local-video" autoplay playsinline muted class="w-32 h-24 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl absolute bottom-3 right-3 object-cover"></video>
                     </div>
 
                     <!-- Thanh điều khiển cuộc gọi -->
-                    <div class="flex items-center justify-center gap-4 bg-slate-900 p-3 rounded-2xl border border-slate-800">
-                        <button onclick="window.togglePatientMic()" id="patient-mic-btn" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-lg transition shadow">
+                    <div class="flex flex-wrap items-center justify-center gap-3 bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                        <button onclick="window.togglePatientMic()" id="patient-mic-btn" title="Bật/Tắt Micro điểm trạm" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-lg transition shadow">
                             <i class="fas fa-microphone"></i>
                         </button>
-                        <button onclick="window.togglePatientCam()" id="patient-cam-btn" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-lg transition shadow">
+                        <button onclick="window.togglePatientCam()" id="patient-cam-btn" title="Bật/Tắt Camera" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-lg transition shadow">
                             <i class="fas fa-video"></i>
+                        </button>
+                        <button onclick="window.teleSwitchCamera()" id="patient-switch-cam-btn" class="px-4 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-blue-300 flex items-center justify-center gap-2 text-xs font-bold transition shadow">
+                            <i class="fas fa-camera-rotate"></i> <span id="patient-cam-label">Chuyển Camera (Góc rộng / Cận cảnh)</span>
                         </button>
                         <button onclick="window.closeTelehealthModal()" class="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center text-lg transition shadow">
                             <i class="fas fa-phone-slash"></i>
@@ -744,26 +824,42 @@
                 <div class="space-y-4 flex flex-col justify-between">
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-2">
-                            <i class="fas fa-heartbeat"></i> Sinh hiệu Bệnh nhân
+                            <i class="fas fa-heartbeat"></i> Nhập nhanh Sinh hiệu Bệnh nhân
                         </h4>
                         <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                                <div class="text-[10px] text-slate-400">Huyết áp</div>
-                                <div class="font-black text-sm text-white" id="patient-bp-display">120/80 mmHg</div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1">Huyết áp (mmHg)</label>
+                                <input type="text" id="tele-vital-bp" placeholder="120/80" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
                             </div>
-                            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                                <div class="text-[10px] text-slate-400">SpO2</div>
-                                <div class="font-black text-sm text-emerald-400" id="patient-spo2-display">98%</div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1">Nhịp tim (bpm)</label>
+                                <input type="number" id="tele-vital-hr" placeholder="76" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
                             </div>
-                            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                                <div class="text-[10px] text-slate-400">Nhịp tim</div>
-                                <div class="font-black text-sm text-rose-400" id="patient-hr-display">76 bpm</div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1">SpO2 (%)</label>
+                                <input type="number" id="tele-vital-spo2" placeholder="98" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
                             </div>
-                            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                                <div class="text-[10px] text-slate-400">Nhiệt độ</div>
-                                <div class="font-black text-sm text-amber-400" id="patient-temp-display">36.8°C</div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1">Nhiệt độ (°C)</label>
+                                <input type="text" id="tele-vital-temp" placeholder="36.8" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-[10px] text-slate-400 mb-1">Cân nặng (kg)</label>
+                                <input type="text" id="tele-vital-weight" placeholder="52" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
                             </div>
                         </div>
+                        <button onclick="window.teleSendVitals(true)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+                            <i class="fas fa-paper-plane"></i> Gửi chỉ số sinh hiệu tới tuyến trên
+                        </button>
+                        <p id="tele-vital-sync-status" class="text-[10px] text-slate-500 text-center">Chỉ số tự động đồng bộ lên màn hình khám của Bác sĩ.</p>
+                    </div>
+
+                    <!-- Kết luận từ Bác sĩ tuyến trên -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-2">
+                            <i class="fas fa-file-medical"></i> Kết luận của Bác sĩ
+                        </h4>
+                        <p id="patient-doctor-note" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có kết luận. Bác sĩ tuyến trên sẽ gửi ghi chép sau khi thăm khám.</p>
                     </div>
 
                     <!-- Khung nhắn tin trực tiếp -->
@@ -777,11 +873,14 @@
                             </div>
                         </div>
                         <div class="flex gap-2">
-                            <input type="text" id="patient-chat-input" placeholder="Nhập tin nhắn..." class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                            <input type="text" id="patient-chat-input" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendPatientChatMessage();}" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
                             <button onclick="window.sendPatientChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
+                        <button onclick="window.teleExportReport()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+                            <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; Xuất Phiếu khám
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1274,6 +1373,20 @@
                 <i class="fas fa-sign-out-alt"></i> THOÁT RA TRANG CHỦ
             </button>
         </header>
+
+        <!-- ================= CHUÔNG CUỘC GỌI ĐẾN (HIỆN Ở MỌI TAB CMS) ================= -->
+        <div id="cms-ring-banner" class="hidden fixed bottom-5 right-5 z-[60] w-[min(92vw,26rem)] bg-white rounded-2xl shadow-2xl border-2 border-blue-500 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-3 flex items-center justify-between text-white">
+                <div class="flex items-center gap-2 font-black text-sm">
+                    <i class="fas fa-phone-volume animate-bounce"></i> CUỘC GỌI KHÁM TỪ XA ĐẾN
+                </div>
+                <div class="flex items-center gap-1">
+                    <button onclick="window.toggleCmsRingSound()" id="cms-ring-sound-btn" title="Bật/tắt tiếng báo" class="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-xs transition"><i class="fas fa-bell"></i></button>
+                    <button onclick="window.dismissCmsRing()" title="Ẩn thông báo" class="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-xs transition"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <div id="cms-ring-list" class="p-3 space-y-2 max-h-72 overflow-y-auto"></div>
+        </div>
         
         <div class="flex-1 flex flex-col lg:flex-row max-w-[1400px] mx-auto w-full p-4 gap-6 mt-2 relative">
             
@@ -1286,7 +1399,7 @@
                     <li><a href="#" onclick="window.switchAdminTab('docs')" id="tab-btn-docs" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-pdf mr-3"></i> Kho Tài liệu & Biểu mẫu</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('service')" id="tab-btn-service" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-list mr-3"></i> Quản lý Dịch vụ (Luồng Zalo)</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-address-book mr-3"></i> Quản lý Danh bạ Cán bộ</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('telehealth')" id="tab-btn-telehealth" class="block p-3.5 text-blue-700 bg-blue-50/80 hover:bg-blue-100 rounded-xl font-bold border-l-4 border-blue-600 shadow-sm transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-video text-blue-600 mr-3 animate-pulse"></i> Cuộc gọi Video & Khám Từ xa</span> <span id="cms-telehealth-count" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('telehealth')" id="tab-btn-telehealth" class="block p-3.5 text-blue-700 bg-blue-50/80 hover:bg-blue-100 rounded-xl font-bold border-l-4 border-blue-600 shadow-sm transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-video text-blue-600 mr-3 animate-pulse"></i> Cuộc gọi Video & Khám Từ xa</span> <span class="flex items-center gap-1"><span id="cms-live-call-badge" class="hidden bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-black animate-pulse">0 đang gọi</span> <span id="cms-telehealth-count" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></span></a></li>
                     <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fab fa-youtube mr-3"></i> Quản lý Video Y khoa</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-users-cog mr-3"></i> Phân quyền Hệ thống</a></li>
                     <li><a href="#" onclick="window.enableVisualEditingMode()" class="block p-3.5 text-purple-600 hover:bg-purple-50 rounded-xl font-black border border-purple-200 shadow-sm transition"><i class="fas fa-laptop-code mr-3"></i> Chỉnh sửa Giao diện trực quan</a></li>
@@ -1570,6 +1683,21 @@
                             Tài khoản hiện tại chưa được phân quyền tiếp nhận cuộc gọi video trực tiếp. Vui lòng liên hệ Trạm trưởng hoặc Quản trị viên tại mục <b>Phân quyền Hệ thống</b> để kích hoạt quyền <code>canReceiveVideo</code>.
                         </div>
 
+                        <!-- HÀNG ĐỢI CUỘC GỌI ĐANG CHỜ BÁC SĨ TIẾP NHẬN -->
+                        <div class="bg-white border border-blue-200 rounded-2xl p-5 mb-6 shadow-sm">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="font-bold text-base text-gray-900 flex items-center gap-2">
+                                    <i class="fas fa-tower-broadcast text-blue-600"></i> Cuộc gọi trực tuyến đang chờ tiếp nhận
+                                </h3>
+                                <span id="cms-live-indicator" class="text-xs font-bold text-gray-400 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-gray-300"></span> Đang dò tín hiệu...
+                                </span>
+                            </div>
+                            <div id="cms-incoming-calls" class="space-y-2 text-sm">
+                                <div class="text-gray-400 font-medium text-xs italic">Hiện chưa có điểm trạm nào đang gọi.</div>
+                            </div>
+                        </div>
+
                         <!-- KHU VỰC MÀN HÌNH KHÁM VIDEO TRỰC TIẾP TRONG CMS -->
                         <div id="cms-video-consultation-room" class="bg-slate-950 rounded-2xl p-6 text-white border border-slate-800 space-y-6 mb-8">
                             <div class="flex justify-between items-center pb-3 border-b border-slate-800">
@@ -1603,19 +1731,58 @@
                                     </div>
 
                                     <!-- Controls -->
-                                    <div class="flex items-center justify-center gap-4 bg-slate-900 p-3 rounded-2xl border border-slate-800">
-                                        <button onclick="window.toggleCmsMic()" id="cms-mic-btn" class="w-11 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-base transition shadow">
+                                    <div class="flex flex-wrap items-center justify-center gap-3 bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                                        <button onclick="window.toggleCmsMic()" id="cms-mic-btn" title="Bật/Tắt Micro" class="w-11 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-base transition shadow">
                                             <i class="fas fa-microphone"></i>
                                         </button>
-                                        <button onclick="window.toggleCmsCam()" id="cms-cam-btn" class="w-11 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-base transition shadow">
+                                        <button onclick="window.toggleCmsCam()" id="cms-cam-btn" title="Bật/Tắt Camera" class="w-11 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-base transition shadow">
                                             <i class="fas fa-video"></i>
+                                        </button>
+                                        <button onclick="window.teleSwitchCamera()" class="px-3 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow">
+                                            <i class="fas fa-camera-rotate"></i> Chuyển Camera
                                         </button>
                                         <button onclick="window.triggerAIAssistInCall()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition shadow">
                                             <i class="fas fa-brain"></i> AI Co-Pilot Chẩn đoán
                                         </button>
+                                        <button onclick="window.teleExportReport()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition shadow">
+                                            <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; Xuất Phiếu khám
+                                        </button>
                                         <button onclick="window.endCmsVideoCall()" class="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center text-base transition shadow">
                                             <i class="fas fa-phone-slash"></i>
                                         </button>
+                                    </div>
+
+                                    <!-- Sinh hiệu nhận từ điểm trạm (đồng bộ thời gian thực) -->
+                                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h4 class="font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-2">
+                                                <i class="fas fa-heartbeat"></i> Sinh hiệu bệnh nhân từ điểm trạm
+                                            </h4>
+                                            <span id="cms-vital-updated" class="text-[10px] text-slate-500">Chưa nhận dữ liệu</span>
+                                        </div>
+                                        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                                            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                                                <div class="text-[10px] text-slate-400">Huyết áp</div>
+                                                <div class="font-black text-sm text-white" id="cms-vital-bp">--</div>
+                                            </div>
+                                            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                                                <div class="text-[10px] text-slate-400">Nhịp tim</div>
+                                                <div class="font-black text-sm text-rose-400" id="cms-vital-hr">--</div>
+                                            </div>
+                                            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                                                <div class="text-[10px] text-slate-400">SpO2</div>
+                                                <div class="font-black text-sm text-emerald-400" id="cms-vital-spo2">--</div>
+                                            </div>
+                                            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                                                <div class="text-[10px] text-slate-400">Nhiệt độ</div>
+                                                <div class="font-black text-sm text-amber-400" id="cms-vital-temp">--</div>
+                                            </div>
+                                            <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+                                                <div class="text-[10px] text-slate-400">Cân nặng</div>
+                                                <div class="font-black text-sm text-slate-200" id="cms-vital-weight">--</div>
+                                            </div>
+                                        </div>
+                                        <p id="cms-vital-alert" class="hidden mt-2 text-[11px] font-bold text-rose-400"></p>
                                     </div>
                                 </div>
 
@@ -1637,8 +1804,24 @@
                                         </h4>
                                         <textarea id="cms-doctor-notes" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="Ghi chép kết quả thăm khám, chẩn đoán và hướng điều trị..."></textarea>
                                         <button onclick="window.saveDoctorClinicalNotes()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs transition">
-                                            <i class="fas fa-save mr-1"></i> Lưu ghi chép hồ sơ
+                                            <i class="fas fa-save mr-1"></i> Lưu & gửi kết luận về điểm trạm
                                         </button>
+                                    </div>
+
+                                    <!-- Trao đổi văn bản với cán bộ điểm trạm -->
+                                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex flex-col">
+                                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
+                                            <i class="fas fa-comments"></i> Trao đổi với Cán bộ điểm trạm
+                                        </h4>
+                                        <div id="cms-chat-box" class="h-28 overflow-y-auto space-y-2 text-xs text-slate-300 pr-1 my-2 border-t border-b border-slate-800 py-2">
+                                            <div class="bg-slate-800/50 p-2 rounded-lg text-slate-400 text-[11px] italic">Hệ thống: Kênh trao đổi bảo mật đã sẵn sàng.</div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="cms-chat-input" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendCmsChatMessage();}" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                                            <button onclick="window.sendCmsChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -2575,7 +2758,7 @@
                             <td class="p-3 text-center">${statusBadge}</td>
                             <td class="p-3 text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    ${isTele ? `<button onclick="window.joinCmsTelehealthCall('${a.roomId || 'room-' + a.id}', '${a.patientName}', '${a.symptoms || ''}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-lg text-xs transition flex items-center gap-1 shadow-sm"><i class="fas fa-video"></i> Gọi ngay</button>` : ''}
+                                    ${isTele ? `<button type="button" class="cms-accept-call bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-lg text-xs transition flex items-center gap-1 shadow-sm" data-room="${teleEscape(a.roomId || 'room-' + a.id)}" data-patient="${teleEscape(a.patientName || 'Bệnh nhân')}" data-symptoms="${teleEscape(a.symptoms || '')}" data-appointment="${teleEscape(a.id)}"><i class="fas fa-video"></i> Gọi ngay</button>` : ''}
                                     <button onclick="window.completeAppointment('${a.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-lg text-xs transition" title="Đánh dấu hoàn thành"><i class="fas fa-check"></i></button>
                                     <button onclick="window.deleteItem('appointments', '${a.id}')" class="text-red-500 hover:text-red-700 p-1" title="Xóa"><i class="fas fa-trash-alt"></i></button>
                                 </div>
@@ -3033,6 +3216,8 @@
             if (tabName === 'telehealth') {
                 window.checkCmsVideoPermission();
             }
+            // Không tắt bộ theo dõi khi rời tab: cán bộ vẫn phải nghe được cuộc gọi
+            // dù đang làm việc ở mục Tin tức, Lịch khám hay Kho thuốc.
         };
 
         window.handleAdminLogin = function(e) {
@@ -3040,13 +3225,13 @@
             const valid = adminUsers.find(x => x.username === u);
             if(valid && p === 'admin123') {
                 window.closeModal(); document.getElementById('main-website').classList.add('hidden'); document.getElementById('admin-dashboard').classList.remove('hidden'); window.scrollTo(0,0); window.switchAdminTab('news');
+                // Bật trực cuộc gọi ngay khi đăng nhập, không cần mở tab Khám từ xa.
+                if (window.checkCmsVideoPermission()) window.startCmsIncomingWatcher();
             } else { document.getElementById('login-error').classList.remove('hidden'); }
         };
-        window.logoutAdmin = function() { document.getElementById('admin-dashboard').classList.add('hidden'); document.getElementById('main-website').classList.remove('hidden'); window.scrollTo(0,0); };
+        window.logoutAdmin = function() { window.stopCmsIncomingWatcher(); teleStop(true); document.getElementById('admin-dashboard').classList.add('hidden'); document.getElementById('main-website').classList.remove('hidden'); window.scrollTo(0,0); };
 
         // 7. TELEHEALTH VIDEO CALL ENGINE & FORM HANDLERS
-        let telehealthWs = null;
-        let telehealthPeer = null;
         let activeRoomId = null;
         let isCmsCall = false;
         let currentCmsUser = { username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' };
@@ -3109,18 +3294,114 @@
             }
         };
 
-        window.startTelehealthCallFromBooking = function(roomId, patientName) {
-            window.closeModal();
-            window.openPatientTelehealthModal(roomId, patientName);
+        /* =====================================================================
+           GỌI NHANH KHÁM TỪ XA (PHÍA NGƯỜI DÂN / CÁN BỘ ĐIỂM TRẠM)
+           Người dân chỉ cần nhập tên là gọi được cán bộ y tế đang trực,
+           không phải điền hết phiếu đăng ký khám.
+           ===================================================================== */
+
+        let publicDutyTimer = null;
+        let publicDutyCount = null;
+
+        window.openTelehealthQuickCall = function() {
+            window.openModal('modal-telehealth-quick');
+            const nameInput = document.getElementById('quick-call-name');
+            if (nameInput) setTimeout(() => nameInput.focus(), 150);
+            window.refreshPublicDutyStatus();
         };
 
-        window.openPatientTelehealthModal = function(roomId, patientName) {
+        function renderDutyStatus(count) {
+            const online = Number(count) > 0;
+            const label = online ? `${count} cán bộ y tế đang trực` : 'Chưa có cán bộ trực trực tuyến';
+
+            const navDot = document.getElementById('nav-on-duty-dot');
+            if (navDot) {
+                navDot.className = `w-2 h-2 rounded-full ${online ? 'bg-emerald-300 animate-pulse' : 'bg-amber-300'}`;
+                navDot.title = label;
+            }
+            const fabDot = document.getElementById('fab-on-duty-dot');
+            if (fabDot) fabDot.className = `w-3 h-3 rounded-full ${online ? 'bg-emerald-300 animate-pulse' : 'bg-amber-300'}`;
+            const fabText = document.getElementById('fab-on-duty-text');
+            if (fabText) fabText.textContent = online ? `${count} cán bộ đang trực` : 'Trạm sẽ gọi lại nếu vắng';
+
+            const hero = document.getElementById('hero-on-duty');
+            if (hero) {
+                hero.innerHTML = online
+                    ? `<span class="text-emerald-600"><i class="fas fa-circle-check mr-1"></i> ${label} - bấm "Gọi khám từ xa ngay" để kết nối.</span>`
+                    : `<span class="text-amber-600"><i class="fas fa-circle-exclamation mr-1"></i> ${label}. Bạn vẫn có thể gọi để đổ chuông, hoặc để lại lịch khám.</span>`;
+            }
+
+            const box = document.getElementById('quick-call-duty');
+            if (box) {
+                box.className = `mb-4 rounded-2xl border p-3.5 text-xs font-bold flex items-center gap-2 ${online ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`;
+                box.innerHTML = online
+                    ? `<i class="fas fa-user-doctor"></i> ${label} - cuộc gọi sẽ đổ chuông ngay tại máy cán bộ.`
+                    : `<i class="fas fa-circle-exclamation"></i> ${label}. Cuộc gọi vẫn được ghi nhận; nếu 45 giây không ai tiếp nhận, hãy dùng số điện thoại hoặc Zalo của trạm.`;
+            }
+        }
+
+        window.refreshPublicDutyStatus = async function() {
+            try {
+                const res = await fetch('/api/signal?action=on-duty');
+                if (!res.ok) throw new Error('on-duty ' + res.status);
+                const data = await res.json();
+                publicDutyCount = Number(data.doctorsOnline || 0);
+                renderDutyStatus(publicDutyCount);
+            } catch (err) {
+                renderDutyStatus(0);
+            }
+        };
+
+        window.startPublicDutyWatcher = function() {
+            if (publicDutyTimer) return;
+            window.refreshPublicDutyStatus();
+            publicDutyTimer = setInterval(window.refreshPublicDutyStatus, 20000);
+        };
+
+        window.startQuickTelehealthCall = function(e) {
+            e.preventDefault();
+            const name = (document.getElementById('quick-call-name').value || '').trim();
+            if (!name) return;
+            const phone = (document.getElementById('quick-call-phone').value || '').trim();
+            const reason = (document.getElementById('quick-call-reason').value || '').trim();
+            const roomId = 'room-' + Date.now();
+
+            // Ghi nhận lượt gọi vào lịch khám để CMS có hồ sơ, kể cả khi chưa ai tiếp nhận.
+            const apptObj = {
+                id: 'APP' + Date.now(),
+                patientName: name,
+                phone: phone || 'Chưa cung cấp',
+                service: 'Khám từ xa Telehealth',
+                appointmentDate: new Date().toLocaleDateString('vi-VN'),
+                symptoms: reason,
+                isTelehealth: 'true',
+                status: 'PENDING',
+                roomId,
+                ts: Date.now()
+            };
+            try {
+                appointmentsData.unshift(apptObj);
+                window.saveToDb('appointments', apptObj);
+                window.renderUI();
+            } catch (err) {
+                console.warn('Không lưu được lượt gọi vào lịch khám:', err);
+            }
+
+            window.openPatientTelehealthModal(roomId, name, reason);
+        };
+
+        window.startTelehealthCallFromBooking = function(roomId, patientName, symptoms) {
+            window.closeModal();
+            window.openPatientTelehealthModal(roomId, patientName, symptoms);
+        };
+
+        window.openPatientTelehealthModal = function(roomId, patientName, symptoms) {
             activeRoomId = roomId || ('room-' + Date.now());
             isCmsCall = false;
 
             const overlay = document.getElementById('modal-overlay');
             const modal = document.getElementById('modal-telehealth-call');
-            
+
             if (overlay && modal) {
                 overlay.classList.remove('hidden');
                 document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
@@ -3130,16 +3411,21 @@
             const roomCodeEl = document.getElementById('patient-room-code');
             if (roomCodeEl) roomCodeEl.textContent = activeRoomId;
 
-            initTelehealthWebRTC(activeRoomId, 'patient', patientName || 'Bệnh nhân');
+            teleStart({
+                roomId: activeRoomId,
+                role: 'station',
+                name: patientName ? ('Điểm trạm - ' + patientName) : 'Cán bộ điểm trạm',
+                patientName: patientName || 'Bệnh nhân',
+                symptoms: symptoms || ''
+            });
         };
 
         window.closeTelehealthModal = function() {
             window.closeModal();
-            if (telehealthWs) { telehealthWs.close(); telehealthWs = null; }
-            if (telehealthPeer) { telehealthPeer.close(); telehealthPeer = null; }
+            teleStop(true);
         };
 
-        window.joinCmsTelehealthCall = function(roomId, patientName, symptoms) {
+        window.joinCmsTelehealthCall = function(roomId, patientName, symptoms, appointmentId) {
             if (!window.checkCmsVideoPermission()) {
                 window.showToast("Tài khoản của bạn chưa được cấp quyền nhận cuộc gọi Video!");
                 return;
@@ -3154,14 +3440,24 @@
             const placeholder = document.getElementById('cms-video-placeholder');
             if (placeholder) placeholder.classList.add('hidden');
 
-            const appt = appointmentsData.find(a => a.roomId === roomId || a.patientName === patientName);
+            const appt = appointmentsData.find(a => a.id === appointmentId || a.roomId === roomId || a.patientName === patientName);
             if (appt) {
                 appt.status = 'IN_CALL';
                 window.saveToDb('appointments', appt);
                 window.renderUI();
             }
 
-            initTelehealthWebRTC(activeRoomId, 'doctor', currentCmsUser.name || 'Bác sĩ trực CMS');
+            const room = document.getElementById('cms-video-consultation-room');
+            if (room) room.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            teleStart({
+                roomId: activeRoomId,
+                role: 'doctor',
+                name: (currentCmsUser && currentCmsUser.name) || 'Bác sĩ trực CMS',
+                patientName: patientName || 'Bệnh nhân',
+                symptoms: symptoms || '',
+                appointmentId: appt ? appt.id : appointmentId
+            });
         };
 
         window.endCmsVideoCall = function() {
@@ -3171,8 +3467,7 @@
             const activeBadge = document.getElementById('cms-active-patient-badge');
             if (activeBadge) activeBadge.textContent = 'Chờ kết nối';
 
-            if (telehealthWs) { telehealthWs.close(); telehealthWs = null; }
-            if (telehealthPeer) { telehealthPeer.close(); telehealthPeer = null; }
+            teleStop(true);
             window.showToast("Đã ngắt cuộc gọi video.");
         };
 
@@ -3186,122 +3481,1010 @@
             }
         };
 
-        function initTelehealthWebRTC(roomId, role, userName) {
-            try {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}`;
-                telehealthWs = new WebSocket(wsUrl);
+        /* =====================================================================
+           ENGINE KẾT NỐI TELEHEALTH THỰC TẾ
+           WebRTC (video/audio ngang hàng) + signaling qua Netlify Function
+           /api/signal (HTTP long-poll, hoạt động trên hạ tầng serverless).
+           ===================================================================== */
 
-                telehealthWs.onopen = () => {
-                    telehealthWs.send(JSON.stringify({
-                        type: 'join-room',
-                        roomId,
-                        role,
-                        operatorName: userName
-                    }));
-                    window.showToast(`Đã kết nối phòng khám [${roomId}]`);
-                };
+        const TELE_ICE = {
+            iceServers: [
+                { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+                { urls: ['stun:stun.cloudflare.com:3478'] },
+                { urls: ['stun:global.stun.twilio.com:3478'] }
+            ],
+            iceCandidatePoolSize: 4
+        };
 
-                telehealthWs.onmessage = async (event) => {
-                    try {
-                        const msg = JSON.parse(event.data);
-                        if (msg.type === 'peer-joined') {
-                            window.showToast(`Thành viên [${msg.operatorName || msg.peerId}] đã tham gia cuộc gọi.`);
-                            const placeholder = document.getElementById('patient-video-placeholder');
-                            if (placeholder) placeholder.classList.add('hidden');
-                        } else if (msg.type === 'chat-received') {
-                            appendTelehealthChatMessage(msg.senderName, msg.text);
-                        }
-                    } catch (err) {}
-                };
+        const TELE = {
+            roomId: null,
+            role: null,
+            name: null,
+            peerId: null,
+            patientName: null,
+            symptoms: '',
+            appointmentId: null,
+            cursor: 0,
+            pc: null,
+            localStream: null,
+            remoteStream: null,
+            polling: false,
+            pollToken: 0,
+            isOfferer: false,
+            pendingCandidates: [],
+            videoDevices: [],
+            deviceIndex: 0,
+            micOn: true,
+            camOn: true,
+            remotePeerName: null,
+            vitals: {},
+            doctorNotes: '',
+            chatLog: [],
+            vitalsTimer: null,
+            vitalsBound: false,
+            waitTicker: null,
+            waitStartedAt: 0,
+            connected: false,
+            doctorsOnline: null
+        };
 
-                setupLocalVideoStream(role);
-            } catch (err) {
-                console.warn("WebRTC connection note:", err);
+        /* Màn hình chờ của người dân: đồng hồ chờ, số cán bộ trực, phương án dự phòng. */
+        function teleRenderWaiting() {
+            if (TELE.role === 'doctor') return;
+            const dutyEl = document.getElementById('patient-wait-duty');
+            const timerEl = document.getElementById('patient-wait-timer');
+            const fallbackEl = document.getElementById('patient-wait-fallback');
+            const waited = TELE.waitStartedAt ? Math.floor((Date.now() - TELE.waitStartedAt) / 1000) : 0;
+
+            if (timerEl) {
+                const mm = String(Math.floor(waited / 60)).padStart(2, '0');
+                const ss = String(waited % 60).padStart(2, '0');
+                timerEl.textContent = `Thời gian chờ: ${mm}:${ss}`;
             }
+            if (dutyEl) {
+                if (TELE.doctorsOnline === null) {
+                    dutyEl.textContent = 'Đang kiểm tra cán bộ trực...';
+                } else if (TELE.doctorsOnline > 0) {
+                    dutyEl.innerHTML = `<span class="text-emerald-400 font-bold">${TELE.doctorsOnline} cán bộ y tế đang trực</span> - cuộc gọi đang đổ chuông tại máy cán bộ.`;
+                } else {
+                    dutyEl.innerHTML = `<span class="text-amber-400 font-bold">Chưa có cán bộ nào trực trực tuyến.</span> Cuộc gọi vẫn hiển thị trong hàng đợi của trạm.`;
+                }
+            }
+            if (fallbackEl) fallbackEl.classList.toggle('hidden', waited < 45);
         }
 
-        function setupLocalVideoStream(role) {
-            const localVideoEl = role === 'doctor' ? document.getElementById('cms-local-video') : document.getElementById('patient-local-video');
-            const remoteVideoEl = role === 'doctor' ? document.getElementById('cms-remote-video') : document.getElementById('patient-remote-video');
+        function teleStartWaitTicker() {
+            teleStopWaitTicker();
+            if (TELE.role === 'doctor') return;
+            TELE.waitStartedAt = Date.now();
+            teleRenderWaiting();
+            TELE.waitTicker = setInterval(teleRenderWaiting, 1000);
+        }
 
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-                    .then(stream => {
-                        if (localVideoEl) localVideoEl.srcObject = stream;
-                    })
-                    .catch(() => {
-                        createSyntheticVideoFallback(localVideoEl, remoteVideoEl, role);
-                    });
+        function teleStopWaitTicker() {
+            if (TELE.waitTicker) { clearInterval(TELE.waitTicker); TELE.waitTicker = null; }
+        }
+
+        function teleEls() {
+            return TELE.role === 'doctor'
+                ? { local: 'cms-local-video', remote: 'cms-remote-video', placeholder: 'cms-video-placeholder', chat: 'cms-chat-box', chatInput: 'cms-chat-input', micBtn: 'cms-mic-btn', camBtn: 'cms-cam-btn' }
+                : { local: 'patient-local-video', remote: 'patient-remote-video', placeholder: 'patient-video-placeholder', chat: 'patient-chat-box', chatInput: 'patient-chat-input', micBtn: 'patient-mic-btn', camBtn: 'patient-cam-btn' };
+        }
+
+        function teleStatus(text) {
+            if (TELE.role === 'doctor') {
+                const badge = document.getElementById('cms-active-patient-badge');
+                if (badge) badge.textContent = text;
             } else {
-                createSyntheticVideoFallback(localVideoEl, remoteVideoEl, role);
+                const el = document.getElementById('patient-room-status');
+                if (el) el.textContent = text;
             }
         }
 
-        function createSyntheticVideoFallback(localEl, remoteEl, role) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 320;
-            canvas.height = 240;
-            const ctx = canvas.getContext('2d');
-            
-            let hue = role === 'doctor' ? 200 : 120;
-            setInterval(() => {
-                ctx.fillStyle = `hsl(${hue}, 70%, 18%)`;
-                ctx.fillRect(0, 0, 320, 240);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '15px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(role === 'doctor' ? '🎥 BS. Telehealth Online' : '🎥 Bệnh nhân Connected', 160, 110);
-                ctx.font = '12px sans-serif';
-                ctx.fillText(new Date().toLocaleTimeString('vi-VN'), 160, 140);
-            }, 1000);
-
-            const stream = canvas.captureStream(10);
-            if (localEl) localEl.srcObject = stream;
-            if (remoteEl) remoteEl.srcObject = stream;
+        function teleShowRemotePlaceholder(show) {
+            const el = document.getElementById(teleEls().placeholder);
+            if (el) el.classList.toggle('hidden', !show);
         }
 
-        function appendTelehealthChatMessage(sender, text) {
-            const box = document.getElementById('patient-chat-box');
-            if (box) {
-                const div = document.createElement('div');
-                div.className = 'bg-slate-800 p-2 rounded-lg text-xs';
-                div.innerHTML = `<span class="font-bold text-blue-400">${sender}:</span> <span class="text-slate-200">${text}</span>`;
-                box.appendChild(div);
-                box.scrollTop = box.scrollHeight;
+        function teleEscape(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function teleAppendChat(sender, text) {
+            const box = document.getElementById(teleEls().chat);
+            TELE.chatLog.push({ sender, text, at: new Date().toLocaleTimeString('vi-VN') });
+            if (!box) return;
+            const div = document.createElement('div');
+            div.className = 'bg-slate-800 p-2 rounded-lg text-xs';
+            div.innerHTML = `<span class="font-bold text-blue-400">${teleEscape(sender)}:</span> <span class="text-slate-200">${teleEscape(text)}</span>`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function teleApiPost(body) {
+            const res = await fetch('/api/signal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.assign({ roomId: TELE.roomId, peerId: TELE.peerId }, body))
+            });
+            if (!res.ok) throw new Error('Signaling lỗi ' + res.status);
+            return res.json();
+        }
+
+        function teleSendSignal(type, payload) {
+            if (!TELE.roomId || !TELE.peerId) return Promise.resolve();
+            return teleApiPost({ action: 'signal', type, payload }).catch(err => console.warn('signal', type, err));
+        }
+
+        async function teleAcquireMedia() {
+            const audioConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+            try {
+                TELE.localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: audioConstraints
+                });
+            } catch (err) {
+                console.warn('Không mở được camera, thử chế độ chỉ âm thanh:', err);
+                try {
+                    TELE.localStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+                    window.showToast("Không truy cập được camera - cuộc gọi chuyển sang chế độ chỉ âm thanh.");
+                } catch (err2) {
+                    console.warn('Không mở được micro:', err2);
+                    window.showToast("Thiết bị chưa cho phép Camera/Micro. Cuộc gọi chỉ nhận hình ảnh từ đầu bên kia.");
+                    TELE.localStream = null;
+                }
+            }
+
+            const localEl = document.getElementById(teleEls().local);
+            if (localEl) {
+                localEl.srcObject = TELE.localStream;
+                localEl.muted = true;
+                if (TELE.localStream) localEl.play().catch(() => {});
+            }
+
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                TELE.videoDevices = devices.filter(d => d.kind === 'videoinput');
+                const currentTrack = TELE.localStream && TELE.localStream.getVideoTracks()[0];
+                if (currentTrack) {
+                    const id = currentTrack.getSettings ? currentTrack.getSettings().deviceId : null;
+                    const idx = TELE.videoDevices.findIndex(d => d.deviceId === id);
+                    TELE.deviceIndex = idx >= 0 ? idx : 0;
+                }
+                teleUpdateCameraLabel();
+            } catch (err) {
+                TELE.videoDevices = [];
             }
         }
+
+        function teleUpdateCameraLabel() {
+            const label = document.getElementById('patient-cam-label');
+            if (!label) return;
+            const total = TELE.videoDevices.length;
+            if (total > 1) {
+                const dev = TELE.videoDevices[TELE.deviceIndex];
+                const name = (dev && dev.label) ? dev.label : `Camera ${TELE.deviceIndex + 1}`;
+                label.textContent = `Camera ${TELE.deviceIndex + 1}/${total}: ${name.slice(0, 26)}`;
+            } else {
+                label.textContent = 'Chuyển Camera (Góc rộng / Cận cảnh)';
+            }
+        }
+
+        function teleCreatePeer() {
+            const pc = new RTCPeerConnection(TELE_ICE);
+            TELE.pc = pc;
+            TELE.remoteStream = new MediaStream();
+
+            if (TELE.localStream) {
+                TELE.localStream.getTracks().forEach(track => pc.addTrack(track, TELE.localStream));
+            } else {
+                // Vẫn mở kênh nhận để nghe/xem được đầu bên kia khi thiết bị không có camera/mic.
+                pc.addTransceiver('video', { direction: 'recvonly' });
+                pc.addTransceiver('audio', { direction: 'recvonly' });
+            }
+
+            pc.onicecandidate = (ev) => {
+                if (ev.candidate) teleSendSignal('ice', ev.candidate.toJSON());
+            };
+
+            pc.ontrack = (ev) => {
+                const stream = (ev.streams && ev.streams[0]) ? ev.streams[0] : TELE.remoteStream;
+                if (stream === TELE.remoteStream) TELE.remoteStream.addTrack(ev.track);
+                const remoteEl = document.getElementById(teleEls().remote);
+                if (remoteEl && remoteEl.srcObject !== stream) {
+                    remoteEl.srcObject = stream;
+                    remoteEl.muted = false;
+                    remoteEl.volume = 1;
+                    remoteEl.play().catch(() => window.showToast("Nhấn vào màn hình video để bật loa ngoài."));
+                }
+                teleShowRemotePlaceholder(false);
+            };
+
+            pc.onconnectionstatechange = () => {
+                const state = pc.connectionState;
+                if (state === 'connected') {
+                    TELE.connected = true;
+                    teleStopWaitTicker();
+                    teleStatus(TELE.role === 'doctor'
+                        ? `Đang khám: ${TELE.patientName || 'Bệnh nhân'} (${TELE.roomId})`
+                        : `Đã kết nối trực tiếp với ${TELE.remotePeerName || 'Bác sĩ tuyến trên'}`);
+                    window.showToast("Kết nối video/âm thanh hai chiều đã thiết lập.");
+                    if (TELE.role !== 'doctor') window.teleSendVitals(false);
+                } else if (state === 'connecting') {
+                    teleStatus('Đang thiết lập luồng video/âm thanh...');
+                } else if (state === 'disconnected') {
+                    TELE.connected = false;
+                    teleStatus('Đường truyền không ổn định, đang thử kết nối lại...');
+                } else if (state === 'failed') {
+                    TELE.connected = false;
+                    teleStatus('Kết nối thất bại - đang thử lại đường truyền.');
+                    try { pc.restartIce(); } catch (e) {}
+                    if (TELE.isOfferer) teleMakeOffer(true);
+                }
+            };
+
+            return pc;
+        }
+
+        async function teleMakeOffer(isRestart) {
+            if (!TELE.pc) return;
+            try {
+                TELE.isOfferer = true;
+                const offer = await TELE.pc.createOffer(isRestart ? { iceRestart: true } : undefined);
+                await TELE.pc.setLocalDescription(offer);
+                await teleSendSignal('offer', { sdp: TELE.pc.localDescription.sdp, type: TELE.pc.localDescription.type });
+                teleStatus('Đã gửi yêu cầu kết nối, đang chờ đầu bên kia trả lời...');
+            } catch (err) {
+                console.warn('Lỗi tạo offer:', err);
+            }
+        }
+
+        async function teleFlushCandidates() {
+            const list = TELE.pendingCandidates.splice(0);
+            for (const cand of list) {
+                try { await TELE.pc.addIceCandidate(cand); } catch (err) { console.warn('ICE', err); }
+            }
+        }
+
+        async function teleHandleMessage(msg) {
+            if (!TELE.pc && msg.type !== 'peer-joined') return;
+
+            if (msg.type === 'peer-joined') {
+                TELE.remotePeerName = (msg.payload && msg.payload.name) || 'Thành viên';
+                window.showToast(`${TELE.remotePeerName} đã tham gia phòng khám.`);
+                teleStatus(`${TELE.remotePeerName} đã vào phòng - đang bắt tay kết nối...`);
+                if (TELE.role !== 'doctor') window.teleSendVitals(false);
+                if (TELE.doctorNotes) teleSendSignal('notes', { notes: TELE.doctorNotes });
+                return;
+            }
+
+            if (msg.type === 'offer') {
+                try {
+                    if (TELE.pc.signalingState !== 'stable') {
+                        await Promise.all([
+                            TELE.pc.setLocalDescription({ type: 'rollback' }).catch(() => {}),
+                            TELE.pc.setRemoteDescription(msg.payload)
+                        ]);
+                    } else {
+                        await TELE.pc.setRemoteDescription(msg.payload);
+                    }
+                    TELE.isOfferer = false;
+                    const answer = await TELE.pc.createAnswer();
+                    await TELE.pc.setLocalDescription(answer);
+                    await teleSendSignal('answer', { sdp: TELE.pc.localDescription.sdp, type: TELE.pc.localDescription.type });
+                    await teleFlushCandidates();
+                } catch (err) {
+                    console.warn('Lỗi xử lý offer:', err);
+                }
+                return;
+            }
+
+            if (msg.type === 'answer') {
+                try {
+                    if (TELE.pc.signalingState === 'have-local-offer') {
+                        await TELE.pc.setRemoteDescription(msg.payload);
+                        await teleFlushCandidates();
+                    }
+                } catch (err) {
+                    console.warn('Lỗi xử lý answer:', err);
+                }
+                return;
+            }
+
+            if (msg.type === 'ice') {
+                const cand = new RTCIceCandidate(msg.payload);
+                if (TELE.pc.remoteDescription && TELE.pc.remoteDescription.type) {
+                    try { await TELE.pc.addIceCandidate(cand); } catch (err) { console.warn('ICE', err); }
+                } else {
+                    TELE.pendingCandidates.push(cand);
+                }
+                return;
+            }
+
+            if (msg.type === 'chat') {
+                teleAppendChat((msg.payload && msg.payload.sender) || 'Đối phương', (msg.payload && msg.payload.text) || '');
+                return;
+            }
+
+            if (msg.type === 'vitals') {
+                TELE.vitals = msg.payload || {};
+                teleRenderVitals(TELE.vitals);
+                if (TELE.role === 'doctor') window.showToast("Đã nhận chỉ số sinh hiệu mới từ điểm trạm.");
+                return;
+            }
+
+            if (msg.type === 'notes') {
+                TELE.doctorNotes = (msg.payload && msg.payload.notes) || '';
+                const noteEl = document.getElementById('patient-doctor-note');
+                if (noteEl && TELE.role !== 'doctor') {
+                    noteEl.textContent = TELE.doctorNotes || 'Chưa có kết luận.';
+                    noteEl.classList.remove('italic');
+                }
+                return;
+            }
+
+            if (msg.type === 'peer-left' || msg.type === 'call-ended') {
+                TELE.connected = false;
+                teleStatus('Đầu bên kia đã rời phòng khám.');
+                teleShowRemotePlaceholder(true);
+                if (TELE.role !== 'doctor' && msg.type === 'peer-left') teleStartWaitTicker();
+                window.showToast("Đối phương đã kết thúc cuộc gọi.");
+                return;
+            }
+        }
+
+        async function telePollLoop(token) {
+            while (TELE.polling && TELE.pollToken === token) {
+                try {
+                    const url = `/api/signal?roomId=${encodeURIComponent(TELE.roomId)}&peerId=${encodeURIComponent(TELE.peerId)}&cursor=${TELE.cursor}`;
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error('poll ' + res.status);
+                    const data = await res.json();
+                    if (!TELE.polling || TELE.pollToken !== token) return;
+
+                    if (typeof data.cursor === 'number') TELE.cursor = data.cursor;
+                    if (typeof data.doctorsOnline === 'number') {
+                        TELE.doctorsOnline = data.doctorsOnline;
+                        if (!TELE.connected) teleRenderWaiting();
+                    }
+                    for (const msg of (data.messages || [])) {
+                        await teleHandleMessage(msg);
+                    }
+                    if (data.room && data.room.vitals && TELE.role === 'doctor') {
+                        teleRenderVitals(data.room.vitals);
+                    }
+                } catch (err) {
+                    console.warn('Mất tín hiệu signaling, đang thử lại...', err);
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+            }
+        }
+
+        async function teleStart(opts) {
+            teleStop(true);
+
+            TELE.roomId = opts.roomId;
+            TELE.role = opts.role;
+            TELE.name = opts.name;
+            TELE.patientName = opts.patientName || 'Bệnh nhân';
+            TELE.symptoms = opts.symptoms || '';
+            TELE.appointmentId = opts.appointmentId || null;
+            TELE.peerId = `${opts.role}-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+            TELE.cursor = 0;
+            TELE.pendingCandidates = [];
+            TELE.micOn = true;
+            TELE.camOn = true;
+            TELE.chatLog = [];
+            TELE.remotePeerName = null;
+            TELE.connected = false;
+            TELE.doctorsOnline = (TELE.role === 'doctor') ? null : publicDutyCount;
+
+            teleShowRemotePlaceholder(true);
+            teleStatus('Đang kết nối phòng khám...');
+            teleStartWaitTicker();
+
+            await teleAcquireMedia();
+            teleCreatePeer();
+            teleBindVitalInputs();
+
+            try {
+                const joined = await teleApiPost({
+                    action: 'join',
+                    role: opts.role,
+                    name: opts.name,
+                    patientName: TELE.patientName,
+                    symptoms: TELE.symptoms
+                });
+                TELE.cursor = joined.cursor || 0;
+                if (joined.room && joined.room.vitals) {
+                    TELE.vitals = joined.room.vitals;
+                    teleRenderVitals(TELE.vitals);
+                }
+                if (joined.room && joined.room.notes) {
+                    TELE.doctorNotes = joined.room.notes;
+                    const noteEl = document.getElementById('patient-doctor-note');
+                    if (noteEl && TELE.role !== 'doctor') noteEl.textContent = TELE.doctorNotes;
+                }
+
+                TELE.polling = true;
+                TELE.pollToken += 1;
+                telePollLoop(TELE.pollToken);
+
+                if (joined.peers && joined.peers.length) {
+                    TELE.remotePeerName = joined.peers[0].name;
+                    teleStatus(`Đã tìm thấy ${TELE.remotePeerName} - đang bắt tay kết nối...`);
+                    await teleMakeOffer(false);
+                } else {
+                    teleStatus(TELE.role === 'doctor'
+                        ? 'Đã vào phòng khám, đang chờ điểm trạm kết nối...'
+                        : 'Đã vào phòng khám, đang chờ Bác sĩ tuyến trên tiếp nhận...');
+                }
+                window.showToast(`Đã vào phòng khám [${TELE.roomId}]`);
+            } catch (err) {
+                console.error('Không vào được phòng khám:', err);
+                teleStatus('Không kết nối được máy chủ phòng khám. Vui lòng thử lại.');
+                window.showToast("Không kết nối được máy chủ phòng khám!");
+            }
+        }
+
+        function teleStop(sendLeave) {
+            TELE.polling = false;
+            TELE.pollToken += 1;
+            TELE.connected = false;
+            teleStopWaitTicker();
+
+            if (sendLeave && TELE.roomId && TELE.peerId) {
+                try {
+                    const payload = JSON.stringify({ action: 'leave', roomId: TELE.roomId, peerId: TELE.peerId });
+                    fetch('/api/signal', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: payload,
+                        keepalive: true
+                    }).catch(() => {});
+                } catch (err) {}
+            }
+
+            if (TELE.pc) {
+                try { TELE.pc.ontrack = null; TELE.pc.onicecandidate = null; TELE.pc.close(); } catch (err) {}
+                TELE.pc = null;
+            }
+            if (TELE.localStream) {
+                TELE.localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+                TELE.localStream = null;
+            }
+            TELE.remoteStream = null;
+            TELE.pendingCandidates = [];
+
+            ['patient-local-video', 'patient-remote-video', 'cms-local-video', 'cms-remote-video'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.srcObject = null;
+            });
+            if (TELE.vitalsTimer) { clearTimeout(TELE.vitalsTimer); TELE.vitalsTimer = null; }
+            TELE.roomId = null;
+            TELE.peerId = null;
+        }
+
+        window.teleSwitchCamera = async function() {
+            if (!TELE.pc) return window.showToast("Chưa có cuộc gọi nào đang diễn ra.");
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                TELE.videoDevices = devices.filter(d => d.kind === 'videoinput');
+                if (TELE.videoDevices.length === 0) return window.showToast("Không tìm thấy camera nào trên thiết bị.");
+
+                let constraints;
+                if (TELE.videoDevices.length > 1) {
+                    TELE.deviceIndex = (TELE.deviceIndex + 1) % TELE.videoDevices.length;
+                    constraints = { video: { deviceId: { exact: TELE.videoDevices[TELE.deviceIndex].deviceId } }, audio: false };
+                } else {
+                    // Thiết bị di động chỉ khai báo 1 camera: đảo mặt trước/sau.
+                    TELE.facingBack = !TELE.facingBack;
+                    constraints = { video: { facingMode: TELE.facingBack ? 'environment' : 'user' }, audio: false };
+                }
+
+                const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const newTrack = newStream.getVideoTracks()[0];
+                if (!newTrack) return;
+
+                const sender = TELE.pc.getSenders().find(s => s.track && s.track.kind === 'video');
+                if (sender) {
+                    await sender.replaceTrack(newTrack);
+                } else {
+                    TELE.pc.addTrack(newTrack, TELE.localStream || newStream);
+                }
+
+                if (TELE.localStream) {
+                    TELE.localStream.getVideoTracks().forEach(t => { TELE.localStream.removeTrack(t); try { t.stop(); } catch (e) {} });
+                    TELE.localStream.addTrack(newTrack);
+                } else {
+                    TELE.localStream = newStream;
+                }
+
+                const localEl = document.getElementById(teleEls().local);
+                if (localEl) localEl.srcObject = TELE.localStream;
+                newTrack.enabled = TELE.camOn;
+                teleUpdateCameraLabel();
+                window.showToast("Đã chuyển sang camera khác (góc rộng / cận cảnh).");
+            } catch (err) {
+                console.warn('Lỗi chuyển camera:', err);
+                window.showToast("Không chuyển được camera trên thiết bị này.");
+            }
+        };
+
+        function teleToggleTrack(kind) {
+            if (!TELE.localStream) {
+                window.showToast("Thiết bị chưa cấp quyền Camera/Micro.");
+                return null;
+            }
+            const tracks = kind === 'audio' ? TELE.localStream.getAudioTracks() : TELE.localStream.getVideoTracks();
+            if (!tracks.length) {
+                window.showToast(kind === 'audio' ? "Không có micro khả dụng." : "Không có camera khả dụng.");
+                return null;
+            }
+            const enabled = !tracks[0].enabled;
+            tracks.forEach(t => { t.enabled = enabled; });
+            return enabled;
+        }
+
+        function teleRenderToggleBtn(btnId, on, onIcon, offIcon) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            btn.innerHTML = `<i class="fas ${on ? onIcon : offIcon}"></i>`;
+            btn.className = btn.className.replace(/text-(emerald|rose)-400/g, '') + (on ? ' text-emerald-400' : ' text-rose-400');
+        }
+
+        function teleToggleMic(btnId) {
+            const on = teleToggleTrack('audio');
+            if (on === null) return;
+            TELE.micOn = on;
+            teleRenderToggleBtn(btnId, on, 'fa-microphone', 'fa-microphone-slash');
+            window.showToast(on ? "Đã bật micro điểm trạm." : "Đã tắt micro (chế độ im lặng).");
+        }
+
+        function teleToggleCam(btnId) {
+            const on = teleToggleTrack('video');
+            if (on === null) return;
+            TELE.camOn = on;
+            teleRenderToggleBtn(btnId, on, 'fa-video', 'fa-video-slash');
+            window.showToast(on ? "Đã bật camera." : "Đã tắt camera.");
+        }
+
+        window.togglePatientMic = function() { teleToggleMic('patient-mic-btn'); };
+        window.togglePatientCam = function() { teleToggleCam('patient-cam-btn'); };
+        window.toggleCmsMic = function() { teleToggleMic('cms-mic-btn'); };
+        window.toggleCmsCam = function() { teleToggleCam('cms-cam-btn'); };
 
         window.sendPatientChatMessage = function() {
             const input = document.getElementById('patient-chat-input');
             if (!input || !input.value.trim()) return;
             const txt = input.value.trim();
-            if (telehealthWs && telehealthWs.readyState === WebSocket.OPEN) {
-                telehealthWs.send(JSON.stringify({
-                    type: 'chat-message',
-                    payload: { senderName: 'Bệnh nhân', text: txt }
-                }));
-            }
-            appendTelehealthChatMessage('Bệnh nhân', txt);
+            const sender = 'Cán bộ điểm trạm';
+            teleSendSignal('chat', { sender, text: txt });
+            teleAppendChat(sender, txt);
             input.value = '';
         };
 
-        window.triggerAIAssistInCall = async function() {
-            const diagEl = document.getElementById('cms-ai-diag-text');
-            if (diagEl) diagEl.textContent = "AI Gemini đang phân tích sinh hiệu & triệu chứng lâm sàng...";
+        window.sendCmsChatMessage = function() {
+            const input = document.getElementById('cms-chat-input');
+            if (!input || !input.value.trim()) return;
+            const txt = input.value.trim();
+            const sender = (currentCmsUser && currentCmsUser.name) || 'Bác sĩ tuyến trên';
+            teleSendSignal('chat', { sender, text: txt });
+            teleAppendChat(sender, txt);
+            input.value = '';
+        };
+
+        function teleReadVitals() {
+            const val = id => {
+                const el = document.getElementById(id);
+                return el && el.value ? el.value.trim() : '';
+            };
+            return {
+                bp: val('tele-vital-bp'),
+                hr: val('tele-vital-hr'),
+                spo2: val('tele-vital-spo2'),
+                temp: val('tele-vital-temp'),
+                weight: val('tele-vital-weight'),
+                patientName: TELE.patientName,
+                at: new Date().toLocaleTimeString('vi-VN')
+            };
+        }
+
+        function teleRenderVitals(v) {
+            if (!v) return;
+            TELE.vitals = v;
+            const set = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+            set('cms-vital-bp', v.bp ? `${v.bp} mmHg` : '--');
+            set('cms-vital-hr', v.hr ? `${v.hr} bpm` : '--');
+            set('cms-vital-spo2', v.spo2 ? `${v.spo2}%` : '--');
+            set('cms-vital-temp', v.temp ? `${v.temp}°C` : '--');
+            set('cms-vital-weight', v.weight ? `${v.weight} kg` : '--');
+            set('cms-vital-updated', v.at ? `Cập nhật ${v.at}` : 'Đã nhận dữ liệu');
+
+            const alertEl = document.getElementById('cms-vital-alert');
+            if (alertEl) {
+                const warnings = [];
+                const spo2 = parseFloat(v.spo2);
+                const hr = parseFloat(v.hr);
+                const temp = parseFloat(v.temp);
+                const sys = v.bp ? parseFloat(String(v.bp).split('/')[0]) : NaN;
+                if (!isNaN(spo2) && spo2 < 92) warnings.push(`SpO2 ${spo2}% - nguy cơ thiếu oxy`);
+                if (!isNaN(hr) && (hr < 50 || hr > 120)) warnings.push(`Nhịp tim ${hr} bpm bất thường`);
+                if (!isNaN(temp) && temp >= 38.5) warnings.push(`Sốt cao ${temp}°C`);
+                if (!isNaN(sys) && sys >= 160) warnings.push(`Huyết áp tâm thu ${sys} mmHg cao`);
+                if (warnings.length) {
+                    alertEl.textContent = 'Cảnh báo sinh hiệu: ' + warnings.join(' • ');
+                    alertEl.classList.remove('hidden');
+                } else {
+                    alertEl.classList.add('hidden');
+                }
+            }
+        }
+
+        window.teleSendVitals = async function(notify) {
+            if (!TELE.roomId || !TELE.peerId) {
+                if (notify) window.showToast("Hãy vào phòng khám trước khi gửi sinh hiệu.");
+                return;
+            }
+            const vitals = teleReadVitals();
+            TELE.vitals = vitals;
             try {
-                const notes = document.getElementById('cms-doctor-notes') ? document.getElementById('cms-doctor-notes').value : '';
-                const prompt = `Bạn là Bác sĩ Trợ lý AI Telehealth. Hãy đưa ra gợi ý chẩn đoán sơ bộ, ICD-10 và hướng xử trí ngắn gọn cho trường hợp khám từ xa với ghi chú: "${notes || 'Bệnh nhân khám tổng quát, mệt mỏi, sốt nhẹ'}".`;
-                const res = await callGemini(prompt, "Bạn là Bác sĩ chuyên khoa y tế cơ sở.");
-                if (diagEl) diagEl.textContent = res || "Chẩn đoán: Theo dõi Viêm đường hô hấp trên. Xử trí: Khí dung, hạ sốt, theo dõi sinh hiệu.";
-            } catch (e) {
-                if (diagEl) diagEl.textContent = "Gợi ý AI: Theo dõi Tăng huyết áp độ 1 / Viêm hô hấp trên cấp. Khuyến cáo kiểm tra thêm ECG.";
+                await teleApiPost({ action: 'vitals', vitals });
+                const status = document.getElementById('tele-vital-sync-status');
+                if (status) status.textContent = `Đã đồng bộ lên màn hình Bác sĩ lúc ${vitals.at}.`;
+                if (notify) window.showToast("Đã gửi chỉ số sinh hiệu tới phòng khám tuyến trên.");
+            } catch (err) {
+                if (notify) window.showToast("Không gửi được sinh hiệu, kiểm tra kết nối mạng.");
             }
         };
 
-        window.saveDoctorClinicalNotes = function() {
-            window.showToast("Đã lưu ghi chú lâm sàng vào hồ sơ khám từ xa!");
+        function teleBindVitalInputs() {
+            if (TELE.vitalsBound) return;
+            const ids = ['tele-vital-bp', 'tele-vital-hr', 'tele-vital-spo2', 'tele-vital-temp', 'tele-vital-weight'];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', () => {
+                    if (TELE.vitalsTimer) clearTimeout(TELE.vitalsTimer);
+                    TELE.vitalsTimer = setTimeout(() => window.teleSendVitals(false), 1200);
+                });
+            });
+            TELE.vitalsBound = true;
+        }
+
+        window.triggerAIAssistInCall = async function() {
+            const diagEl = document.getElementById('cms-ai-diag-text');
+            if (diagEl) diagEl.textContent = "AI đang phân tích sinh hiệu & triệu chứng lâm sàng...";
+            try {
+                const notesEl = document.getElementById('cms-doctor-notes');
+                const notes = notesEl ? notesEl.value : '';
+                const v = TELE.vitals || {};
+                const vitalText = [
+                    v.bp ? `Huyết áp ${v.bp} mmHg` : '',
+                    v.hr ? `Nhịp tim ${v.hr} bpm` : '',
+                    v.spo2 ? `SpO2 ${v.spo2}%` : '',
+                    v.temp ? `Nhiệt độ ${v.temp}°C` : '',
+                    v.weight ? `Cân nặng ${v.weight} kg` : ''
+                ].filter(Boolean).join(', ') || 'chưa có chỉ số sinh hiệu';
+                const prompt = `Bạn là Bác sĩ Trợ lý AI Telehealth hỗ trợ trạm y tế xã. Bệnh nhân: ${TELE.patientName || 'không rõ'}. Sinh hiệu: ${vitalText}. Triệu chứng/ghi chú của cán bộ điểm trạm: "${TELE.symptoms || notes || 'khám tổng quát'}". Hãy đưa ra: 1) Chẩn đoán sơ bộ kèm mã ICD-10, 2) Cận lâm sàng cần chỉ định, 3) Hướng xử trí và đơn thuốc tham khảo theo phác đồ Bộ Y tế. Trình bày ngắn gọn theo gạch đầu dòng.`;
+                const res = await callGemini(prompt, "Bạn là Bác sĩ chuyên khoa y tế cơ sở, trả lời bằng tiếng Việt.");
+                if (diagEl) diagEl.textContent = res || "Chưa nhận được phản hồi từ trợ lý AI.";
+            } catch (e) {
+                if (diagEl) diagEl.textContent = "Không kết nối được trợ lý AI. Vui lòng thử lại.";
+            }
         };
+
+        window.saveDoctorClinicalNotes = async function() {
+            const notesEl = document.getElementById('cms-doctor-notes');
+            const notes = notesEl ? notesEl.value.trim() : '';
+            TELE.doctorNotes = notes;
+            if (!TELE.roomId) {
+                window.showToast("Đã lưu ghi chú tạm thời (chưa có cuộc gọi đang diễn ra).");
+                return;
+            }
+            try {
+                await teleApiPost({ action: 'notes', notes });
+                window.showToast("Đã lưu và gửi kết luận về điểm trạm.");
+            } catch (err) {
+                window.showToast("Không gửi được kết luận, kiểm tra kết nối mạng.");
+            }
+        };
+
+        window.teleExportReport = async function() {
+            const roomId = TELE.roomId || activeRoomId || '---';
+            const v = TELE.vitals || {};
+            const notesEl = document.getElementById('cms-doctor-notes');
+            const notes = TELE.role === 'doctor' && notesEl ? notesEl.value.trim() : (TELE.doctorNotes || '');
+            const aiEl = document.getElementById('cms-ai-diag-text');
+            const aiText = aiEl ? aiEl.textContent : '';
+            const doctorName = TELE.role === 'doctor'
+                ? ((currentCmsUser && currentCmsUser.name) || 'Bác sĩ tuyến trên')
+                : (TELE.remotePeerName || 'Bác sĩ tuyến trên');
+
+            if (TELE.roomId && TELE.peerId) {
+                try {
+                    await teleApiPost({ action: 'complete', appointmentId: TELE.appointmentId });
+                } catch (err) {
+                    console.warn('Không cập nhật được trạng thái phòng khám:', err);
+                }
+            }
+            if (TELE.appointmentId) window.completeAppointment(TELE.appointmentId);
+
+            const row = (label, value) => `<tr><td class="lbl">${teleEscape(label)}</td><td>${teleEscape(value || '---')}</td></tr>`;
+            const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">
+                <title>Phiếu khám bệnh từ xa - ${teleEscape(roomId)}</title>
+                <style>
+                    body { font-family: "Times New Roman", serif; color: #0f172a; padding: 32px; max-width: 780px; margin: 0 auto; }
+                    h1 { text-align: center; font-size: 20px; margin-bottom: 4px; text-transform: uppercase; color: #1e3a8a; }
+                    h2 { text-align: center; font-size: 14px; font-weight: normal; margin-top: 0; }
+                    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+                    td { border: 1px solid #94a3b8; padding: 7px 10px; vertical-align: top; }
+                    td.lbl { width: 210px; font-weight: bold; background: #eff6ff; }
+                    .box { border: 1px solid #94a3b8; padding: 10px; min-height: 70px; font-size: 14px; white-space: pre-wrap; }
+                    .sign { display: flex; justify-content: space-between; margin-top: 36px; text-align: center; font-size: 14px; }
+                    .sign div { width: 45%; }
+                    .muted { color: #475569; font-size: 12px; text-align: center; margin-top: 26px; }
+                </style></head><body>
+                <h1>Phiếu khám bệnh từ xa &amp; tư vấn y tế</h1>
+                <h2>Trạm Y tế xã Bát Xát - Hệ thống Telehealth điểm trạm</h2>
+                <table>
+                    ${row('Mã phòng khám', roomId)}
+                    ${row('Họ tên bệnh nhân', TELE.patientName)}
+                    ${row('Thời gian khám', new Date().toLocaleString('vi-VN'))}
+                    ${row('Cán bộ điểm trạm', TELE.role === 'doctor' ? (TELE.remotePeerName || 'Cán bộ điểm trạm') : TELE.name)}
+                    ${row('Bác sĩ tuyến trên', doctorName)}
+                    ${row('Lý do khám / triệu chứng', TELE.symptoms)}
+                </table>
+                <table>
+                    ${row('Huyết áp', v.bp ? v.bp + ' mmHg' : '')}
+                    ${row('Nhịp tim', v.hr ? v.hr + ' bpm' : '')}
+                    ${row('SpO2', v.spo2 ? v.spo2 + ' %' : '')}
+                    ${row('Nhiệt độ', v.temp ? v.temp + ' °C' : '')}
+                    ${row('Cân nặng', v.weight ? v.weight + ' kg' : '')}
+                </table>
+                <p><b>Kết luận &amp; hướng xử trí của Bác sĩ:</b></p>
+                <div class="box">${teleEscape(notes || 'Chưa ghi nhận kết luận.')}</div>
+                <p><b>Gợi ý tham khảo từ Trợ lý AI lâm sàng:</b></p>
+                <div class="box">${teleEscape(aiText || 'Không sử dụng.')}</div>
+                <div class="sign">
+                    <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)</i><br><br><br><br></div>
+                    <div>Bác sĩ tư vấn tuyến trên<br><i>(Ký, ghi rõ họ tên)</i><br><br><br><br>${teleEscape(doctorName)}</div>
+                </div>
+                <p class="muted">Phiếu được kết xuất tự động từ Hệ thống Khám chữa bệnh Từ xa - Trạm Y tế xã Bát Xát.</p>
+                </body></html>`;
+
+            const win = window.open('', '_blank');
+            if (!win) {
+                window.showToast("Trình duyệt đã chặn cửa sổ in. Hãy cho phép pop-up để xuất phiếu khám.");
+                return;
+            }
+            win.document.open();
+            win.document.write(html);
+            win.document.close();
+            setTimeout(() => { try { win.print(); } catch (e) {} }, 400);
+            window.showToast("Đã hoàn thành lượt khám và kết xuất phiếu khám.");
+        };
+
+        /* Hàng đợi cuộc gọi: cán bộ CMS thấy và nghe ngay điểm trạm nào đang gọi tới,
+           kể cả khi đang làm việc ở tab khác của CMS. */
+        let cmsIncomingTimer = null;
+        let cmsStandbyPeerId = null;
+        let cmsRingSoundOn = true;
+        let cmsRingDismissed = [];
+        let cmsKnownRooms = [];
+
+        window.startCmsIncomingWatcher = function() {
+            if (!cmsStandbyPeerId) {
+                cmsStandbyPeerId = 'standby-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+            }
+            if (cmsIncomingTimer) return;
+            window.refreshCmsIncomingCalls();
+            cmsIncomingTimer = setInterval(window.refreshCmsIncomingCalls, 5000);
+        };
+
+        window.stopCmsIncomingWatcher = function() {
+            if (cmsIncomingTimer) { clearInterval(cmsIncomingTimer); cmsIncomingTimer = null; }
+            if (cmsStandbyPeerId) {
+                // Rút khỏi danh sách trực để người dân không thấy "đang có cán bộ" sai.
+                fetch('/api/signal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'leave', roomId: '__lobby__', peerId: cmsStandbyPeerId }),
+                    keepalive: true
+                }).catch(() => {});
+                cmsStandbyPeerId = null;
+            }
+            cmsKnownRooms = [];
+            cmsRingDismissed = [];
+            window.renderCmsRingBanner([]);
+        };
+
+        /* Bật/tắt trực: cán bộ tạm ngưng nhận cuộc gọi mà không cần đăng xuất. */
+        window.toggleCmsReadyStatus = function() {
+            const btn = document.getElementById('cms-ready-status-btn');
+            const text = document.getElementById('cms-ready-text');
+            const onDuty = !!cmsIncomingTimer;
+            if (onDuty) {
+                window.stopCmsIncomingWatcher();
+                if (text) text.textContent = 'Trạng thái: TẠM NGƯNG TRỰC';
+                if (btn) btn.className = 'bg-gray-500 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow flex items-center gap-2';
+                window.showToast('Đã tạm ngưng trực. Người dân sẽ thấy hiện chưa có cán bộ trực.');
+            } else {
+                if (!window.checkCmsVideoPermission()) {
+                    window.showToast('Tài khoản này chưa được cấp quyền nhận cuộc gọi video.');
+                    return;
+                }
+                window.startCmsIncomingWatcher();
+                if (text) text.textContent = 'Trạng thái: SẴN SÀNG TRỰC';
+                if (btn) btn.className = 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow flex items-center gap-2';
+                window.showToast('Đã bật trực. Cuộc gọi tới sẽ đổ chuông ngay tại đây.');
+            }
+        };
+
+        window.toggleCmsRingSound = function() {
+            cmsRingSoundOn = !cmsRingSoundOn;
+            const btn = document.getElementById('cms-ring-sound-btn');
+            if (btn) btn.innerHTML = `<i class="fas fa-bell${cmsRingSoundOn ? '' : '-slash'}"></i>`;
+            window.showToast(cmsRingSoundOn ? "Đã bật tiếng báo cuộc gọi." : "Đã tắt tiếng báo cuộc gọi.");
+        };
+
+        window.dismissCmsRing = function() {
+            cmsRingDismissed = cmsKnownRooms.slice();
+            window.renderCmsRingBanner([]);
+        };
+
+        /* Tiếng báo cuộc gọi tạo bằng WebAudio - không cần tệp âm thanh đi kèm. */
+        function cmsPlayRingTone() {
+            if (!cmsRingSoundOn) return;
+            try {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                const ctx = new Ctx();
+                [0, 0.45].forEach(offset => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 880;
+                    gain.gain.setValueAtTime(0.0001, ctx.currentTime + offset);
+                    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + offset + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + offset + 0.32);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(ctx.currentTime + offset);
+                    osc.stop(ctx.currentTime + offset + 0.35);
+                });
+                setTimeout(() => { try { ctx.close(); } catch (e) {} }, 1200);
+            } catch (err) {
+                console.warn('Không phát được tiếng báo cuộc gọi:', err);
+            }
+        }
+
+        function cmsRoomCardHtml(r, compact) {
+            const v = r.vitals || {};
+            const vitalLine = [
+                v.bp ? `HA ${v.bp}` : '',
+                v.hr ? `Nhịp ${v.hr}` : '',
+                v.spo2 ? `SpO2 ${v.spo2}%` : '',
+                v.temp ? `${v.temp}°C` : ''
+            ].filter(Boolean).join(' • ');
+            const names = (r.waiting || []).map(w => w.name).join(', ');
+            const joined = r.hasDoctor;
+            return `<div class="flex flex-wrap items-center justify-between gap-3 border ${joined ? 'border-gray-200 bg-gray-50' : 'border-blue-300 bg-blue-50'} rounded-xl p-3">
+                <div class="text-xs">
+                    <div class="font-bold text-gray-900 flex items-center gap-2">
+                        <i class="fas ${joined ? 'fa-headset text-gray-500' : 'fa-phone-volume text-blue-600 animate-pulse'}"></i>
+                        ${teleEscape(r.patientName || 'Bệnh nhân chưa rõ tên')}
+                        <span class="font-mono text-[10px] bg-white border border-gray-200 px-1.5 py-0.5 rounded">${teleEscape(r.roomId)}</span>
+                    </div>
+                    <div class="text-gray-500 mt-0.5">Đang chờ: ${teleEscape(names)}${vitalLine ? ' — ' + teleEscape(vitalLine) : ''}</div>
+                    ${r.symptoms && !compact ? `<div class="text-gray-500 italic mt-0.5">${teleEscape(r.symptoms)}</div>` : ''}
+                </div>
+                <button type="button" class="cms-accept-call ${joined ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold px-3 py-2 rounded-lg text-xs transition flex items-center gap-1.5"
+                        data-room="${teleEscape(r.roomId)}" data-patient="${teleEscape(r.patientName || 'Bệnh nhân')}" data-symptoms="${teleEscape(r.symptoms || '')}">
+                    <i class="fas fa-video"></i> ${joined ? 'Vào lại phòng' : 'Tiếp nhận cuộc gọi'}
+                </button>
+            </div>`;
+        }
+
+        /* Gắn sự kiện qua data-attribute: tên bệnh nhân có dấu nháy không còn làm hỏng nút. */
+        document.addEventListener('click', (ev) => {
+            const btn = ev.target.closest && ev.target.closest('.cms-accept-call');
+            if (!btn) return;
+            ev.preventDefault();
+            window.acceptCmsCall(btn.dataset.room, btn.dataset.patient, btn.dataset.symptoms, btn.dataset.appointment || null);
+        });
+
+        window.acceptCmsCall = function(roomId, patientName, symptoms, appointmentId) {
+            if (!cmsRingDismissed.includes(roomId)) cmsRingDismissed.push(roomId);
+            window.renderCmsRingBanner([]);
+            const section = document.getElementById('admin-telehealth-section');
+            if (section && !section.classList.contains('active')) window.switchAdminTab('telehealth');
+            window.joinCmsTelehealthCall(roomId, patientName, symptoms, appointmentId);
+        };
+
+        window.renderCmsRingBanner = function(rooms) {
+            const banner = document.getElementById('cms-ring-banner');
+            const list = document.getElementById('cms-ring-list');
+            const badge = document.getElementById('cms-live-call-badge');
+            const pending = (rooms || []).filter(r => !r.hasDoctor && !cmsRingDismissed.includes(r.roomId) && r.roomId !== TELE.roomId);
+
+            if (badge) {
+                const waitingCount = (rooms || []).filter(r => !r.hasDoctor).length;
+                badge.textContent = `${waitingCount} đang gọi`;
+                badge.classList.toggle('hidden', waitingCount === 0);
+            }
+            if (!banner || !list) return;
+            if (!pending.length) {
+                banner.classList.add('hidden');
+                list.innerHTML = '';
+                return;
+            }
+            banner.classList.remove('hidden');
+            list.innerHTML = pending.map(r => cmsRoomCardHtml(r, true)).join('');
+        };
+
+        window.refreshCmsIncomingCalls = async function() {
+            const box = document.getElementById('cms-incoming-calls');
+            const indicator = document.getElementById('cms-live-indicator');
+            try {
+                let data;
+                if (cmsStandbyPeerId) {
+                    // Vừa báo "đang trực" cho người dân thấy, vừa lấy hàng đợi trong một lượt gọi.
+                    const res = await fetch('/api/signal', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'standby',
+                            roomId: '__lobby__',
+                            peerId: cmsStandbyPeerId,
+                            name: (currentCmsUser && currentCmsUser.name) || 'Cán bộ trực CMS'
+                        })
+                    });
+                    if (!res.ok) throw new Error('standby ' + res.status);
+                    data = await res.json();
+                } else {
+                    const res = await fetch('/api/signal?action=rooms');
+                    if (!res.ok) throw new Error('rooms ' + res.status);
+                    data = await res.json();
+                }
+
+                const rooms = (data.rooms || []).filter(r => r.waiting && r.waiting.length > 0);
+                const roomIds = rooms.map(r => r.roomId);
+
+                // Có phòng mới chưa ai tiếp nhận -> đổ chuông.
+                const fresh = rooms.filter(r => !r.hasDoctor && !cmsKnownRooms.includes(r.roomId));
+                if (fresh.length) {
+                    cmsPlayRingTone();
+                    window.showToast(`Có ${fresh.length} cuộc gọi khám từ xa đang chờ tiếp nhận!`);
+                }
+                cmsKnownRooms = roomIds;
+                cmsRingDismissed = cmsRingDismissed.filter(id => roomIds.includes(id));
+                window.renderCmsRingBanner(rooms);
+
+                if (indicator) {
+                    indicator.innerHTML = `<span class="w-2 h-2 rounded-full ${rooms.length ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500'}"></span> Trực tuyến - ${rooms.length} phòng đang mở`;
+                    indicator.className = 'text-xs font-bold text-emerald-600 flex items-center gap-1.5';
+                }
+
+                if (!box) return;
+                if (!rooms.length) {
+                    box.innerHTML = `<div class="text-gray-400 font-medium text-xs italic">Hiện chưa có điểm trạm nào đang gọi.</div>`;
+                    return;
+                }
+                box.innerHTML = rooms.map(r => cmsRoomCardHtml(r, false)).join('');
+            } catch (err) {
+                if (indicator) {
+                    indicator.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Mất kết nối máy chủ phòng khám`;
+                    indicator.className = 'text-xs font-bold text-amber-600 flex items-center gap-1.5';
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', () => { teleStop(true); window.stopCmsIncomingWatcher(); });
 
         window.handleBookingSubmit = function(e) {
             e.preventDefault();
@@ -3340,6 +4523,18 @@
             window.saveToDb('appointments', apptObj);
             window.renderUI();
 
+            // Chuyển sinh hiệu đo nhanh ở phiếu đăng ký sang bảng sinh hiệu của phòng khám.
+            const carry = [
+                ['booking-bp', 'tele-vital-bp'],
+                ['booking-spo2', 'tele-vital-spo2'],
+                ['booking-hr', 'tele-vital-hr']
+            ];
+            carry.forEach(([src, dest]) => {
+                const from = document.getElementById(src);
+                const to = document.getElementById(dest);
+                if (from && to && from.value) to.value = from.value;
+            });
+
             const container = e.target.closest('.p-6');
             if (isTelehealth) {
                 container.innerHTML = `
@@ -3357,7 +4552,7 @@
                             <div><b>Trạng thái:</b> Sẵn sàng kết nối video</div>
                         </div>
                         <div class="flex flex-col gap-2 pt-2">
-                            <button onclick="window.startTelehealthCallFromBooking('${roomId}', '${name}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-base transition animate-pulse">
+                            <button onclick="window.startTelehealthCallFromBooking('${roomId}', '${name.replace(/'/g, "\\'")}', '${(reason || '').replace(/'/g, "\\'")}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-base transition animate-pulse">
                                 <i class="fas fa-phone-alt"></i> VÀO PHÒNG KHÁM VIDEO TỪ XA NGAY
                             </button>
                             <button onclick="window.closeModal()" class="w-full bg-gray-100 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-200 transition">
@@ -3411,11 +4606,6 @@
             if (container) {
                 container.innerHTML = `<div class="text-center py-10"><div class="text-green-500 text-6xl mb-6"><i class="fas fa-check-circle drop-shadow-md"></i></div><h4 class="text-2xl font-black text-gray-900 mb-3 uppercase">Thành công!</h4><p class="text-gray-600 mb-8 font-medium leading-relaxed">Thông tin góp ý của bạn đã được ghi nhận bảo mật và chuyển đến hòm thư <b>tytbatxat@laocai.gov.vn</b>.</p><button onclick="window.closeModal()" class="bg-gray-100 text-gray-800 font-bold px-8 py-3 rounded-full hover:bg-gray-200 transition shadow-sm w-full sm:w-auto">Đóng cửa sổ</button></div>`;
             }
-        };
-
-        window.handleBookingSubmit = function(e) {
-            e.preventDefault(); const dept = serviceManagers.find(s => s.id === document.getElementById('booking-dept').value); if(!dept) return window.showToast("Chọn khoa phòng!");
-            e.target.closest('.p-6').innerHTML = `<div class="text-center py-8"><h4 class="text-2xl font-black mb-4 text-gray-900">Ghi nhận lịch khám!</h4><p class="text-gray-600 mb-6 font-medium leading-relaxed">Thông tin đã lưu. Vui lòng nhấn nút dưới đây để thông báo tới Bác sĩ phụ trách: <b>${dept.person}</b></p><div class="flex flex-col gap-3"><a href="https://zalo.me/${dept.zalo}" target="_blank" class="bg-blue-500 text-white font-bold px-8 py-3.5 rounded-xl hover:bg-blue-600 transition shadow-lg w-full flex items-center justify-center gap-2 text-lg"><i class="fas fa-paper-plane"></i> Gửi tin báo Bác sĩ</a><button onclick="window.closeModal()" class="bg-gray-100 text-gray-800 font-bold px-8 py-3 rounded-xl hover:bg-gray-200 transition">Đóng</button></div></div>`;
         };
 
         window.handleVaccineSubmit = function(e) {
@@ -3831,6 +5021,9 @@
                 console.warn("Lỗi kết nối API Postgres, sử dụng dữ liệu mặc định", e);
             }
             window.renderAll();
+
+            // Theo dõi số cán bộ đang trực để người dân biết gọi có ai nghe hay không.
+            try { window.startPublicDutyWatcher(); } catch (e) { console.warn('Không bật được theo dõi cán bộ trực:', e); }
 
             // Tự động tìm kiếm và làm nổi bật tin tức được chia sẻ
             try {

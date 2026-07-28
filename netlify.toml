@@ -1,3 +1,10 @@
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+
 [dev]
   port = 8889
   publish = "."
+  framework = "#static"
