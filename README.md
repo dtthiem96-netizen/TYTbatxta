@@ -34,7 +34,7 @@ Hệ thống ứng dụng CNTT y tế nâng cao hỗ trợ Cán bộ Y tế tạ
 
 4. **Hoàn Thành & Xuất Phiếu Khám Bệnh Từ Xa**
    - Tạo tự động **Phiếu Khám Bệnh Từ Xa & Tư Vấn Y Tế** tiêu chuẩn.
-   - Tích hợp tính năng In ấn (`window.print()`) và xuất phiếu khám có chữ ký xác nhận của cán bộ điểm trạm và Bác sĩ tuyến trên.
+   - Tích hợp tính năng In ấn (`window.print()`) và xuất phiếu khám có chữ ký xác nhận của cán bộ điểm trạm và chữ ký số của Y sỹ/Bác sỹ kê đơn.
 
 ---
 
@@ -177,8 +177,11 @@ http://localhost:8889
    cận cảnh tổn thương/họng/da; **Micro** bật/tắt bằng nút biểu tượng micro.
 7. Nhập **Số thẻ BHYT hoặc số CCCD** của người bệnh ở khung *"Định danh bệnh nhân"* và bấm
    **"Gửi định danh tới Bác sĩ"** — thông tin này bắt buộc phải có trên đơn thuốc.
-8. Xem **"Kết luận của Bác sĩ"** và **"Lời dặn của bác sỹ"** hiện trực tiếp trên màn hình khi bác sĩ gửi về.
-9. Bấm **"Hoàn thành & In đơn thuốc (A5)"** để kết xuất và in đơn thuốc khổ A5.
+8. Xem **"Chẩn đoán"**, **"Hướng xử trí"**, **"Thuốc kê đơn"** và **"Lời dặn của bác sỹ"** hiện trực tiếp
+   trên màn hình khi bác sĩ gửi về.
+9. Chọn **"Y sỹ / Bác sỹ kê đơn"** ở ô người ký (mặc định là người ký đã được đặt sẵn trong CMS) — chữ ký số
+   đã lưu của người đó hiện ngay bên dưới để xem trước.
+10. Bấm **"Hoàn thành & In đơn thuốc (A5)"** để kết xuất và in đơn thuốc khổ A5 đã có chữ ký số.
 
 **Phía Bác sĩ tuyến trên (CMS):**
 1. Đăng nhập CMS — **trực cuộc gọi bật tự động ngay sau khi đăng nhập**, không cần mở tab nào.
@@ -193,13 +196,30 @@ http://localhost:8889
 6. Bấm **"AI Co-Pilot Chẩn đoán"** để nhận gợi ý chẩn đoán ICD-10, cận lâm sàng và đơn thuốc tham khảo.
    Gợi ý của Trợ lý AI **chỉ hiển thị trên màn hình, không bao giờ được in vào đơn thuốc**.
 7. Kiểm tra/bổ sung **Số thẻ BHYT hoặc số CCCD** ở khung *"Định danh bệnh nhân"* (tự điền khi điểm trạm
-   hoặc phiếu đăng ký đã có thông tin), ghi **Kết luận & thuốc kê** và **Lời dặn của bác sỹ**.
-8. Bấm **"Lưu & gửi kết luận + lời dặn về điểm trạm"** để đẩy nội dung về màn hình cán bộ trạm, sau đó
+   hoặc phiếu đăng ký đã có thông tin), rồi điền lần lượt ba ô **Chẩn đoán**, **Hướng xử trí**,
+   **Thuốc kê đơn** cùng ô **Lời dặn của bác sỹ**.
+8. Chọn **"Y sỹ / Bác sỹ kê đơn"** — lựa chọn này được đồng bộ sang màn hình điểm trạm để hai đầu cầu in ra
+   cùng một đơn thuốc đã ký.
+9. Bấm **"Lưu & gửi kết luận + lời dặn về điểm trạm"** để đẩy nội dung về màn hình cán bộ trạm, sau đó
    **"Hoàn thành & In đơn thuốc (A5)"**.
 
 Đơn thuốc kết xuất theo **khổ giấy A5 dọc**, gói gọn trong một trang, gồm: thông tin hành chính của người
-bệnh kèm **số thẻ BHYT/CCCD**, bảng sinh hiệu, phần chẩn đoán & thuốc được kê, phần **"Lời dặn của bác sỹ"**
-và chữ ký hai bên.
+bệnh kèm **số thẻ BHYT/CCCD**, bảng sinh hiệu, ba mục riêng **"Chẩn đoán"** - **"Hướng xử trí"** -
+**"Thuốc kê đơn"**, phần **"Lời dặn của bác sỹ"**, chữ ký của cán bộ điểm trạm và ô ký
+**"Y sỹ/ bác sỹ kê đơn"** kèm chữ ký số của người ký.
+
+### Chữ ký số & người ký đơn (ký đơn từ xa)
+
+Mục **"Chữ ký số & Người ký đơn"** trong CMS lưu sẵn chữ ký của từng Y sỹ/Bác sỹ theo họ tên, nhờ đó người
+kê đơn ký được đơn thuốc từ xa mà không phải có mặt tại điểm trạm:
+
+1. Nhập **họ tên**, **chức danh** (Y sỹ / Bác sỹ / Bác sỹ CKI / CKII), **số chứng chỉ hành nghề** và
+   **đơn vị công tác**.
+2. Ký trực tiếp vào khung bằng chuột hoặc màn hình cảm ứng, hoặc **tải ảnh chữ ký/con dấu đã quét** lên
+   (ảnh được thu nhỏ vừa khung ký để lưu trữ nhẹ).
+3. Có thể đánh dấu **"người ký mặc định"** — người này được chọn sẵn cho mọi đơn thuốc khám từ xa.
+4. Chữ ký được lưu trong Netlify Database (bảng `prescription_signers`) nên dùng lại được ở mọi cuộc gọi,
+   mọi thiết bị; bảng danh sách cho phép sửa, đổi chữ ký hoặc xóa người ký.
 
 > Tài khoản CMS phải được bật quyền `canReceiveVideo` trong mục **Phân quyền Hệ thống** mới tiếp nhận được
 > cuộc gọi video.

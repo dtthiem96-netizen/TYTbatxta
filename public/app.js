@@ -673,6 +673,7 @@ async function finishAndExportReport() {
 
       document.getElementById('rpt-clinical-notes').textContent = clinicalNotes;
       document.getElementById('rpt-diagnosis').textContent = diagnosisText;
+      document.getElementById('rpt-treatment-plan').textContent = result.data.treatmentPlan || 'Điều trị nội khoa tại điểm trạm / Theo dõi 48 giờ';
       document.getElementById('rpt-prescriptions').innerHTML = prescriptionText.split('\n').map(p => `<p>${p}</p>`).join('');
 
       document.getElementById('rpt-sig-operator').textContent = operatorName;

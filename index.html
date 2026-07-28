@@ -876,13 +876,34 @@
                     <!-- Kết luận từ Bác sĩ tuyến trên -->
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-2">
-                            <i class="fas fa-file-medical"></i> Kết luận của Bác sĩ
+                            <i class="fas fa-stethoscope"></i> Chẩn đoán
                         </h4>
-                        <p id="patient-doctor-note" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có kết luận. Bác sĩ tuyến trên sẽ gửi ghi chép sau khi thăm khám.</p>
+                        <p id="patient-doctor-diagnosis" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có chẩn đoán. Bác sĩ tuyến trên sẽ gửi sau khi thăm khám.</p>
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 mt-3 mb-2 flex items-center gap-2">
+                            <i class="fas fa-route"></i> Hướng xử trí
+                        </h4>
+                        <p id="patient-doctor-plan" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có hướng xử trí.</p>
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-cyan-400 mt-3 mb-2 flex items-center gap-2">
+                            <i class="fas fa-pills"></i> Thuốc kê đơn
+                        </h4>
+                        <p id="patient-doctor-drugs" class="text-[11px] text-slate-400 italic leading-relaxed whitespace-pre-line">Chưa có thuốc kê đơn.</p>
                         <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mt-3 mb-2 flex items-center gap-2">
                             <i class="fas fa-comment-medical"></i> Lời dặn của bác sỹ
                         </h4>
                         <p id="patient-doctor-advice" class="text-[11px] text-slate-400 italic leading-relaxed">Bác sĩ chưa gửi lời dặn.</p>
+
+                        <div class="mt-4 pt-3 border-t border-slate-800 space-y-2">
+                            <label class="block text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
+                                <i class="fas fa-file-signature"></i> Y sỹ / Bác sỹ kê đơn (ký số từ xa)
+                            </label>
+                            <select id="tele-prescription-signer" onchange="window.selectPrescriptionSigner(this.value, true)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-purple-500">
+                                <option value="">-- Chọn người ký đơn --</option>
+                            </select>
+                            <div class="bg-white rounded-lg h-14 flex items-center justify-center overflow-hidden">
+                                <img id="tele-signer-signature-preview" src="" alt="Chữ ký số" class="hidden max-h-full max-w-full object-contain">
+                                <span id="tele-signer-signature-empty" class="text-[10px] text-slate-500 italic px-2 text-center">Chọn tên người ký để đóng chữ ký số lên đơn thuốc.</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Khung nhắn tin trực tiếp -->
@@ -1425,6 +1446,7 @@
                     <li><a href="#" onclick="window.switchAdminTab('telehealth')" id="tab-btn-telehealth" class="block p-3.5 text-blue-700 bg-blue-50/80 hover:bg-blue-100 rounded-xl font-bold border-l-4 border-blue-600 shadow-sm transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-video text-blue-600 mr-3 animate-pulse"></i> Cuộc gọi Video & Khám Từ xa</span> <span class="flex items-center gap-1"><span id="cms-live-call-badge" class="hidden bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-black animate-pulse">0 đang gọi</span> <span id="cms-telehealth-count" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></span></a></li>
                     <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fab fa-youtube mr-3"></i> Quản lý Video Y khoa</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-users-cog mr-3"></i> Phân quyền Hệ thống</a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('signature')" id="tab-btn-signature" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-signature mr-3"></i> Chữ ký số &amp; Người ký đơn</a></li>
                     <li><a href="#" onclick="window.enableVisualEditingMode()" class="block p-3.5 text-purple-600 hover:bg-purple-50 rounded-xl font-black border border-purple-200 shadow-sm transition"><i class="fas fa-laptop-code mr-3"></i> Chỉnh sửa Giao diện trực quan</a></li>
                 </ul>
             </div>
@@ -1834,18 +1856,47 @@
 
                                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex-1 flex flex-col justify-between space-y-3">
                                         <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                                            <i class="fas fa-file-medical"></i> Ghi chú & Đơn thuốc tham khảo
+                                            <i class="fas fa-file-medical"></i> Chẩn đoán - Hướng xử trí - Thuốc kê đơn
                                         </h4>
-                                        <textarea id="cms-doctor-notes" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="Ghi chép kết quả thăm khám, chẩn đoán và hướng điều trị..."></textarea>
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-blue-400 mb-1 flex items-center gap-1.5">
+                                                <i class="fas fa-stethoscope"></i> Chẩn đoán (in trên đơn thuốc)
+                                            </label>
+                                            <textarea id="cms-dx-diagnosis" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="VD: Viêm họng cấp (J02.9) / Tăng huyết áp độ 1 (I10)..."></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                                                <i class="fas fa-route"></i> Hướng xử trí (in trên đơn thuốc)
+                                            </label>
+                                            <textarea id="cms-dx-plan" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500" placeholder="VD: Điều trị ngoại trú tại trạm, theo dõi huyết áp 2 lần/ngày, chuyển tuyến nếu sốt cao liên tục..."></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-cyan-400 mb-1 flex items-center gap-1.5">
+                                                <i class="fas fa-pills"></i> Thuốc kê đơn (in trên đơn thuốc)
+                                            </label>
+                                            <textarea id="cms-dx-drugs" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-cyan-500" placeholder="1. Amoxicillin 500mg - uống 1 viên x 3 lần/ngày sau ăn x 5 ngày&#10;2. Paracetamol 500mg - uống khi sốt > 38.5°C, cách nhau 6 giờ"></textarea>
+                                        </div>
                                         <div>
                                             <label class="block text-[11px] font-bold text-emerald-400 mb-1 flex items-center gap-1.5">
                                                 <i class="fas fa-comment-medical"></i> Lời dặn của bác sỹ (in trên đơn thuốc)
                                             </label>
                                             <textarea id="cms-doctor-advice" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="VD: Uống thuốc sau ăn, uống nhiều nước, tái khám sau 3 ngày hoặc khi khó thở tăng..."></textarea>
-                                            <p class="text-[10px] text-slate-500 mt-1">Chỉ nội dung ở khung này được in vào đơn thuốc. Gợi ý của Trợ lý AI chỉ hiển thị trên màn hình.</p>
+                                            <p class="text-[10px] text-slate-500 mt-1">Chỉ nội dung ở 4 khung trên được in vào đơn thuốc. Gợi ý của Trợ lý AI chỉ hiển thị trên màn hình.</p>
+                                        </div>
+                                        <div class="bg-slate-800/70 border border-slate-700 rounded-xl p-3 space-y-2">
+                                            <label class="block text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
+                                                <i class="fas fa-file-signature"></i> Y sỹ / Bác sỹ kê đơn (ký đơn từ xa)
+                                            </label>
+                                            <select id="cms-prescription-signer" onchange="window.selectPrescriptionSigner(this.value, true)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-purple-500">
+                                                <option value="">-- Chọn người ký đơn --</option>
+                                            </select>
+                                            <div class="bg-white rounded-lg h-16 flex items-center justify-center overflow-hidden">
+                                                <img id="cms-signer-signature-preview" src="" alt="Chữ ký số" class="hidden max-h-full max-w-full object-contain">
+                                                <span id="cms-signer-signature-empty" class="text-[10px] text-slate-500 italic px-2 text-center">Người ký chưa có chữ ký số - vào mục "Chữ ký số &amp; Người ký đơn" để tạo.</span>
+                                            </div>
                                         </div>
                                         <button onclick="window.saveDoctorClinicalNotes()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs transition">
-                                            <i class="fas fa-save mr-1"></i> Lưu & gửi kết luận + lời dặn về điểm trạm
+                                            <i class="fas fa-save mr-1"></i> Lưu &amp; gửi kết luận + lời dặn về điểm trạm
                                         </button>
                                     </div>
 
@@ -1934,6 +1985,86 @@
                     </div>
                 </div>
 
+                <!-- QUẢN LÝ CHỮ KÝ SỐ & NGƯỜI KÝ ĐƠN THUỐC -->
+                <div id="admin-signature-section" class="admin-tab space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+                        <div class="mb-6 pb-4 border-b border-gray-100">
+                            <h2 class="text-2xl font-black text-gray-900">Chữ ký số &amp; Người ký đơn thuốc</h2>
+                            <p class="text-sm text-gray-500 mt-1">Lưu sẵn chữ ký của từng Y sỹ / Bác sỹ theo họ tên. Khi kê đơn khám từ xa, chỉ cần chọn tên người ký là chữ ký được đóng tự động lên đơn thuốc mà không cần ký tay tại chỗ.</p>
+                        </div>
+
+                        <form onsubmit="window.handleSaveSigner(event)" class="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-6">
+                            <input type="hidden" id="sig-editing-id" value="">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Họ và tên người ký đơn</label>
+                                    <input type="text" id="sig-name" required placeholder="VD: Nguyễn Thị Mai" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Chức danh kê đơn</label>
+                                    <select id="sig-title" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
+                                        <option value="Bác sỹ">Bác sỹ</option>
+                                        <option value="Y sỹ">Y sỹ</option>
+                                        <option value="Bác sỹ CKI">Bác sỹ CKI</option>
+                                        <option value="Bác sỹ CKII">Bác sỹ CKII</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Số chứng chỉ hành nghề</label>
+                                    <input type="text" id="sig-license" placeholder="VD: 010234/LC-CCHN" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Đơn vị công tác</label>
+                                    <input type="text" id="sig-workplace" placeholder="Trạm Y tế xã Bát Xát" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Ký trực tiếp bằng chuột / cảm ứng</label>
+                                    <canvas id="sig-pad" width="640" height="220" class="w-full bg-white border-2 border-dashed border-gray-300 rounded-xl touch-none cursor-crosshair"></canvas>
+                                    <div class="flex flex-wrap gap-2 mt-2">
+                                        <button type="button" onclick="window.clearSignaturePad()" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-300 transition"><i class="fas fa-eraser mr-1"></i> Xóa nét ký</button>
+                                        <label class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition cursor-pointer">
+                                            <i class="fas fa-upload mr-1"></i> Tải ảnh chữ ký / con dấu
+                                            <input type="file" accept="image/*" class="hidden" onchange="window.uploadSignatureImage(event)">
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Chữ ký số sẽ đóng lên đơn thuốc</label>
+                                    <div class="h-[220px] bg-white border border-gray-200 rounded-xl flex items-center justify-center p-3">
+                                        <img id="sig-preview" src="" alt="Chữ ký số" class="hidden max-h-full max-w-full object-contain">
+                                        <span id="sig-preview-empty" class="text-xs text-gray-400 italic text-center">Chưa có chữ ký. Hãy ký vào khung bên trái hoặc tải ảnh chữ ký đã quét (nền trắng, định dạng PNG/JPG).</span>
+                                    </div>
+                                    <label class="flex items-center gap-2 mt-2 text-xs font-bold text-gray-700">
+                                        <input type="checkbox" id="sig-default" class="w-4 h-4"> Đặt làm người ký mặc định cho đơn thuốc từ xa
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-3 mt-5">
+                                <button type="submit" class="bg-gray-800 text-white font-bold px-5 py-2 rounded-lg hover:bg-black transition"><i class="fas fa-save mr-1"></i> Lưu chữ ký số</button>
+                                <button type="button" onclick="window.resetSignerForm()" class="bg-white border border-gray-300 text-gray-700 font-bold px-5 py-2 rounded-lg hover:bg-gray-100 transition">Hủy chỉnh sửa</button>
+                            </div>
+                        </form>
+
+                        <table class="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden">
+                            <thead class="bg-gray-100 text-gray-600 text-xs uppercase">
+                                <tr>
+                                    <th class="p-3 font-bold">Họ và tên</th>
+                                    <th class="p-3 font-bold">Chức danh</th>
+                                    <th class="p-3 font-bold">Số CCHN</th>
+                                    <th class="p-3 font-bold text-center">Chữ ký số</th>
+                                    <th class="p-3 font-bold text-center">Mặc định</th>
+                                    <th class="p-3 font-bold text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-signer-list" class="divide-y divide-gray-100 text-gray-900"></tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
 
             <!-- MODAL TRỢ LÝ AI SOẠN BÀI (TRONG KHOANG ADMIN) -->
@@ -1974,6 +2105,9 @@
             { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true' },
             { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false' }
         ];
+
+        // Danh sách người ký đơn thuốc kèm chữ ký số lưu sẵn (tải từ Postgres khi mở trang)
+        let prescriptionSignersData = [];
 
         let appointmentsData = [
             { id: 'APP1', patientName: 'Nguyễn Văn Minh', phone: '0981234567', service: 'Phòng Khám Chung / Đa Khoa', appointmentDate: '27/07/2026', symptoms: 'Sốt nhẹ, mệt mỏi, khó thở nhẹ', isTelehealth: 'true', status: 'PENDING', roomId: 'room-tytbatxat01', ts: Date.now() - 3600000 },
@@ -2857,6 +2991,10 @@
 
             // Gọi hàm render Kho lưu trữ tin tức có phân trang
             window.renderNewsArchive();
+
+            // RENDER CHỮ KÝ SỐ & DANH SÁCH NGƯỜI KÝ ĐƠN
+            window.renderSignerAdmin();
+            window.renderSignerSelectors();
         };
 
         // 5. QUẢN TRỊ CMS: XỬ LÝ THÊM & XÓA ĐỒNG BỘ TOÀN DIỆN QUA API POSTGRES
@@ -2891,6 +3029,10 @@
                     adminUsers = adminUsers.filter(x => x.id !== dataObj.id);
                     adminUsers.push(dataObj);
                 }
+                if(collectionName==='prescriptionSigners') {
+                    prescriptionSignersData = prescriptionSignersData.filter(x => x.id !== dataObj.id);
+                    prescriptionSignersData.push(dataObj);
+                }
                 window.renderAll();
 
                 // Lưu dữ liệu vào Postgres DB qua Netlify Function
@@ -2918,6 +3060,7 @@
                     if(collectionName==='contacts') contactsData = contactsData.filter(x => x.id !== id);
                     if(collectionName==='videos') videosData = videosData.filter(x => x.id !== id);
                     if(collectionName==='users') adminUsers = adminUsers.filter(x => x.id !== id);
+                    if(collectionName==='prescriptionSigners') prescriptionSignersData = prescriptionSignersData.filter(x => x.id !== id);
                     window.renderAll();
 
                     // Gửi lệnh xóa tới Postgres DB qua Netlify Function
@@ -3103,6 +3246,284 @@
             window.showToast(`Đã ${user.canReceiveVideo === 'true' ? 'kích hoạt' : 'tắt'} quyền nhận cuộc gọi Video cho ${user.name}`);
         };
 
+        /* ===== CHỮ KÝ SỐ & NGƯỜI KÝ ĐƠN THUỐC =====
+           Chữ ký của từng Y sỹ/Bác sỹ được lưu sẵn trong Postgres theo họ tên, nhờ đó
+           người kê đơn có thể ký đơn thuốc từ xa mà không cần ký tay tại điểm trạm. */
+        const SIGNATURE_PAD = { ctx: null, drawing: false, dirty: false, dataUrl: '' };
+
+        window.initSignaturePad = function() {
+            const canvas = document.getElementById('sig-pad');
+            if (!canvas || SIGNATURE_PAD.ctx) return;
+            const ctx = canvas.getContext('2d');
+            ctx.lineWidth = 2.6;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#0f172a';
+            SIGNATURE_PAD.ctx = ctx;
+
+            const pos = (ev) => {
+                const rect = canvas.getBoundingClientRect();
+                const src = (ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
+                return {
+                    x: (src.clientX - rect.left) * (canvas.width / rect.width),
+                    y: (src.clientY - rect.top) * (canvas.height / rect.height)
+                };
+            };
+            const start = (ev) => {
+                ev.preventDefault();
+                SIGNATURE_PAD.drawing = true;
+                const p = pos(ev);
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+            };
+            const move = (ev) => {
+                if (!SIGNATURE_PAD.drawing) return;
+                ev.preventDefault();
+                const p = pos(ev);
+                ctx.lineTo(p.x, p.y);
+                ctx.stroke();
+                SIGNATURE_PAD.dirty = true;
+            };
+            const end = () => {
+                if (!SIGNATURE_PAD.drawing) return;
+                SIGNATURE_PAD.drawing = false;
+                if (SIGNATURE_PAD.dirty) {
+                    SIGNATURE_PAD.dataUrl = canvas.toDataURL('image/png');
+                    window.renderSignaturePreview(SIGNATURE_PAD.dataUrl);
+                }
+            };
+
+            canvas.addEventListener('mousedown', start);
+            canvas.addEventListener('mousemove', move);
+            canvas.addEventListener('mouseup', end);
+            canvas.addEventListener('mouseleave', end);
+            canvas.addEventListener('touchstart', start, { passive: false });
+            canvas.addEventListener('touchmove', move, { passive: false });
+            canvas.addEventListener('touchend', end);
+        };
+
+        window.renderSignaturePreview = function(dataUrl) {
+            const img = document.getElementById('sig-preview');
+            const empty = document.getElementById('sig-preview-empty');
+            if (!img || !empty) return;
+            if (dataUrl) {
+                img.src = dataUrl;
+                img.classList.remove('hidden');
+                empty.classList.add('hidden');
+            } else {
+                img.src = '';
+                img.classList.add('hidden');
+                empty.classList.remove('hidden');
+            }
+        };
+
+        window.clearSignaturePad = function() {
+            const canvas = document.getElementById('sig-pad');
+            if (canvas && SIGNATURE_PAD.ctx) SIGNATURE_PAD.ctx.clearRect(0, 0, canvas.width, canvas.height);
+            SIGNATURE_PAD.dirty = false;
+            SIGNATURE_PAD.dataUrl = '';
+            window.renderSignaturePreview('');
+        };
+
+        // Ảnh chữ ký/con dấu đã quét được thu nhỏ về đúng khung ký để dung lượng lưu trữ luôn nhẹ.
+        window.uploadSignatureImage = function(ev) {
+            const file = ev.target.files && ev.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('sig-pad');
+                    window.initSignaturePad();
+                    const ctx = SIGNATURE_PAD.ctx;
+                    if (!canvas || !ctx) return;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    const ratio = Math.min(canvas.width / img.width, canvas.height / img.height);
+                    const w = img.width * ratio;
+                    const h = img.height * ratio;
+                    ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+                    SIGNATURE_PAD.dirty = true;
+                    SIGNATURE_PAD.dataUrl = canvas.toDataURL('image/png');
+                    window.renderSignaturePreview(SIGNATURE_PAD.dataUrl);
+                    window.showToast("Đã nạp ảnh chữ ký, nhấn Lưu chữ ký số để ghi vào hệ thống.");
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+            ev.target.value = '';
+        };
+
+        window.resetSignerForm = function() {
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            set('sig-editing-id', '');
+            set('sig-name', '');
+            set('sig-license', '');
+            set('sig-workplace', '');
+            const titleEl = document.getElementById('sig-title');
+            if (titleEl) titleEl.value = 'Bác sỹ';
+            const defEl = document.getElementById('sig-default');
+            if (defEl) defEl.checked = false;
+            window.clearSignaturePad();
+        };
+
+        window.handleSaveSigner = async function(e) {
+            e.preventDefault();
+            const editingId = document.getElementById('sig-editing-id').value;
+            const name = document.getElementById('sig-name').value.trim();
+            if (!name) return window.showToast("Chưa nhập họ tên người ký đơn.");
+
+            const existing = prescriptionSignersData.find(x => x.id === editingId);
+            const signature = SIGNATURE_PAD.dataUrl || (existing ? existing.signature : '') || '';
+            if (!signature) return window.showToast("Chưa có chữ ký - hãy ký vào khung hoặc tải ảnh chữ ký lên.");
+
+            const isDefault = document.getElementById('sig-default').checked ? 'true' : 'false';
+            const signer = {
+                id: editingId || 'SIG' + Date.now(),
+                name: name,
+                title: document.getElementById('sig-title').value,
+                license: document.getElementById('sig-license').value.trim(),
+                workplace: document.getElementById('sig-workplace').value.trim(),
+                signature: signature,
+                isDefault: isDefault,
+                ts: existing ? existing.ts : Date.now()
+            };
+
+            // Chỉ duy nhất một người ký mặc định trong toàn hệ thống.
+            if (isDefault === 'true') {
+                for (const other of prescriptionSignersData) {
+                    if (other.id !== signer.id && other.isDefault === 'true') {
+                        other.isDefault = 'false';
+                        await window.saveToDb('prescriptionSigners', { ...other });
+                    }
+                }
+            }
+
+            await window.saveToDb('prescriptionSigners', signer);
+            window.resetSignerForm();
+            window.showToast(`Đã lưu chữ ký số của ${signer.title} ${signer.name}.`);
+        };
+
+        window.editSigner = function(id) {
+            const signer = prescriptionSignersData.find(x => x.id === id);
+            if (!signer) return;
+            document.getElementById('sig-editing-id').value = signer.id;
+            document.getElementById('sig-name').value = signer.name || '';
+            document.getElementById('sig-title').value = signer.title || 'Bác sỹ';
+            document.getElementById('sig-license').value = signer.license || '';
+            document.getElementById('sig-workplace').value = signer.workplace || '';
+            document.getElementById('sig-default').checked = signer.isDefault === 'true';
+            window.initSignaturePad();
+            const canvas = document.getElementById('sig-pad');
+            if (canvas && SIGNATURE_PAD.ctx) SIGNATURE_PAD.ctx.clearRect(0, 0, canvas.width, canvas.height);
+            SIGNATURE_PAD.dataUrl = signer.signature || '';
+            SIGNATURE_PAD.dirty = false;
+            window.renderSignaturePreview(SIGNATURE_PAD.dataUrl);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.showToast(`Đang chỉnh sửa chữ ký của ${signer.name}. Ký lại nếu muốn thay chữ ký cũ.`);
+        };
+
+        window.setDefaultSigner = async function(id) {
+            for (const signer of prescriptionSignersData) {
+                const nextValue = signer.id === id ? 'true' : 'false';
+                if (signer.isDefault !== nextValue) {
+                    signer.isDefault = nextValue;
+                    await window.saveToDb('prescriptionSigners', { ...signer });
+                }
+            }
+            window.renderAll();
+            const picked = prescriptionSignersData.find(x => x.id === id);
+            if (picked) window.showToast(`${picked.title} ${picked.name} là người ký đơn mặc định.`);
+        };
+
+        window.renderSignerAdmin = function() {
+            const body = document.getElementById('admin-signer-list');
+            if (!body) return;
+            if (!prescriptionSignersData.length) {
+                body.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400 font-medium"><i class="fas fa-file-signature text-3xl mb-2 block"></i>Chưa có chữ ký số nào. Hãy thêm người ký đơn để ký đơn thuốc từ xa.</td></tr>`;
+                return;
+            }
+            body.innerHTML = prescriptionSignersData.map(s => `<tr class="hover:bg-gray-50">
+                <td class="p-3 font-bold text-gray-800">${s.name}</td>
+                <td class="p-3"><span class="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-full text-xs font-bold">${s.title || 'Bác sỹ'}</span></td>
+                <td class="p-3 text-gray-700 font-medium text-sm">${s.license || '---'}</td>
+                <td class="p-3 text-center">${s.signature ? `<img src="${s.signature}" alt="Chữ ký ${s.name}" class="h-12 mx-auto object-contain">` : '<span class="text-xs text-gray-400 italic">Chưa có</span>'}</td>
+                <td class="p-3 text-center">${s.isDefault === 'true'
+                    ? '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-xs font-bold"><i class="fas fa-check mr-1"></i>Mặc định</span>'
+                    : `<button type="button" onclick="window.setDefaultSigner('${s.id}')" class="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-full text-xs font-bold hover:bg-gray-200 transition">Đặt mặc định</button>`}</td>
+                <td class="p-3 text-center whitespace-nowrap">
+                    <button type="button" onclick="window.editSigner('${s.id}')" class="text-blue-600 hover:text-blue-800 p-1 mr-1" title="Sửa chữ ký"><i class="fas fa-pen"></i></button>
+                    <button type="button" onclick="window.deleteItem('prescriptionSigners', '${s.id}')" class="text-red-500 hover:text-red-700 p-1" title="Xóa người ký"><i class="fas fa-trash-alt"></i></button>
+                </td>
+            </tr>`).join('');
+        };
+
+        // Đổ danh sách người ký vào ô chọn ở cả màn hình Bác sĩ (CMS) và màn hình điểm trạm.
+        window.renderSignerSelectors = function() {
+            ['cms-prescription-signer', 'tele-prescription-signer'].forEach(selectId => {
+                const sel = document.getElementById(selectId);
+                if (!sel) return;
+                const current = TELE.signerId || sel.value || '';
+                sel.innerHTML = '<option value="">-- Chọn người ký đơn --</option>' +
+                    prescriptionSignersData.map(s =>
+                        `<option value="${s.id}">${s.title || 'Bác sỹ'} ${s.name}${s.isDefault === 'true' ? ' (mặc định)' : ''}</option>`
+                    ).join('');
+                if (current && prescriptionSignersData.some(s => s.id === current)) sel.value = current;
+            });
+
+            if (!TELE.signerId) {
+                const fallback = prescriptionSignersData.find(s => s.isDefault === 'true');
+                if (fallback) window.selectPrescriptionSigner(fallback.id, false);
+                else window.renderActiveSignerPreview();
+            } else {
+                window.renderActiveSignerPreview();
+            }
+        };
+
+        window.getActiveSigner = function() {
+            if (!TELE.signerId) return null;
+            return prescriptionSignersData.find(s => s.id === TELE.signerId) || null;
+        };
+
+        window.renderActiveSignerPreview = function() {
+            const signer = window.getActiveSigner();
+            [['cms-signer-signature-preview', 'cms-signer-signature-empty'], ['tele-signer-signature-preview', 'tele-signer-signature-empty']]
+                .forEach(([imgId, emptyId]) => {
+                    const img = document.getElementById(imgId);
+                    const empty = document.getElementById(emptyId);
+                    if (!img || !empty) return;
+                    if (signer && signer.signature) {
+                        img.src = signer.signature;
+                        img.classList.remove('hidden');
+                        empty.classList.add('hidden');
+                    } else {
+                        img.src = '';
+                        img.classList.add('hidden');
+                        empty.classList.remove('hidden');
+                        empty.textContent = signer
+                            ? 'Người ký này chưa có chữ ký số - vào mục "Chữ ký số & Người ký đơn" để tạo.'
+                            : 'Chọn tên người ký để đóng chữ ký số lên đơn thuốc.';
+                    }
+                });
+        };
+
+        /* Chọn người ký đơn: đồng bộ hai chiều giữa Bác sĩ tuyến trên và Cán bộ điểm trạm
+           để hai bên luôn in ra cùng một đơn thuốc đã ký. */
+        window.selectPrescriptionSigner = function(signerId, broadcast) {
+            TELE.signerId = signerId || '';
+            ['cms-prescription-signer', 'tele-prescription-signer'].forEach(id => {
+                const sel = document.getElementById(id);
+                if (sel && sel.value !== TELE.signerId) sel.value = TELE.signerId;
+            });
+            window.renderActiveSignerPreview();
+            if (broadcast && TELE.roomId && TELE.peerId) teleSendSignal('signer', { signerId: TELE.signerId });
+            if (broadcast) {
+                const signer = window.getActiveSigner();
+                window.showToast(signer
+                    ? `Đơn thuốc sẽ do ${signer.title} ${signer.name} ký số.`
+                    : "Đã bỏ chọn người ký đơn thuốc.");
+            }
+        };
+
         window.handleSaveVideo = async function(e) {
             e.preventDefault();
             const idInput = document.getElementById('vid-id').value;
@@ -3256,6 +3677,10 @@
 
             if (tabName === 'telehealth') {
                 window.checkCmsVideoPermission();
+            }
+            if (tabName === 'signature') {
+                window.initSignaturePad();
+                window.renderSignerAdmin();
             }
             // Không tắt bộ theo dõi khi rời tab: cán bộ vẫn phải nghe được cuộc gọi
             // dù đang làm việc ở mục Tin tức, Lịch khám hay Kho thuốc.
@@ -3566,6 +3991,9 @@
             vitals: {},
             doctorNotes: '',
             doctorAdvice: '',
+            // Nội dung đơn thuốc tách riêng 3 mục theo mẫu đơn thuốc Bộ Y tế
+            dx: { diagnosis: '', plan: '', drugs: '' },
+            signerId: '',
             chatLog: [],
             vitalsTimer: null,
             vitalsBound: false,
@@ -3805,8 +4233,9 @@
                 teleStatus(`${TELE.remotePeerName} đã vào phòng - đang bắt tay kết nối...`);
                 if (TELE.role !== 'doctor') window.teleSendVitals(false);
                 if (TELE.role !== 'doctor' && TELE.patientId) teleSendSignal('patient-info', { patientId: TELE.patientId, patientName: TELE.patientName });
-                if (TELE.doctorNotes) teleSendSignal('notes', { notes: TELE.doctorNotes });
+                if (TELE.doctorNotes) teleSendSignal('notes', { notes: TELE.doctorNotes, dx: TELE.dx, signerId: TELE.signerId });
                 if (TELE.role === 'doctor' && TELE.doctorAdvice) teleSendSignal('advice', { advice: TELE.doctorAdvice });
+                if (TELE.signerId) teleSendSignal('signer', { signerId: TELE.signerId });
                 return;
             }
 
@@ -3867,11 +4296,14 @@
 
             if (msg.type === 'notes') {
                 TELE.doctorNotes = (msg.payload && msg.payload.notes) || '';
-                const noteEl = document.getElementById('patient-doctor-note');
-                if (noteEl && TELE.role !== 'doctor') {
-                    noteEl.textContent = TELE.doctorNotes || 'Chưa có kết luận.';
-                    noteEl.classList.remove('italic');
-                }
+                const incomingDx = (msg.payload && msg.payload.dx) || teleParseClinicalNotes(TELE.doctorNotes);
+                teleApplyClinicalNotes(incomingDx, false);
+                if (msg.payload && msg.payload.signerId) window.selectPrescriptionSigner(msg.payload.signerId, false);
+                return;
+            }
+
+            if (msg.type === 'signer') {
+                window.selectPrescriptionSigner((msg.payload && msg.payload.signerId) || '', false);
                 return;
             }
 
@@ -3947,8 +4379,14 @@
             TELE.remotePeerName = null;
             TELE.connected = false;
             TELE.doctorAdvice = '';
-            const adviceBox = document.getElementById('cms-doctor-advice');
-            if (adviceBox) adviceBox.value = '';
+            TELE.doctorNotes = '';
+            TELE.dx = { diagnosis: '', plan: '', drugs: '' };
+            ['cms-doctor-advice', 'cms-dx-diagnosis', 'cms-dx-plan', 'cms-dx-drugs'].forEach(id => {
+                const box = document.getElementById(id);
+                if (box) box.value = '';
+            });
+            teleApplyClinicalNotes(TELE.dx, false);
+            window.renderSignerSelectors();
             teleRenderPatientIdentity();
             teleRenderDoctorAdvice();
             TELE.doctorsOnline = (TELE.role === 'doctor') ? null : publicDutyCount;
@@ -3976,8 +4414,10 @@
                 }
                 if (joined.room && joined.room.notes) {
                     TELE.doctorNotes = joined.room.notes;
-                    const noteEl = document.getElementById('patient-doctor-note');
-                    if (noteEl && TELE.role !== 'doctor') noteEl.textContent = TELE.doctorNotes;
+                    const parsedDx = teleParseClinicalNotes(joined.room.notes);
+                    // Bác sĩ vào lại phòng vẫn thấy nguyên nội dung đã kê trước đó.
+                    teleApplyClinicalNotes(parsedDx, TELE.role === 'doctor');
+                    if (parsedDx.signerId) window.selectPrescriptionSigner(parsedDx.signerId, false);
                 }
 
                 TELE.polling = true;
@@ -4193,6 +4633,84 @@
             }
         };
 
+        /* Đơn thuốc tách 3 mục: Chẩn đoán - Hướng xử trí - Thuốc kê đơn.
+           Bản ghi phòng khám lưu dạng JSON để hai đầu cầu đọc lại đúng từng mục;
+           dữ liệu cũ (một khối văn bản) vẫn đọc được và được xếp vào mục Chẩn đoán. */
+        function teleParseClinicalNotes(raw) {
+            const empty = { diagnosis: '', plan: '', drugs: '', signerId: '' };
+            if (!raw) return empty;
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object' && ('diagnosis' in parsed || 'plan' in parsed || 'drugs' in parsed)) {
+                    return {
+                        diagnosis: parsed.diagnosis || '',
+                        plan: parsed.plan || '',
+                        drugs: parsed.drugs || '',
+                        signerId: parsed.signerId || ''
+                    };
+                }
+            } catch (e) { /* dữ liệu cũ dạng văn bản thuần */ }
+            return { ...empty, diagnosis: String(raw) };
+        }
+
+        function teleSerializeClinicalNotes(dx, signerId) {
+            return JSON.stringify({
+                diagnosis: dx.diagnosis || '',
+                plan: dx.plan || '',
+                drugs: dx.drugs || '',
+                signerId: signerId || ''
+            });
+        }
+
+        // Đọc nội dung 3 ô đơn thuốc trên màn hình Bác sĩ tuyến trên
+        function teleReadDoctorDx() {
+            const val = (id) => {
+                const el = document.getElementById(id);
+                return el ? el.value.trim() : '';
+            };
+            const typed = {
+                diagnosis: val('cms-dx-diagnosis'),
+                plan: val('cms-dx-plan'),
+                drugs: val('cms-dx-drugs')
+            };
+            if (TELE.role === 'doctor') return typed;
+            const stored = TELE.dx || { diagnosis: '', plan: '', drugs: '' };
+            return {
+                diagnosis: stored.diagnosis || typed.diagnosis,
+                plan: stored.plan || typed.plan,
+                drugs: stored.drugs || typed.drugs
+            };
+        }
+
+        // Hiển thị 3 mục lên màn hình điểm trạm; fillDoctorForm=true thì đổ ngược vào ô nhập của Bác sĩ
+        function teleApplyClinicalNotes(dx, fillDoctorForm) {
+            TELE.dx = {
+                diagnosis: (dx && dx.diagnosis) || '',
+                plan: (dx && dx.plan) || '',
+                drugs: (dx && dx.drugs) || ''
+            };
+
+            const show = (elId, value, fallback) => {
+                const el = document.getElementById(elId);
+                if (!el) return;
+                el.textContent = value || fallback;
+                el.classList.toggle('italic', !value);
+            };
+            show('patient-doctor-diagnosis', TELE.dx.diagnosis, 'Chưa có chẩn đoán. Bác sĩ tuyến trên sẽ gửi sau khi thăm khám.');
+            show('patient-doctor-plan', TELE.dx.plan, 'Chưa có hướng xử trí.');
+            show('patient-doctor-drugs', TELE.dx.drugs, 'Chưa có thuốc kê đơn.');
+
+            if (fillDoctorForm) {
+                const fill = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el && !el.value.trim()) el.value = value || '';
+                };
+                fill('cms-dx-diagnosis', TELE.dx.diagnosis);
+                fill('cms-dx-plan', TELE.dx.plan);
+                fill('cms-dx-drugs', TELE.dx.drugs);
+            }
+        }
+
         function teleRenderDoctorAdvice() {
             const adviceEl = document.getElementById('patient-doctor-advice');
             if (adviceEl && TELE.role !== 'doctor') {
@@ -4270,8 +4788,8 @@
             const diagEl = document.getElementById('cms-ai-diag-text');
             if (diagEl) diagEl.textContent = "AI đang phân tích sinh hiệu & triệu chứng lâm sàng...";
             try {
-                const notesEl = document.getElementById('cms-doctor-notes');
-                const notes = notesEl ? notesEl.value : '';
+                const dx = teleReadDoctorDx();
+                const notes = [dx.diagnosis, dx.plan, dx.drugs].filter(Boolean).join('. ');
                 const v = TELE.vitals || {};
                 const vitalText = [
                     v.bp ? `Huyết áp ${v.bp} mmHg` : '',
@@ -4289,13 +4807,15 @@
         };
 
         window.saveDoctorClinicalNotes = async function() {
-            const notesEl = document.getElementById('cms-doctor-notes');
-            const notes = notesEl ? notesEl.value.trim() : '';
+            const dx = teleReadDoctorDx();
             const adviceEl = document.getElementById('cms-doctor-advice');
             const advice = adviceEl ? adviceEl.value.trim() : '';
+            const notes = teleSerializeClinicalNotes(dx, TELE.signerId);
+            TELE.dx = dx;
             TELE.doctorNotes = notes;
             TELE.doctorAdvice = advice;
             TELE.patientId = teleReadPatientId();
+            teleApplyClinicalNotes(dx, false);
             if (!TELE.roomId) {
                 window.showToast("Đã lưu ghi chú tạm thời (chưa có cuộc gọi đang diễn ra).");
                 return;
@@ -4303,10 +4823,11 @@
             try {
                 await teleApiPost({ action: 'notes', notes });
                 if (TELE.peerId) {
+                    teleSendSignal('notes', { notes, dx, signerId: TELE.signerId });
                     teleSendSignal('advice', { advice });
                     teleSendSignal('patient-info', { patientId: TELE.patientId, patientName: TELE.patientName });
                 }
-                window.showToast("Đã lưu và gửi kết luận, lời dặn về điểm trạm.");
+                window.showToast("Đã gửi chẩn đoán, hướng xử trí, thuốc kê đơn và lời dặn về điểm trạm.");
             } catch (err) {
                 window.showToast("Không gửi được kết luận, kiểm tra kết nối mạng.");
             }
@@ -4315,8 +4836,7 @@
         window.teleExportReport = async function() {
             const roomId = TELE.roomId || activeRoomId || '---';
             const v = TELE.vitals || {};
-            const notesEl = document.getElementById('cms-doctor-notes');
-            const notes = TELE.role === 'doctor' && notesEl ? notesEl.value.trim() : (TELE.doctorNotes || '');
+            const dx = teleReadDoctorDx();
             const adviceEl = document.getElementById('cms-doctor-advice');
             const advice = TELE.role === 'doctor' && adviceEl ? adviceEl.value.trim() : (TELE.doctorAdvice || '');
             // Số thẻ BHYT / CCCD là thông tin bắt buộc của đơn thuốc, lấy từ ô định danh đang mở.
@@ -4325,8 +4845,18 @@
                 ? ((currentCmsUser && currentCmsUser.name) || 'Bác sĩ tuyến trên')
                 : (TELE.remotePeerName || 'Bác sĩ tuyến trên');
 
+            // Người ký đơn được chọn trước khi in; chữ ký số lưu sẵn được đóng thẳng lên đơn.
+            const signer = window.getActiveSigner();
+            const signerLabel = signer ? `${signer.title || 'Bác sỹ'} ${signer.name}` : doctorName;
+            const signerImage = signer && typeof signer.signature === 'string' && signer.signature.startsWith('data:image/')
+                ? signer.signature
+                : '';
+
             if (!patientId) {
                 window.showToast("Thiếu số thẻ BHYT/CCCD của bệnh nhân - hãy nhập trước khi in đơn thuốc.");
+            }
+            if (!signer) {
+                window.showToast("Chưa chọn Y sỹ/Bác sỹ kê đơn - đơn thuốc sẽ in ra chưa có chữ ký số.");
             }
 
             if (TELE.roomId && TELE.peerId) {
@@ -4362,6 +4892,11 @@
                     .sec { font-weight: bold; font-size: 9.5pt; margin: 0 0 1mm; text-transform: uppercase; color: #1e3a8a; }
                     .box { border: 0.6px solid #64748b; padding: 1.6mm; min-height: 16mm; font-size: 9.5pt; white-space: pre-wrap; margin-bottom: 2.5mm; }
                     .box.advice { min-height: 12mm; }
+                    .box.short { min-height: 10mm; }
+                    .sig-img { height: 13mm; display: flex; align-items: center; justify-content: center; }
+                    .sig-img img { max-height: 13mm; max-width: 52mm; object-fit: contain; }
+                    .sig-name { font-weight: bold; }
+                    .sig-note { font-size: 7.5pt; font-style: italic; color: #475569; }
                     .sign { display: flex; justify-content: space-between; text-align: center; font-size: 9pt; margin-top: 2mm; }
                     .sign div { width: 48%; }
                     .sign i { font-size: 8pt; }
@@ -4389,13 +4924,23 @@
                         <td>${teleEscape(v.weight ? v.weight + ' kg' : '---')}</td>
                     </tr>
                 </table>
-                <p class="sec">Chẩn đoán, hướng xử trí &amp; thuốc được kê:</p>
-                <div class="box">${teleEscape(notes || 'Chưa ghi nhận kết luận.')}</div>
+                <p class="sec">Chẩn đoán:</p>
+                <div class="box short">${teleEscape(dx.diagnosis || 'Chưa ghi nhận chẩn đoán.')}</div>
+                <p class="sec">Hướng xử trí:</p>
+                <div class="box short">${teleEscape(dx.plan || 'Chưa ghi nhận hướng xử trí.')}</div>
+                <p class="sec">Thuốc kê đơn:</p>
+                <div class="box">${teleEscape(dx.drugs || 'Không kê thuốc.')}</div>
                 <p class="sec">Lời dặn của bác sỹ:</p>
                 <div class="box advice">${teleEscape(advice || 'Không có.')}</div>
                 <div class="sign">
                     <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)</i><div class="gap"></div>${teleEscape(stationName || '')}</div>
-                    <div>Bác sĩ tư vấn tuyến trên<br><i>(Ký, ghi rõ họ tên)</i><div class="gap"></div>${teleEscape(doctorName)}</div>
+                    <div>Y sỹ/ bác sỹ kê đơn<br><i>(Ký, ghi rõ họ tên)</i>
+                        ${signerImage
+                            ? `<div class="sig-img"><img src="${signerImage}" alt="Chữ ký số"></div><div class="sig-note">Đã ký số từ xa</div>`
+                            : '<div class="gap"></div>'}
+                        <div class="sig-name">${teleEscape(signerLabel)}</div>
+                        ${signer && signer.license ? `<div class="sig-note">CCHN: ${teleEscape(signer.license)}</div>` : ''}
+                    </div>
                 </div>
                 <p class="muted">Đơn thuốc kết xuất tự động từ Hệ thống Khám chữa bệnh Từ xa - Trạm Y tế xã Bát Xát. Khổ giấy A5.</p>
                 </body></html>`;
@@ -4408,7 +4953,20 @@
             win.document.open();
             win.document.write(html);
             win.document.close();
-            setTimeout(() => { try { win.print(); } catch (e) {} }, 400);
+            // Chờ ảnh chữ ký số giải mã xong rồi mới in để đơn thuốc không bị mất chữ ký.
+            const printWhenReady = () => {
+                const images = Array.from(win.document.images || []);
+                const pending = images.filter(img => !img.complete);
+                if (pending.length) {
+                    Promise.all(pending.map(img => new Promise(resolve => {
+                        img.addEventListener('load', resolve, { once: true });
+                        img.addEventListener('error', resolve, { once: true });
+                    }))).then(() => { try { win.print(); } catch (e) {} });
+                } else {
+                    try { win.print(); } catch (e) {}
+                }
+            };
+            setTimeout(printWhenReady, 400);
             window.showToast("Đã hoàn thành lượt khám và kết xuất đơn thuốc khổ A5.");
         };
 
@@ -5146,6 +5704,7 @@
                     if (data.contacts) contactsData = data.contacts;
                     if (data.videos) videosData = data.videos;
                     if (data.appointments) appointmentsData = data.appointments;
+                    if (data.prescriptionSigners) prescriptionSignersData = data.prescriptionSigners;
                     
                     if (data.siteConfigs) {
                         data.siteConfigs.forEach(conf => {
