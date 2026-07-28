@@ -4184,7 +4184,7 @@
                     teleStopWaitTicker();
                     teleStatus(TELE.role === 'doctor'
                         ? `Đang khám: ${TELE.patientName || 'Bệnh nhân'} (${TELE.roomId})`
-                        : `Đã kết nối trực tiếp với ${TELE.remotePeerName || 'Bác sĩ tuyến trên'}`);
+                        : `Đã kết nối trực tiếp với ${TELE.remotePeerName || 'Y sỹ/Bác sỹ'}`);
                     window.showToast("Kết nối video/âm thanh hai chiều đã thiết lập.");
                     if (TELE.role !== 'doctor') window.teleSendVitals(false);
                     if (TELE.role !== 'doctor' && TELE.patientId) teleSendSignal('patient-info', { patientId: TELE.patientId, patientName: TELE.patientName });
@@ -4415,7 +4415,7 @@
                 if (joined.room && joined.room.notes) {
                     TELE.doctorNotes = joined.room.notes;
                     const parsedDx = teleParseClinicalNotes(joined.room.notes);
-                    // Bác sĩ vào lại phòng vẫn thấy nguyên nội dung đã kê trước đó.
+                    // Y sĩ/ Bác sĩ vào lại phòng vẫn thấy nguyên nội dung đã kê trước đó.
                     teleApplyClinicalNotes(parsedDx, TELE.role === 'doctor');
                     if (parsedDx.signerId) window.selectPrescriptionSigner(parsedDx.signerId, false);
                 }
@@ -4431,7 +4431,7 @@
                 } else {
                     teleStatus(TELE.role === 'doctor'
                         ? 'Đã vào phòng khám, đang chờ điểm trạm kết nối...'
-                        : 'Đã vào phòng khám, đang chờ Bác sĩ tuyến trên tiếp nhận...');
+                        : 'Đã vào phòng khám, đang chờ Y sĩ/ Bác sĩ tiếp nhận...');
                 }
                 window.showToast(`Đã vào phòng khám [${TELE.roomId}]`);
             } catch (err) {
@@ -4662,7 +4662,7 @@
             });
         }
 
-        // Đọc nội dung 3 ô đơn thuốc trên màn hình Bác sĩ tuyến trên
+        // Đọc nội dung 3 ô đơn thuốc trên màn hình Y sĩ/ Bác sĩ 
         function teleReadDoctorDx() {
             const val = (id) => {
                 const el = document.getElementById(id);
@@ -4682,7 +4682,7 @@
             };
         }
 
-        // Hiển thị 3 mục lên màn hình điểm trạm; fillDoctorForm=true thì đổ ngược vào ô nhập của Bác sĩ
+        // Hiển thị 3 mục lên màn hình điểm trạm; fillDoctorForm=true thì đổ ngược vào ô nhập của Y sĩ/ Bác sĩ 
         function teleApplyClinicalNotes(dx, fillDoctorForm) {
             TELE.dx = {
                 diagnosis: (dx && dx.diagnosis) || '',
@@ -4696,7 +4696,7 @@
                 el.textContent = value || fallback;
                 el.classList.toggle('italic', !value);
             };
-            show('patient-doctor-diagnosis', TELE.dx.diagnosis, 'Chưa có chẩn đoán. Bác sĩ tuyến trên sẽ gửi sau khi thăm khám.');
+            show('patient-doctor-diagnosis', TELE.dx.diagnosis, 'Chưa có chẩn đoán. Y sĩ/ Bác sĩ sẽ gửi sau khi thăm khám.');
             show('patient-doctor-plan', TELE.dx.plan, 'Chưa có hướng xử trí.');
             show('patient-doctor-drugs', TELE.dx.drugs, 'Chưa có thuốc kê đơn.');
 
@@ -4714,7 +4714,7 @@
         function teleRenderDoctorAdvice() {
             const adviceEl = document.getElementById('patient-doctor-advice');
             if (adviceEl && TELE.role !== 'doctor') {
-                adviceEl.textContent = TELE.doctorAdvice || 'Bác sĩ chưa gửi lời dặn.';
+                adviceEl.textContent = TELE.doctorAdvice || 'Y sĩ/ Bác sĩ chưa gửi lời dặn.';
                 if (TELE.doctorAdvice) adviceEl.classList.remove('italic');
             }
         }
@@ -4799,7 +4799,7 @@
                     v.weight ? `Cân nặng ${v.weight} kg` : ''
                 ].filter(Boolean).join(', ') || 'chưa có chỉ số sinh hiệu';
                 const prompt = `Bạn là Bác sĩ Trợ lý AI Telehealth hỗ trợ trạm y tế xã. Bệnh nhân: ${TELE.patientName || 'không rõ'}. Sinh hiệu: ${vitalText}. Triệu chứng/ghi chú của cán bộ điểm trạm: "${TELE.symptoms || notes || 'khám tổng quát'}". Hãy đưa ra: 1) Chẩn đoán sơ bộ kèm mã ICD-10, 2) Cận lâm sàng cần chỉ định, 3) Hướng xử trí và đơn thuốc tham khảo theo phác đồ Bộ Y tế. Trình bày ngắn gọn theo gạch đầu dòng.`;
-                const res = await callGemini(prompt, "Bạn là Bác sĩ chuyên khoa y tế cơ sở, trả lời bằng tiếng Việt.");
+                const res = await callGemini(prompt, "Bạn là Y sĩ/ Bác sĩ chuyên khoa y tế cơ sở, trả lời bằng tiếng Việt.");
                 if (diagEl) diagEl.textContent = res || "Chưa nhận được phản hồi từ trợ lý AI.";
             } catch (e) {
                 if (diagEl) diagEl.textContent = "Không kết nối được trợ lý AI. Vui lòng thử lại.";
@@ -4842,12 +4842,12 @@
             // Số thẻ BHYT / CCCD là thông tin bắt buộc của đơn thuốc, lấy từ ô định danh đang mở.
             const patientId = teleReadPatientId();
             const doctorName = TELE.role === 'doctor'
-                ? ((currentCmsUser && currentCmsUser.name) || 'Bác sĩ tuyến trên')
-                : (TELE.remotePeerName || 'Bác sĩ tuyến trên');
+                ? ((currentCmsUser && currentCmsUser.name) || 'Y sĩ/ Bác sĩ')
+                : (TELE.remotePeerName || 'Y sĩ/ Bác sĩ');
 
             // Người ký đơn được chọn trước khi in; chữ ký số lưu sẵn được đóng thẳng lên đơn.
             const signer = window.getActiveSigner();
-            const signerLabel = signer ? `${signer.title || 'Bác sỹ'} ${signer.name}` : doctorName;
+            const signerLabel = signer ? `${signer.title || 'Y sĩ/ Bác sĩ'} ${signer.name}` : doctorName;
             const signerImage = signer && typeof signer.signature === 'string' && signer.signature.startsWith('data:image/')
                 ? signer.signature
                 : '';
@@ -4856,7 +4856,7 @@
                 window.showToast("Thiếu số thẻ BHYT/CCCD của bệnh nhân - hãy nhập trước khi in đơn thuốc.");
             }
             if (!signer) {
-                window.showToast("Chưa chọn Y sỹ/Bác sỹ kê đơn - đơn thuốc sẽ in ra chưa có chữ ký số.");
+                window.showToast("Chưa chọn Y sĩ/ Bác sĩ kê đơn - đơn thuốc sẽ in ra chưa có chữ ký số.");
             }
 
             if (TELE.roomId && TELE.peerId) {
@@ -4904,7 +4904,7 @@
                     .muted { color: #475569; font-size: 7.5pt; text-align: center; margin: 2.5mm 0 0; font-style: italic; }
                 </style></head><body>
                 <div class="head">
-                    <div class="org">Trạm Y tế xã Bát Xát - Hệ thống Khám chữa bệnh từ xa</div>
+                    <div class="org">Trạm Y tế Bát Xát - Hệ thống Khám chữa bệnh từ xa</div>
                     <h1>Đơn thuốc &amp; Phiếu khám từ xa</h1>
                     <div class="sub">Cấp sau buổi tư vấn khám bệnh từ xa (Telehealth) - Mã phòng khám: ${teleEscape(roomId)}</div>
                 </div>
@@ -4942,7 +4942,7 @@
                         ${signer && signer.license ? `<div class="sig-note">CCHN: ${teleEscape(signer.license)}</div>` : ''}
                     </div>
                 </div>
-                <p class="muted">Đơn thuốc kết xuất tự động từ Hệ thống Khám chữa bệnh Từ xa - Trạm Y tế xã Bát Xát. Khổ giấy A5.</p>
+                <p class="muted">Đơn thuốc kết xuất tự động từ Hệ thống Khám chữa bệnh Từ xa - Trạm Y tế Bát Xát. Khổ giấy A5.</p>
                 </body></html>`;
 
             const win = window.open('', '_blank');
@@ -5276,7 +5276,7 @@
                         </p>
                         <div class="flex flex-col gap-2 pt-2">
                             <a href="https://zalo.me/${dept.zalo}" target="_blank" class="bg-blue-500 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-600 transition shadow-md w-full flex items-center justify-center gap-2">
-                                <i class="fas fa-paper-plane"></i> Gửi tin báo Bác sĩ qua Zalo
+                                <i class="fas fa-paper-plane"></i> Gửi tin báo Y sĩ/ Bác sĩ qua Zalo
                             </a>
                             <button onclick="window.closeModal()" class="bg-gray-100 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-200 transition">
                                 Đóng
