@@ -1,138 +1,89 @@
-*** Begin Patch
-*** Update File: public/index.html
-@@
--            <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-+            <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
-@@
--                <!-- Bảng Sinh hiệu & Chat -->
--                <div class="space-y-4 flex flex-col justify-between">
--                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
--                        <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400">
--                            <i class="fas fa-id-card"></i> Định danh bệnh nhân (in trên đơn thuốc)
--                        </h4>
--                        <label class="block text-[10px] text-slate-400">Số thẻ BHYT hoặc số CCCD</label>
--                        <input type="text" id="tele-patient-idcard" placeholder="VD: HS4010112345678 / 001099012345" onchange="window.teleSyncPatientIdentity(false)" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-xs">
--                        <button onclick="window.teleSyncPatientIdentity(true)" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2">
--                            <i class="fas fa-paper-plane"></i> Gửi định danh tới Bác sĩ
--                        </button>
--                    </div>
--                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
--                        <h4 class="font-bold text-xs uppercase tracking-wider text-blue-400">
--                            <i class="fas fa-heartbeat"></i> Nhập nhanh Sinh hiệu Bệnh nhân
--                        </h4>
--                        <div class="grid grid-cols-2 gap-2 text-xs">
--                            <div>
--                                <label class="block text-[10px] text-slate-400 mb-1">Huyết áp (mmHg)</label>
--                                <input type="text" id="tele-vital-bp" placeholder="120/80" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white">
--                            </div>
--                            <div>
--                                <label class="block text-[10px] text-slate-400 mb-1">Nhịp tim (bpm)</label>
--                                <input type="number" id="tele-vital-hr" placeholder="76" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white">
--                            </div>
--                            <div>
--                                <label class="block text-[10px] text-slate-400 mb-1">SpO2 (%)</label>
--                                <input type="number" id="tele-vital-spo2" placeholder="98" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white">
--                            </div>
--                            <div>
--                                <label class="block text-[10px] text-slate-400 mb-1">Nhiệt độ (°C)</label>
--                                <input type="text" id="tele-vital-temp" placeholder="36.8" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white">
--                            </div>
--                            <div class="col-span-2">
--                                <label class="block text-[10px] text-slate-400 mb-1">Cân nặng (kg)</label>
--                                <input type="text" id="tele-vital-weight" placeholder="52" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white">
--                            </div>
--                        </div>
--                        <button onclick="window.teleSendVitals(true)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2">
--                            <i class="fas fa-paper-plane"></i> Gửi chỉ số sinh hiệu
--                        </button>
--                        <p id="tele-vital-sync-status" class="text-[10px] text-slate-500 text-center">Chỉ số tự động đồng bộ lên màn hình khám của Bác sĩ.</p>
--                    </div>
--
--                    <!-- Kết luận từ Bác sĩ -->
--                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
--                        <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-2">
--                            <i class="fas fa-stethoscope"></i> Chẩn đoán
--                        </h4>
--                        <p id="patient-doctor-diagnosis" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có chẩn đoán. Bác sĩ sẽ gửi sau khi thăm khám.</p>
--                        <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 mt-3 mb-2 flex items-center gap-2">
--                            <i class="fas fa-route"></i> Hướng xử trí
--                        </h4>
--                        <p id="patient-doctor-plan" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có hướng xử trí.</p>
--                        <h4 class="font-bold text-xs uppercase tracking-wider text-cyan-400 mt-3 mb-2 flex items-center gap-2">
--                            <i class="fas fa-pills"></i> Thuốc kê đơn
--                        </h4>
--                        <p id="patient-doctor-drugs" class="text-[11px] text-slate-400 italic leading-relaxed whitespace-pre-line">Chưa có thuốc kê đơn.</p>
--                        <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mt-3 mb-2 flex items-center gap-2">
--                            <i class="fas fa-comment-medical"></i> Lời dặn của bác sỹ
--                        </h4>
--                        <p id="patient-doctor-advice" class="text-[11px] text-slate-400 italic leading-relaxed">Bác sĩ chưa gửi lời dặn.</p>
--
--                        <div class="mt-4 pt-3 border-t border-slate-800 space-y-2">
--                            <label class="block text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
--                                <i class="fas fa-file-signature"></i> Y sỹ / Bác sỹ kê đơn (ký số từ xa)
--                            </label>
--                            <select id="tele-prescription-signer" onchange="window.selectPrescriptionSigner(this.value, true)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-xs">
--                                <option value="">-- Chọn người ký đơn --</option>
--                            </select>
--                            <div class="bg-white rounded-lg h-14 flex items-center justify-center overflow-hidden">
--                                <img id="tele-signer-signature-preview" src="" alt="Chữ ký số" class="hidden max-h-full max-w-full object-contain">
--                                <span id="tele-signer-signature-empty" class="text-[10px] text-slate-500 italic px-2 text-center">Chọn tên người ký để đóng chữ ký số lên đơn thuốc</span>
--                            </div>
--                        </div>
--                    </div>
--
--                    <!-- Khung nhắn tin trực tiếp -->
--                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex-1 flex flex-col justify-between">
--                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
--                            <i class="fas fa-comments"></i> Trao đổi với Bác sĩ
--                        </h4>
--                        <div id="patient-chat-box" class="h-32 overflow-y-auto space-y-2 text-xs text-slate-300 pr-1 my-2 border-t border-b border-slate-800 py-2">
--                            <div class="bg-slate-800/50 p-2 rounded-lg text-slate-400 text-[11px] italic">
--                                Hệ thống: Cuộc gọi khám từ xa bảo mật đã khởi tạo. Bác sĩ trực CMS sẽ trả lời trực tiếp.
--                            </div>
--                        </div>
--                        <div class="flex gap-2">
--                            <input type="text" id="patient-chat-input" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendPatientChatMessage()}" class="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white">
--                            <button onclick="window.sendPatientChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
--                                <i class="fas fa-paper-plane"></i>
--                            </button>
--                        </div>
--                        <button onclick="window.teleExportReport()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
--                            <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; In đơn thuốc (A5)
--                        </button>
--                    </div>
--                </div>
-+                <!-- Bảng Sinh hiệu & Khung nhắn tin (kết hợp) -->
-+                <div class="space-y-3 flex flex-col justify-between">
-+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
-+                        <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400">
-+                            <i class="fas fa-id-card"></i> Định danh bệnh nhân (in trên đơn thuốc)
-+                        </h4>
-+                        <label class="block text-[10px] text-slate-400">Số thẻ BHYT hoặc số CCCD</label>
-+                        <input type="text" id="tele-patient-idcard" placeholder="VD: HS4010112345678 / 001099012345" onchange="window.teleSyncPatientIdentity(false)" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1 text-xs">
-+                        <button onclick="window.teleSyncPatientIdentity(true)" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2">
-+                            <i class="fas fa-paper-plane"></i> Gửi định danh tới Bác sĩ
-+                        </button>
-+                    </div>
-+
-+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex-1 flex flex-col justify-between">
-+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
-+                            <i class="fas fa-comments"></i> Trao đổi với Bác sĩ
-+                        </h4>
-+                        <div id="patient-chat-box" class="h-48 overflow-y-auto custom-scrollbar pr-1 my-2 border-t border-b border-slate-800 py-2 text-xs text-slate-300">
-+                            <div class="bg-slate-800/50 p-2 rounded-lg text-slate-400 text-[11px] italic">
-+                                Hệ thống: Cuộc gọi khám từ xa bảo mật đã khởi tạo. Bác sĩ trực CMS sẽ trả lời trực tiếp.
-+                            </div>
-+                        </div>
-+                        <div class="flex gap-2 mt-2">
-+                            <input type="text" id="patient-chat-input" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendPatientChatMessage()}" class="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white">
-+                            <button onclick="window.sendPatientChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
-+                                <i class="fas fa-paper-plane"></i>
-+                            </button>
-+                        </div>
-+                        <button onclick="window.teleExportReport()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
-+                            <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; In đơn thuốc (A5)
-+                        </button>
-+                    </div>
-+                </div>
-*** End Patch
+<!-- public/index.html (trimmed header and unrelated blocks kept as-is) -->
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TYT Bat Xat - Public Panel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
+    .custom-scrollbar::-webkit-scrollbar { height:8px; width:8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius:8px; }
+  </style>
+</head>
+<body class="bg-gray-900 text-slate-200">
+  <div class="max-w-5xl mx-auto p-6">
+    <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+      <!-- Bảng Sinh hiệu & Khung nhắn tin (kết hợp) -->
+      <div class="space-y-3 flex flex-col justify-between">
+          <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 space-y-2">
+              <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400">
+                  <i class="fas fa-id-card"></i> Định danh bệnh nhân (in trên đơn thuốc)
+              </h4>
+              <label class="block text-[10px] text-slate-400">Số thẻ BHYT hoặc số CCCD</label>
+              <input type="text" id="tele-patient-idcard" placeholder="VD: HS4010112345678 / 001099012345" onchange="window.teleSyncPatientIdentity(false)" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-2 py-1.5 text-sm" />
+              <button onclick="window.teleSyncPatientIdentity(true)" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2">
+                  <i class="fas fa-paper-plane"></i> Gửi định danh tới Bác sĩ
+              </button>
+          </div>
+
+          <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex-1 flex flex-col justify-between">
+              <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+                  <i class="fas fa-comments"></i> Trao đổi với Bác sĩ
+              </h4>
+              <div id="patient-chat-box" class="h-48 overflow-y-auto custom-scrollbar pr-1 my-2 border-t border-b border-slate-700 py-2 text-xs text-slate-300">
+                  <div class="bg-slate-700/50 p-2 rounded-lg text-slate-400 text-[11px] italic">
+                      Hệ thống: Cuộc gọi khám từ xa bảo mật đã khởi tạo. Bác sĩ trực CMS sẽ trả lời trực tiếp.
+                  </div>
+              </div>
+              <div class="flex gap-2 mt-2">
+                  <input type="text" id="patient-chat-input" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendPatientChatMessage();}" class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" />
+                  <button onclick="window.sendPatientChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
+                      <i class="fas fa-paper-plane"></i>
+                  </button>
+              </div>
+              <button onclick="window.teleExportReport()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+                  <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; In đơn thuốc (A5)
+              </button>
+          </div>
+      </div>
+
+      <!-- Placeholder: other two columns -->
+      <div class="col-span-2">
+        <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+          <h3 class="font-black text-lg">Màn hình Bác sĩ / CMS (preview)</h3>
+          <p class="text-slate-400 text-sm mt-2">Phần này là preview/placeholder cho màn hình bác sĩ. Các chức năng gốc (Ch���n đoán, kê đơn, ký số) chỉ khả dụng trên CMS.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Minimal safe client helpers used by public panel
+    window.teleSyncPatientIdentity = function(force=false) {
+      const idcard = document.getElementById('tele-patient-idcard')?.value || '';
+      console.log('[public] teleSyncPatientIdentity', force, idcard);
+      // Send to signaling server (Netlify function / local server)
+      fetch('/api/vitals', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ roomId: 'public-room', patientName: idcard, bpSys: null }) }).then(r=>r.json()).then(console.log).catch(console.warn);
+    }
+
+    window.sendPatientChatMessage = function(){
+      const input = document.getElementById('patient-chat-input');
+      if(!input || !input.value) return;
+      const text = input.value.trim();
+      input.value = '';
+      const box = document.getElementById('patient-chat-box');
+      const el = document.createElement('div'); el.className='p-2 rounded-lg bg-blue-600 text-white text-xs self-end max-w-[85%]'; el.textContent = text;
+      box.appendChild(el); box.scrollTop = box.scrollHeight;
+      // fire to server
+      fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'signal', roomId:'public-room', peerId:'public-peer', type:'chat', payload:{ text } }) }).catch(console.warn);
+    }
+
+    window.teleExportReport = function(){ alert('Yêu cầu in phiếu khám được gửi (demo).'); }
+  </script>
+</body>
+</html>
