@@ -1,0 +1,9 @@
+Title: Merge fix/telehealth-ui-hide-doctor-sync-signers into main
+
+This pull request merges UI and client-side changes that:
+- Hide doctor-only clinical summary and signer selector from the public telehealth modal.
+- Tidy station panel layout: combine patient identity and chat, increase chat height for usability.
+- Add minimal client helpers on the public panel to post vitals and chat to the signaling APIs.
+- Prepare client-side helpers in the main index for syncing video-enabled doctors with prescription signers (heuristic normalize/match).
+
+Testing steps included in the PR description.
