@@ -1,35 +1,49 @@
 [build]
-  publish = "."
+  publish = "."[cite: 2]
 
 [functions]
-  directory = "netlify/functions"
+  directory = "netlify/functions"[cite: 2]
 
 [dev]
-  port = 8889
-  publish = "."
-  framework = "#static"
+  port = 8889[cite: 2]
+  publish = "."[cite: 2]
+  framework = "#static"[cite: 2]
 
-# Đường dẫn gọn cho Bảng điều khiển Cán bộ Y tế Điểm trạm.
+# 1. Ánh xạ API gọi tới Netlify Functions
 [[redirects]]
-  from = "/tram"
-  to = "/public/index.html"
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
   status = 200
 
+# 2. Đường dẫn Bảng điều khiển Cán bộ Y tế Điểm trạm
 [[redirects]]
-  from = "/tram/*"
-  to = "/public/index.html"
-  status = 200
-
-# Thư mục gốc được publish nguyên trạng, nên chặn các tệp chỉ dùng cho máy chủ nội bộ
-# để chúng không tải về được từ trang công khai.
-[[redirects]]
-  from = "/telehealth.db"
-  to = "/"
-  status = 404
-  force = true
+  from = "/tram"[cite: 2]
+  to = "/public/index.html"[cite: 2]
+  status = 200[cite: 2]
 
 [[redirects]]
-  from = "/server.js"
-  to = "/"
-  status = 404
-  force = true
+  from = "/tram/*"[cite: 2]
+  to = "/public/index.html"[cite: 2]
+  status = 200[cite: 2]
+
+# 3. Chặn tải trực tiếp các tệp nội bộ & CSDL
+[[redirects]]
+  from = "/telehealth.db"[cite: 2]
+  to = "/"[cite: 2]
+  status = 404[cite: 2]
+  force = true[cite: 2]
+
+[[redirects]]
+  from = "/server.js"[cite: 2]
+  to = "/"[cite: 2]
+  status = 404[cite: 2]
+  force = true[cite: 2]
+
+# 4. Bảo mật HTTP Headers cho dữ liệu Y tế
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
