@@ -20,6 +20,13 @@
   to = "/"
   status = 200
 
+# API mapping: chuyển /api/* sang Netlify Functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = false
+
 # Các tệp chỉ dùng cho máy chủ nội bộ không được xuất bản (khi publish = "public" chúng không nằm trong thư mục publish)
 [[redirects]]
   from = "/telehealth.db"
