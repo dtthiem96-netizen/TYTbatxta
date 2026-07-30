@@ -1,5 +1,9 @@
-# Local Netlify folder
-.netlify
+# Ignore runtime DB
+telehealth.db
 
-# Dependencies (cài lại bằng `npm install`)
-node_modules
+# Node modules (if any)
+node_modules/
+
+# Build artifacts
+dist/
+build/
