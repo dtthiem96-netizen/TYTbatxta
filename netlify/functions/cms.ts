@@ -6,7 +6,13 @@ import { getStore } from "@netlify/blobs";
 const defaultUsers = [
   { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' },
   { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true' },
-  { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false' }
+  { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false' },
+  { id: 'U4', username: 'canbotram@laocai.gov.vn', name: 'Y sĩ Cán bộ Điểm trạm', role: 'Cán bộ Điểm trạm (Station Operator)', canReceiveVideo: 'true' }
+];
+
+const defaultSigners = [
+  { id: 'SIG1', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', title: 'Bác sĩ', license: '001234/LCA-CCHN', workplace: 'Trạm Y tế Bát Xát', signature: '', isDefault: 'true', ts: Date.now() },
+  { id: 'SIG2', name: 'Trạm trưởng', title: 'BS. Trạm Trưởng', license: '001000/LCA-CCHN', workplace: 'Trạm Y tế Bát Xát', signature: '', isDefault: 'false', ts: Date.now() }
 ];
 
 const defaultNews = [
@@ -102,7 +108,32 @@ export default async (req: Request) => {
       let configsList = await db.select().from(siteConfigs);
 
       // Danh sách người ký đơn thuốc kèm chữ ký số đã lưu sẵn
-      const signersList = await db.select().from(prescriptionSigners);
+      let signersList = await db.select().from(prescriptionSigners);
+      if (signersList.length === 0) {
+        await db.insert(prescriptionSigners).values(defaultSigners);
+        signersList = await db.select().from(prescriptionSigners);
+      }
+
+      // Tự động đồng bộ các Bác sĩ được cấp quyền nhận cuộc gọi Video (canReceiveVideo = true) sang danh sách Người ký số
+      for (const u of usersList) {
+        if (u.canReceiveVideo === 'true') {
+          const exists = signersList.some(s => s.id === u.id || s.name.toLowerCase().includes(u.name.toLowerCase()) || u.name.toLowerCase().includes(s.name.toLowerCase()));
+          if (!exists) {
+            const newSigner = {
+              id: 'SIG_' + u.id,
+              name: u.name,
+              title: u.name.startsWith('BS.') ? 'Bác sĩ' : 'Bác sĩ/Y sĩ',
+              license: '00' + Math.floor(100000 + Math.random() * 900000) + '/LCA-CCHN',
+              workplace: 'Trạm Y tế Bát Xát',
+              signature: '',
+              isDefault: 'false',
+              ts: Date.now()
+            };
+            await db.insert(prescriptionSigners).values(newSigner);
+          }
+        }
+      }
+      signersList = await db.select().from(prescriptionSigners);
 
       return new Response(JSON.stringify({
         news: newsList,
