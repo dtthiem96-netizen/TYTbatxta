@@ -39,7 +39,10 @@ let currentVitals = {
   weight: 62
 };
 
-let currentAIAnalysis = null;
+let cmsUsers = [];
+let cmsSigners = [];
+let loggedInCmsUser = null;
+let queuePollInterval = null;
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
@@ -48,6 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Set default values in UI
   document.getElementById('display-station-code').textContent = stationCode;
   document.getElementById('display-operator-name').textContent = operatorName;
+
+  // Tải dữ liệu tài khoản và bác sĩ từ CMS
+  loadCmsData();
+
+  // Bắt đầu quét danh sách cuộc gọi chờ từ người dân
+  startQueuePolling();
 
   // Initialize Media Devices & Camera
   initLocalCamera();
@@ -61,6 +70,139 @@ document.addEventListener('DOMContentLoaded', () => {
   // Start Call Timer
   startCallTimer();
 });
+
+// Load CMS Users & Prescription Signers
+async function loadCmsData() {
+  try {
+    const res = await fetch('/api/cms');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.users && Array.isArray(data.users)) cmsUsers = data.users;
+      if (data.prescriptionSigners && Array.isArray(data.prescriptionSigners)) cmsSigners = data.prescriptionSigners;
+      
+      populateCmsAccountsDropdown();
+      syncConsultingDoctorsList();
+    }
+  } catch (err) {
+    console.warn('Không tải được dữ liệu CMS:', err.message);
+  }
+}
+
+// Populate CMS Accounts Dropdown in Login Modal
+function populateCmsAccountsDropdown() {
+  const selectEl = document.getElementById('input-cms-account');
+  if (!selectEl) return;
+
+  // Lọc danh sách tài khoản thuộc Cán bộ điểm trạm / Quản trị viên
+  const stationAccounts = cmsUsers.filter(u => u.role.includes('Trạm') || u.role.includes('Cán bộ') || u.role.includes('Admin') || u.canReceiveVideo === 'true');
+  const accountsToRender = stationAccounts.length > 0 ? stationAccounts : cmsUsers;
+
+  selectEl.innerHTML = '<option value="">-- Chọn tài khoản cán bộ trực trạm --</option>' +
+    accountsToRender.map(u => `<option value="${u.username}">${u.name} (${u.role}) - ${u.username}</option>`).join('');
+
+  // Tự động chọn tài khoản cán bộ trạm mặc định nếu có
+  const defaultAcc = accountsToRender.find(u => u.username === 'canbotram@laocai.gov.vn') || accountsToRender[0];
+  if (defaultAcc) {
+    selectEl.value = defaultAcc.username;
+    onCmsAccountSelect(defaultAcc.username);
+  }
+}
+
+function onCmsAccountSelect(username) {
+  if (!username) return;
+  const found = cmsUsers.find(u => u.username === username);
+  if (found) {
+    loggedInCmsUser = found;
+    operatorName = found.name;
+    const nameInput = document.getElementById('input-operator-name');
+    if (nameInput) nameInput.value = found.name;
+  }
+}
+
+// Quét hàng đợi các cuộc gọi từ người dân (User Video Calls)
+function startQueuePolling() {
+  if (queuePollInterval) clearInterval(queuePollInterval);
+  refreshIncomingCallsQueue();
+  queuePollInterval = setInterval(refreshIncomingCallsQueue, 3500);
+}
+
+async function refreshIncomingCallsQueue() {
+  try {
+    const res = await fetch('/api/signal?action=rooms');
+    if (!res.ok) return;
+    const data = await res.json();
+    const rooms = (data.rooms || []).filter(r => r.roomId !== '__lobby__');
+
+    const countEl = document.getElementById('station-queue-count');
+    const listEl = document.getElementById('station-queue-list');
+    if (countEl) countEl.textContent = `${rooms.length} cuộc gọi`;
+
+    if (!listEl) return;
+    if (rooms.length === 0) {
+      listEl.innerHTML = '<div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>';
+      return;
+    }
+
+    listEl.innerHTML = rooms.map(r => {
+      const pName = r.patientName || 'Bệnh nhân';
+      const isCurrent = r.roomId === roomId;
+      return `
+        <div class="flex items-center justify-between gap-3 bg-slate-900 border ${isCurrent ? 'border-emerald-500' : 'border-slate-700'} p-2 rounded-xl text-xs whitespace-nowrap shadow">
+          <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-user text-blue-400"></i>
+            <div>
+              <div class="font-bold text-white text-[12px]">${pName}</div>
+              <div class="text-[10px] text-slate-400">${r.symptoms || 'Khám sức khỏe tổng quát'}</div>
+            </div>
+          </div>
+          <button onclick="acceptPatientCall('${r.roomId}', '${pName.replace(/'/g, "\\'")}', '${(r.symptoms||'').replace(/'/g, "\\'")}')" 
+            class="${isCurrent ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'} text-white font-bold px-3 py-1.5 rounded-lg text-[11px] transition flex items-center gap-1.5">
+            <i class="fa-solid fa-headset"></i> ${isCurrent ? 'Đang kết nối' : 'Tiếp nhận cuộc gọi'}
+          </button>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.warn('Lỗi quét hàng đợi cuộc gọi:', err.message);
+  }
+}
+
+// Tiếp nhận cuộc gọi từ giao diện người dân gọi
+function acceptPatientCall(targetRoomId, patientName, symptoms) {
+  if (!targetRoomId) return;
+
+  const previousPeerId = peerId;
+  const previousRoomId = roomId;
+
+  roomId = targetRoomId;
+
+  // Cập nhật thông tin bệnh nhân trên giao diện điểm trạm
+  const pNameInput = document.getElementById('patient-name');
+  const pSymInput = document.getElementById('patient-symptoms');
+  if (pNameInput) pNameInput.value = patientName || 'Bệnh nhân';
+  if (pSymInput) pSymInput.value = symptoms || '';
+
+  const hudName = document.getElementById('hud-patient-name');
+  if (hudName) hudName.textContent = patientName || 'Bệnh nhân';
+
+  // Rời phòng cũ nếu đang ở phòng khác
+  if (previousPeerId && previousRoomId && previousRoomId !== targetRoomId) {
+    fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'leave', roomId: previousRoomId, peerId: previousPeerId })
+    }).catch(() => {});
+  }
+
+  joinRoom();
+  showAlertBanner(`Đã tiếp nhận và kết nối với bệnh nhân: ${patientName}`);
+}
+
+// Đồng bộ danh sách Bác sĩ tư vấn & được cấp quyền nhận cuộc gọi Video + Ký số
+function syncConsultingDoctorsList() {
+  const doctors = cmsUsers.filter(u => u.canReceiveVideo === 'true');
+  console.log('🩺 Danh sách Bác sĩ tư vấn được phân quyền khám video & ký số:', doctors);
+}
 
 // 1. HTTP Signaling & WebRTC Logic
 function newPeerId() {
@@ -849,24 +991,32 @@ function closeLoginModal() {
 
 function submitLogin() {
   const code = document.getElementById('input-station-code').value.trim();
-  const name = document.getElementById('input-operator-name').value.trim();
-  const selectedRole = document.getElementById('input-role').value;
+  const selectedCmsUsername = document.getElementById('input-cms-account')?.value;
+  const typedName = document.getElementById('input-operator-name').value.trim();
 
-  if (code && name) {
+  let finalOperatorName = typedName;
+  if (selectedCmsUsername) {
+    const foundUser = cmsUsers.find(u => u.username === selectedCmsUsername);
+    if (foundUser) {
+      loggedInCmsUser = foundUser;
+      finalOperatorName = foundUser.name;
+    }
+  }
+
+  if (code && finalOperatorName) {
     const previousPeerId = peerId;
     const previousRoomId = roomId;
 
     stationCode = code;
-    operatorName = name;
-    role = selectedRole;
-    roomId = `room-${code.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+    operatorName = finalOperatorName;
+    role = 'station_operator'; // Luôn cố định vai trò Cán bộ Y tế Điểm trạm
 
     document.getElementById('display-station-code').textContent = stationCode;
     document.getElementById('display-operator-name').textContent = operatorName;
 
     closeLoginModal();
 
-    // Rời phòng cũ rồi vào lại phòng theo mã điểm trạm vừa nhập.
+    // Rời phòng cũ nếu có
     if (previousPeerId && previousRoomId) {
       fetch(SIGNAL_URL, {
         method: 'POST',

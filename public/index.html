@@ -253,6 +253,21 @@
     <!-- CENTER COLUMN: TELE-CONSULTATION ROOM - VIDEO CALL & DUAL CAMERAS (6 COLS) -->
     <section class="col-span-6 bg-navy-900/90 border border-slate-800 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden shadow-xl">
       
+      <!-- INCOMING PATIENT CALLS QUEUE WIDGET -->
+      <div id="station-queue-container" class="bg-blue-950/70 border border-blue-800/80 rounded-xl p-2.5 mb-2 space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2 text-xs font-bold text-blue-300">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+            <i class="fa-solid fa-headset text-sm"></i>
+            <span>DANH SÁCH BỆNH NHÂN ĐANG GỌI KHÁM VIDEO</span>
+          </div>
+          <span id="station-queue-count" class="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">0 cuộc gọi</span>
+        </div>
+        <div id="station-queue-list" class="flex items-center space-x-2 overflow-x-auto custom-scrollbar py-1">
+          <div class="text-[11px] text-slate-400 italic"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang quét các cuộc gọi từ người dân...</div>
+        </div>
+      </div>
+
       <!-- Video Container Header -->
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center space-x-2">
@@ -483,25 +498,29 @@
         </div>
         <div>
           <h3 class="font-bold text-base text-white">Đăng Nhập Điểm Trạm Y Tế</h3>
-          <p class="text-xs text-slate-400">Nhập thông tin mã điểm trạm và cán bộ phụ trách</p>
+          <p class="text-xs text-slate-400">Chọn tài khoản cán bộ được cấp tại CMS để vận hành trạm</p>
         </div>
       </div>
 
       <div class="space-y-3 text-xs">
         <div>
-          <label class="block text-slate-300 font-medium mb-1">Mã Điểm Trạm Y Tế</label>
-          <input type="text" id="input-station-code" value="TYT-BATXAT-01" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500">
-        </div>
-        <div>
-          <label class="block text-slate-300 font-medium mb-1">Tên Cán Bộ Trực Khám</label>
-          <input type="text" id="input-operator-name" value="Y sĩ Nguyễn Văn A" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500">
-        </div>
-        <div>
-          <label class="block text-slate-300 font-medium mb-1">Vai Trò</label>
-          <select id="input-role" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-blue-500">
-            <option value="station_operator">Cán bộ Y tế Điểm trạm</option>
-            <option value="superior_doctor">Y sĩ/ Bác sĩ tư vấn và kê đơn</option>
+          <label class="block text-slate-300 font-medium mb-1">Tài Khoản Cán Bộ Cấp Tại CMS</label>
+          <select id="input-cms-account" onchange="onCmsAccountSelect(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-bold focus:outline-none focus:border-blue-500">
+            <option value="">-- Tải danh sách tài khoản CMS... --</option>
           </select>
+        </div>
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Mã Điểm Trạm Y Tế</label>
+          <input type="text" id="input-station-code" value="TYT-BATXAT-01" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-bold focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Họ Tên Cán Bộ Trực Khám</label>
+          <input type="text" id="input-operator-name" value="Y sĩ Nguyễn Văn A" class="w-full bg-slate-950 border border-slate-700/80 text-blue-300 font-bold rounded-lg p-2.5 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Vai Trò Vận Hành</label>
+          <input type="text" value="Cán bộ Y tế Điểm trạm" readonly class="w-full bg-slate-950 border border-slate-700/80 text-emerald-400 font-bold rounded-lg p-2.5 focus:outline-none">
+          <input type="hidden" id="input-role" value="station_operator">
         </div>
       </div>
 
