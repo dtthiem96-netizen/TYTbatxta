@@ -1,27 +1,33 @@
 [build]
-  publish = "."
+  publish = "public"
 
 [functions]
   directory = "netlify/functions"
 
 [dev]
   port = 8889
-  publish = "."
+  publish = "public"
   framework = "#static"
 
-# Đường dẫn gọn cho Bảng điều khiển Cán bộ Y tế Điểm trạm.
+# Đường dẫn gọn cho Bảng điều khiển Cán bộ Y tế Điểm trạm — trỏ về SPA root
 [[redirects]]
   from = "/tram"
-  to = "/public/index.html"
+  to = "/"
   status = 200
 
 [[redirects]]
   from = "/tram/*"
-  to = "/public/index.html"
+  to = "/"
   status = 200
 
-# Thư mục gốc được publish nguyên trạng, nên chặn các tệp chỉ dùng cho máy chủ nội bộ
-# để chúng không tải về được từ trang công khai.
+# API mapping: chuyển /api/* sang Netlify Functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = false
+
+# Các tệp chỉ dùng cho máy chủ nội bộ không được xuất bản (khi publish = "public" chúng không nằm trong thư mục publish)
 [[redirects]]
   from = "/telehealth.db"
   to = "/"
@@ -33,3 +39,9 @@
   to = "/"
   status = 404
   force = true
+
+# Fallback cho SPA (tất cả các đường dẫn trả về public/index.html)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
