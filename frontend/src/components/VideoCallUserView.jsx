@@ -14,7 +14,7 @@ export default function VideoCallUserView({ callId, token }) {
     load();
   }, [callId, token]);
 
-  if (!payload) return <div role="status" aria-live="polite">Đang tải...</div>;
+  if (!payload) return <div role="status" aria-live="polite">Đang tải thông tin cuộc gọi...</div>;
 
   const { doctor } = payload;
 
@@ -24,7 +24,7 @@ export default function VideoCallUserView({ callId, token }) {
     e.preventDefault();
     // Submit user inputs to server (e.g., attach to call/session)
     await api.post('/api/call/inputs', { callId, inputs: formValues }, { headers: { Authorization: `Bearer ${token}` } });
-    alert('Gửi thành công');
+    alert('Đã gửi thông tin thành công.');
   };
 
   return (
@@ -36,7 +36,7 @@ export default function VideoCallUserView({ callId, token }) {
         <form onSubmit={handleSubmit}>
           {doctor.minimalFields.map(field => (
             <div key={field.id} className="field">
-              <label htmlFor={`input-${field.id}`}>{field.label}{field.required ? '*' : ''}</label>
+              <label htmlFor={`input-${field.id}`}>{field.label}{field.required ? ' *' : ''}</label>
               <input
                 id={`input-${field.id}`}
                 name={field.id}
@@ -47,7 +47,7 @@ export default function VideoCallUserView({ callId, token }) {
               />
             </div>
           ))}
-          <button type="submit">Gửi</button>
+          <button type="submit">Gửi thông tin</button>
         </form>
       </section>
     </main>
