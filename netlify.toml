@@ -1,88 +1,27 @@
 [build]
-  publish = "public"
+  publish = "."
 
 [functions]
   directory = "netlify/functions"
 
 [dev]
   port = 8889
-  publish = "public"
+  publish = "."
   framework = "#static"
 
-[images]
-  remote_images = ["https://.*"]
-
-# Caching — Netlify CDN headers
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Netlify-CDN-Cache-Control = "public, max-age=0, stale-while-revalidate=86400"
-
-[[headers]]
-  for = "*.png"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "*.jpg"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "*.jpeg"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "*.svg"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "*.mp3"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "*.css"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-# Đường dẫn gọn cho Bảng điều khiển Cán bộ Y tế Điểm trạm — trỏ về SPA root
+# Đường dẫn gọn cho Bảng điều khiển Cán bộ Y tế Điểm trạm.
 [[redirects]]
   from = "/tram"
-  to = "/"
+  to = "/public/index.html"
   status = 200
 
 [[redirects]]
   from = "/tram/*"
-  to = "/"
+  to = "/public/index.html"
   status = 200
 
-# Đường dẫn cho Bảng điều khiển Quản trị Nội bộ Admin
-[[redirects]]
-  from = "/admin"
-  to = "/admin/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/admin/*"
-  to = "/admin/index.html"
-  status = 200
-
-# API mapping: chuyển /api/* sang Netlify Functions
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = false
-
-# Các tệp chỉ dùng cho máy chủ nội bộ không được xuất bản (khi publish = "public" chúng không nằm trong thư mục publish)
+# Thư mục gốc được publish nguyên trạng, nên chặn các tệp chỉ dùng cho máy chủ nội bộ
+# để chúng không tải về được từ trang công khai.
 [[redirects]]
   from = "/telehealth.db"
   to = "/"
@@ -94,9 +33,3 @@
   to = "/"
   status = 404
   force = true
-
-# Fallback cho SPA (tất cả các đường dẫn trả về public/index.html)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
