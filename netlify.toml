@@ -9,6 +9,19 @@
   publish = "."
   framework = "#static"
 
+# Edge Functions for serving Markdown to AI agents
+[[edge_functions]]
+  path = "/"
+  function = "markdown"
+
+[[edge_functions]]
+  path = "/index.html"
+  function = "markdown"
+
+[[edge_functions]]
+  path = "/public/index.html"
+  function = "markdown"
+
 # Đường dẫn gọn cho Bảng điều khiển Cán bộ Y tế Điểm trạm.
 [[redirects]]
   from = "/tram"
