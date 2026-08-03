@@ -141,7 +141,7 @@ async function refreshIncomingCallsQueue() {
 
     if (!listEl) return;
     if (rooms.length === 0) {
-      listEl.innerHTML = '<div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>';
+      listEl.innerHTML = '<div class="text-[11px] text-slate-400 italic">Chưa có cuộc gọi nào. Hệ thống sẵn sàng tiếp nhận...</div>';
       return;
     }
 
@@ -710,7 +710,7 @@ function initSpeechRecognition() {
 
 function toggleSpeechToText() {
   if (!speechRecognition) {
-    alert('Trình duyệt hiện tại chưa hỗ trợ API Speech-to-Text trực tiếp. Vui lòng sử dụng Chrome / Edge.');
+    alert('Trình duyệt của bạn chưa hỗ trợ tính năng chuyển giọng nói thành văn bản. Vui lòng dùng Chrome hoặc Edge.');
     return;
   }
 
