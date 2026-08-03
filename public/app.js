@@ -531,28 +531,46 @@ async function initLocalCamera(deviceId = null) {
     };
 
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (err) {
+    console.warn('⚠️ Camera access warning, attempting audio-only fallback:', err.message);
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err2) {
+      console.warn('⚠️ Audio/Video access unavailable:', err2.message);
+      localStream = null;
+    }
+  }
 
+  if (localStream) {
     const localVideo = document.getElementById('local-video');
     if (localVideo) {
       localVideo.srcObject = localStream;
     }
 
-    // List available video devices for camera switching
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    videoDevices = devices.filter(d => d.kind === 'videoinput');
-    console.log(`📷 Detected ${videoDevices.length} camera inputs:`, videoDevices);
+    try {
+      // List available video devices for camera switching
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      videoDevices = devices.filter(d => d.kind === 'videoinput');
+      console.log(`📷 Detected ${videoDevices.length} camera inputs:`, videoDevices);
+    } catch (e) {
+      videoDevices = [];
+    }
 
-    // Replace video track in peer connection if already active
+    // Replace video/audio tracks in peer connection if already active
     if (peerConnection) {
       const videoTrack = localStream.getVideoTracks()[0];
+      const audioTrack = localStream.getAudioTracks()[0];
       const senders = peerConnection.getSenders();
+      
       const videoSender = senders.find(s => s.track && s.track.kind === 'video');
       if (videoSender && videoTrack) {
         videoSender.replaceTrack(videoTrack);
       }
+      const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+      if (audioSender && audioTrack) {
+        audioSender.replaceTrack(audioTrack);
+      }
     }
-  } catch (err) {
-    console.warn('⚠️ Camera access warning (using canvas/video fallback):', err.message);
   }
 }
 

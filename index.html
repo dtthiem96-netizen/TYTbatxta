@@ -166,7 +166,7 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-20">
                     <div class="flex items-center gap-3">
-                        <img src="logo.png" alt="Logo Trạm" class="w-12 h-12 object-contain drop-shadow-sm" onerror="this.style.display='none'">
+                        <img src="logo.png" alt="Logo Trạm Y Tế Bát Xát" class="w-12 h-12 object-contain drop-shadow-sm" onerror="this.style.display='none'">
                         <div>
                             <h1 data-cms-id="brand-title" class="text-xl font-extrabold text-medical-900 leading-tight uppercase tracking-wide">Trạm Y Tế Bát Xát</h1>
                             <div class="hidden md:flex items-center gap-2 mt-0.5">
@@ -193,7 +193,7 @@
                     </nav>
 
                     <div class="lg:hidden flex items-center gap-3">
-                        <button onclick="window.openTelehealthQuickCall()" class="text-white bg-blue-600 w-10 h-10 rounded-full shadow-md" title="Gọi khám từ xa"><i class="fas fa-video"></i></button>
+                        <button onclick="window.openTelehealthQuickCall()" class="text-white bg-blue-600 w-10 h-10 rounded-full shadow-md" aria-label="Mở gọi khám từ xa" title="Gọi khám từ xa"><i class="fas fa-video"></i></button>
                         <button onclick="window.openModal('modal-aisearch')" class="text-purple-600 bg-purple-50 w-10 h-10 rounded-full border border-purple-200" aria-label="Mở tìm kiếm AI"><i class="fas fa-search"></i></button>
                         <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="text-gray-700 text-2xl" aria-label="Mở menu di động" aria-expanded="false" aria-controls="mobile-menu"><i class="fas fa-bars"></i></button>
                     </div>
@@ -526,7 +526,7 @@
                     <div>
                         <div class="flex items-center gap-4 mb-6">
                             <div class="bg-white p-1.5 rounded-full inline-block shadow-lg">
-                                <img src="logo.png" alt="Logo" class="w-14 h-14 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230284c7\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
+                                <img src="logo.png" alt="Logo Trạm Y Tế Bát Xát" class="w-14 h-14 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230284c7\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
                             </div>
                             <h3 class="text-2xl font-black uppercase tracking-widest text-blue-50 leading-tight">Trạm Y Tế<br>Bát Xát</h3>
                         </div>
@@ -582,7 +582,7 @@
         </footer>
 
         <!-- ================= NÚT GỌI KHÁM TỪ XA NỔI (LUÔN HIỂN THỊ) ================= -->
-        <button onclick="window.openTelehealthQuickCall()" class="fixed bottom-24 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white h-16 px-5 rounded-full shadow-[0_10px_25px_-5px_rgba(37,99,235,0.6)] flex items-center gap-3 transition z-40 border-2 border-white/20 hover:scale-105 duration-300">
+        <button onclick="window.openTelehealthQuickCall()" aria-label="Gọi khám từ xa Telehealth" class="fixed bottom-24 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white h-16 px-5 rounded-full shadow-[0_10px_25px_-5px_rgba(37,99,235,0.6)] flex items-center gap-3 transition z-40 border-2 border-white/20 hover:scale-105 duration-300">
             <i class="fas fa-video text-2xl"></i>
             <span class="hidden sm:flex flex-col items-start leading-tight text-left">
                 <span class="text-sm font-black">Gọi khám từ xa</span>
@@ -593,13 +593,13 @@
     </div> <!-- KẾT THÚC #main-website -->
 
     <!-- ================= CHATBOT AI NỔI ================= -->
-    <button onclick="window.toggleAIChat()" class="fixed bottom-6 right-24 bg-gradient-to-r from-purple-600 to-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_10px_25px_-5px_rgba(147,51,234,0.5)] flex items-center justify-center text-3xl hover:from-purple-700 hover:to-indigo-700 transition z-40 group hover:scale-110 duration-300 border-2 border-white/20">
+    <button onclick="window.toggleAIChat()" aria-label="Mở Trợ lý Y tế AI" class="fixed bottom-6 right-24 bg-gradient-to-r from-purple-600 to-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_10px_25px_-5px_rgba(147,51,234,0.5)] flex items-center justify-center text-3xl hover:from-purple-700 hover:to-indigo-700 transition z-40 group hover:scale-110 duration-300 border-2 border-white/20">
         <i class="fas fa-sparkles"></i>
         <span class="absolute -top-12 right-0 bg-gray-900 text-white text-sm font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl">Hỏi Trợ Lý AI</span>
     </button>
 
     <!-- ================= NÚT CHAT ZALO NỔI (FLOATING WIDGET) ================= -->
-    <a href="https://zalo.me/0382103002" target="_blank" class="fixed bottom-6 right-6 bg-blue-500 hover:bg-blue-600 text-white w-16 h-16 rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center text-3xl transition z-40 group hover:scale-110 duration-300 border-2 border-white/20 animate-bounce">
+    <a href="https://zalo.me/0382103002" target="_blank" aria-label="Tư vấn qua Zalo" class="fixed bottom-6 right-6 bg-blue-500 hover:bg-blue-600 text-white w-16 h-16 rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center text-3xl transition z-40 group hover:scale-110 duration-300 border-2 border-white/20 animate-bounce">
         <i class="fas fa-comment-sms"></i>
         <span class="absolute -top-12 right-0 bg-blue-950 text-white text-sm font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl">Tư vấn qua Zalo</span>
     </a>
@@ -615,7 +615,7 @@
                     <p class="text-[11px] font-medium opacity-90 tracking-wide uppercase">Powered by Gemini</p>
                 </div>
             </div>
-            <button onclick="window.toggleAIChat()" class="text-white hover:text-gray-200 transition bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+            <button onclick="window.toggleAIChat()" aria-label="Đóng Trợ lý Y tế AI" class="text-white hover:text-gray-200 transition bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
         </div>
         <div id="ai-chat-messages" class="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col gap-4 text-sm scroll-smooth">
             <div class="bg-white border border-gray-200 text-gray-800 p-3.5 rounded-2xl rounded-tl-none self-start max-w-[85%] shadow-sm leading-relaxed markdown-body">
@@ -636,10 +636,10 @@
     <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center backdrop-blur-sm transition-opacity overflow-y-auto p-4">
         
         <!-- BIỂU MẪU ĐĂNG KÝ KHÁM BỆNH & KHÁM TỪ XA TELEHEALTH -->
-        <div id="modal-datlich" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-datlich" role="dialog" aria-modal="true" aria-labelledby="modal-datlich-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-medical-600 via-blue-600 to-indigo-700 p-5 flex justify-between items-center text-white">
                 <div>
-                    <h3 class="font-bold text-xl flex items-center gap-2"><i class="fas fa-calendar-check"></i> Đăng ký khám bệnh & Khám Từ xa</h3>
+                    <h3 id="modal-datlich-title" class="font-bold text-xl flex items-center gap-2"><i class="fas fa-calendar-check"></i> Đăng ký khám bệnh & Khám Từ xa</h3>
                     <p class="text-xs text-blue-100 mt-0.5">Tích hợp kết nối Video Gọi khám trực tiếp với Bác sĩ</p>
                 </div>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
@@ -730,10 +730,10 @@
         </div>
 
         <!-- GỌI NHANH KHÁM TỪ XA: CHỈ CẦN TÊN LÀ GỌI ĐƯỢC CÁN BỘ Y TẾ -->
-        <div id="modal-telehealth-quick" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-telehealth-quick" role="dialog" aria-modal="true" aria-labelledby="modal-telehealth-quick-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 flex justify-between items-center text-white">
                 <div>
-                    <h3 class="font-bold text-xl flex items-center gap-2"><i class="fas fa-video"></i> Gọi khám từ xa</h3>
+                    <h3 id="modal-telehealth-quick-title" class="font-bold text-xl flex items-center gap-2"><i class="fas fa-video"></i> Gọi khám từ xa</h3>
                     <p class="text-xs text-blue-100 mt-0.5">Kết nối trực tiếp Cán bộ Y tế / Bác sĩ đang trực</p>
                 </div>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
@@ -745,7 +745,7 @@
                 <form onsubmit="window.startQuickTelehealthCall(event)">
                     <div class="space-y-3.5">
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Họ và tên người bệnh <span class="text-red-500">*</span></label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-name">Họ và tên người bệnh <span class="text-red-500">*</span></label>
                             <input type="text" id="quick-call-name" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: Nguyễn Văn A">
                         </div>
                         <div>
@@ -776,12 +776,12 @@
         </div>
 
         <!-- MODAL PHÒNG KHÁM TỪ XA TELEHEALTH CHO NGƯỜI DÂN / ĐIỂM TRẠM -->
-        <div id="modal-telehealth-call" class="modal-content hidden bg-slate-950 rounded-3xl w-full max-w-4xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800 text-white">
+        <div id="modal-telehealth-call" role="dialog" aria-modal="true" aria-labelledby="modal-telehealth-call-title" class="modal-content hidden bg-slate-950 rounded-3xl w-full max-w-4xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800 text-white">
             <div class="bg-slate-900 px-6 py-4 flex justify-between items-center border-b border-slate-800">
                 <div class="flex items-center gap-3">
                     <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
                     <div>
-                        <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                        <h3 id="modal-telehealth-call-title" class="font-bold text-lg text-white flex items-center gap-2">
                             PHÒNG KHÁM VIDEO TỪ XA TELEHEALTH
                             <span class="text-xs bg-blue-600 px-2 py-0.5 rounded font-mono" id="patient-room-code">ROOM-01</span>
                         </h3>
@@ -939,9 +939,9 @@
         </div>
 
         <!-- BIỂU MẪU ĐĂNG KÝ TIÊM CHỦNG -->
-        <div id="modal-tiemchung" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-tiemchung" role="dialog" aria-modal="true" aria-labelledby="modal-tiemchung-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-red-500 to-red-400 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-syringe mr-2"></i> Đăng ký Tiêm chủng</h3>
+                <h3 id="modal-tiemchung-title" class="font-bold text-xl"><i class="fas fa-syringe mr-2"></i> Đăng ký Tiêm chủng</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-100 bg-black/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -979,9 +979,9 @@
         </div>
 
         <!-- BIỂU MẪU GÓP Ý PHẢN ÁNH -->
-        <div id="modal-gopy" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-gopy" role="dialog" aria-modal="true" aria-labelledby="modal-gopy-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-yellow-500 to-yellow-400 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-comment-medical mr-2"></i> Góp ý & Phản ánh</h3>
+                <h3 id="modal-gopy-title" class="font-bold text-xl"><i class="fas fa-comment-medical mr-2"></i> Góp ý & Phản ánh</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-100 bg-black/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -990,7 +990,7 @@
                     <input type="hidden" name="to_email" value="tytbatxat@laocai.gov.vn" />
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1.5" for="support-topic">Chủ đề phản ánh</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1.5" for="feedback-category">Chủ đề phản ánh</label>
                             <select id="feedback-category" name="category" aria-label="Danh mục phản ánh" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium bg-white font-sans">
                                 <option>Thái độ phục vụ của Y bác sĩ</option>
                                 <option>Quy trình, thủ tục hành chính công</option>
@@ -1000,7 +1000,7 @@
                         </div>
                         <div>
                             <div class="flex justify-between items-end mb-1.5">
-                                <label class="block text-sm font-bold text-gray-700">Nội dung phản ánh chi tiết</label>
+                                <label class="block text-sm font-bold text-gray-700" for="feedback-reason">Nội dung phản ánh chi tiết</label>
                                 <button type="button" onclick="window.enhanceFeedbackAI()" class="text-[11px] bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white font-bold px-2 py-1 rounded transition-colors flex items-center gap-1 shadow-sm">
                                     ✨ Viết lại lịch sự bằng AI
                                 </button>
@@ -1010,15 +1010,15 @@
                         </div>
                         <div class="grid grid-cols-1 gap-4 pt-2">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1.5">Email liên hệ (Nếu có)</label>
+                                <label class="block text-sm font-bold text-gray-700 mb-1.5" for="sender-email">Email liên hệ (Nếu có)</label>
                                 <input type="email" id="sender-email" name="sender_email" aria-label="Email người gửi" placeholder="email@example.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1.5">Địa chỉ người gửi</label>
+                                <label class="block text-sm font-bold text-gray-700 mb-1.5" for="sender-address">Địa chỉ người gửi</label>
                                 <input type="text" id="sender-address" name="sender_address" aria-label="Địa chỉ người gửi" required placeholder="Thôn bản, xã, thị trấn..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1.5">Vị trí nơi phản ánh</label>
+                                <label class="block text-sm font-bold text-gray-700 mb-1.5" for="reflection-location">Vị trí nơi phản ánh</label>
                                 <input type="text" id="reflection-location" name="reflection_location" aria-label="Địa điểm phản ánh" required placeholder="Khoa/Phòng hoặc địa điểm cụ thể..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
                             </div>
                         </div>
@@ -1031,9 +1031,9 @@
         </div>
 
         <!-- CỬA SỔ HỖ TRỢ ĐA NĂNG (DYNAMIC SUPPORT MODAL) -->
-        <div id="modal-hotrochuyenmon" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-hotrochuyenmon" role="dialog" aria-modal="true" aria-labelledby="modal-hotrochuyenmon-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-green-600 to-green-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-user-md mr-2"></i> <span id="support-title">Tư vấn chuyên môn</span></h3>
+                <h3 id="modal-hotrochuyenmon-title" class="font-bold text-xl"><i class="fas fa-user-md mr-2"></i> <span id="support-title">Tư vấn chuyên môn</span></h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1042,7 +1042,7 @@
                 </div>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Chủ đề cần hỗ trợ:</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-1" for="support-topic">Chủ đề cần hỗ trợ:</label>
                         <input type="text" id="support-topic" readonly class="w-full border-2 border-gray-200 bg-gray-100 rounded-xl px-4 py-2.5 font-bold text-gray-700 cursor-not-allowed">
                     </div>
                     <div>
@@ -1059,9 +1059,9 @@
         </div>
 
         <!-- DANH SÁCH TÀI LIỆU -->
-        <div id="modal-tailieu" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-tailieu" role="dialog" aria-modal="true" aria-labelledby="modal-tailieu-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-folder-open mr-2"></i> Kho <span id="docs-modal-title">Tài liệu</span></h3>
+                <h3 id="modal-tailieu-title" class="font-bold text-xl"><i class="fas fa-folder-open mr-2"></i> Kho <span id="docs-modal-title">Tài liệu</span></h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6 bg-white min-h-[300px]">
@@ -1073,10 +1073,10 @@
         </div>
 
         <!-- DANH BẠ LIÊN HỆ -->
-        <div id="modal-danhba" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-danhba" role="dialog" aria-modal="true" aria-labelledby="modal-danhba-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-medical-700 to-medical-600 p-5 flex justify-between items-center text-white">
                 <div>
-                    <h3 class="font-bold text-xl"><i class="fas fa-address-book mr-2"></i> Danh bạ Trạm Y Tế</h3>
+                    <h3 id="modal-danhba-title" class="font-bold text-xl"><i class="fas fa-address-book mr-2"></i> Danh bạ Trạm Y Tế</h3>
                     <p class="text-[10px] text-blue-100 font-semibold uppercase mt-0.5 tracking-wider">Số điện thoại liên hệ trực tiếp cán bộ chuyên trách</p>
                 </div>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-300 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
@@ -1105,9 +1105,9 @@
         </div>
 
         <!-- TRA CỨU KẾT QUẢ KHÁM -->
-        <div id="modal-tracuuketqua" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-tracuuketqua" role="dialog" aria-modal="true" aria-labelledby="modal-tracuuketqua-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-clipboard-check mr-2"></i> Tra cứu Kết quả Khám</h3>
+                <h3 id="modal-tracuuketqua-title" class="font-bold text-xl"><i class="fas fa-clipboard-check mr-2"></i> Tra cứu Kết quả Khám</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1130,9 +1130,9 @@
         </div>
 
         <!-- CÁC CHỨC NĂNG AI CHUYÊN SÂU -->
-        <div id="modal-aisearch" class="modal-content hidden bg-white rounded-3xl w-full max-w-2xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-aisearch" role="dialog" aria-modal="true" aria-labelledby="modal-aisearch-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-2xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-search mr-2"></i> Tìm kiếm Y tế AI Toàn cục</h3>
+                <h3 id="modal-aisearch-title" class="font-bold text-xl"><i class="fas fa-search mr-2"></i> Tìm kiếm Y tế AI Toàn cục</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1148,9 +1148,9 @@
             </div>
         </div>
 
-        <div id="modal-tracuuthuoc" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-tracuuthuoc" role="dialog" aria-modal="true" aria-labelledby="modal-tracuuthuoc-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-blue-600 to-blue-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-pills mr-2"></i> Tra cứu thông tin thuốc AI</h3>
+                <h3 id="modal-tracuuthuoc-title" class="font-bold text-xl"><i class="fas fa-pills mr-2"></i> Tra cứu thông tin thuốc AI</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1171,9 +1171,9 @@
             </div>
         </div>
 
-        <div id="modal-tuvansuckhoe" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-tuvansuckhoe" role="dialog" aria-modal="true" aria-labelledby="modal-tuvansuckhoe-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-green-600 to-green-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-headset mr-2"></i> Chuyên gia Dinh dưỡng AI</h3>
+                <h3 id="modal-tuvansuckhoe-title" class="font-bold text-xl"><i class="fas fa-headset mr-2"></i> Chuyên gia Dinh dưỡng AI</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1194,9 +1194,9 @@
             </div>
         </div>
 
-        <div id="modal-aivision" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-aivision" role="dialog" aria-modal="true" aria-labelledby="modal-aivision-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-blue-600 to-cyan-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-camera mr-2"></i> Bác sĩ Thị giác AI ✨</h3>
+                <h3 id="modal-aivision-title" class="font-bold text-xl"><i class="fas fa-camera mr-2"></i> Bác sĩ Thị giác AI ✨</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1205,7 +1205,7 @@
                         <i class="fas fa-info-circle mr-1"></i> Hãy chụp hình ảnh <b>Đơn thuốc, Vỉ thuốc, hoặc Phiếu xét nghiệm</b>. AI sẽ tự động đọc và giải thích.
                     </div>
                     <div><input type="file" id="aivision-file" aria-label="Tải lên ảnh đơn thuốc" accept="image/*" onchange="window.previewAIVisionImage(event)" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 cursor-pointer border-2 border-gray-200 rounded-2xl focus:outline-none transition"></div>
-                    <div id="aivision-preview-container" class="hidden text-center bg-gray-50 p-3 rounded-2xl border border-gray-200"><img id="aivision-preview" class="max-h-48 rounded-xl mx-auto shadow-sm" alt="Ảnh tải lên" /></div>
+                    <div id="aivision-preview-container" class="hidden text-center bg-gray-50 p-3 rounded-2xl border border-gray-200"><img id="aivision-preview" class="max-h-48 rounded-xl mx-auto shadow-sm" alt="Ảnh xem trước đơn thuốc tải lên" /></div>
                     <button type="button" onclick="window.analyzeImageAI()" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg text-lg">✨ Phân tích Hình ảnh</button>
                     <p id="aivision-status" class="text-sm text-blue-600 hidden text-center font-bold animate-pulse mt-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Bác sĩ AI đang quét các thông số...</p>
                     <div id="aivision-result" class="mt-4 max-h-[300px] overflow-y-auto markdown-body hidden bg-blue-50/50 p-5 rounded-2xl border border-blue-100 text-sm leading-relaxed"></div>
@@ -1213,9 +1213,9 @@
             </div>
         </div>
 
-        <div id="modal-aidich" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-aidich" role="dialog" aria-modal="true" aria-labelledby="modal-aidich-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-teal-600 to-green-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-language mr-2"></i> Thông dịch viên Y khoa AI</h3>
+                <h3 id="modal-aidich-title" class="font-bold text-xl"><i class="fas fa-language mr-2"></i> Thông dịch viên Y khoa AI</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1231,9 +1231,9 @@
             </div>
         </div>
 
-        <div id="modal-lichuongthuoc" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-lichuongthuoc" role="dialog" aria-modal="true" aria-labelledby="modal-lichuongthuoc-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-indigo-500 to-blue-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-calendar-plus mr-2"></i> Lên lịch Thuốc AI</h3>
+                <h3 id="modal-lichuongthuoc-title" class="font-bold text-xl"><i class="fas fa-calendar-plus mr-2"></i> Lên lịch Thuốc AI</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1247,16 +1247,16 @@
             </div>
         </div>
 
-        <div id="modal-caythuoc" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-caythuoc" role="dialog" aria-modal="true" aria-labelledby="modal-caythuoc-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-green-600 to-emerald-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-leaf mr-2"></i> Chuyên gia Thảo dược AI</h3>
+                <h3 id="modal-caythuoc-title" class="font-bold text-xl"><i class="fas fa-leaf mr-2"></i> Chuyên gia Thảo dược AI</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
                     <div class="bg-green-50 p-3 rounded-xl border border-green-100 text-sm font-medium text-green-800">Chụp ảnh cây lá trên rừng, AI sẽ nhận diện xem có phải là cây thuốc Nam hay không và cách sử dụng.</div>
                     <input type="file" id="caythuoc-file" aria-label="Tải lên ảnh cây thuốc" accept="image/*" onchange="window.previewCayThuocImage(event)" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-green-50 file:text-green-700 cursor-pointer border-2 border-gray-200 rounded-2xl focus:outline-none transition">
-                    <div id="caythuoc-preview-container" class="hidden text-center bg-gray-50 p-3 rounded-2xl border border-gray-200"><img id="caythuoc-preview" class="max-h-48 rounded-xl mx-auto shadow-sm" alt="Ảnh tải lên" /></div>
+                    <div id="caythuoc-preview-container" class="hidden text-center bg-gray-50 p-3 rounded-2xl border border-gray-200"><img id="caythuoc-preview" class="max-h-48 rounded-xl mx-auto shadow-sm" alt="Ảnh xem trước cây thuốc tải lên" /></div>
                     <button type="button" onclick="window.analyzeHerbalAI()" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg text-lg">✨ Nhận Diện Cây Thuốc</button>
                     <p id="caythuoc-status" class="text-sm text-green-600 hidden text-center font-bold animate-pulse mt-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Chuyên gia AI đang tra cứu...</p>
                     <div id="caythuoc-result" class="mt-4 max-h-[300px] overflow-y-auto markdown-body hidden bg-green-50/50 p-5 rounded-2xl border border-green-100 text-sm leading-relaxed"></div>
@@ -1264,9 +1264,9 @@
             </div>
         </div>
         
-        <div id="modal-chiso" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-chiso" role="dialog" aria-modal="true" aria-labelledby="modal-chiso-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-teal-600 to-teal-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-file-medical-alt mr-2"></i> Bác sĩ phân tích chỉ số AI</h3>
+                <h3 id="modal-chiso-title" class="font-bold text-xl"><i class="fas fa-file-medical-alt mr-2"></i> Bác sĩ phân tích chỉ số AI</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1280,9 +1280,9 @@
             </div>
         </div>
 
-        <div id="modal-socuu" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-socuu" role="dialog" aria-modal="true" aria-labelledby="modal-socuu-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-red-600 to-pink-600 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-briefcase-medical mr-2"></i> Cẩm nang Sơ cứu AI</h3>
+                <h3 id="modal-socuu-title" class="font-bold text-xl"><i class="fas fa-briefcase-medical mr-2"></i> Cẩm nang Sơ cứu AI</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
@@ -1297,9 +1297,9 @@
         </div>
 
         <!-- POPUP ĐĂNG NHẬP ADMIN -->
-        <div id="modal-admin-login" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-admin-login" role="dialog" aria-modal="true" aria-labelledby="modal-admin-login-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gray-900 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-shield-halved mr-2 text-medical-400"></i> Đăng nhập Cán bộ</h3>
+                <h3 id="modal-admin-login-title" class="font-bold text-xl"><i class="fas fa-shield-halved mr-2 text-medical-400"></i> Đăng nhập Cán bộ</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-300 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-8">
@@ -1323,16 +1323,16 @@
         </div>
 
         <!-- VIDEO Y KHOA -->
-        <div id="modal-video" class="modal-content hidden bg-white rounded-3xl w-full max-w-2xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
-            <div class="bg-red-600 p-5 flex justify-between items-center text-white"><h3 class="font-bold text-xl"><i class="fab fa-youtube mr-2"></i> Video Y Khoa & Truyền Thông Sức Khỏe</h3><button onclick="window.closeModal()" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button></div>
+        <div id="modal-video" role="dialog" aria-modal="true" aria-labelledby="modal-video-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-2xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+            <div class="bg-red-600 p-5 flex justify-between items-center text-white"><h3 id="modal-video-title" class="font-bold text-xl"><i class="fab fa-youtube mr-2"></i> Video Y Khoa & Truyền Thông Sức Khỏe</h3><button onclick="window.closeModal()" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button></div>
             <div id="public-video-list" class="p-6 space-y-6 max-h-[500px] overflow-y-auto bg-gray-50">
                 <div class="p-8 text-center bg-gray-50"><i class="fas fa-photo-video text-6xl text-gray-300 mb-4"></i><h4 class="font-bold text-gray-600">Đang cập nhật luồng Video y khoa</h4><p class="text-sm text-gray-500 mt-2">Các video hướng dẫn chăm sóc sức khỏe sẽ sớm được Trạm Y tế cập nhật tại đây.</p></div>
             </div>
         </div>
 
         <!-- SÀNG LỌC TƯƠNG TÁC THUỐC (AI) -->
-        <div id="modal-tuongtacthuoc" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
-            <div class="bg-gradient-to-r from-rose-500 to-red-600 p-5 flex justify-between items-center text-white"><h3 class="font-bold text-xl"><i class="fas fa-exclamation-triangle mr-2"></i> Sàng lọc Tương tác Thuốc</h3><button onclick="window.closeModal()" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button></div>
+        <div id="modal-tuongtacthuoc" role="dialog" aria-modal="true" aria-labelledby="modal-tuongtacthuoc-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+            <div class="bg-gradient-to-r from-rose-500 to-red-600 p-5 flex justify-between items-center text-white"><h3 id="modal-tuongtacthuoc-title" class="font-bold text-xl"><i class="fas fa-exclamation-triangle mr-2"></i> Sàng lọc Tương tác Thuốc</h3><button onclick="window.closeModal()" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button></div>
             <div class="p-6">
                 <div class="bg-rose-50 text-rose-800 text-sm p-3 rounded-xl mb-4 font-medium"><i class="fas fa-info-circle mr-1"></i> Bà con nhập các loại thuốc Tây, lá Nam đang uống chung vào đây để AI kiểm tra xem chúng có "đánh nhau" hay sinh ra độc tính không nhé.</div>
                 <textarea id="ai-interaction-input" aria-label="Nhập thuốc cần kiểm tra tương tác" rows="3" class="w-full border-2 border-rose-200 rounded-xl px-4 py-3 mb-3 focus:ring-2 focus:ring-rose-100 outline-none" placeholder="Ví dụ: Uống thuốc tiểu đường Metformin chung với nước lá sâm đất..."></textarea>
@@ -1342,9 +1342,9 @@
         </div>
 
         <!-- CHIA SẺ BÀI VIẾT TIN TỨC & THÔNG BÁO -->
-        <div id="modal-share-news" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
+        <div id="modal-share-news" role="dialog" aria-modal="true" aria-labelledby="modal-share-news-header-title" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-medical-600 to-medical-500 p-5 flex justify-between items-center text-white">
-                <h3 class="font-bold text-xl"><i class="fas fa-share-alt mr-2"></i> Chia sẻ bài viết</h3>
+                <h3 id="modal-share-news-header-title" class="font-bold text-xl"><i class="fas fa-share-alt mr-2"></i> Chia sẻ bài viết</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6 space-y-6">
@@ -2344,10 +2344,22 @@
             }
         };
 
+        let lastFocusedElement = null;
+
         window.openModal = function(id) {
+            lastFocusedElement = document.activeElement;
             document.getElementById('modal-overlay').classList.remove('hidden');
             document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
-            document.getElementById(id).classList.remove('hidden');
+            const targetModal = document.getElementById(id);
+            if (targetModal) {
+                targetModal.classList.remove('hidden');
+                setTimeout(() => {
+                    const focusable = targetModal.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+                    if (focusable.length > 0) {
+                        focusable[0].focus();
+                    }
+                }, 50);
+            }
             document.body.style.overflow = 'hidden';
 
             if(id === 'modal-danhba') {
@@ -2374,7 +2386,7 @@
                             <span class="text-xs font-normal text-gray-500"><i class="fas fa-user-md"></i> Phụ trách: ${s.person}</span>
                         </div>
                         <div class="flex gap-2">
-                            <a href="tel:${s.zalo}" class="bg-green-500 hover:bg-green-600 text-white p-2.5 rounded-xl font-bold text-sm shadow flex items-center justify-center transition" title="Gọi hotline">
+                            <a href="tel:${s.zalo}" class="bg-green-500 hover:bg-green-600 text-white p-2.5 rounded-xl font-bold text-sm shadow flex items-center justify-center transition" title="Gọi hotline" aria-label="Gọi hotline ${s.name}">
                                 <i class="fas fa-phone-alt"></i>
                             </a>
                             <a href="https://zalo.me/${s.zalo}" target="_blank" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-xl font-bold text-sm shadow flex items-center gap-1 transition">
@@ -2429,21 +2441,43 @@
             }
         };
 
-        
-            // Lắng nghe phím Escape để đóng Cửa sổ Modal
-            document.addEventListener('keydown', function(e) {
+        // Lắng nghe phím Escape để đóng Cửa sổ Modal & Trap Focus trong Modal khi ấn Tab
+        document.addEventListener('keydown', function(e) {
+            const overlay = document.getElementById('modal-overlay');
+            if (overlay && !overlay.classList.contains('hidden')) {
                 if (e.key === 'Escape') {
-                    const overlay = document.getElementById('modal-overlay');
-                    if (overlay && !overlay.classList.contains('hidden')) {
-                        window.closeModal();
+                    window.closeModal();
+                } else if (e.key === 'Tab') {
+                    const activeModal = overlay.querySelector('.modal-content:not(.hidden)');
+                    if (activeModal) {
+                        const focusableElements = Array.from(activeModal.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+                        if (focusableElements.length > 0) {
+                            const firstElement = focusableElements[0];
+                            const lastElement = focusableElements[focusableElements.length - 1];
+                            if (e.shiftKey) {
+                                if (document.activeElement === firstElement || !activeModal.contains(document.activeElement)) {
+                                    e.preventDefault();
+                                    lastElement.focus();
+                                }
+                            } else {
+                                if (document.activeElement === lastElement || !activeModal.contains(document.activeElement)) {
+                                    e.preventDefault();
+                                    firstElement.focus();
+                                }
+                            }
+                        }
                     }
                 }
-            });
+            }
+        });
 
         window.closeModal = function() { 
             document.getElementById('modal-overlay').classList.add('hidden'); 
             document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
             document.body.style.overflow = 'auto';
+            if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+                lastFocusedElement.focus();
+            }
         };
 
         window.showToast = function(msg) {
@@ -4959,7 +4993,7 @@
                 <p class="sec">Lời dặn của Y sỹ/ bác sỹ:</p>
                 <div class="box advice">${teleEscape(advice || 'Không có.')}</div>
                 <div class="sign">
-                    <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)}</div>
+                    <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)</i></div>
                     <div>Y sỹ/ bác sỹ kê đơn<br><i>(Ký, ghi rõ họ tên)</i>
                     ${signerImage
                     ? `<div class="sig-img"><img src="${signerImage}" alt="Chữ ký số"></div><div class="sig-note">Đã ký số từ xa</div>`

@@ -29,6 +29,7 @@ export default function VideoCallUserView({ callId, token }) {
 
   return (
     <main className="video-call-user">
+      <h1 className="sr-only">Cuộc gọi khám từ xa với Bác sĩ</h1>
       <div className="video-window" role="region" aria-label="Khung video cuộc gọi">{/* WebRTC video here */}</div>
       <section className="doctor-minimal" aria-labelledby="doctor-info-heading">
         <h2 id="doctor-info-heading">Bác sĩ: {doctor.name}</h2>
