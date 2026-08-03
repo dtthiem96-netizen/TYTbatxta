@@ -1,9 +1,0 @@
-# Ignore runtime DB
-telehealth.db
-
-# Node modules (if any)
-node_modules/
-
-# Build artifacts
-dist/
-build/
