@@ -186,7 +186,7 @@
 
         /* FOOTER / CHÂN TRANG Y TẾ SỐ */
         footer, #lien-he {
-            background-color: #0c4a6e !important; /* Xanh dương đậm chuẩn y tế */
+            background-color: #0b416b !important; /* Xanh dương đậm chuẩn y tế */
             color: #ffffff !important;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
             font-size: 15px !important;
@@ -222,7 +222,7 @@
 
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 antialiased relative">
+<body class="bg-[#f4f6f9] text-gray-800 antialiased relative">
 
     <!-- Nút Góp ý/Phản ánh (Cố định góc trái) -->
     <div class="feedback-btn" onclick="window.openModal('modal-gopy')">
@@ -233,24 +233,24 @@
     <div id="main-website">
 
         <!-- HEADER -->
-        <header class="glass-effect fixed w-full top-0 z-40 border-b border-gray-200 shadow-sm">
+        <header class="bg-[#0b416b] text-white fixed w-full top-0 z-40 shadow-lg border-b border-blue-900/50">
             <!-- ACCESSIBILITY TOOLBAR (Thanh hỗ trợ tiếp cận cho người dân) -->
-            <div class="bg-medical-700 text-white py-1.5 px-4 text-xs font-semibold border-b border-white/10">
+            <div class="bg-[#083054] text-white py-1.5 px-4 text-xs font-semibold border-b border-white/10">
                 <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
                     <div class="flex items-center gap-2">
-                        <span class="flex items-center gap-1 text-blue-100 font-bold"><i class="fas fa-universal-access"></i> HỖ TRỢ BÀ CON:</span>
+                        <span class="flex items-center gap-1 text-blue-200 font-bold"><i class="fas fa-universal-access"></i> HỖ TRỢ BÀ CON:</span>
                         <span class="text-white/30">|</span>
-                        <span class="text-blue-100 font-bold">Cỡ chữ:</span>
+                        <span class="text-blue-200 font-bold">Cỡ chữ:</span>
                         <button onclick="window.changeFontSize('small')" class="px-2 py-0.5 rounded hover:bg-white/10 text-[10px] font-bold border border-white/20 transition-all" id="font-btn-small" title="Cỡ chữ Nhỏ">A-</button>
                         <button onclick="window.changeFontSize('normal')" class="bg-white/20 px-2 py-0.5 rounded text-white font-bold border border-white/30 transition-all" id="font-btn-normal" title="Cỡ chữ Bình thường">A</button>
                         <button onclick="window.changeFontSize('large')" class="px-2 py-0.5 rounded hover:bg-white/10 text-sm font-bold border border-white/20 transition-all" id="font-btn-large" title="Cỡ chữ Lớn">A+</button>
                         <button onclick="window.changeFontSize('xlarge')" class="px-2 py-0.5 rounded hover:bg-white/10 text-base font-extrabold border border-white/20 transition-all" id="font-btn-xlarge" title="Cỡ chữ Cực lớn">A++</button>
                     </div>
                     <div class="flex items-center gap-3">
-                        <button onclick="window.toggleTextToSpeech()" id="tts-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm">
+                        <button onclick="window.toggleTextToSpeech()" id="tts-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm text-blue-100">
                             <i class="fas fa-volume-up text-xs"></i> <span id="tts-btn-text">Đọc thành tiếng (Tắt)</span>
                         </button>
-                        <button onclick="window.toggleHighContrast()" id="contrast-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm">
+                        <button onclick="window.toggleHighContrast()" id="contrast-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm text-blue-100">
                             <i class="fas fa-adjust text-xs"></i> <span id="contrast-btn-text">Độ tương phản cao (Tắt)</span>
                         </button>
                     </div>
@@ -260,88 +260,88 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-20">
                     <div class="flex items-center gap-3">
-                        <img src="/.netlify/images?url=logo.png&w=400&fm=avif&q=80" srcset="/.netlify/images?url=logo.png&w=400&fm=avif&q=80 400w, /.netlify/images?url=logo.png&w=800&fm=avif&q=80 800w" sizes="48px" width="48" height="48" fetchpriority="high" alt="Logo Trạm Y Tế Bát Xát" class="w-12 h-12 object-contain drop-shadow-sm" onerror="this.style.display='none'">
+                        <img src="/.netlify/images?url=logo.png&w=400&fm=avif&q=80" srcset="/.netlify/images?url=logo.png&w=400&fm=avif&q=80 400w, /.netlify/images?url=logo.png&w=800&fm=avif&q=80 800w" sizes="48px" width="48" height="48" fetchpriority="high" alt="Logo Trạm Y tế Bát Xát" class="w-12 h-12 object-contain drop-shadow-md bg-white rounded-full p-0.5" onerror="this.style.display='none'">
                         <div>
-                            <h1 data-cms-id="brand-title" class="text-xl font-extrabold text-medical-900 leading-tight uppercase tracking-wide">Trạm Y Tế Bát Xát</h1>
+                            <h1 data-cms-id="brand-title" class="text-xl font-extrabold text-white leading-tight uppercase tracking-wide">Trạm Y tế Bát Xát</h1>
                             <div class="hidden md:flex items-center gap-2 mt-0.5">
-                                <p id="header-slogan" data-cms-id="header-slogan" class="text-xs text-medical-600 font-bold">Vì sức khỏe cộng đồng – Vì hạnh phúc mỗi gia đình</p>
-                                <button onclick="window.generateDailyTipAI()" class="text-orange-500 hover:bg-orange-50 px-2 py-0.5 rounded text-[10px] font-black transition border border-orange-200 uppercase shadow-sm" title="Mẹo sức khỏe">✨ Mẹo AI</button>
+                                <p id="header-slogan" data-cms-id="header-slogan" class="text-xs text-blue-200 font-bold">Vì sức khỏe cộng đồng – Vì hạnh phúc mỗi gia đình</p>
+                                <button onclick="window.generateDailyTipAI()" class="text-amber-300 hover:bg-white/10 px-2 py-0.5 rounded text-[10px] font-black transition border border-amber-300/40 uppercase shadow-sm" title="Mẹo sức khỏe AI">✨ Mẹo AI</button>
                             </div>
                         </div>
                     </div>
 
                     <nav class="hidden lg:flex space-x-6 items-center">
-                        <a href="#" onclick="window.switchPage('home')" id="nav-home" class="text-medical-600 border-b-2 border-medical-600 pb-1 font-bold transition text-[15px]">Trang chủ</a>
-                        <a href="#" onclick="window.switchPage('dept')" id="nav-dept" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Khoa & Phòng</a>
-                        <a href="#" onclick="window.switchPage('news')" id="nav-news" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Tin tức & Lịch tiêm</a>
-                        <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế')" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Tải Tài Liệu</a>
+                        <a href="#" onclick="window.switchPage('home')" id="nav-home" class="text-white border-b-2 border-amber-400 pb-1 font-bold transition text-[15px]">Trang chủ</a>
+                        <a href="#" onclick="window.switchPage('dept')" id="nav-dept" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Khoa & Phòng</a>
+                        <a href="#" onclick="window.switchPage('news')" id="nav-news" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Tin tức & Lịch tiêm</a>
+                        <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế')" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Tải Tài Liệu</a>
                         
-                        <button onclick="window.openModal('modal-aisearch')" class="text-purple-600 hover:text-white hover:bg-purple-600 font-bold transition text-[15px] flex items-center gap-2 bg-purple-50 px-5 py-2 rounded-full border border-purple-200 shadow-sm">
+                        <button onclick="window.openModal('modal-aisearch')" class="text-white hover:bg-purple-700 font-bold transition text-[15px] flex items-center gap-2 bg-[#5e35b1] px-4 py-2 rounded-full border border-purple-400/30 shadow-md">
                             <i class="fas fa-robot text-lg"></i> Tìm kiếm AI
                         </button>
 
-                        <button onclick="window.openTelehealthQuickCall()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold transition text-[15px] flex items-center gap-2 px-5 py-2 rounded-full shadow-md">
+                        <button onclick="window.openTelehealthQuickCall()" class="bg-[#1976d2] hover:bg-[#1565c0] text-white font-bold transition text-[15px] flex items-center gap-2 px-5 py-2 rounded-full shadow-md border border-blue-400/40">
                             <i class="fas fa-video text-lg"></i> Gọi khám từ xa
                             <span id="nav-on-duty-dot" class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" title="Đang kiểm tra cán bộ trực"></span>
                         </button>
                     </nav>
 
                     <div class="lg:hidden flex items-center gap-3">
-                        <button onclick="window.openTelehealthQuickCall()" class="text-white bg-blue-600 w-10 h-10 rounded-full shadow-md" title="Gọi khám từ xa"><i class="fas fa-video"></i></button>
-                        <button onclick="window.openModal('modal-aisearch')" class="text-purple-600 bg-purple-50 w-10 h-10 rounded-full border border-purple-200" aria-label="Mở tìm kiếm AI"><i class="fas fa-search"></i></button>
-                        <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="text-gray-700 text-2xl" aria-label="Mở menu di động" aria-expanded="false" aria-controls="mobile-menu"><i class="fas fa-bars"></i></button>
+                        <button onclick="window.openTelehealthQuickCall()" class="text-white bg-[#1976d2] w-10 h-10 rounded-full shadow-md flex items-center justify-center" title="Gọi khám từ xa"><i class="fas fa-video"></i></button>
+                        <button onclick="window.openModal('modal-aisearch')" class="text-white bg-[#5e35b1] w-10 h-10 rounded-full flex items-center justify-center" aria-label="Mở tìm kiếm AI"><i class="fas fa-search"></i></button>
+                        <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="text-white text-2xl" aria-label="Mở menu di động" aria-expanded="false" aria-controls="mobile-menu"><i class="fas fa-bars"></i></button>
                     </div>
                 </div>
             </div>
 
             <!-- Mobile Menu -->
-            <div id="mobile-menu" class="hidden lg:hidden bg-white border-t border-gray-100 px-4 pt-2 pb-4 space-y-1 shadow-2xl absolute w-full left-0 z-50">
-                <a href="#" onclick="window.switchPage('home'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-medical-600 bg-gray-50 border-b border-gray-100">Trang chủ</a>
-                <a href="#" onclick="window.switchPage('dept'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Khoa & Phòng Chức năng</a>
-                <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Tin tức & Lịch tiêm</a>
-                <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Kho Tài liệu & Biểu mẫu</a>
-                <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-4 text-center px-4 py-3 text-white font-bold bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
-                <a href="tel:115" class="btn-call-emergency block mt-2 text-center px-4 py-3 text-white font-bold bg-red-600 rounded-xl shadow-md"><i class="fas fa-truck-medical mr-2"></i> Gọi Cấp Cứu 115</a>
+            <div id="mobile-menu" class="hidden lg:hidden bg-[#0b416b] border-t border-blue-800/80 px-4 pt-2 pb-4 space-y-1 shadow-2xl absolute w-full left-0 z-50 text-white">
+                <a href="#" onclick="window.switchPage('home'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-amber-300 bg-white/10 rounded-lg border-b border-blue-800/50">Trang chủ</a>
+                <a href="#" onclick="window.switchPage('dept'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Khoa & Phòng Chức năng</a>
+                <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Tin tức & Lịch tiêm</a>
+                <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Kho Tài liệu & Biểu mẫu</a>
+                <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-4 text-center px-4 py-3 text-white font-bold bg-[#1976d2] hover:bg-[#1565c0] rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
+                <a href="tel:115" class="btn-call-emergency block mt-2 text-center px-4 py-3 text-white font-bold bg-[#e53935] hover:bg-[#d32f2f] rounded-xl shadow-md"><i class="fas fa-truck-medical mr-2"></i> Gọi Cấp Cứu 115</a>
                 <a href="tel:0382103002" class="btn-call-station block mt-2 text-center px-4 py-3 text-white font-bold bg-emerald-600 rounded-xl shadow-md"><i class="fas fa-phone-volume mr-2"></i> Gọi Trạm Y tế Bát Xát: 0382.103.002</a>
             </div>
         </header>
 
         <!-- KHOẢNG TRANG CHỦ -->
         <div id="trang-chu-container" class="block animate-[fadeIn_0.3s_ease-in-out]">
-            <section class="pt-36 pb-12 bg-gradient-to-br from-medical-50 to-white relative overflow-hidden">
+            <section class="pt-36 pb-12 bg-gradient-to-br from-[#e0f2fe] via-[#f4f6f9] to-white relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-20">
-                    <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-medical-200 blur-3xl"></div>
-                    <div class="absolute top-1/2 -left-24 w-72 h-72 rounded-full bg-blue-200 blur-3xl"></div>
+                    <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-300 blur-3xl"></div>
+                    <div class="absolute top-1/2 -left-24 w-72 h-72 rounded-full bg-indigo-200 blur-3xl"></div>
                 </div>
                 
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                     <div class="flex flex-col md:flex-row items-center justify-between gap-8">
                         <div class="md:w-3/5 space-y-6 text-center md:text-left">
-                            <div class="inline-block px-4 py-2 rounded-full bg-blue-100 text-medical-800 font-bold text-sm mb-2 border border-blue-200">
-                                <i class="fas fa-shield-alt text-medical-600 mr-1"></i> Cổng thông tin Y tế số chính quy
+                            <div class="inline-block px-4 py-2 rounded-full bg-blue-100 text-[#0b416b] font-bold text-sm mb-2 border border-blue-200">
+                                <i class="fas fa-shield-alt text-[#1976d2] mr-1"></i> Cổng thông tin Y tế số chính quy
                             </div>
                             <h2 data-cms-id="hero-heading" class="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">
                                 Chăm sóc sức khỏe <br/>
-                                <span class="text-transparent bg-clip-text bg-gradient-to-r from-medical-600 to-blue-500">Cho Mọi Gia Đình</span>
+                                <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#0b416b] to-[#1976d2]">Cho Mọi Gia Đình</span>
                             </h2>
                             <p data-cms-id="hero-desc" class="text-lg text-gray-700 font-medium">Hỗ trợ nhân dân tra cứu thuốc bằng AI, đặt lịch khám BHYT trực tuyến, cập nhật lịch tiêm phòng dịch và kết nối nhanh tới Cán bộ chuyên trách.</p>
                             <div class="flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-2">
-                                <button onclick="window.switchPage('dept')" class="w-full sm:w-auto bg-gradient-to-r from-medical-600 to-medical-500 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
+                                <button onclick="window.switchPage('dept')" class="w-full sm:w-auto bg-[#1976d2] hover:bg-[#1565c0] text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
                                     <i class="fas fa-hospital text-xl"></i> Khám phá Khoa & Phòng
                                 </button>
-                                <button onclick="window.openTelehealthQuickCall()" class="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
+                                <button onclick="window.openTelehealthQuickCall()" class="w-full sm:w-auto bg-gradient-to-r from-[#1976d2] to-blue-700 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
                                     <i class="fas fa-video text-xl"></i> Gọi khám từ xa ngay
                                 </button>
-                                <button onclick="window.openModal('modal-datlich')" class="w-full sm:w-auto bg-white text-medical-700 border-2 border-medical-200 px-8 py-4 rounded-2xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
-                                    <i class="fas fa-calendar-check text-xl"></i> Đặt lịch khám bệnh
+                                <button onclick="window.openModal('modal-datlich')" class="w-full sm:w-auto bg-white text-[#0b416b] border-2 border-blue-200 px-8 py-4 rounded-2xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg hover:bg-blue-50">
+                                    <i class="fas fa-calendar-check text-xl text-[#1976d2]"></i> Đặt lịch khám BHYT
                                 </button>
                             </div>
                             <p id="hero-on-duty" class="text-sm font-bold text-gray-500 pt-1"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang kiểm tra cán bộ y tế trực trực tuyến...</p>
                         </div>
                         <div class="md:w-2/5 flex justify-center mt-8 md:mt-0">
-                            <div class="w-full max-w-sm aspect-square bg-medical-50 rounded-full shadow-2xl border-8 border-white flex flex-col items-center justify-center relative overflow-hidden">
-                                <i class="fas fa-heartbeat text-8xl text-medical-500 mb-4 animate-pulse"></i>
-                                <h3 class="text-2xl font-black text-medical-800 text-center uppercase tracking-wide">Trạm Y Tế<br>Bát Xát</h3>
+                            <div class="w-full max-w-sm aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full shadow-2xl border-8 border-white flex flex-col items-center justify-center relative overflow-hidden">
+                                <i class="fas fa-heartbeat text-8xl text-[#e53935] mb-4 animate-pulse"></i>
+                                <h3 class="text-2xl font-black text-[#0b416b] text-center uppercase tracking-wide">Trạm Y tế<br>Bát Xát</h3>
                             </div>
                         </div>
                     </div>
@@ -350,21 +350,23 @@
 
             <!-- KÊNH LIÊN HỆ KHẨN CẤP -->
             <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-20 mb-16">
-                <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border-t-8 border-red-500">
-                    <h3 data-cms-id="emergency-title" class="text-xl font-black text-gray-800 mb-6 text-center uppercase tracking-wider"><i class="fas fa-ambulance text-red-500 mr-2"></i> Kênh liên hệ khẩn cấp</h3>
+                <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border-t-8 border-[#e53935]">
+                    <h3 data-cms-id="emergency-title" class="text-xl font-black text-gray-800 mb-6 text-center uppercase tracking-wider"><i class="fas fa-ambulance text-[#e53935] mr-2"></i> Kênh liên hệ khẩn cấp</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <a href="tel:0382103002" class="btn-call-station group bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-emerald-500 shadow-md">
+                        <a href="tel:0382103002" class="btn-call-station group bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl p-6 flex flex-col items-center text-center transition-all border-2 border-emerald-500 shadow-md">
                             <i class="fas fa-phone-volume text-4xl mb-2 group-hover:scale-110 transition-transform text-white"></i>
                             <div class="font-bold text-lg text-white">Gọi Trạm Y tế Bát Xát</div>
                             <div class="text-2xl font-black text-white">0382.103.002</div>
                         </a>
-                        <a href="tel:115" class="btn-call-emergency group bg-red-600 hover:bg-red-700 text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all shadow-md border-2 border-red-500">
+                        <a href="tel:115" class="btn-call-emergency group bg-[#e53935] hover:bg-[#d32f2f] text-white rounded-2xl p-6 flex flex-col items-center text-center transition-all shadow-md border-2 border-red-500">
                             <i class="fas fa-truck-medical text-5xl mb-2 group-hover:animate-pulse text-white"></i>
                             <div class="font-bold text-lg uppercase text-white">Gọi Cấp Cứu 115</div>
                             <div class="text-4xl font-black text-white">115</div>
                         </a>
-                        <button onclick="window.openModal('modal-danhba')" class="group bg-blue-50 hover:bg-blue-600 text-medical-700 hover:text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-blue-100 shadow-sm">
-                            <i class="fas fa-user-nurse text-4xl mb-2 group-hover:scale-110 transition-transform"></i><div class="font-bold text-lg">Danh bạ Cán bộ Y tế</div><div class="text-sm font-bold mt-1">Xem chi tiết SĐT trực ban</div>
+                        <button onclick="window.openModal('modal-danhba')" class="group bg-blue-50 hover:bg-[#1976d2] text-[#0b416b] hover:text-white rounded-2xl p-6 flex flex-col items-center text-center transition-all border-2 border-blue-100 shadow-sm">
+                            <i class="fas fa-user-nurse text-4xl mb-2 group-hover:scale-110 transition-transform"></i>
+                            <div class="font-bold text-lg">Danh bạ Cán bộ Y tế</div>
+                            <div class="text-sm font-bold mt-1">Xem chi tiết SĐT trực ban</div>
                         </button>
                     </div>
                 </div>
@@ -378,13 +380,13 @@
                         <!-- Cột 1: Thông báo Trạm -->
                         <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 flex flex-col h-[520px]">
                             <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200 shrink-0">
-                                <i class="fas fa-calendar-alt text-2xl text-medical-600"></i>
+                                <i class="fas fa-calendar-alt text-2xl text-[#1976d2]"></i>
                                 <h3 data-cms-id="notice-title" class="text-xl font-black text-gray-900">Thông báo Trạm</h3>
                             </div>
                             <div class="flex-1 overflow-y-auto pr-1">
                                 <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
                                     <table class="w-full text-left border-collapse">
-                                        <thead><tr class="bg-medical-50 text-medical-900"><th class="p-3 font-bold border-b text-sm">Ngày/Giờ</th><th class="p-3 font-bold border-b text-sm">Đối tượng & Thôn bản</th></tr></thead>
+                                        <thead><tr class="bg-blue-50 text-[#0b416b]"><th class="p-3 font-bold border-b text-sm">Ngày/Giờ</th><th class="p-3 font-bold border-b text-sm">Đối tượng & Thôn bản</th></tr></thead>
                                         <tbody id="public-vaccine-list">
                                             <!-- Dữ liệu được đẩy từ Admin CMS -->
                                         </tbody>
@@ -392,8 +394,8 @@
                                 </div>
                             </div>
                             <div class="mt-4 shrink-0 border-t border-gray-200 pt-3 flex flex-col sm:flex-row justify-between items-center gap-2">
-                                <p data-cms-id="notice-note" class="text-xs italic text-gray-500 font-medium"><i class="fas fa-info-circle text-medical-500"></i> Mang theo Sổ tiêm & CCCD.</p>
-                                <button onclick="window.switchPage('news')" class="text-xs bg-medical-100 text-medical-700 hover:bg-medical-600 hover:text-white px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
+                                <p data-cms-id="notice-note" class="text-xs italic text-gray-500 font-medium"><i class="fas fa-info-circle text-[#1976d2]"></i> Mang theo Sổ tiêm & CCCD.</p>
+                                <button onclick="window.switchPage('news')" class="text-xs bg-blue-100 text-[#0b416b] hover:bg-[#1976d2] hover:text-white px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
                                     <span>Xem thêm</span> <i class="fas fa-arrow-right text-[10px]"></i>
                                 </button>
                             </div>
@@ -402,13 +404,13 @@
                         <!-- Cột 2: Bảng tin Y tế (News) -->
                         <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 flex flex-col h-[520px]">
                             <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 shrink-0">
-                                <div class="flex items-center gap-3"><i class="fas fa-bullhorn text-2xl text-orange-500"></i><h3 data-cms-id="news-title" class="text-xl font-black text-gray-900">Bảng tin Y tế</h3></div>
+                                <div class="flex items-center gap-3"><i class="fas fa-bullhorn text-2xl text-amber-500"></i><h3 data-cms-id="news-title" class="text-xl font-black text-gray-900">Bảng tin Y tế</h3></div>
                             </div>
                             <div class="flex-1 overflow-y-auto pr-1 space-y-4" id="news-container">
                                 <!-- Dữ liệu được đẩy từ Admin CMS (số lượng ngang bằng lịch tiêm, tối đa 5 bài, hỗ trợ cuộn nếu dài) -->
                             </div>
                             <div class="mt-4 shrink-0 border-t border-gray-200 pt-3 text-right">
-                                <button onclick="window.switchPage('news')" class="text-xs bg-medical-100 text-medical-700 hover:bg-medical-600 hover:text-white px-3 py-1.5 rounded-lg font-bold transition inline-flex items-center gap-1">
+                                <button onclick="window.switchPage('news')" class="text-xs bg-blue-100 text-[#0b416b] hover:bg-[#1976d2] hover:text-white px-3 py-1.5 rounded-lg font-bold transition inline-flex items-center gap-1">
                                     <span>Xem thêm</span> <i class="fas fa-arrow-right text-[10px]"></i>
                                 </button>
                             </div>
@@ -418,7 +420,7 @@
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
                         <!-- Dòng dưới: Dịch vụ AI & Mạng Xã Hội -->
                         <div class="space-y-8">
-                            <div class="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl">
+                            <div class="bg-[#5e35b1] rounded-3xl p-8 text-white shadow-xl">
                                 <h3 data-cms-id="ai-box-title" class="text-2xl font-black mb-2"><i class="fas fa-robot text-purple-200 mr-2"></i> Khám phá Trợ lý AI</h3>
                                 <p data-cms-id="ai-box-desc" class="mb-6 text-purple-100">Ứng dụng trí tuệ nhân tạo để tra cứu y tế mộc mạc, dễ hiểu cho bà con vùng cao.</p>
                                 <div class="grid grid-cols-2 gap-3">
@@ -432,15 +434,15 @@
 
                         <div class="space-y-8">
                             <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 flex flex-col items-center">
-                                <div class="flex items-center gap-3 mb-4 self-start text-blue-800">
+                                <div class="flex items-center gap-3 mb-4 self-start text-[#0b416b]">
                                     <i class="fab fa-facebook text-3xl text-blue-600"></i>
-                                    <h3 data-cms-id="fanpage-title" class="text-xl font-black text-gray-900">Bản tin Fanpage Trạm Y Tế</h3>
+                                    <h3 data-cms-id="fanpage-title" class="text-xl font-black text-gray-900">Bản tin Fanpage Trạm Y tế</h3>
                                 </div>
                                 <div class="w-full rounded-2xl overflow-hidden shadow-md bg-white border border-blue-200">
                                     <iframe src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2Fprofile.php%3Fid%3D61556920635321&tabs=timeline&width=340&height=500&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=false&appId" width="100%" height="500" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>
                                 </div>
-                                <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" class="mt-4 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition w-full text-center flex items-center justify-center gap-2">
-                                    <i class="fab fa-facebook"></i> Mở Facebook Trạm Y Tế
+                                <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" class="mt-4 bg-[#1976d2] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#1565c0] transition w-full text-center flex items-center justify-center gap-2">
+                                    <i class="fab fa-facebook"></i> Mở Facebook Trạm Y tế Bát Xát
                                 </a>
                             </div>
                         </div>
@@ -619,21 +621,27 @@
         </div>
 
         <!-- FOOTER / LIÊN HỆ -->
-        <footer id="lien-he" class="bg-sky-950 text-white pt-16 pb-8 border-t-8 border-sky-800">
+        <footer id="lien-he" class="bg-[#0b416b] text-white pt-16 pb-8 border-t-8 border-[#1976d2]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
                     <div>
                         <div class="flex items-center gap-4 mb-6">
-                            <div class="bg-white p-1.5 rounded-full inline-block shadow-lg">
-                                <img src="logo.png" alt="Logo Trạm Y tế Bát Xát" class="w-14 h-14 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230284c7\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
+                            <div class="bg-white p-2 rounded-full inline-block shadow-lg">
+                                <img src="logo.png" alt="Logo Trạm Y tế Bát Xát" class="w-12 h-12 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230b416b\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
                             </div>
-                            <h3 class="text-2xl font-black uppercase tracking-widest text-white leading-tight">Trạm Y tế Bát Xát</h3>
+                            <div>
+                                <h3 class="text-2xl font-black uppercase tracking-widest text-white leading-tight">Trạm Y tế Bát Xát</h3>
+                                <p class="text-xs text-blue-200 font-bold">Cổng thông tin & Dịch vụ Y tế số</p>
+                            </div>
                         </div>
-                        <p class="text-white text-base leading-relaxed mb-6 font-medium">
-                            Đơn vị y tế cơ sở chăm sóc sức khỏe ban đầu, phòng chống dịch bệnh và đảm bảo an sinh y tế cho nhân dân trên địa bàn.
+                        <p class="text-blue-100 text-sm leading-relaxed mb-4 font-medium">
+                            <strong class="text-white">Cơ quan quản lý:</strong> Trực thuộc Ủy ban nhân dân xã Bát Xát quản lý trực tiếp.
                         </p>
-                        <div class="mt-4">
-                            <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl transition shadow-md" title="Trang Facebook Trạm Y tế Bát Xát">
+                        <p class="text-blue-100 text-sm leading-relaxed mb-6 font-medium">
+                            Đơn vị sự nghiệp y tế tuyến cơ sở, đảm bảo công tác chăm sóc sức khỏe ban đầu, tiêm chủng mở rộng, khám chữa bệnh BHYT và phòng chống dịch bệnh cho nhân dân trên địa bàn.
+                        </p>
+                        <div>
+                            <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-3 bg-[#1976d2] hover:bg-[#1565c0] text-white font-bold px-4 py-2.5 rounded-xl transition shadow-md" title="Trang Facebook Trạm Y tế Bát Xát">
                                 <i class="fab fa-facebook text-2xl text-white"></i>
                                 <span class="text-white text-sm">Trang Facebook Trạm Y tế Bát Xát</span>
                             </a>
@@ -641,52 +649,57 @@
                     </div>
 
                     <div>
-                        <h3 class="text-xl font-bold mb-6 border-b-2 border-sky-700 pb-2 uppercase tracking-wide text-white">Thông tin liên hệ</h3>
-                        <ul class="space-y-4 text-white text-base">
+                        <h3 class="text-xl font-bold mb-6 border-b-2 border-blue-700/60 pb-2 uppercase tracking-wide text-white">Thông tin liên hệ</h3>
+                        <ul class="space-y-4 text-blue-100 text-sm">
                             <li class="flex items-start gap-3">
-                                <i class="fas fa-building mt-1.5 text-xl text-sky-300"></i>
-                                <span class="font-bold">Tên cơ quan: Trạm Y tế Bát Xát</span>
+                                <i class="fas fa-building mt-1 text-lg text-blue-300"></i>
+                                <span class="font-bold text-white">Tên cơ quan: Trạm Y tế Bát Xát</span>
                             </li>
                             <li class="flex items-start gap-3">
-                                <i class="fas fa-map-marker-alt mt-1.5 text-xl text-sky-300"></i>
-                                <span class="font-medium">Địa chỉ: Thôn 08, Xã Bát Xát, tỉnh Lào Cai.</span>
+                                <i class="fas fa-sitemap mt-1 text-lg text-blue-300"></i>
+                                <span>Trực thuộc: Ủy ban nhân dân xã Bát Xát quản lý trực tiếp.</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i class="fas fa-map-marker-alt mt-1 text-lg text-blue-300"></i>
+                                <span>Địa chỉ: Trạm Y tế Bát Xát - Thôn 08, Xã Bát Xát, tỉnh Lào Cai.</span>
                             </li>
                             <li class="flex items-center gap-3">
-                                <i class="fas fa-phone-alt text-xl text-sky-300"></i>
-                                <span class="font-medium">Điện thoại: <a href="tel:0382103002" class="hover:underline font-black text-xl text-white">0382.103.002</a></span>
+                                <i class="fas fa-phone-alt text-lg text-blue-300"></i>
+                                <span>Điện thoại: <a href="tel:0382103002" class="hover:underline font-black text-lg text-white">0382.103.002</a></span>
                             </li>
                             <li class="flex items-center gap-3">
-                                <i class="fas fa-envelope text-xl text-sky-300"></i>
-                                <span class="font-medium">Email: <a href="mailto:tytbatxat@laocai.gov.vn" class="hover:underline font-bold text-white">tytbatxat@laocai.gov.vn</a></span>
+                                <i class="fas fa-envelope text-lg text-blue-300"></i>
+                                <span>Email: <a href="mailto:tytbatxat@laocai.gov.vn" class="hover:underline font-bold text-white">tytbatxat@laocai.gov.vn</a></span>
                             </li>
-                            <li class="flex items-start gap-3 pt-3 border-t border-sky-800">
-                                <i class="far fa-clock mt-1 text-xl text-sky-300"></i>
+                            <li class="flex items-start gap-3 pt-3 border-t border-blue-800/80">
+                                <i class="far fa-clock mt-1 text-lg text-blue-300"></i>
                                 <div>
-                                    <strong class="text-white text-base block mb-1">Giờ làm việc:</strong>
+                                    <strong class="text-white text-base block mb-1">Giờ làm việc chính thức:</strong>
                                     Sáng: 07:30 - 12:00 | Chiều: 13:30 - 17:00<br>
-                                    <em class="text-sky-300 font-bold mt-1 inline-block">Trực cấp cứu: 24/24h (Kể cả Lễ, Tết)</em>
+                                    <em class="text-amber-300 font-bold mt-1 inline-block">Trực cấp cứu: 24/24h (Kể cả Lễ, Tết)</em>
                                 </div>
                             </li>
                         </ul>
                     </div>
 
                     <div>
-                        <h3 class="text-xl font-bold mb-6 border-b-2 border-sky-700 pb-2 uppercase tracking-wide text-white">Bản đồ vị trí</h3>
-                        <div class="w-full h-56 bg-gray-200 rounded-xl overflow-hidden relative shadow-inner border border-sky-700">
-                            <div class="absolute inset-0 bg-sky-900 flex flex-col justify-center items-center text-center p-4">
-                                <i class="fas fa-map-marked-alt text-5xl text-sky-300 mb-3 drop-shadow-md"></i>
+                        <h3 class="text-xl font-bold mb-6 border-b-2 border-blue-700/60 pb-2 uppercase tracking-wide text-white">Bản đồ vị trí</h3>
+                        <div class="w-full h-56 bg-gray-200 rounded-xl overflow-hidden relative shadow-inner border border-blue-800">
+                            <div class="absolute inset-0 bg-[#083054] flex flex-col justify-center items-center text-center p-4">
+                                <i class="fas fa-map-marked-alt text-5xl text-blue-300 mb-3 drop-shadow-md"></i>
                                 <p class="text-base text-white font-bold leading-tight">Trạm Y tế Bát Xát<br>Thôn 08, Xã Bát Xát, tỉnh Lào Cai</p>
-                                <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="mt-4 text-sm bg-white text-sky-950 px-5 py-2.5 rounded-full font-black hover:bg-sky-50 transition shadow-lg active:scale-95 transform">Mở Google Maps</a>
+                                <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="mt-4 text-sm bg-white text-[#0b416b] px-5 py-2.5 rounded-full font-black hover:bg-blue-50 transition shadow-lg active:scale-95 transform">Mở Google Maps</a>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="border-t border-sky-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-white font-medium flex-col-mobile">
+                <div class="border-t border-blue-800/80 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-blue-200 font-medium flex-col-mobile">
                     <p class="mb-4 md:mb-0 text-center md:text-left text-center-mobile">&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
                     <div class="flex items-center gap-4 flex-wrap justify-center">
-                        <a href="#" class="hover:text-sky-300 transition text-white">Chính sách bảo mật</a>
-                        <a href="/admin" class="hover:text-sky-300 border-l-2 border-sky-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ NỘI BỘ</a>
+                        <a href="#" class="hover:text-white transition text-blue-200">Chính sách bảo mật</a>
+                        <a href="/tram" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-emerald-400 tracking-wide" title="Bảng điều khiển dành cho Cán bộ Y tế trực tại Điểm trạm">BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM</a>
+                        <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ CMS</a>
                     </div>
                 </div>
             </div>
@@ -5354,7 +5367,7 @@
                     v.temp ? `Nhiệt độ ${v.temp}°C` : '',
                     v.weight ? `Cân nặng ${v.weight} kg` : ''
                 ].filter(Boolean).join(', ') || 'chưa có chỉ số sinh hiệu';
-                const prompt = `Bạn là Bác sĩ Trợ lý AI Telehealth hỗ trợ trạm y tế xã. Bệnh nhân: ${TELE.patientName || 'không rõ'}. Sinh hiệu: ${vitalText}. Triệu chứng/ghi chú của cán bộ điểm trạm: "${TELE.symptoms || notes || 'khám tổng quát'}". Hãy đưa ra: 1) Chẩn đoán sơ bộ kèm mã ICD-10, 2) Cận lâm sàng cần chỉ định, 3) Hướng xử trí và đơn thuốc tham khảo theo phác đồ Bộ Y tế. Trình bày ngắn gọn theo gạch đầu dòng.`;
+                const prompt = `Bạn là Bác sĩ Trợ lý AI Telehealth hỗ trợ Trạm Y tế Bát Xát. Bệnh nhân: ${TELE.patientName || 'không rõ'}. Sinh hiệu: ${vitalText}. Triệu chứng/ghi chú của cán bộ điểm trạm: "${TELE.symptoms || notes || 'khám tổng quát'}". Hãy đưa ra: 1) Chẩn đoán sơ bộ kèm mã ICD-10, 2) Cận lâm sàng cần chỉ định, 3) Hướng xử trí và đơn thuốc tham khảo theo phác đồ Bộ Y tế. Trình bày ngắn gọn theo gạch đầu dòng.`;
                 const res = await callGemini(prompt, "Bạn là Y sĩ/ Bác sĩ chuyên khoa y tế cơ sở, trả lời bằng tiếng Việt.");
                 if (diagEl) diagEl.textContent = res || "Chưa nhận được phản hồi từ trợ lý AI.";
             } catch (e) {

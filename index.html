@@ -33,9 +33,12 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preload" href="/.netlify/images?url=logo.png&w=400&fm=avif&q=80" as="image" fetchpriority="high">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" as="style">
     
     <!-- THƯ VIỆN GIAO DIỆN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     
@@ -45,17 +48,32 @@
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'], },
                     colors: {
-                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' }
+                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' }
                     }
                 }
             }
         }
     </script>
     <style>
+        @font-face {
+            font-family: 'Inter';
+            font-display: swap;
+        }
         body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
         .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .service-card:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .service-card:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border-color: #e0f2fe; }
         .service-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .feedback-btn {
+            position: fixed; left: -140px; top: 50%; transform: translateY(-50%);
+            background-color: #f59e0b; color: white; padding: 14px 22px;
+            border-radius: 0 30px 30px 0; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); transition: left 0.3s ease;
+            z-index: 45; display: flex; align-items: center; gap: 12px; cursor: pointer;
+        }
+        .feedback-btn:hover { left: 0; }
+        .feedback-btn i { font-size: 1.3rem; }
+        .feedback-btn::after { content: '\f086'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; right: 15px; display: block; }
+        .feedback-btn:hover::after { display: none; }
         .markdown-body strong { font-weight: 700; color: #111827; }
         .markdown-body br { margin-bottom: 8px; content: ""; display: block; }
         .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
@@ -124,32 +142,115 @@
         body.high-contrast .border-medical-200 {
             border-color: #ffffff !important;
         }
+    
+        /* TẬP TRUNG BÀN PHÍM (KEYBOARD FOCUS) - ACCESSIBILITY */
+        :focus-visible {
+            outline: 3px solid #0284c7 !important;
+            outline-offset: 2px !important;
+        }
+
+        /* NÚT BẤM CALL TO ACTION (CTA) - CẤP CỨU & TRẠM Y TẾ */
+        .btn-call-emergency,
+        a[href="tel:115"] {
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        .btn-call-emergency *,
+        a[href="tel:115"] * {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        .btn-call-emergency:hover,
+        a[href="tel:115"]:hover {
+            background-color: #b91c1c !important;
+            color: #ffffff !important;
+        }
+
+        .btn-call-station,
+        a[href="tel:0382103002"] {
+            background-color: #059669 !important; /* Xanh lá cây y tế */
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        .btn-call-station *,
+        a[href="tel:0382103002"] * {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        .btn-call-station:hover,
+        a[href="tel:0382103002"]:hover {
+            background-color: #047857 !important;
+            color: #ffffff !important;
+        }
+
+        /* FOOTER / CHÂN TRANG Y TẾ SỐ */
+        footer, #lien-he {
+            background-color: #0b416b !important; /* Xanh dương đậm chuẩn y tế */
+            color: #ffffff !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+            font-size: 15px !important;
+            line-height: 1.6 !important;
+        }
+        footer *, #lien-he * {
+            color: #ffffff !important;
+            font-size: max(15px, 1em);
+        }
+        footer a, #lien-he a {
+            color: #ffffff !important;
+            text-decoration: none;
+        }
+        footer a:hover, #lien-he a:hover {
+            color: #7dd3fc !important;
+            text-decoration: underline;
+        }
+        @media screen and (max-width: 768px) {
+            footer .grid, #lien-he .grid {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 2rem !important;
+            }
+            footer .flex-col-mobile, #lien-he .flex-col-mobile {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 1.25rem !important;
+            }
+            footer .text-center-mobile, #lien-he .text-center-mobile {
+                text-align: left !important;
+            }
+        }
+
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 antialiased relative">
+<body class="bg-[#f4f6f9] text-gray-800 antialiased relative">
+
+    <!-- Nút Góp ý/Phản ánh (Cố định góc trái) -->
+    <div class="feedback-btn" onclick="window.openModal('modal-gopy')">
+        <span>Phản ánh & Ý kiến</span>
+    </div>
 
     <!-- ================= GIAO DIỆN NGƯỜI DÂN (FRONTEND) ================= -->
     <div id="main-website">
 
         <!-- HEADER -->
-        <header class="glass-effect fixed w-full top-0 z-40 border-b border-gray-200 shadow-sm">
+        <header class="bg-[#0b416b] text-white fixed w-full top-0 z-40 shadow-lg border-b border-blue-900/50">
             <!-- ACCESSIBILITY TOOLBAR (Thanh hỗ trợ tiếp cận cho người dân) -->
-            <div class="bg-medical-700 text-white py-1.5 px-4 text-xs font-semibold border-b border-white/10">
+            <div class="bg-[#083054] text-white py-1.5 px-4 text-xs font-semibold border-b border-white/10">
                 <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
                     <div class="flex items-center gap-2">
-                        <span class="flex items-center gap-1 text-blue-100 font-bold"><i class="fas fa-universal-access"></i> HỖ TRỢ BÀ CON:</span>
+                        <span class="flex items-center gap-1 text-blue-200 font-bold"><i class="fas fa-universal-access"></i> HỖ TRỢ BÀ CON:</span>
                         <span class="text-white/30">|</span>
-                        <span class="text-blue-100 font-bold">Cỡ chữ:</span>
+                        <span class="text-blue-200 font-bold">Cỡ chữ:</span>
                         <button onclick="window.changeFontSize('small')" class="px-2 py-0.5 rounded hover:bg-white/10 text-[10px] font-bold border border-white/20 transition-all" id="font-btn-small" title="Cỡ chữ Nhỏ">A-</button>
                         <button onclick="window.changeFontSize('normal')" class="bg-white/20 px-2 py-0.5 rounded text-white font-bold border border-white/30 transition-all" id="font-btn-normal" title="Cỡ chữ Bình thường">A</button>
                         <button onclick="window.changeFontSize('large')" class="px-2 py-0.5 rounded hover:bg-white/10 text-sm font-bold border border-white/20 transition-all" id="font-btn-large" title="Cỡ chữ Lớn">A+</button>
                         <button onclick="window.changeFontSize('xlarge')" class="px-2 py-0.5 rounded hover:bg-white/10 text-base font-extrabold border border-white/20 transition-all" id="font-btn-xlarge" title="Cỡ chữ Cực lớn">A++</button>
                     </div>
                     <div class="flex items-center gap-3">
-                        <button onclick="window.toggleTextToSpeech()" id="tts-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm">
+                        <button onclick="window.toggleTextToSpeech()" id="tts-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm text-blue-100">
                             <i class="fas fa-volume-up text-xs"></i> <span id="tts-btn-text">Đọc thành tiếng (Tắt)</span>
                         </button>
-                        <button onclick="window.toggleHighContrast()" id="contrast-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm">
+                        <button onclick="window.toggleHighContrast()" id="contrast-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm text-blue-100">
                             <i class="fas fa-adjust text-xs"></i> <span id="contrast-btn-text">Độ tương phản cao (Tắt)</span>
                         </button>
                     </div>
@@ -159,87 +260,88 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-20">
                     <div class="flex items-center gap-3">
-                        <img src="logo.png" alt="Logo Trạm" class="w-12 h-12 object-contain drop-shadow-sm" onerror="this.style.display='none'">
+                        <img src="/.netlify/images?url=logo.png&w=400&fm=avif&q=80" srcset="/.netlify/images?url=logo.png&w=400&fm=avif&q=80 400w, /.netlify/images?url=logo.png&w=800&fm=avif&q=80 800w" sizes="48px" width="48" height="48" fetchpriority="high" alt="Logo Trạm Y tế Bát Xát" class="w-12 h-12 object-contain drop-shadow-md bg-white rounded-full p-0.5" onerror="this.style.display='none'">
                         <div>
-                            <h1 data-cms-id="brand-title" class="text-xl font-extrabold text-medical-900 leading-tight uppercase tracking-wide">Trạm Y Tế Bát Xát</h1>
+                            <h1 data-cms-id="brand-title" class="text-xl font-extrabold text-white leading-tight uppercase tracking-wide">Trạm Y tế Bát Xát</h1>
                             <div class="hidden md:flex items-center gap-2 mt-0.5">
-                                <p id="header-slogan" data-cms-id="header-slogan" class="text-xs text-medical-600 font-bold">Vì sức khỏe cộng đồng – Vì hạnh phúc mỗi gia đình</p>
-                                <button onclick="window.generateDailyTipAI()" class="text-orange-500 hover:bg-orange-50 px-2 py-0.5 rounded text-[10px] font-black transition border border-orange-200 uppercase shadow-sm" title="Mẹo sức khỏe">✨ Mẹo AI</button>
+                                <p id="header-slogan" data-cms-id="header-slogan" class="text-xs text-blue-200 font-bold">Vì sức khỏe cộng đồng – Vì hạnh phúc mỗi gia đình</p>
+                                <button onclick="window.generateDailyTipAI()" class="text-amber-300 hover:bg-white/10 px-2 py-0.5 rounded text-[10px] font-black transition border border-amber-300/40 uppercase shadow-sm" title="Mẹo sức khỏe AI">✨ Mẹo AI</button>
                             </div>
                         </div>
                     </div>
 
                     <nav class="hidden lg:flex space-x-6 items-center">
-                        <a href="#" onclick="window.switchPage('home')" id="nav-home" class="text-medical-600 border-b-2 border-medical-600 pb-1 font-bold transition text-[15px]">Trang chủ</a>
-                        <a href="#" onclick="window.switchPage('dept')" id="nav-dept" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Khoa & Phòng</a>
-                        <a href="#" onclick="window.switchPage('news')" id="nav-news" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Tin tức & Lịch tiêm</a>
-                        <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế')" class="text-gray-700 hover:text-medical-600 border-b-2 border-transparent pb-1 font-bold transition text-[15px]">Tải Tài Liệu</a>
+                        <a href="#" onclick="window.switchPage('home')" id="nav-home" class="text-white border-b-2 border-amber-400 pb-1 font-bold transition text-[15px]">Trang chủ</a>
+                        <a href="#" onclick="window.switchPage('dept')" id="nav-dept" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Khoa & Phòng</a>
+                        <a href="#" onclick="window.switchPage('news')" id="nav-news" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Tin tức & Lịch tiêm</a>
+                        <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế')" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Tải Tài Liệu</a>
                         
-                        <button onclick="window.openModal('modal-aisearch')" class="text-purple-600 hover:text-white hover:bg-purple-600 font-bold transition text-[15px] flex items-center gap-2 bg-purple-50 px-5 py-2 rounded-full border border-purple-200 shadow-sm">
+                        <button onclick="window.openModal('modal-aisearch')" class="text-white hover:bg-purple-700 font-bold transition text-[15px] flex items-center gap-2 bg-[#5e35b1] px-4 py-2 rounded-full border border-purple-400/30 shadow-md">
                             <i class="fas fa-robot text-lg"></i> Tìm kiếm AI
                         </button>
 
-                        <button onclick="window.openTelehealthQuickCall()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold transition text-[15px] flex items-center gap-2 px-5 py-2 rounded-full shadow-md">
+                        <button onclick="window.openTelehealthQuickCall()" class="bg-[#1976d2] hover:bg-[#1565c0] text-white font-bold transition text-[15px] flex items-center gap-2 px-5 py-2 rounded-full shadow-md border border-blue-400/40">
                             <i class="fas fa-video text-lg"></i> Gọi khám từ xa
                             <span id="nav-on-duty-dot" class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" title="Đang kiểm tra cán bộ trực"></span>
                         </button>
                     </nav>
 
                     <div class="lg:hidden flex items-center gap-3">
-                        <button onclick="window.openTelehealthQuickCall()" class="text-white bg-blue-600 w-10 h-10 rounded-full shadow-md" title="Gọi khám từ xa"><i class="fas fa-video"></i></button>
-                        <button onclick="window.openModal('modal-aisearch')" class="text-purple-600 bg-purple-50 w-10 h-10 rounded-full border border-purple-200"><i class="fas fa-search"></i></button>
-                        <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="text-gray-700 text-2xl"><i class="fas fa-bars"></i></button>
+                        <button onclick="window.openTelehealthQuickCall()" class="text-white bg-[#1976d2] w-10 h-10 rounded-full shadow-md flex items-center justify-center" title="Gọi khám từ xa"><i class="fas fa-video"></i></button>
+                        <button onclick="window.openModal('modal-aisearch')" class="text-white bg-[#5e35b1] w-10 h-10 rounded-full flex items-center justify-center" aria-label="Mở tìm kiếm AI"><i class="fas fa-search"></i></button>
+                        <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="text-white text-2xl" aria-label="Mở menu di động" aria-expanded="false" aria-controls="mobile-menu"><i class="fas fa-bars"></i></button>
                     </div>
                 </div>
             </div>
 
             <!-- Mobile Menu -->
-            <div id="mobile-menu" class="hidden lg:hidden bg-white border-t border-gray-100 px-4 pt-2 pb-4 space-y-1 shadow-2xl absolute w-full left-0 z-50">
-                <a href="#" onclick="window.switchPage('home'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-medical-600 bg-gray-50 border-b border-gray-100">Trang chủ</a>
-                <a href="#" onclick="window.switchPage('dept'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Khoa & Phòng Chức năng</a>
-                <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Tin tức & Lịch tiêm</a>
-                <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Kho Tài liệu & Biểu mẫu</a>
-                <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-4 text-center px-4 py-3 text-white font-bold bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
-                <a href="tel:0382103002" class="block mt-2 text-center px-4 py-3 text-white font-bold bg-red-600 rounded-xl shadow-md"><i class="fas fa-phone-alt mr-2"></i> Gọi Cấp Cứu 115</a>
+            <div id="mobile-menu" class="hidden lg:hidden bg-[#0b416b] border-t border-blue-800/80 px-4 pt-2 pb-4 space-y-1 shadow-2xl absolute w-full left-0 z-50 text-white">
+                <a href="#" onclick="window.switchPage('home'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-amber-300 bg-white/10 rounded-lg border-b border-blue-800/50">Trang chủ</a>
+                <a href="#" onclick="window.switchPage('dept'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Khoa & Phòng Chức năng</a>
+                <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Tin tức & Lịch tiêm</a>
+                <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Kho Tài liệu & Biểu mẫu</a>
+                <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-4 text-center px-4 py-3 text-white font-bold bg-[#1976d2] hover:bg-[#1565c0] rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
+                <a href="tel:115" class="btn-call-emergency block mt-2 text-center px-4 py-3 text-white font-bold bg-[#e53935] hover:bg-[#d32f2f] rounded-xl shadow-md"><i class="fas fa-truck-medical mr-2"></i> Gọi Cấp Cứu 115</a>
+                <a href="tel:0382103002" class="btn-call-station block mt-2 text-center px-4 py-3 text-white font-bold bg-emerald-600 rounded-xl shadow-md"><i class="fas fa-phone-volume mr-2"></i> Gọi Trạm Y tế Bát Xát: 0382.103.002</a>
             </div>
         </header>
 
         <!-- KHOẢNG TRANG CHỦ -->
         <div id="trang-chu-container" class="block animate-[fadeIn_0.3s_ease-in-out]">
-            <section class="pt-36 pb-12 bg-gradient-to-br from-medical-50 to-white relative overflow-hidden">
+            <section class="pt-36 pb-12 bg-gradient-to-br from-[#e0f2fe] via-[#f4f6f9] to-white relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-20">
-                    <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-medical-200 blur-3xl"></div>
-                    <div class="absolute top-1/2 -left-24 w-72 h-72 rounded-full bg-blue-200 blur-3xl"></div>
+                    <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-300 blur-3xl"></div>
+                    <div class="absolute top-1/2 -left-24 w-72 h-72 rounded-full bg-indigo-200 blur-3xl"></div>
                 </div>
                 
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                     <div class="flex flex-col md:flex-row items-center justify-between gap-8">
                         <div class="md:w-3/5 space-y-6 text-center md:text-left">
-                            <div class="inline-block px-4 py-2 rounded-full bg-blue-100 text-medical-800 font-bold text-sm mb-2 border border-blue-200">
-                                <i class="fas fa-shield-alt text-medical-600 mr-1"></i> Cổng thông tin Y tế số chính quy
+                            <div class="inline-block px-4 py-2 rounded-full bg-blue-100 text-[#0b416b] font-bold text-sm mb-2 border border-blue-200">
+                                <i class="fas fa-shield-alt text-[#1976d2] mr-1"></i> Cổng thông tin Y tế số chính quy
                             </div>
                             <h2 data-cms-id="hero-heading" class="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">
                                 Chăm sóc sức khỏe <br/>
-                                <span class="text-transparent bg-clip-text bg-gradient-to-r from-medical-600 to-blue-500">Cho Mọi Gia Đình</span>
+                                <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#0b416b] to-[#1976d2]">Cho Mọi Gia Đình</span>
                             </h2>
                             <p data-cms-id="hero-desc" class="text-lg text-gray-700 font-medium">Hỗ trợ nhân dân tra cứu thuốc bằng AI, đặt lịch khám BHYT trực tuyến, cập nhật lịch tiêm phòng dịch và kết nối nhanh tới Cán bộ chuyên trách.</p>
                             <div class="flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-2">
-                                <button onclick="window.switchPage('dept')" class="w-full sm:w-auto bg-gradient-to-r from-medical-600 to-medical-500 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
+                                <button onclick="window.switchPage('dept')" class="w-full sm:w-auto bg-[#1976d2] hover:bg-[#1565c0] text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
                                     <i class="fas fa-hospital text-xl"></i> Khám phá Khoa & Phòng
                                 </button>
-                                <button onclick="window.openTelehealthQuickCall()" class="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
+                                <button onclick="window.openTelehealthQuickCall()" class="w-full sm:w-auto bg-gradient-to-r from-[#1976d2] to-blue-700 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
                                     <i class="fas fa-video text-xl"></i> Gọi khám từ xa ngay
                                 </button>
-                                <button onclick="window.openModal('modal-datlich')" class="w-full sm:w-auto bg-white text-medical-700 border-2 border-medical-200 px-8 py-4 rounded-2xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
-                                    <i class="fas fa-calendar-check text-xl"></i> Đặt lịch khám bệnh
+                                <button onclick="window.openModal('modal-datlich')" class="w-full sm:w-auto bg-white text-[#0b416b] border-2 border-blue-200 px-8 py-4 rounded-2xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg hover:bg-blue-50">
+                                    <i class="fas fa-calendar-check text-xl text-[#1976d2]"></i> Đặt lịch khám BHYT
                                 </button>
                             </div>
                             <p id="hero-on-duty" class="text-sm font-bold text-gray-500 pt-1"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang kiểm tra cán bộ y tế trực trực tuyến...</p>
                         </div>
                         <div class="md:w-2/5 flex justify-center mt-8 md:mt-0">
-                            <div class="w-full max-w-sm aspect-square bg-medical-50 rounded-full shadow-2xl border-8 border-white flex flex-col items-center justify-center relative overflow-hidden">
-                                <i class="fas fa-heartbeat text-8xl text-medical-500 mb-4 animate-pulse"></i>
-                                <h3 class="text-2xl font-black text-medical-800 text-center uppercase tracking-wide">Trạm Y Tế<br>Bát Xát</h3>
+                            <div class="w-full max-w-sm aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full shadow-2xl border-8 border-white flex flex-col items-center justify-center relative overflow-hidden">
+                                <i class="fas fa-heartbeat text-8xl text-[#e53935] mb-4 animate-pulse"></i>
+                                <h3 class="text-2xl font-black text-[#0b416b] text-center uppercase tracking-wide">Trạm Y tế<br>Bát Xát</h3>
                             </div>
                         </div>
                     </div>
@@ -248,17 +350,23 @@
 
             <!-- KÊNH LIÊN HỆ KHẨN CẤP -->
             <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-20 mb-16">
-                <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border-t-8 border-red-500">
-                    <h3 data-cms-id="emergency-title" class="text-xl font-black text-gray-800 mb-6 text-center uppercase tracking-wider"><i class="fas fa-ambulance text-red-500 mr-2"></i> Kênh liên hệ khẩn cấp</h3>
+                <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border-t-8 border-[#e53935]">
+                    <h3 data-cms-id="emergency-title" class="text-xl font-black text-gray-800 mb-6 text-center uppercase tracking-wider"><i class="fas fa-ambulance text-[#e53935] mr-2"></i> Kênh liên hệ khẩn cấp</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <a href="tel:0382103002" class="group bg-red-50 hover:bg-red-600 text-red-700 hover:text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-red-100 shadow-sm">
-                            <i class="fas fa-phone-volume text-4xl mb-2 group-hover:scale-110 transition-transform"></i><div class="font-bold text-lg">Gọi Trạm Y tế Bát Xát</div><div class="text-2xl font-black">0382.103.002</div>
+                        <a href="tel:0382103002" class="btn-call-station group bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl p-6 flex flex-col items-center text-center transition-all border-2 border-emerald-500 shadow-md">
+                            <i class="fas fa-phone-volume text-4xl mb-2 group-hover:scale-110 transition-transform text-white"></i>
+                            <div class="font-bold text-lg text-white">Gọi Trạm Y tế Bát Xát</div>
+                            <div class="text-2xl font-black text-white">0382.103.002</div>
                         </a>
-                        <a href="tel:115" class="group bg-red-600 hover:bg-red-700 text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all shadow-md">
-                            <i class="fas fa-truck-medical text-5xl mb-2 group-hover:animate-pulse"></i><div class="font-bold text-lg uppercase">Gọi cấp cứu</div><div class="text-4xl font-black">115</div>
+                        <a href="tel:115" class="btn-call-emergency group bg-[#e53935] hover:bg-[#d32f2f] text-white rounded-2xl p-6 flex flex-col items-center text-center transition-all shadow-md border-2 border-red-500">
+                            <i class="fas fa-truck-medical text-5xl mb-2 group-hover:animate-pulse text-white"></i>
+                            <div class="font-bold text-lg uppercase text-white">Gọi Cấp Cứu 115</div>
+                            <div class="text-4xl font-black text-white">115</div>
                         </a>
-                        <button onclick="window.openModal('modal-danhba')" class="group bg-blue-50 hover:bg-blue-600 text-medical-700 hover:text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-blue-100 shadow-sm">
-                            <i class="fas fa-user-nurse text-4xl mb-2 group-hover:scale-110 transition-transform"></i><div class="font-bold text-lg">Danh bạ Cán bộ Y tế</div><div class="text-sm font-bold mt-1">Xem chi tiết SĐT trực ban</div>
+                        <button onclick="window.openModal('modal-danhba')" class="group bg-blue-50 hover:bg-[#1976d2] text-[#0b416b] hover:text-white rounded-2xl p-6 flex flex-col items-center text-center transition-all border-2 border-blue-100 shadow-sm">
+                            <i class="fas fa-user-nurse text-4xl mb-2 group-hover:scale-110 transition-transform"></i>
+                            <div class="font-bold text-lg">Danh bạ Cán bộ Y tế</div>
+                            <div class="text-sm font-bold mt-1">Xem chi tiết SĐT trực ban</div>
                         </button>
                     </div>
                 </div>
@@ -272,13 +380,13 @@
                         <!-- Cột 1: Thông báo Trạm -->
                         <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 flex flex-col h-[520px]">
                             <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200 shrink-0">
-                                <i class="fas fa-calendar-alt text-2xl text-medical-600"></i>
+                                <i class="fas fa-calendar-alt text-2xl text-[#1976d2]"></i>
                                 <h3 data-cms-id="notice-title" class="text-xl font-black text-gray-900">Thông báo Trạm</h3>
                             </div>
                             <div class="flex-1 overflow-y-auto pr-1">
                                 <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
                                     <table class="w-full text-left border-collapse">
-                                        <thead><tr class="bg-medical-50 text-medical-900"><th class="p-3 font-bold border-b text-sm">Ngày/Giờ</th><th class="p-3 font-bold border-b text-sm">Đối tượng & Thôn bản</th></tr></thead>
+                                        <thead><tr class="bg-blue-50 text-[#0b416b]"><th class="p-3 font-bold border-b text-sm">Ngày/Giờ</th><th class="p-3 font-bold border-b text-sm">Đối tượng & Thôn bản</th></tr></thead>
                                         <tbody id="public-vaccine-list">
                                             <!-- Dữ liệu được đẩy từ Admin CMS -->
                                         </tbody>
@@ -286,8 +394,8 @@
                                 </div>
                             </div>
                             <div class="mt-4 shrink-0 border-t border-gray-200 pt-3 flex flex-col sm:flex-row justify-between items-center gap-2">
-                                <p data-cms-id="notice-note" class="text-xs italic text-gray-500 font-medium"><i class="fas fa-info-circle text-medical-500"></i> Mang theo Sổ tiêm & CCCD.</p>
-                                <button onclick="window.switchPage('news')" class="text-xs bg-medical-100 text-medical-700 hover:bg-medical-600 hover:text-white px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
+                                <p data-cms-id="notice-note" class="text-xs italic text-gray-500 font-medium"><i class="fas fa-info-circle text-[#1976d2]"></i> Mang theo Sổ tiêm & CCCD.</p>
+                                <button onclick="window.switchPage('news')" class="text-xs bg-blue-100 text-[#0b416b] hover:bg-[#1976d2] hover:text-white px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
                                     <span>Xem thêm</span> <i class="fas fa-arrow-right text-[10px]"></i>
                                 </button>
                             </div>
@@ -296,13 +404,13 @@
                         <!-- Cột 2: Bảng tin Y tế (News) -->
                         <div class="bg-gray-50 p-6 rounded-3xl border border-gray-100 flex flex-col h-[520px]">
                             <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 shrink-0">
-                                <div class="flex items-center gap-3"><i class="fas fa-bullhorn text-2xl text-orange-500"></i><h3 data-cms-id="news-title" class="text-xl font-black text-gray-900">Bảng tin Y tế</h3></div>
+                                <div class="flex items-center gap-3"><i class="fas fa-bullhorn text-2xl text-amber-500"></i><h3 data-cms-id="news-title" class="text-xl font-black text-gray-900">Bảng tin Y tế</h3></div>
                             </div>
                             <div class="flex-1 overflow-y-auto pr-1 space-y-4" id="news-container">
                                 <!-- Dữ liệu được đẩy từ Admin CMS (số lượng ngang bằng lịch tiêm, tối đa 5 bài, hỗ trợ cuộn nếu dài) -->
                             </div>
                             <div class="mt-4 shrink-0 border-t border-gray-200 pt-3 text-right">
-                                <button onclick="window.switchPage('news')" class="text-xs bg-medical-100 text-medical-700 hover:bg-medical-600 hover:text-white px-3 py-1.5 rounded-lg font-bold transition inline-flex items-center gap-1">
+                                <button onclick="window.switchPage('news')" class="text-xs bg-blue-100 text-[#0b416b] hover:bg-[#1976d2] hover:text-white px-3 py-1.5 rounded-lg font-bold transition inline-flex items-center gap-1">
                                     <span>Xem thêm</span> <i class="fas fa-arrow-right text-[10px]"></i>
                                 </button>
                             </div>
@@ -312,7 +420,7 @@
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
                         <!-- Dòng dưới: Dịch vụ AI & Mạng Xã Hội -->
                         <div class="space-y-8">
-                            <div class="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl">
+                            <div class="bg-[#5e35b1] rounded-3xl p-8 text-white shadow-xl">
                                 <h3 data-cms-id="ai-box-title" class="text-2xl font-black mb-2"><i class="fas fa-robot text-purple-200 mr-2"></i> Khám phá Trợ lý AI</h3>
                                 <p data-cms-id="ai-box-desc" class="mb-6 text-purple-100">Ứng dụng trí tuệ nhân tạo để tra cứu y tế mộc mạc, dễ hiểu cho bà con vùng cao.</p>
                                 <div class="grid grid-cols-2 gap-3">
@@ -326,15 +434,15 @@
 
                         <div class="space-y-8">
                             <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 flex flex-col items-center">
-                                <div class="flex items-center gap-3 mb-4 self-start text-blue-800">
+                                <div class="flex items-center gap-3 mb-4 self-start text-[#0b416b]">
                                     <i class="fab fa-facebook text-3xl text-blue-600"></i>
-                                    <h3 data-cms-id="fanpage-title" class="text-xl font-black text-gray-900">Bản tin Fanpage Trạm Y Tế</h3>
+                                    <h3 data-cms-id="fanpage-title" class="text-xl font-black text-gray-900">Bản tin Fanpage Trạm Y tế</h3>
                                 </div>
                                 <div class="w-full rounded-2xl overflow-hidden shadow-md bg-white border border-blue-200">
                                     <iframe src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2Fprofile.php%3Fid%3D61556920635321&tabs=timeline&width=340&height=500&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=false&appId" width="100%" height="500" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>
                                 </div>
-                                <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" class="mt-4 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition w-full text-center flex items-center justify-center gap-2">
-                                    <i class="fab fa-facebook"></i> Mở Facebook Trạm Y Tế
+                                <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" class="mt-4 bg-[#1976d2] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#1565c0] transition w-full text-center flex items-center justify-center gap-2">
+                                    <i class="fab fa-facebook"></i> Mở Facebook Trạm Y tế Bát Xát
                                 </a>
                             </div>
                         </div>
@@ -513,62 +621,85 @@
         </div>
 
         <!-- FOOTER / LIÊN HỆ -->
-        <footer id="lien-he" class="bg-medical-900 text-white pt-16 pb-8 border-t-8 border-medical-700">
+        <footer id="lien-he" class="bg-[#0b416b] text-white pt-16 pb-8 border-t-8 border-[#1976d2]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
                     <div>
                         <div class="flex items-center gap-4 mb-6">
-                            <div class="bg-white p-1.5 rounded-full inline-block shadow-lg">
-                                <img src="logo.png" alt="Logo" class="w-14 h-14 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230284c7\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
+                            <div class="bg-white p-2 rounded-full inline-block shadow-lg">
+                                <img src="logo.png" alt="Logo Trạm Y tế Bát Xát" class="w-12 h-12 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230b416b\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
                             </div>
-                            <h3 class="text-2xl font-black uppercase tracking-widest text-blue-50 leading-tight">Trạm Y Tế<br>Bát Xát</h3>
+                            <div>
+                                <h3 class="text-2xl font-black uppercase tracking-widest text-white leading-tight">Trạm Y tế Bát Xát</h3>
+                                <p class="text-xs text-blue-200 font-bold">Cổng thông tin & Dịch vụ Y tế số</p>
+                            </div>
                         </div>
-                        <p class="text-blue-100 text-base leading-relaxed mb-6 font-medium text-justify">
-                            Trực thuộc Ủy Ban nhân dân xã Bát Xát quản lý trực tiếp. Đơn vị sự nghiệp y tế tuyến cơ sở, đảm bảo công tác chăm sóc sức khỏe ban đầu, phòng chống dịch bệnh cho nhân dân trên địa bàn.
+                        <p class="text-blue-100 text-sm leading-relaxed mb-4 font-medium">
+                            <strong class="text-white">Cơ quan quản lý:</strong> Trực thuộc Ủy ban nhân dân xã Bát Xát quản lý trực tiếp.
                         </p>
+                        <p class="text-blue-100 text-sm leading-relaxed mb-6 font-medium">
+                            Đơn vị sự nghiệp y tế tuyến cơ sở, đảm bảo công tác chăm sóc sức khỏe ban đầu, tiêm chủng mở rộng, khám chữa bệnh BHYT và phòng chống dịch bệnh cho nhân dân trên địa bàn.
+                        </p>
+                        <div>
+                            <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-3 bg-[#1976d2] hover:bg-[#1565c0] text-white font-bold px-4 py-2.5 rounded-xl transition shadow-md" title="Trang Facebook Trạm Y tế Bát Xát">
+                                <i class="fab fa-facebook text-2xl text-white"></i>
+                                <span class="text-white text-sm">Trang Facebook Trạm Y tế Bát Xát</span>
+                            </a>
+                        </div>
                     </div>
 
                     <div>
-                        <h3 class="text-xl font-bold mb-6 border-b-2 border-medical-700 pb-2 uppercase tracking-wide text-blue-50">Thông tin liên hệ</h3>
-                        <ul class="space-y-5 text-blue-100 text-base">
+                        <h3 class="text-xl font-bold mb-6 border-b-2 border-blue-700/60 pb-2 uppercase tracking-wide text-white">Thông tin liên hệ</h3>
+                        <ul class="space-y-4 text-blue-100 text-sm">
                             <li class="flex items-start gap-3">
-                                <i class="fas fa-map-marker-alt mt-1.5 text-xl text-medical-400"></i>
-                                <span class="font-medium">Trạm Y tế Bát Xát - Thôn 08, Xã Bát Xát, Tỉnh Lào Cai</span>
+                                <i class="fas fa-building mt-1 text-lg text-blue-300"></i>
+                                <span class="font-bold text-white">Tên cơ quan: Trạm Y tế Bát Xát</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i class="fas fa-sitemap mt-1 text-lg text-blue-300"></i>
+                                <span>Trực thuộc: Ủy ban nhân dân xã Bát Xát quản lý trực tiếp.</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i class="fas fa-map-marker-alt mt-1 text-lg text-blue-300"></i>
+                                <span>Địa chỉ: Trạm Y tế Bát Xát - Thôn 08, Xã Bát Xát, tỉnh Lào Cai.</span>
                             </li>
                             <li class="flex items-center gap-3">
-                                <i class="fas fa-phone-alt text-xl text-medical-400"></i>
-                                <a href="tel:0382103002" class="hover:text-white transition text-xl font-black">0382.103.002</a>
+                                <i class="fas fa-phone-alt text-lg text-blue-300"></i>
+                                <span>Điện thoại: <a href="tel:0382103002" class="hover:underline font-black text-lg text-white">0382.103.002</a></span>
                             </li>
-                            <li class="flex items-start gap-3 pt-3 mt-3 border-t border-medical-800">
-                                <i class="far fa-clock mt-1 text-xl text-medical-400"></i>
+                            <li class="flex items-center gap-3">
+                                <i class="fas fa-envelope text-lg text-blue-300"></i>
+                                <span>Email: <a href="mailto:tytbatxat@laocai.gov.vn" class="hover:underline font-bold text-white">tytbatxat@laocai.gov.vn</a></span>
+                            </li>
+                            <li class="flex items-start gap-3 pt-3 border-t border-blue-800/80">
+                                <i class="far fa-clock mt-1 text-lg text-blue-300"></i>
                                 <div>
-                                    <strong class="text-white text-lg block mb-1">Giờ làm việc:</strong>
-                                    Sáng: 07:30 - 12:00<br>
-                                    Chiều: 13:30 - 17:00<br>
-                                    <em class="text-medical-300 font-bold mt-1 inline-block">Trực cấp cứu: 24/24h (Kể cả Lễ, Tết)</em>
+                                    <strong class="text-white text-base block mb-1">Giờ làm việc chính thức:</strong>
+                                    Sáng: 07:30 - 12:00 | Chiều: 13:30 - 17:00<br>
+                                    <em class="text-amber-300 font-bold mt-1 inline-block">Trực cấp cứu: 24/24h (Kể cả Lễ, Tết)</em>
                                 </div>
                             </li>
                         </ul>
                     </div>
 
                     <div>
-                        <h3 class="text-xl font-bold mb-6 border-b-2 border-medical-700 pb-2 uppercase tracking-wide text-blue-50">Bản đồ vị trí</h3>
-                        <div class="w-full h-56 bg-gray-200 rounded-xl overflow-hidden relative shadow-inner border border-medical-700">
-                            <div class="absolute inset-0 bg-medical-800 flex flex-col justify-center items-center text-center p-4">
-                                <i class="fas fa-map-marked-alt text-5xl text-medical-400 mb-3 drop-shadow-md"></i>
-                                <p class="text-base text-blue-100 font-bold leading-tight">Bản đồ vị trí Trạm Y Tế<br>Thôn 08, Xã Bát Xát</p>
-                                <a href="https://maps.google.com" target="_blank" class="mt-4 text-sm bg-white text-medical-900 px-5 py-2.5 rounded-full font-black hover:bg-medical-50 transition shadow-lg active:scale-95 transform">Mở Google Maps</a>
+                        <h3 class="text-xl font-bold mb-6 border-b-2 border-blue-700/60 pb-2 uppercase tracking-wide text-white">Bản đồ vị trí</h3>
+                        <div class="w-full h-56 bg-gray-200 rounded-xl overflow-hidden relative shadow-inner border border-blue-800">
+                            <div class="absolute inset-0 bg-[#083054] flex flex-col justify-center items-center text-center p-4">
+                                <i class="fas fa-map-marked-alt text-5xl text-blue-300 mb-3 drop-shadow-md"></i>
+                                <p class="text-base text-white font-bold leading-tight">Trạm Y tế Bát Xát<br>Thôn 08, Xã Bát Xát, tỉnh Lào Cai</p>
+                                <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="mt-4 text-sm bg-white text-[#0b416b] px-5 py-2.5 rounded-full font-black hover:bg-blue-50 transition shadow-lg active:scale-95 transform">Mở Google Maps</a>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="border-t border-medical-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-blue-200 font-medium">
-                    <p class="mb-4 md:mb-0 text-center md:text-left">&copy; 2026 Trạm Y tế Bát Xát.</p>
+                <div class="border-t border-blue-800/80 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-blue-200 font-medium flex-col-mobile">
+                    <p class="mb-4 md:mb-0 text-center md:text-left text-center-mobile">&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
                     <div class="flex items-center gap-4 flex-wrap justify-center">
-                        <a href="#" class="hover:text-white transition">Chính sách bảo mật</a>
-                        <a href="/tram" class="hover:text-white border-l-2 border-medical-600 pl-4 font-black text-emerald-400 tracking-wide" title="Bảng điều khiển dành cho Cán bộ Y tế trực tại Điểm trạm">BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM</a>
-                        <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-medical-600 pl-4 font-black text-medical-400 tracking-wide">QUẢN TRỊ CMS</a>
+                        <a href="#" class="hover:text-white transition text-blue-200">Chính sách bảo mật</a>
+                        <a href="/tram" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-emerald-400 tracking-wide" title="Bảng điều khiển dành cho Cán bộ Y tế trực tại Điểm trạm">BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM</a>
+                        <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ CMS</a>
                     </div>
                 </div>
             </div>
@@ -617,7 +748,7 @@
         </div>
         <div class="p-4 bg-white border-t border-gray-200">
             <form onsubmit="window.handleAIChatSubmit(event)" class="flex gap-2 relative">
-                <input type="text" id="ai-chat-input" required class="flex-1 border-2 border-gray-200 rounded-full pl-5 pr-12 py-3 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-sm font-medium transition-colors" placeholder="Nhập câu hỏi tại đây...">
+                <input type="text" id="ai-chat-input" aria-label="Nhập câu hỏi Trợ lý Y tế AI" required class="flex-1 border-2 border-gray-200 rounded-full pl-5 pr-12 py-3 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-sm font-medium transition-colors" placeholder="Nhập câu hỏi tại đây...">
                 <button type="submit" class="absolute right-1 top-1 bottom-1 bg-purple-600 text-white w-10 h-10 rounded-full hover:bg-purple-700 flex items-center justify-center transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm" id="ai-chat-btn">
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -635,14 +766,14 @@
                     <h3 class="font-bold text-xl flex items-center gap-2"><i class="fas fa-calendar-check"></i> Đăng ký khám bệnh & Khám Từ xa</h3>
                     <p class="text-xs text-blue-100 mt-0.5">Tích hợp kết nối Video Gọi khám trực tiếp với Bác sĩ</p>
                 </div>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <form onsubmit="window.handleBookingSubmit(event)">
                     <div class="space-y-4">
                         <!-- Chọn hình thức khám -->
                         <div>
-                            <label class="block text-sm font-bold text-gray-800 mb-1.5">Hình thức khám bệnh</label>
+                            <label class="block text-sm font-bold text-gray-800 mb-1.5" for="booking-dept">Hình thức khám bệnh</label>
                             <div class="grid grid-cols-2 gap-3">
                                 <label id="booking-type-direct-label" class="flex items-center gap-2 p-3 rounded-xl border-2 border-medical-500 bg-medical-50 cursor-pointer text-xs font-bold text-medical-800 transition">
                                     <input type="radio" name="booking_type" value="direct" checked onchange="window.toggleBookingTypeUI('direct')" class="text-medical-600 focus:ring-0">
@@ -662,21 +793,21 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Họ và tên người bệnh</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="booking-name">Họ và tên người bệnh</label>
                             <input type="text" id="booking-name" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 focus:ring-2 focus:ring-medical-100 font-medium" placeholder="Nhập đầy đủ họ tên">
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Số thẻ BHYT hoặc số CCCD <span class="text-red-500">*</span></label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="booking-idcard">Số thẻ BHYT hoặc số CCCD <span class="text-red-500">*</span></label>
                             <input type="text" id="booking-idcard" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 focus:ring-2 focus:ring-medical-100 font-medium" placeholder="VD: HS4010112345678 hoặc 001099012345">
                             <p class="text-[11px] text-gray-500 mt-1 font-medium"><i class="fas fa-id-card mr-1 text-medical-500"></i> Bắt buộc theo quy định để in trên đơn thuốc và thanh toán BHYT.</p>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">Số điện thoại</label>
+                                <label class="block text-sm font-bold text-gray-700 mb-1" for="booking-phone">Số điện thoại</label>
                                 <input type="tel" id="booking-phone" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 focus:ring-2 focus:ring-medical-100 font-medium" placeholder="0382xxx...">
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">Ngày đăng ký khám</label>
+                                <label class="block text-sm font-bold text-gray-700 mb-1" for="booking-date">Ngày đăng ký khám</label>
                                 <input type="date" id="booking-date" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 focus:ring-2 focus:ring-medical-100 font-medium">
                             </div>
                         </div>
@@ -688,15 +819,15 @@
                             </div>
                             <div class="grid grid-cols-3 gap-2 text-xs">
                                 <div>
-                                    <label class="block text-[11px] font-semibold text-gray-600">Huyết áp (mmHg)</label>
+                                    <label class="block text-[11px] font-semibold text-gray-600" for="booking-bp">Huyết áp (mmHg)</label>
                                     <input type="text" id="booking-bp" placeholder="120/80" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-center bg-white">
                                 </div>
                                 <div>
-                                    <label class="block text-[11px] font-semibold text-gray-600">SpO2 (%)</label>
+                                    <label class="block text-[11px] font-semibold text-gray-600" for="booking-spo2">SpO2 (%)</label>
                                     <input type="number" id="booking-spo2" placeholder="98" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-center bg-white">
                                 </div>
                                 <div>
-                                    <label class="block text-[11px] font-semibold text-gray-600">Nhịp tim (bpm)</label>
+                                    <label class="block text-[11px] font-semibold text-gray-600" for="booking-hr">Nhịp tim (bpm)</label>
                                     <input type="number" id="booking-hr" placeholder="78" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-center bg-white">
                                 </div>
                             </div>
@@ -704,12 +835,12 @@
 
                         <div>
                             <div class="flex justify-between items-end mb-1">
-                                <label class="block text-sm font-bold text-gray-700">Triệu chứng / Lý do khám</label>
+                                <label class="block text-sm font-bold text-gray-700" for="quick-call-name">Triệu chứng / Lý do khám</label>
                                 <button type="button" onclick="window.summarizeSymptomsAI()" class="text-[11px] bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white font-bold px-2 py-1 rounded transition-colors flex items-center gap-1 shadow-sm">
                                     ✨ Tóm tắt y khoa
                                 </button>
                             </div>
-                            <textarea id="booking-reason" rows="2" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 focus:ring-2 focus:ring-medical-100 font-medium" placeholder="Mô tả ngắn gọn lý do đi khám bệnh..."></textarea>
+                            <textarea aria-label="Mô tả lý do khám bệnh" id="booking-reason" rows="2" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-medical-500 focus:ring-2 focus:ring-medical-100 font-medium" placeholder="Mô tả ngắn gọn lý do đi khám bệnh..."></textarea>
                             <p id="booking-ai-status" class="text-xs text-purple-600 hidden mt-1 font-bold animate-pulse"><i class="fas fa-spinner fa-spin"></i> Trợ lý AI đang xử lý nội dung...</p>
                         </div>
                     </div>
@@ -729,7 +860,7 @@
                     <h3 class="font-bold text-xl flex items-center gap-2"><i class="fas fa-video"></i> Gọi khám từ xa</h3>
                     <p class="text-xs text-blue-100 mt-0.5">Kết nối trực tiếp Cán bộ Y tế / Bác sĩ đang trực</p>
                 </div>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div id="quick-call-duty" class="mb-4 rounded-2xl border p-3.5 text-xs font-bold flex items-center gap-2 bg-gray-50 border-gray-200 text-gray-600">
@@ -742,15 +873,15 @@
                             <input type="text" id="quick-call-name" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: Nguyễn Văn A">
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Số điện thoại liên hệ</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-phone">Số điện thoại liên hệ</label>
                             <input type="tel" id="quick-call-phone" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Để cán bộ gọi lại nếu mất kết nối">
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Số thẻ BHYT hoặc số CCCD <span class="text-red-500">*</span></label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-idcard">Số thẻ BHYT hoặc số CCCD <span class="text-red-500">*</span></label>
                             <input type="text" id="quick-call-idcard" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="VD: HS4010112345678 hoặc 001099012345">
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Triệu chứng / Lý do cần tư vấn</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-reason">Triệu chứng / Lý do cần tư vấn</label>
                             <textarea id="quick-call-reason" rows="2" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: ho, sốt 2 ngày, đau tức ngực..."></textarea>
                         </div>
                         <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-[11px] text-blue-900 font-medium leading-relaxed">
@@ -801,8 +932,8 @@
                                     Chưa có cán bộ tiếp nhận. Bạn có thể gọi trực tiếp qua điện thoại hoặc Zalo trong lúc chờ.
                                 </p>
                                 <div class="flex gap-2">
-                                    <a href="tel:0382103002" class="flex-1 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
-                                        <i class="fas fa-phone-alt"></i> Gọi 0382 103 002
+                                    <a href="tel:0382103002" class="btn-call-station flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
+                                        <i class="fas fa-phone-alt"></i> Gọi Trạm: 0382 103 002
                                     </a>
                                     <a href="https://zalo.me/0382103002" target="_blank" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
                                         <i class="fas fa-comment-sms"></i> Nhắn Zalo trạm
@@ -836,7 +967,7 @@
                         <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-2">
                             <i class="fas fa-id-card"></i> Định danh bệnh nhân (in trên đơn thuốc)
                         </h4>
-                        <label class="block text-[10px] text-slate-400">Số thẻ BHYT hoặc số CCCD</label>
+                        <label class="block text-[10px] text-slate-400" for="tele-patient-idcard">Số thẻ BHYT hoặc số CCCD</label>
                         <input type="text" id="tele-patient-idcard" placeholder="VD: HS4010112345678 / 001099012345" onchange="window.teleSyncPatientIdentity(false)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white text-xs focus:outline-none focus:border-amber-500">
                         <button onclick="window.teleSyncPatientIdentity(true)" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
                             <i class="fas fa-paper-plane"></i> Gửi định danh tới Bác sĩ
@@ -848,28 +979,28 @@
                         </h4>
                         <div class="grid grid-cols-2 gap-2 text-xs">
                             <div>
-                                <label class="block text-[10px] text-slate-400 mb-1">Huyết áp (mmHg)</label>
+                                <label class="block text-[10px] text-slate-400 mb-1" for="tele-vital-bp">Huyết áp (mmHg)</label>
                                 <input type="text" id="tele-vital-bp" placeholder="120/80" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
                             </div>
                             <div>
-                                <label class="block text-[10px] text-slate-400 mb-1">Nhịp tim (bpm)</label>
+                                <label class="block text-[10px] text-slate-400 mb-1" for="tele-vital-hr">Nhịp tim (bpm)</label>
                                 <input type="number" id="tele-vital-hr" placeholder="76" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
                             </div>
                             <div>
-                                <label class="block text-[10px] text-slate-400 mb-1">SpO2 (%)</label>
+                                <label class="block text-[10px] text-slate-400 mb-1" for="tele-vital-spo2">SpO2 (%)</label>
                                 <input type="number" id="tele-vital-spo2" placeholder="98" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
                             </div>
                             <div>
-                                <label class="block text-[10px] text-slate-400 mb-1">Nhiệt độ (°C)</label>
+                                <label class="block text-[10px] text-slate-400 mb-1" for="tele-vital-temp">Nhiệt độ (°C)</label>
                                 <input type="text" id="tele-vital-temp" placeholder="36.8" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
                             </div>
                             <div class="col-span-2">
-                                <label class="block text-[10px] text-slate-400 mb-1">Cân nặng (kg)</label>
+                                <label class="block text-[10px] text-slate-400 mb-1" for="tele-vital-weight">Cân nặng (kg)</label>
                                 <input type="text" id="tele-vital-weight" placeholder="52" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
                             </div>
                         </div>
                         <button onclick="window.teleSendVitals(true)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
-                            <i class="fas fa-paper-plane"></i> Gửi chỉ số sinh hiệu tới tuyến trên
+                            <i class="fas fa-paper-plane"></i> Gửi chỉ số sinh hiệu
                         </button>
                         <p id="tele-vital-sync-status" class="text-[10px] text-slate-500 text-center">Chỉ số tự động đồng bộ lên màn hình khám của Bác sĩ.</p>
                     </div>
@@ -907,7 +1038,7 @@
                         </div>
                     </div>
 
-                    <!-- Khung nhắn tin trực tiếp -->
+                    <!-- Khung nhắn tin trực tiếp với Bác sĩ -->
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex-1 flex flex-col justify-between">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
                             <i class="fas fa-comments"></i> Trao đổi với Bác sĩ
@@ -918,8 +1049,8 @@
                             </div>
                         </div>
                         <div class="flex gap-2">
-                            <input type="text" id="patient-chat-input" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendPatientChatMessage();}" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-                            <button onclick="window.sendPatientChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
+                            <input type="text" id="patient-chat-input" aria-label="Nhập tin nhắn trao đổi với bác sĩ" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendPatientChatMessage();}" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                            <button onclick="window.sendPatientChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold" aria-label="Gửi tin nhắn">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
@@ -935,7 +1066,7 @@
         <div id="modal-tiemchung" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-red-500 to-red-400 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-syringe mr-2"></i> Đăng ký Tiêm chủng</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-100 bg-black/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-100 bg-black/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <form onsubmit="window.handleVaccineSubmit(event)">
@@ -944,21 +1075,21 @@
                             <i class="fas fa-info-circle mr-1"></i> Tin báo tiêm chủng sẽ gửi trực tiếp đến số Zalo của Cán bộ chuyên trách Tiêm chủng xã Bát Xát.
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Họ tên người tiêm (hoặc tên Trẻ em)</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="vaccine-name">Họ tên người tiêm (hoặc tên Trẻ em)</label>
                             <input type="text" id="vaccine-name" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 font-medium">
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">Ngày sinh người tiêm</label>
+                                <label class="block text-sm font-bold text-gray-700 mb-1" for="vaccine-dob">Ngày sinh người tiêm</label>
                                 <input type="date" id="vaccine-dob" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 font-medium">
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">SĐT người liên hệ</label>
+                                <label class="block text-sm font-bold text-gray-700 mb-1" for="vaccine-phone">SĐT người liên hệ</label>
                                 <input type="tel" id="vaccine-phone" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 font-medium">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Loại vắc xin đăng ký tiêm</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="vaccine-type">Loại vắc xin đăng ký tiêm</label>
                             <input type="text" id="vaccine-type" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 font-medium" placeholder="VD: Sởi, Quai bị, Thủy đậu, Phế cầu, 5-trong-1...">
                         </div>
                     </div>
@@ -975,7 +1106,7 @@
         <div id="modal-gopy" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-yellow-500 to-yellow-400 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-comment-medical mr-2"></i> Góp ý & Phản ánh</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-100 bg-black/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-100 bg-black/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <form id="feedback-form" name="gopy" method="POST" data-netlify="true" onsubmit="window.submitForm(event)">
@@ -983,8 +1114,8 @@
                     <input type="hidden" name="to_email" value="tytbatxat@laocai.gov.vn" />
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1.5">Chủ đề phản ánh</label>
-                            <select name="category" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium bg-white font-sans">
+                            <label class="block text-sm font-bold text-gray-700 mb-1.5" for="support-topic">Chủ đề phản ánh</label>
+                            <select id="feedback-category" name="category" aria-label="Danh mục phản ánh" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium bg-white font-sans">
                                 <option>Thái độ phục vụ của Y bác sĩ</option>
                                 <option>Quy trình, thủ tục hành chính công</option>
                                 <option>Cơ sở vật chất, trang thiết bị vật tư</option>
@@ -998,21 +1129,21 @@
                                     ✨ Viết lại lịch sự bằng AI
                                 </button>
                             </div>
-                            <textarea id="feedback-reason" name="message" rows="4" required placeholder="Nội dung đóng góp ý kiến để Trạm nâng cao chất lượng dịch vụ..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium"></textarea>
+                            <textarea id="feedback-reason" aria-label="Nội dung đóng góp ý kiến" name="message" rows="4" required placeholder="Nội dung đóng góp ý kiến để Trạm nâng cao chất lượng dịch vụ..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium"></textarea>
                             <p id="feedback-ai-status" class="text-xs text-purple-600 hidden mt-1 font-bold animate-pulse"><i class="fas fa-spinner fa-spin"></i> Trợ lý AI đang tinh chỉnh văn phong...</p>
                         </div>
                         <div class="grid grid-cols-1 gap-4 pt-2">
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">Email liên hệ (Nếu có)</label>
-                                <input type="email" name="sender_email" placeholder="email@example.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
+                                <input type="email" id="sender-email" name="sender_email" aria-label="Email người gửi" placeholder="email@example.com" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">Địa chỉ người gửi</label>
-                                <input type="text" name="sender_address" required placeholder="Thôn bản, xã, thị trấn..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
+                                <input type="text" id="sender-address" name="sender_address" aria-label="Địa chỉ người gửi" required placeholder="Thôn bản, xã, thị trấn..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">Vị trí nơi phản ánh</label>
-                                <input type="text" name="reflection_location" required placeholder="Khoa/Phòng hoặc địa điểm cụ thể..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
+                                <input type="text" id="reflection-location" name="reflection_location" aria-label="Địa điểm phản ánh" required placeholder="Khoa/Phòng hoặc địa điểm cụ thể..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
                             </div>
                         </div>
                     </div>
@@ -1027,7 +1158,7 @@
         <div id="modal-hotrochuyenmon" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-green-600 to-green-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-user-md mr-2"></i> <span id="support-title">Tư vấn chuyên môn</span></h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="bg-green-50 p-3 rounded-xl border border-green-100 text-sm font-medium text-green-800 mb-4">
@@ -1039,7 +1170,7 @@
                         <input type="text" id="support-topic" readonly class="w-full border-2 border-gray-200 bg-gray-100 rounded-xl px-4 py-2.5 font-bold text-gray-700 cursor-not-allowed">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Câu hỏi hoặc tình trạng của bạn:</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-1" for="support-question">Câu hỏi hoặc tình trạng của bạn:</label>
                         <textarea id="support-question" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 font-medium" placeholder="Viết rõ tình trạng hoặc câu hỏi của bạn tại đây..."></textarea>
                     </div>
                     <button type="button" onclick="window.askExpertAI()" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl hover:bg-green-700 transition shadow-lg flex items-center justify-center gap-2 text-lg">
@@ -1055,7 +1186,7 @@
         <div id="modal-tailieu" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-folder-open mr-2"></i> Kho <span id="docs-modal-title">Tài liệu</span></h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6 bg-white min-h-[300px]">
                 <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 text-sm font-medium text-blue-800 mb-4">
@@ -1072,7 +1203,7 @@
                     <h3 class="font-bold text-xl"><i class="fas fa-address-book mr-2"></i> Danh bạ Trạm Y Tế</h3>
                     <p class="text-[10px] text-blue-100 font-semibold uppercase mt-0.5 tracking-wider">Số điện thoại liên hệ trực tiếp cán bộ chuyên trách</p>
                 </div>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-300 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-300 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             
             <!-- Phân tách Tab liên hệ công khai cán bộ và mục kết nối trực tiếp phòng khám -->
@@ -1101,7 +1232,7 @@
         <div id="modal-tracuuketqua" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-clipboard-check mr-2"></i> Tra cứu Kết quả Khám</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <form onsubmit="window.lookupResultAI(event)">
@@ -1110,7 +1241,7 @@
                     </div>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Mã định danh (CCCD/BHYT)</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="lookup-id">Mã định danh (CCCD/BHYT)</label>
                             <input type="text" id="lookup-id" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-medium uppercase tracking-wider" placeholder="Nhập mã số...">
                         </div>
                         <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition shadow-lg flex items-center justify-center gap-2 text-lg">
@@ -1126,13 +1257,13 @@
         <div id="modal-aisearch" class="modal-content hidden bg-white rounded-3xl w-full max-w-2xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-search mr-2"></i> Tìm kiếm Y tế AI Toàn cục</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><i class="fas fa-sparkles text-purple-400"></i></div>
-                        <input type="text" id="global-ai-search-input" class="w-full border-2 border-purple-200 rounded-2xl pl-11 pr-28 py-4 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 text-base md:text-lg font-medium text-gray-800 shadow-inner" placeholder="Nhập triệu chứng, loại thuốc, hoặc dịch vụ cần tìm...">
+                        <input type="text" id="global-ai-search-input" aria-label="Nhập triệu chứng, loại thuốc, hoặc dịch vụ cần tìm" class="w-full border-2 border-purple-200 rounded-2xl pl-11 pr-28 py-4 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 text-base md:text-lg font-medium text-gray-800 shadow-inner" placeholder="Nhập triệu chứng, loại thuốc, hoặc dịch vụ cần tìm...">
                         <button type="button" onclick="window.performAISearch()" class="absolute inset-y-2 right-2 bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 md:px-6 rounded-xl transition shadow-md flex items-center gap-2">Tìm</button>
                     </div>
                     <p id="aisearch-status" class="text-sm text-purple-600 hidden text-center font-bold animate-pulse mt-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Trợ lý AI đang quét dữ liệu y khoa và thủ tục...</p>
@@ -1144,7 +1275,7 @@
         <div id="modal-tracuuthuoc" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-blue-600 to-blue-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-pills mr-2"></i> Tra cứu thông tin thuốc AI</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
@@ -1152,7 +1283,7 @@
                         <i class="fas fa-robot mr-1"></i> Dược sĩ AI sẽ giúp bạn hiểu rõ công dụng và liều dùng cơ bản của các loại thuốc.
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Tên thuốc (Ví dụ: Paracetamol, Oresol...)</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-1" for="medicine-name">Tên thuốc (Ví dụ: Paracetamol, Oresol...)</label>
                         <input type="text" id="medicine-name" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-medium" placeholder="Nhập tên thuốc hoặc thành phần...">
                     </div>
                     <button type="button" onclick="window.lookupMedicineAI()" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition shadow-lg flex items-center justify-center gap-2 text-lg">
@@ -1167,7 +1298,7 @@
         <div id="modal-tuvansuckhoe" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-green-600 to-green-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-headset mr-2"></i> Chuyên gia Dinh dưỡng AI</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
@@ -1175,7 +1306,7 @@
                         <i class="fas fa-sparkles mr-1"></i> Trợ lý AI sẽ gợi ý thực đơn và thói quen sinh hoạt theo tình trạng bệnh lý của riêng bạn.
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Tình trạng bệnh lý / sức khỏe hiện tại</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-1" for="health-condition">Tình trạng bệnh lý / sức khỏe hiện tại</label>
                         <textarea id="health-condition" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 font-medium" placeholder="Ví dụ: Tôi bị tiểu đường tuýp 2, cao huyết áp..."></textarea>
                     </div>
                     <button type="button" onclick="window.adviseHealthAI()" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl hover:bg-green-700 transition shadow-lg flex items-center justify-center gap-2 text-lg">
@@ -1190,14 +1321,14 @@
         <div id="modal-aivision" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-blue-600 to-cyan-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-camera mr-2"></i> Bác sĩ Thị giác AI ✨</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
                     <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 text-sm font-medium text-blue-800">
                         <i class="fas fa-info-circle mr-1"></i> Hãy chụp hình ảnh <b>Đơn thuốc, Vỉ thuốc, hoặc Phiếu xét nghiệm</b>. AI sẽ tự động đọc và giải thích.
                     </div>
-                    <div><input type="file" id="aivision-file" accept="image/*" onchange="window.previewAIVisionImage(event)" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 cursor-pointer border-2 border-gray-200 rounded-2xl focus:outline-none transition"></div>
+                    <div><input type="file" id="aivision-file" aria-label="Tải lên ảnh đơn thuốc" accept="image/*" onchange="window.previewAIVisionImage(event)" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 cursor-pointer border-2 border-gray-200 rounded-2xl focus:outline-none transition"></div>
                     <div id="aivision-preview-container" class="hidden text-center bg-gray-50 p-3 rounded-2xl border border-gray-200"><img id="aivision-preview" class="max-h-48 rounded-xl mx-auto shadow-sm" alt="Ảnh tải lên" /></div>
                     <button type="button" onclick="window.analyzeImageAI()" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg text-lg">✨ Phân tích Hình ảnh</button>
                     <p id="aivision-status" class="text-sm text-blue-600 hidden text-center font-bold animate-pulse mt-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Bác sĩ AI đang quét các thông số...</p>
@@ -1209,14 +1340,14 @@
         <div id="modal-aidich" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-teal-600 to-green-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-language mr-2"></i> Thông dịch viên Y khoa AI</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
                     <div class="bg-teal-50 p-3 rounded-xl border border-teal-100 text-sm font-medium text-teal-800">
-                        <i class="fas fa-info-circle mr-1"></i> Bà con không hiểu các từ ngữ phức tạp của bác sĩ tuyến trên? Nhập vào đây, AI sẽ "dịch" lại sang tiếng bình dân!
+                        <i class="fas fa-info-circle mr-1"></i> Bà con không hiểu các từ ngữ phức tạp của bác sĩ ? Nhập vào đây, AI sẽ "dịch" lại sang tiếng bình dân!
                     </div>
-                    <textarea id="aidich-input" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 font-medium" placeholder="Ví dụ: Rối loạn lipid máu hỗn hợp..."></textarea>
+                    <textarea id="aidich-input" aria-label="Nhập thuật ngữ y khoa cần dịch" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 font-medium" placeholder="Ví dụ: Rối loạn lipid máu hỗn hợp..."></textarea>
                     <button type="button" onclick="window.translateMedicalAI()" class="w-full bg-teal-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg text-lg">✨ Dịch sang tiếng bình dân</button>
                     <p id="aidich-status" class="text-xs text-teal-600 hidden text-center font-bold animate-pulse mt-2"><i class="fas fa-spinner fa-spin mr-1"></i> AI đang tìm cách giải thích dễ hiểu nhất...</p>
                     <div id="aidich-result" class="mt-4 max-h-60 overflow-y-auto markdown-body hidden bg-teal-50/50 p-5 rounded-2xl border border-teal-100 text-sm leading-relaxed"></div>
@@ -1227,12 +1358,12 @@
         <div id="modal-lichuongthuoc" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-indigo-500 to-blue-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-calendar-plus mr-2"></i> Lên lịch Thuốc AI</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
                     <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-sm font-medium text-indigo-800">Nhập danh sách thuốc lộn xộn, AI sẽ kẻ bảng lịch uống thuốc Sáng-Trưa-Chiều-Tối thật dễ nhìn.</div>
-                    <textarea id="med-schedule-input" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500 font-medium" placeholder="Ví dụ: Panadol ngày 2 viên sáng chiều..."></textarea>
+                    <textarea id="med-schedule-input" aria-label="Nhập đơn thuốc cần lên lịch" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500 font-medium" placeholder="Ví dụ: Panadol ngày 2 viên sáng chiều..."></textarea>
                     <button type="button" onclick="window.generateMedScheduleAI()" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg text-lg">✨ Tạo Bảng Lịch Uống Thuốc</button>
                     <p id="med-schedule-status" class="text-xs text-indigo-600 hidden text-center font-bold animate-pulse mt-2"><i class="fas fa-spinner fa-spin mr-1"></i> AI đang sắp xếp lịch trình an toàn...</p>
                     <div id="med-schedule-result" class="mt-4 max-h-60 overflow-y-auto markdown-body hidden bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 text-sm leading-relaxed"></div>
@@ -1243,12 +1374,12 @@
         <div id="modal-caythuoc" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-green-600 to-emerald-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-leaf mr-2"></i> Chuyên gia Thảo dược AI</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
                     <div class="bg-green-50 p-3 rounded-xl border border-green-100 text-sm font-medium text-green-800">Chụp ảnh cây lá trên rừng, AI sẽ nhận diện xem có phải là cây thuốc Nam hay không và cách sử dụng.</div>
-                    <input type="file" id="caythuoc-file" accept="image/*" onchange="window.previewCayThuocImage(event)" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-green-50 file:text-green-700 cursor-pointer border-2 border-gray-200 rounded-2xl focus:outline-none transition">
+                    <input type="file" id="caythuoc-file" aria-label="Tải lên ảnh cây thuốc" accept="image/*" onchange="window.previewCayThuocImage(event)" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-green-50 file:text-green-700 cursor-pointer border-2 border-gray-200 rounded-2xl focus:outline-none transition">
                     <div id="caythuoc-preview-container" class="hidden text-center bg-gray-50 p-3 rounded-2xl border border-gray-200"><img id="caythuoc-preview" class="max-h-48 rounded-xl mx-auto shadow-sm" alt="Ảnh tải lên" /></div>
                     <button type="button" onclick="window.analyzeHerbalAI()" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg text-lg">✨ Nhận Diện Cây Thuốc</button>
                     <p id="caythuoc-status" class="text-sm text-green-600 hidden text-center font-bold animate-pulse mt-4"><i class="fas fa-circle-notch fa-spin mr-2"></i> Chuyên gia AI đang tra cứu...</p>
@@ -1260,12 +1391,12 @@
         <div id="modal-chiso" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-teal-600 to-teal-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-file-medical-alt mr-2"></i> Bác sĩ phân tích chỉ số AI</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
                     <div class="bg-teal-50 p-3 rounded-xl border border-teal-100 text-sm font-medium text-teal-800">Nhập các chỉ số xét nghiệm hoặc đo lường tại nhà, AI sẽ giải thích dễ hiểu giúp bạn.</div>
-                    <textarea id="vitals-input" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-teal-500 font-medium" placeholder="Ví dụ: Huyết áp đo sáng nay là 145/90..."></textarea>
+                    <textarea id="vitals-input" aria-label="Nhập các chỉ số sức khỏe" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-teal-500 font-medium" placeholder="Ví dụ: Huyết áp đo sáng nay là 145/90..."></textarea>
                     <button type="button" onclick="window.analyzeVitalsAI()" class="w-full bg-teal-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg text-lg">✨ Phân Tích Ý Nghĩa Bằng AI</button>
                     <p id="vitals-ai-status" class="text-xs text-teal-600 hidden text-center font-bold animate-pulse mt-2"><i class="fas fa-spinner fa-spin"></i> Bác sĩ AI đang xem xét kết quả...</p>
                     <div id="vitals-result" class="mt-4 max-h-60 overflow-y-auto markdown-body"></div>
@@ -1276,12 +1407,12 @@
         <div id="modal-socuu" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-red-600 to-pink-600 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-briefcase-medical mr-2"></i> Cẩm nang Sơ cứu AI</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
                     <div class="bg-red-50 p-3 rounded-xl border border-red-100 text-sm font-medium text-red-800">Khẩn cấp: Nhập tình huống tai nạn, AI sẽ hướng dẫn bạn các bước sơ cứu ngay lập tức.</div>
-                    <input type="text" id="firstaid-input" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 font-medium" placeholder="Ví dụ: Bị rắn cắn vào chân...">
+                    <input type="text" id="firstaid-input" aria-label="Nhập tình huống sơ cứu khẩn cấp" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-red-500 font-medium" placeholder="Ví dụ: Bị rắn cắn vào chân...">
                     <button type="button" onclick="window.firstAidAI()" class="w-full bg-red-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg text-lg">✨ Hướng Dẫn Sơ Cứu Bằng AI</button>
                     <p id="firstaid-ai-status" class="text-xs text-red-600 hidden text-center font-bold animate-pulse mt-2"><i class="fas fa-spinner fa-spin"></i> AI đang tìm kiếm cẩm nang cấp cứu...</p>
                     <div id="firstaid-result" class="mt-4 max-h-60 overflow-y-auto markdown-body"></div>
@@ -1293,20 +1424,21 @@
         <div id="modal-admin-login" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gray-900 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-shield-halved mr-2 text-medical-400"></i> Đăng nhập Cán bộ</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-300 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-300 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-8">
                 <form onsubmit="window.handleAdminLogin(event)">
                     <div class="space-y-5">
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1.5 uppercase">Email công vụ</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1.5 uppercase" for="admin-username">Email công vụ</label>
                             <input type="email" id="admin-username" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-gray-900 font-medium text-gray-900" placeholder="vi-du@tytbatxat.org.vn">
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1.5 uppercase">Mật khẩu mã hóa</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-1.5 uppercase" for="admin-password">Mật khẩu mã hóa</label>
                             <input type="password" id="admin-password" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-gray-900 font-medium text-gray-900" placeholder="••••••••">
                         </div>
                         <p id="login-error" class="text-red-500 text-sm font-bold hidden bg-red-50 p-3 rounded-xl border border-red-100"><i class="fas fa-exclamation-circle mr-1"></i> Sai thông tin Email hoặc Mật khẩu!</p>
+                        <p id="login-status-msg" class="text-sm font-bold mt-2"></p>
                     </div>
                     <div class="mt-8">
                         <button type="submit" class="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl hover:bg-black transition shadow-lg text-lg">Xác thực hệ thống đám mây</button>
@@ -1317,7 +1449,7 @@
 
         <!-- VIDEO Y KHOA -->
         <div id="modal-video" class="modal-content hidden bg-white rounded-3xl w-full max-w-2xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
-            <div class="bg-red-600 p-5 flex justify-between items-center text-white"><h3 class="font-bold text-xl"><i class="fab fa-youtube mr-2"></i> Video Y Khoa & Truyền Thông Sức Khỏe</h3><button onclick="window.closeModal()"><i class="fas fa-times"></i></button></div>
+            <div class="bg-red-600 p-5 flex justify-between items-center text-white"><h3 class="font-bold text-xl"><i class="fab fa-youtube mr-2"></i> Video Y Khoa & Truyền Thông Sức Khỏe</h3><button onclick="window.closeModal()" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button></div>
             <div id="public-video-list" class="p-6 space-y-6 max-h-[500px] overflow-y-auto bg-gray-50">
                 <div class="p-8 text-center bg-gray-50"><i class="fas fa-photo-video text-6xl text-gray-300 mb-4"></i><h4 class="font-bold text-gray-600">Đang cập nhật luồng Video y khoa</h4><p class="text-sm text-gray-500 mt-2">Các video hướng dẫn chăm sóc sức khỏe sẽ sớm được Trạm Y tế cập nhật tại đây.</p></div>
             </div>
@@ -1325,10 +1457,10 @@
 
         <!-- SÀNG LỌC TƯƠNG TÁC THUỐC (AI) -->
         <div id="modal-tuongtacthuoc" class="modal-content hidden bg-white rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
-            <div class="bg-gradient-to-r from-rose-500 to-red-600 p-5 flex justify-between items-center text-white"><h3 class="font-bold text-xl"><i class="fas fa-exclamation-triangle mr-2"></i> Sàng lọc Tương tác Thuốc</h3><button onclick="window.closeModal()"><i class="fas fa-times"></i></button></div>
+            <div class="bg-gradient-to-r from-rose-500 to-red-600 p-5 flex justify-between items-center text-white"><h3 class="font-bold text-xl"><i class="fas fa-exclamation-triangle mr-2"></i> Sàng lọc Tương tác Thuốc</h3><button onclick="window.closeModal()" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button></div>
             <div class="p-6">
                 <div class="bg-rose-50 text-rose-800 text-sm p-3 rounded-xl mb-4 font-medium"><i class="fas fa-info-circle mr-1"></i> Bà con nhập các loại thuốc Tây, lá Nam đang uống chung vào đây để AI kiểm tra xem chúng có "đánh nhau" hay sinh ra độc tính không nhé.</div>
-                <textarea id="ai-interaction-input" rows="3" class="w-full border-2 border-rose-200 rounded-xl px-4 py-3 mb-3 focus:ring-2 focus:ring-rose-100 outline-none" placeholder="Ví dụ: Uống thuốc tiểu đường Metformin chung với nước lá sâm đất..."></textarea>
+                <textarea id="ai-interaction-input" aria-label="Nhập thuốc cần kiểm tra tương tác" rows="3" class="w-full border-2 border-rose-200 rounded-xl px-4 py-3 mb-3 focus:ring-2 focus:ring-rose-100 outline-none" placeholder="Ví dụ: Uống thuốc tiểu đường Metformin chung với nước lá sâm đất..."></textarea>
                 <button onclick="window.checkDrugInteractionsAI()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 rounded-xl shadow-md transition">✨ Kiểm Tra An Toàn Ngay</button>
                 <div id="ai-interaction-result" class="mt-4 markdown-body hidden text-sm bg-rose-50 p-4 rounded-xl border border-rose-100 max-h-60 overflow-y-auto"></div>
             </div>
@@ -1338,7 +1470,7 @@
         <div id="modal-share-news" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
             <div class="bg-gradient-to-r from-medical-600 to-medical-500 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-share-alt mr-2"></i> Chia sẻ bài viết</h3>
-                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6 space-y-6">
                 <!-- Preview card of the shared news -->
@@ -1355,9 +1487,9 @@
                 <div class="space-y-4">
                     <!-- Link input with copy button -->
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1.5 tracking-wider">Liên kết chia sẻ</label>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1.5 tracking-wider" for="news-title">Liên kết chia sẻ</label>
                         <div class="flex gap-2">
-                            <input type="text" id="share-news-link" readonly class="flex-1 bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-xs font-medium text-gray-700 outline-none">
+                            <input type="text" id="share-news-link" aria-label="Đường dẫn bài viết chia sẻ" readonly class="flex-1 bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-xs font-medium text-gray-700 outline-none">
                             <button onclick="window.copyShareNewsLink()" class="bg-medical-600 hover:bg-medical-700 text-white font-bold px-4 py-2.5 rounded-xl transition text-xs shrink-0 flex items-center gap-1.5 shadow-md">
                                 <i class="far fa-copy"></i> Sao chép
                             </button>
@@ -1386,6 +1518,345 @@
                         </a>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- POPUP ĐĂNG NHẬP CÁN BỘ ĐIỂM TRẠM -->
+        <div id="login-modal" class="modal-content hidden bg-slate-900 text-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800">
+            <div class="bg-slate-950 p-5 flex justify-between items-center border-b border-slate-800">
+                <h3 class="font-bold text-lg text-blue-400 flex items-center gap-2">
+                    <i class="fas fa-hospital-user"></i> Đăng nhập Cán bộ Điểm trạm
+                </h3>
+                <button onclick="window.closeLoginModal()" class="text-slate-400 hover:text-white bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4 text-xs">
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-station-code">Mã Điểm Trạm Y Tế</label>
+                    <input type="text" id="input-station-code" value="TYT-BATXAT-01" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-cms-account">Tài khoản Cán bộ CMS (Hệ thống)</label>
+                    <select id="input-cms-account" onchange="window.onCmsAccountSelect(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
+                        <option value="">-- Chọn tài khoản cán bộ trực trạm --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-operator-name">Tên Cán bộ trực điểm trạm</label>
+                    <input type="text" id="input-operator-name" value="Y sĩ Nguyễn Văn A" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-role">Vai trò nhiệm vụ</label>
+                    <select id="input-role" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
+                        <option value="station_operator">Cán bộ Y tế Điểm trạm</option>
+                    </select>
+                </div>
+                <div class="pt-2">
+                    <button onclick="window.submitLogin()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg text-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-right-to-bracket"></i> Xác nhận & Vào Bảng điều khiển
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- BẢNG ĐIỀU KHIỂN CÁN BỘ Y TẾ ĐIỂM TRẠM -->
+        <div id="modal-station-panel" class="modal-content hidden bg-slate-950 text-white rounded-3xl w-full max-w-6xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800">
+            <!-- Header -->
+            <div class="bg-slate-900 px-6 py-4 flex flex-wrap justify-between items-center border-b border-slate-800 gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center text-lg font-bold">
+                        <i class="fas fa-notes-medical"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-base text-white flex items-center gap-2">
+                            BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM Y TẾ BÁT XÁT
+                            <span id="display-station-code" class="text-xs bg-blue-600 px-2 py-0.5 rounded font-mono text-white">TYT-BATXAT-01</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 flex items-center gap-2">
+                            <span>Cán bộ trực: <strong id="display-operator-name" class="text-emerald-400">Y sĩ Nguyễn Văn A</strong></span>
+                            <span>•</span>
+                            <span id="connection-badge" class="inline-flex items-center space-x-1 bg-emerald-950 border border-emerald-800 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                <span id="connection-status-text">Sẵn sàng</span>
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="window.openLoginModal()" class="bg-slate-800 hover:bg-slate-700 text-blue-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700">
+                        <i class="fas fa-user-gear"></i> Đổi tài khoản CMS
+                    </button>
+                    <button onclick="window.closeModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 w-8 h-8 rounded-full flex items-center justify-center transition">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Grid -->
+            <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Cột trái: Hàng đợi cuộc gọi & Sinh hiệu bệnh nhân (4 col) -->
+                <div class="lg:col-span-4 space-y-4">
+                    <!-- Hàng đợi cuộc gọi từ người dân -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                                <i class="fas fa-headset"></i> Cuộc gọi chờ từ Người dân
+                            </h4>
+                            <span id="station-queue-count" class="text-[10px] bg-blue-900/80 text-blue-300 px-2 py-0.5 rounded-full font-bold">0 cuộc gọi</span>
+                        </div>
+                        <div id="station-queue-list" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            <div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>
+                        </div>
+                    </div>
+
+                    <!-- Nhập nhanh chỉ số sinh hiệu -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                            <i class="fas fa-heartbeat"></i> Nhập nhanh Sinh hiệu Bệnh nhân
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-name">Họ và tên bệnh nhân</label>
+                                <input type="text" id="patient-name" placeholder="VD: Nguyễn Văn B" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-bp-sys">Huyết áp Thu (mmHg)</label>
+                                    <input type="number" id="vitals-bp-sys" value="135" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-bp-dia">Huyết áp Trương (mmHg)</label>
+                                    <input type="number" id="vitals-bp-dia" value="85" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-hr">Nhịp tim (bpm)</label>
+                                    <input type="number" id="vitals-hr" value="82" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-spo2">SpO2 (%)</label>
+                                    <input type="number" id="vitals-spo2" value="97" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-temp">Nhiệt độ (°C)</label>
+                                    <input type="text" id="vitals-temp" value="37.2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-weight">Cân nặng (kg)</label>
+                                    <input type="text" id="vitals-weight" value="62" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-symptoms">Triệu chứng chính</label>
+                                <input type="text" id="patient-symptoms" placeholder="Sốt nhẹ, mệt mỏi, ho khan..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                        <button onclick="window.sendVitalsToDoctor()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
+                            <i class="fas fa-paper-plane"></i> Đồng bộ Sinh hiệu lên màn hình khám
+                        </button>
+                    </div>
+
+                    <!-- Thẻ hiển thị sinh hiệu thực tế -->
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div id="card-bp" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
+                            <div class="text-[10px] text-slate-400">Huyết áp</div>
+                            <div id="hud-bp" class="font-black text-sm text-white">135/85</div>
+                        </div>
+                        <div id="card-hr" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
+                            <div class="text-[10px] text-slate-400">Nhịp tim</div>
+                            <div id="hud-hr" class="font-black text-sm text-rose-400">82 bpm</div>
+                        </div>
+                        <div id="card-spo2" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
+                            <div class="text-[10px] text-slate-400">SpO2</div>
+                            <div id="hud-spo2" class="font-black text-sm text-emerald-400">97%</div>
+                        </div>
+                        <div id="card-temp" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
+                            <div class="text-[10px] text-slate-400">Nhiệt độ</div>
+                            <div id="hud-temp" class="font-black text-sm text-amber-400">37.2°C</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cột giữa: Màn hình Video Call Khám đa chiều & Điều khiển (5 col) -->
+                <div class="lg:col-span-5 space-y-4">
+                    <div class="relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-lg">
+                        <video id="remote-video" autoplay playsinline class="w-full h-full object-cover hidden"></video>
+                        <div id="remote-placeholder" class="flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                            <i class="fas fa-user-md text-6xl text-blue-500 mb-3 animate-pulse"></i>
+                            <h4 id="hud-patient-name" class="font-bold text-base text-white mb-1">Bệnh nhân</h4>
+                            <p class="text-xs text-slate-400">Chờ Bác sĩ tuyến trên / AI kết nối tư vấn...</p>
+                            <span id="call-timer" class="text-xs font-mono text-emerald-400 mt-2 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">00:00</span>
+                        </div>
+                        <video id="local-video" autoplay playsinline muted class="w-32 h-24 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl absolute bottom-3 right-3 object-cover"></video>
+                    </div>
+
+                    <!-- Thanh điều khiển cuộc gọi -->
+                    <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                        <button onclick="window.toggleCameraDevice()" title="Chuyển đổi Camera" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow">
+                            <i class="fas fa-camera-rotate"></i> <span id="cam-label">Góc rộng</span>
+                        </button>
+                        <button onclick="window.toggleMic()" id="mic-btn" title="Bật/Tắt Micro" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <button onclick="window.toggleVideo()" id="video-btn" title="Bật/Tắt Camera" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow">
+                            <i class="fas fa-video"></i>
+                        </button>
+                        <button onclick="window.sendVitalsToDoctor()" title="Gửi chỉ số sinh hiệu" class="px-3 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
+                            <i class="fas fa-paper-plane"></i> Gửi sinh hiệu
+                        </button>
+                        <button onclick="window.finishAndExportReport()" title="Hoàn thành & Xuất Phiếu khám" class="px-3 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
+                            <i class="fas fa-file-invoice"></i> Xuất phiếu khám
+                        </button>
+                    </div>
+
+                    <!-- Khung nhắn tin trực tiếp -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <i class="fas fa-comments"></i> Trao đổi lâm sàng
+                        </h4>
+                        <div id="chat-box" class="h-28 overflow-y-auto space-y-1.5 text-xs text-slate-300 pr-1 border-t border-b border-slate-800 py-2">
+                            <div class="text-[11px] text-slate-400 italic">Kênh hội chẩn tư vấn đa chiều đã sẵn sàng.</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="chat-input" placeholder="Gõ tin nhắn hội chẩn..." onkeydown="window.handleChatKeyPress(event)" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                            <button onclick="window.sendChatMessage()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">
+                                Gửi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cột phải: Bảng hỗ trợ Lâm sàng & Trợ lý AI Co-Pilot (3 col) -->
+                <div class="lg:col-span-3 space-y-4">
+                    <!-- Ghi chép lâm sàng & Speech-to-Text -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                                <i class="fas fa-pen-to-square"></i> Ghi chép lâm sàng
+                            </h4>
+                            <button onclick="window.toggleSpeechToText()" id="stt-btn" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/40 text-[10px] px-2 py-1 rounded flex items-center gap-1 transition">
+                                <i class="fas fa-microphone-lines"></i> Speech-to-Text
+                            </button>
+                        </div>
+                        <textarea id="clinical-notes" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="Diễn biến bệnh, triệu chứng cơ năng..."></textarea>
+                        <button onclick="window.requestAIConsultation()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow">
+                            <i class="fas fa-brain"></i> AI Co-Pilot Phân tích
+                        </button>
+                    </div>
+
+                    <!-- Gợi ý chẩn đoán & Đơn thuốc tham khảo -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                                <i class="fas fa-robot"></i> Gợi ý chẩn đoán & Đơn thuốc AI
+                            </h4>
+                            <span id="ai-confidence" class="text-[10px] text-emerald-400 font-mono">94%</span>
+                        </div>
+                        <div id="ai-red-flags" class="text-[11px] font-bold text-rose-400 space-y-1"></div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-bold block mb-0.5">Gợi ý chẩn đoán:</span>
+                            <div id="ai-diagnosis-list" class="text-xs text-slate-200 font-bold leading-relaxed">Đang chờ phân tích...</div>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-bold block mb-0.5">Cận lâm sàng đề xuất:</span>
+                            <div id="ai-paraclinicals-list" class="text-[11px] text-slate-300">--</div>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-bold block mb-0.5">Đơn thuốc tham khảo:</span>
+                            <div id="ai-prescription-list" class="text-[11px] text-slate-300">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PHIẾU KHÁM & ĐƠN THUỐC BẢN IN (REPORT MODAL) -->
+        <div id="report-modal" class="modal-content hidden bg-white rounded-3xl w-full max-w-2xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all text-gray-800 border border-gray-200">
+            <div class="bg-emerald-600 px-6 py-4 flex justify-between items-center text-white">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fas fa-file-circle-check"></i> PHIẾU KHÁM VÀ ĐƠN THUỐC ĐIỂM TRẠM
+                </h3>
+                <button onclick="window.closeReportModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="report-print-area" class="p-8 space-y-4 text-xs font-sans">
+                <div class="flex justify-between border-b pb-4">
+                    <div>
+                        <h2 class="text-base font-black text-gray-900 uppercase">TRẠM Y TẾ BÁT XÁT</h2>
+                        <p class="text-[11px] text-gray-600">Thôn Bát Xát 4, Xã Bát Xát, Lào Cai</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-mono font-bold text-blue-600" id="rpt-code">PK-20260803-01</p>
+                        <p class="text-[10px] text-gray-500" id="rpt-date">Mã phiếu khám</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-3 rounded-xl border">
+                    <div><strong>Họ tên BN:</strong> <span id="rpt-patient-name">Nguyễn Văn B</span></div>
+                    <div><strong>Điểm trạm:</strong> <span id="rpt-station">TYT-BATXAT-01</span></div>
+                    <div><strong>Cán bộ trực:</strong> <span id="rpt-operator">Y sĩ Nguyễn Văn A</span></div>
+                </div>
+                <div>
+                    <h4 class="font-bold text-xs uppercase mb-1">1. Chỉ số Sinh hiệu</h4>
+                    <table class="w-full text-center text-xs border-collapse border border-slate-300">
+                        <thead>
+                            <tr class="bg-slate-100 font-bold">
+                                <th class="p-1.5 border border-slate-300">Huyết áp</th>
+                                <th class="p-1.5 border border-slate-300">Nhịp tim</th>
+                                <th class="p-1.5 border border-slate-300">SpO2</th>
+                                <th class="p-1.5 border border-slate-300">Nhiệt độ</th>
+                                <th class="p-1.5 border border-slate-300">Cân nặng</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr id="rpt-vitals-row">
+                                <td class="p-1.5 border border-slate-300">135/85</td>
+                                <td class="p-1.5 border border-slate-300">82</td>
+                                <td class="p-1.5 border border-slate-300">97%</td>
+                                <td class="p-1.5 border border-slate-300">37.2°C</td>
+                                <td class="p-1.5 border border-slate-300">62 kg</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <h4 class="font-bold text-xs uppercase mb-1">2. Diễn biến lâm sàng</h4>
+                    <p id="rpt-notes" class="bg-gray-50 p-2.5 rounded-lg border text-gray-700 italic">Bệnh nhân tỉnh táo, ho nhẹ...</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <h4 class="font-bold text-xs uppercase mb-1">3. Chẩn đoán sơ bộ</h4>
+                        <p id="rpt-diagnosis" class="bg-blue-50 p-2.5 rounded-lg border border-blue-200 font-bold text-blue-900">Viêm họng cấp</p>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-xs uppercase mb-1">4. Mã ICD-10</h4>
+                        <p id="rpt-icd10" class="bg-purple-50 p-2.5 rounded-lg border border-purple-200 font-mono font-bold text-purple-900">J02.9</p>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-bold text-xs uppercase mb-1">5. Hướng xử trí</h4>
+                    <p id="rpt-treatment" class="bg-amber-50 p-2.5 rounded-lg border border-amber-200 text-amber-900">Thở oxy hỗ trợ, dùng thuốc hạ sốt...</p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-xs uppercase mb-1">6. Đơn thuốc tham khảo</h4>
+                    <p id="rpt-prescription" class="bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 text-emerald-900 whitespace-pre-line font-medium">1. Paracetamol 500mg x 3 lần/ngày</p>
+                </div>
+                <div class="pt-6 flex justify-between text-center text-xs">
+                    <div>
+                        <p class="font-bold">BỆNH NHÂN</p>
+                        <p class="text-[10px] text-gray-400 italic">(Ký, ghi rõ họ tên)</p>
+                    </div>
+                    <div>
+                        <p class="font-bold">CÁN BỘ ĐIỂM TRẠM</p>
+                        <p class="text-[10px] text-gray-400 italic">(Ký, ghi rõ họ tên)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-100 px-6 py-4 flex justify-end gap-3 border-t">
+                <button onclick="window.closeReportModal()" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 text-xs font-bold rounded-xl transition">Đóng</button>
+                <button onclick="window.print()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow flex items-center gap-1.5">
+                    <i class="fas fa-print"></i> In Phiếu khám
+                </button>
             </div>
         </div>
 
@@ -1437,7 +1908,7 @@
             
             <!-- ADMIN SIDEBAR NAVIGATION -->
             <div class="w-full lg:w-72 bg-white rounded-2xl shadow-sm p-5 h-fit border border-gray-200">
-                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 pl-2">Hạng mục cấu hình</h3>
+                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 pl-2">Hạng mục cấu hình</h2>
                 <ul class="space-y-2">
                     <li><a href="#" onclick="window.switchAdminTab('news')" id="tab-btn-news" class="block p-3.5 bg-medical-50 text-medical-700 rounded-xl font-bold border-l-4 border-medical-600 shadow-sm transition"><i class="fas fa-newspaper mr-3"></i> Quản lý Bản tin & Thông báo</a></li>
                     <li class="hidden"><a href="#" onclick="window.switchAdminTab('vaccine')" id="tab-btn-vaccine" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-bullhorn mr-3"></i> Quản lý Thông báo Trạm</a></li>
@@ -1493,7 +1964,7 @@
                                     <input type="text" id="news-title" required class="w-full border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:border-medical-500 font-medium text-sm text-gray-950">
                                 </div>
                                 <div class="mb-4">
-                                    <label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase">Nội dung chi tiết</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase" for="news-desc">Nội dung chi tiết</label>
                                     <textarea rows="3" id="news-desc" required class="w-full border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:border-medical-500 font-medium text-sm text-gray-950"></textarea>
                                 </div>
                                 <!-- Collapsible / Advanced settings to keep it clean and fast -->
@@ -1503,16 +1974,16 @@
                                     </summary>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                                         <div>
-                                            <label class="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Đường dẫn ảnh (URL)</label>
+                                            <label class="block text-[10px] font-bold text-gray-600 mb-1 uppercase" for="news-image-url">Đường dẫn ảnh (URL)</label>
                                             <input type="text" id="news-image-url" placeholder="https://image.jpg" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs text-gray-950">
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Hoặc tải ảnh từ máy</label>
+                                            <label class="block text-[10px] font-bold text-gray-600 mb-1 uppercase" for="news-image-file">Hoặc tải ảnh từ máy</label>
                                             <input type="file" id="news-image-file" accept="image/*" multiple class="w-full border border-gray-300 rounded-lg px-3 py-1 text-xs bg-white text-gray-950">
                                         </div>
                                     </div>
                                     <div class="mt-3 pt-3 border-t border-gray-200">
-                                        <label class="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Đính kèm văn bản, biểu mẫu</label>
+                                        <label class="block text-[10px] font-bold text-gray-600 mb-1 uppercase" for="news-document-files">Đính kèm văn bản, biểu mẫu</label>
                                         <input type="file" id="news-document-files" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" multiple class="w-full border border-gray-300 rounded-lg px-3 py-1 text-xs bg-white text-gray-950">
                                     </div>
                                 </details>
@@ -1529,15 +2000,15 @@
                             <form onsubmit="window.handleAddVaccine(event)">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Ngày tiêm (VD: Sáng 05/06/2026)</label>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1.5" for="vac-date">Ngày tiêm (VD: Sáng 05/06/2026)</label>
                                         <input type="text" id="vac-date" required placeholder="Sáng 05/06/2026" class="w-full border border-gray-300 rounded-xl px-3 py-2 font-medium text-sm text-gray-950">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Giờ tiêm (VD: 07:30 - 11:30)</label>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1.5" for="vac-time">Giờ tiêm (VD: 07:30 - 11:30)</label>
                                         <input type="text" id="vac-time" required placeholder="07:30 - 11:30" class="w-full border border-gray-300 rounded-xl px-3 py-2 font-medium text-sm text-gray-950">
                                     </div>
                                     <div class="col-span-1 md:col-span-2">
-                                        <label class="block text-xs font-bold text-gray-700 mb-1.5">Đối tượng & Thôn bản phụ trách</label>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1.5" for="vac-target">Đối tượng & Thôn bản phụ trách</label>
                                         <input type="text" id="vac-target" required placeholder="Bà con và trẻ em Thôn 8..." class="w-full border border-gray-300 rounded-xl px-3 py-2 font-medium text-sm text-gray-950">
                                     </div>
                                 </div>
@@ -1576,11 +2047,11 @@
                 <div id="admin-vaccine-section" class="admin-tab space-y-6">
                     <div class="bg-white rounded-2xl shadow-sm p-6 lg:p-8 border border-gray-200 relative overflow-hidden">
                         <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Quản lý Thông báo Trạm</h2></div>                        <form onsubmit="window.handleAddVaccine(event)" class="bg-green-50 p-5 rounded-xl border border-green-200 mb-6">
-                            <h4 class="font-bold text-green-900 mb-4 uppercase text-sm"><i class="fas fa-calendar-plus mr-2"></i>Thêm lịch tiêm mới</h4>
+                            <h3 class="font-bold text-green-900 mb-4 uppercase text-sm"><i class="fas fa-calendar-plus mr-2"></i>Thêm lịch tiêm mới</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Ngày tiêm (VD: Sáng 05/06/2026)</label><input type="text" id="vac-date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Giờ tiêm (VD: 07:30 - 11:30)</label><input type="text" id="vac-time" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium"></div>
-                                <div class="col-span-1 md:col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1">Đối tượng & Thôn bản phụ trách</label><input type="text" id="vac-target" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="vac-date">Ngày tiêm (VD: Sáng 05/06/2026)</label><input type="text" id="vac-date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="vac-time">Giờ tiêm (VD: 07:30 - 11:30)</label><input type="text" id="vac-time" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium"></div>
+                                <div class="col-span-1 md:col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1" for="vac-target">Đối tượng & Thôn bản phụ trách</label><input type="text" id="vac-target" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium"></div>
                             </div>
                             <button type="submit" class="bg-green-600 text-white font-bold px-6 py-2.5 rounded-lg hover:bg-green-700 transition">Thêm lịch tiêm</button>
                         </form>
@@ -1598,11 +2069,11 @@
                     <div class="bg-white rounded-2xl shadow-sm p-6 lg:p-8 border border-gray-200 relative overflow-hidden">
                         <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Quản lý Tài liệu & Biểu mẫu</h2></div>
                         <form onsubmit="window.handleAddDoc(event)" class="bg-blue-50 p-5 rounded-xl border border-blue-200 mb-6">
-                            <h4 class="font-bold text-blue-900 mb-4 uppercase text-sm"><i class="fas fa-upload mr-2"></i>Thêm tài liệu mới</h4>
+                            <h3 class="font-bold text-blue-900 mb-4 uppercase text-sm"><i class="fas fa-upload mr-2"></i>Thêm tài liệu mới</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div class="col-span-1 md:col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1">Tên tài liệu / Biểu mẫu</label><input type="text" id="doc-title" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Phân loại hiển thị</label><select id="doc-type" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white"><option value="Biểu mẫu y tế">Biểu mẫu y tế</option><option value="Tài liệu y tế">Tài liệu y tế</option></select></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Đường dẫn tải về (Drive URL)</label><input type="text" id="doc-url" required placeholder="https://..." class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
+                                <div class="col-span-1 md:col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1" for="doc-title">Tên tài liệu / Biểu mẫu</label><input type="text" id="doc-title" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="doc-type">Phân loại hiển thị</label><select id="doc-type" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white"><option value="Biểu mẫu y tế">Biểu mẫu y tế</option><option value="Tài liệu y tế">Tài liệu y tế</option></select></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="doc-url">Đường dẫn tải về (Drive URL)</label><input type="text" id="doc-url" required placeholder="https://..." class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
                             </div>
                             <button type="submit" class="bg-blue-600 text-white font-bold px-6 py-2.5 rounded-lg hover:bg-blue-700 transition">Đăng tải lên hệ thống</button>
                         </form>
@@ -1621,9 +2092,9 @@
                         <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Quản lý Dịch vụ & Phân luồng Zalo</h2></div>
                         <form onsubmit="window.handleAddService(event)" class="bg-indigo-50 p-5 rounded-xl border border-indigo-200 mb-6">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Tên Khoa / Phòng chuyên môn</label><input type="text" id="srv-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Cán bộ phụ trách</label><input type="text" id="srv-person" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">SĐT Zalo nhận tin</label><input type="tel" id="srv-zalo" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="srv-name">Tên Khoa / Phòng chuyên môn</label><input type="text" id="srv-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="srv-person">Cán bộ phụ trách</label><input type="text" id="srv-person" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="srv-zalo">SĐT Zalo nhận tin</label><input type="tel" id="srv-zalo" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
                             </div>
                             <button type="submit" class="bg-indigo-600 text-white font-bold px-5 py-2 rounded-lg hover:bg-indigo-700 transition">Đồng bộ luồng liên kết</button>
                         </form>
@@ -1640,9 +2111,9 @@
                         <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Quản lý Danh bạ Cán bộ</h2></div>
                         <form onsubmit="window.handleAddContact(event)" class="bg-emerald-50 p-5 rounded-xl border border-emerald-200 mb-6">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Họ tên Cán bộ</label><input type="text" id="cnt-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: BS. Nguyễn Văn A"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Chức vụ / Bộ phận</label><input type="text" id="cnt-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: Trạm trưởng Trạm Y tế"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Số điện thoại liên hệ</label><input type="tel" id="cnt-phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: 0382103002"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-name">Họ tên Cán bộ</label><input type="text" id="cnt-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: BS. Nguyễn Văn A"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-role">Chức vụ/ Bộ phận</label><input type="text" id="cnt-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: Trạm trưởng Trạm Y tế"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-phone">Số điện thoại liên hệ</label><input type="tel" id="cnt-phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: 0382103002"></div>
                             </div>
                             <div class="flex gap-3">
                                 <button type="submit" class="bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-lg hover:bg-emerald-700 transition"><i class="fas fa-plus mr-1"></i> Thêm Cán bộ</button>
@@ -1664,20 +2135,20 @@
                         <form onsubmit="window.handleSaveVideo(event)" class="bg-red-50 p-5 rounded-xl border border-red-200 mb-6">
                             <input type="hidden" id="vid-id">
                             <div class="mb-4">
-                                <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Tiêu đề Video</label>
+                                <label class="block text-xs font-bold text-gray-700 mb-1 uppercase" for="vid-title">Tiêu đề Video</label>
                                 <input type="text" id="vid-title" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900 focus:outline-none focus:border-red-500">
                             </div>
                             <div class="mb-4">
-                                <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Mô tả chi tiết</label>
+                                <label class="block text-xs font-bold text-gray-700 mb-1 uppercase" for="vid-desc">Mô tả chi tiết</label>
                                 <textarea id="vid-desc" required rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900 focus:outline-none focus:border-red-500"></textarea>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Đường dẫn Video (YouTube Embed/Watch hoặc URL)</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1 uppercase" for="vid-url">Đường dẫn Video (YouTube Embed/Watch hoặc URL)</label>
                                     <input type="text" id="vid-url" placeholder="https://www.youtube.com/watch?v=..." class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900 focus:outline-none focus:border-red-500">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Hoặc tải lên Video từ thiết bị</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1 uppercase" for="vid-file">Hoặc tải lên Video từ thiết bị</label>
                                     <input type="file" id="vid-file" accept="video/*" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 font-medium text-sm text-gray-900 focus:outline-none focus:border-red-500 bg-white">
                                 </div>
                             </div>
@@ -1841,7 +2312,7 @@
                                             </h4>
                                             <span id="cms-patient-idcard-badge" class="text-[10px] text-slate-500">Chưa có định danh</span>
                                         </div>
-                                        <label class="block text-[10px] text-slate-400">Số thẻ BHYT hoặc số CCCD (bắt buộc in trên đơn thuốc)</label>
+                                        <label class="block text-[10px] text-slate-400" for="cms-patient-idcard">Số thẻ BHYT hoặc số CCCD (bắt buộc in trên đơn thuốc)</label>
                                         <input type="text" id="cms-patient-idcard" placeholder="VD: HS4010112345678 / 001099012345" onchange="window.teleSyncPatientIdentity(false)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white text-xs focus:outline-none focus:border-amber-500">
                                     </div>
                                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
@@ -1860,33 +2331,33 @@
                                             <i class="fas fa-file-medical"></i> Chẩn đoán - Hướng xử trí - Thuốc kê đơn
                                         </h4>
                                         <div>
-                                            <label class="block text-[11px] font-bold text-blue-400 mb-1 flex items-center gap-1.5">
+                                            <label class="block text-[11px] font-bold text-blue-400 mb-1 flex items-center gap-1.5" for="cms-dx-diagnosis">
                                                 <i class="fas fa-stethoscope"></i> Chẩn đoán (in trên đơn thuốc)
                                             </label>
                                             <textarea id="cms-dx-diagnosis" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="VD: Viêm họng cấp (J02.9) / Tăng huyết áp độ 1 (I10)..."></textarea>
                                         </div>
                                         <div>
-                                            <label class="block text-[11px] font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                                            <label class="block text-[11px] font-bold text-amber-400 mb-1 flex items-center gap-1.5" for="cms-dx-plan">
                                                 <i class="fas fa-route"></i> Hướng xử trí (in trên đơn thuốc)
                                             </label>
                                             <textarea id="cms-dx-plan" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500" placeholder="VD: Điều trị ngoại trú tại trạm, theo dõi huyết áp 2 lần/ngày, chuyển tuyến nếu sốt cao liên tục..."></textarea>
                                         </div>
                                         <div>
-                                            <label class="block text-[11px] font-bold text-cyan-400 mb-1 flex items-center gap-1.5">
+                                            <label class="block text-[11px] font-bold text-cyan-400 mb-1 flex items-center gap-1.5" for="cms-dx-drugs">
                                                 <i class="fas fa-pills"></i> Thuốc kê đơn (in trên đơn thuốc)
                                             </label>
                                             <textarea id="cms-dx-drugs" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-cyan-500" placeholder="1. Amoxicillin 500mg - uống 1 viên x 3 lần/ngày sau ăn x 5 ngày&#10;2. Paracetamol 500mg - uống khi sốt > 38.5°C, cách nhau 6 giờ"></textarea>
                                         </div>
                                         <div>
-                                            <label class="block text-[11px] font-bold text-emerald-400 mb-1 flex items-center gap-1.5">
+                                            <label class="block text-[11px] font-bold text-emerald-400 mb-1 flex items-center gap-1.5" for="cms-doctor-advice">
                                                 <i class="fas fa-comment-medical"></i> Lời dặn của bác sỹ (in trên đơn thuốc)
                                             </label>
                                             <textarea id="cms-doctor-advice" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="VD: Uống thuốc sau ăn, uống nhiều nước, tái khám sau 3 ngày hoặc khi khó thở tăng..."></textarea>
                                             <p class="text-[10px] text-slate-500 mt-1">Chỉ nội dung ở 4 khung trên được in vào đơn thuốc. Gợi ý của Trợ lý AI chỉ hiển thị trên màn hình.</p>
                                         </div>
                                         <div class="bg-slate-800/70 border border-slate-700 rounded-xl p-3 space-y-2">
-                                            <label class="block text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
-                                                <i class="fas fa-file-signature"></i> Y sỹ / Bác sỹ kê đơn (ký đơn từ xa)
+                                            <label class="block text-[11px] font-bold text-purple-300 flex items-center gap-1.5" for="cms-prescription-signer">
+                                                <i class="fas fa-file-signature"></i> Y sỹ/ Bác sỹ kê đơn (ký đơn từ xa)
                                             </label>
                                             <select id="cms-prescription-signer" onchange="window.selectPrescriptionSigner(this.value, true)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-purple-500">
                                                 <option value="">-- Chọn người ký đơn --</option>
@@ -1910,8 +2381,8 @@
                                             <div class="bg-slate-800/50 p-2 rounded-lg text-slate-400 text-[11px] italic">Hệ thống: Kênh trao đổi bảo mật đã sẵn sàng.</div>
                                         </div>
                                         <div class="flex gap-2">
-                                            <input type="text" id="cms-chat-input" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendCmsChatMessage();}" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-                                            <button onclick="window.sendCmsChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
+                                            <input type="text" id="cms-chat-input" aria-label="Nhập tin nhắn bác sĩ" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendCmsChatMessage();}" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                                            <button onclick="window.sendCmsChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold" aria-label="Gửi tin nhắn bác sĩ">
                                                 <i class="fas fa-paper-plane"></i>
                                             </button>
                                         </div>
@@ -1951,10 +2422,10 @@
                         <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Cấu hình phân quyền hệ thống</h2></div>
                         <form onsubmit="window.handleAddUser(event)" class="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-6">
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Email công vụ</label><input type="email" id="cfg-user-acc" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1">Họ tên cán bộ</label><input type="text" id="cfg-user-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-acc">Email công vụ</label><input type="email" id="cfg-user-acc" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-name">Họ tên cán bộ</label><input type="text" id="cfg-user-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1">Vai trò</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-role">Vai trò</label>
                                     <select id="cfg-user-role" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
                                         <option value="Quản trị viên (Admin)">Quản trị viên (Admin)</option>
                                         <option value="Bác sĩ nhận cuộc gọi">Bác sĩ nhận cuộc gọi Telehealth</option>
@@ -1962,7 +2433,7 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1">Quyền nhận cuộc gọi Video</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-video">Quyền nhận cuộc gọi Video</label>
                                     <select id="cfg-user-video" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
                                         <option value="true">Được phép nhận cuộc gọi</option>
                                         <option value="false">Không được phép</option>
@@ -1991,18 +2462,18 @@
                     <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
                         <div class="mb-6 pb-4 border-b border-gray-100">
                             <h2 class="text-2xl font-black text-gray-900">Chữ ký số &amp; Người ký đơn thuốc</h2>
-                            <p class="text-sm text-gray-500 mt-1">Lưu sẵn chữ ký của từng Y sỹ / Bác sỹ theo họ tên. Khi kê đơn khám từ xa, chỉ cần chọn tên người ký là chữ ký được đóng tự động lên đơn thuốc mà không cần ký tay tại chỗ.</p>
+                            <p class="text-sm text-gray-500 mt-1">Lưu sẵn chữ ký của từng Y sỹ/ Bác sỹ theo họ tên. Khi kê đơn khám từ xa, chỉ cần chọn tên người ký là chữ ký được đóng tự động lên đơn thuốc mà không cần ký tay tại chỗ.</p>
                         </div>
 
                         <form onsubmit="window.handleSaveSigner(event)" class="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-6">
                             <input type="hidden" id="sig-editing-id" value="">
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1">Họ và tên người ký đơn</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="sig-name">Họ và tên người ký đơn</label>
                                     <input type="text" id="sig-name" required placeholder="VD: Nguyễn Thị Mai" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1">Chức danh kê đơn</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="sig-title">Chức danh kê đơn</label>
                                     <select id="sig-title" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
                                         <option value="Bác sỹ">Bác sỹ</option>
                                         <option value="Y sỹ">Y sỹ</option>
@@ -2011,24 +2482,24 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1">Số chứng chỉ hành nghề</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="sig-license">Số chứng chỉ hành nghề</label>
                                     <input type="text" id="sig-license" placeholder="VD: 010234/LC-CCHN" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1">Đơn vị công tác</label>
-                                    <input type="text" id="sig-workplace" placeholder="Trạm Y tế xã Bát Xát" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="sig-workplace">Đơn vị công tác</label>
+                                    <input type="text" id="sig-workplace" placeholder="Trạm Y tế Bát Xát" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1">Ký trực tiếp bằng chuột / cảm ứng</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="ai-news-prompt">Ký trực tiếp bằng chuột / cảm ứng</label>
                                     <canvas id="sig-pad" width="640" height="220" class="w-full bg-white border-2 border-dashed border-gray-300 rounded-xl touch-none cursor-crosshair"></canvas>
                                     <div class="flex flex-wrap gap-2 mt-2">
                                         <button type="button" onclick="window.clearSignaturePad()" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-300 transition"><i class="fas fa-eraser mr-1"></i> Xóa nét ký</button>
                                         <label class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition cursor-pointer">
                                             <i class="fas fa-upload mr-1"></i> Tải ảnh chữ ký / con dấu
-                                            <input type="file" accept="image/*" class="hidden" onchange="window.uploadSignatureImage(event)">
+                                            <input type="file" accept="image/*" class="hidden" aria-label="Tải tệp ảnh chữ ký" onchange="window.uploadSignatureImage(event)">
                                         </label>
                                     </div>
                                 </div>
@@ -2422,6 +2893,17 @@
             }
         };
 
+        
+            // Lắng nghe phím Escape để đóng Cửa sổ Modal
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const overlay = document.getElementById('modal-overlay');
+                    if (overlay && !overlay.classList.contains('hidden')) {
+                        window.closeModal();
+                    }
+                }
+            });
+
         window.closeModal = function() { 
             document.getElementById('modal-overlay').classList.add('hidden'); 
             document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
@@ -2646,7 +3128,7 @@
                 lightbox.innerHTML = `
                     <button onclick="document.getElementById('lightbox-modal').classList.add('hidden')" class="absolute top-6 right-6 text-white text-3xl hover:text-gray-300 transition focus:outline-none">&times;</button>
                     <div class="max-w-4xl max-h-[85vh] p-4 flex items-center justify-center">
-                        <img id="lightbox-img" src="" class="max-w-full max-h-[80vh] rounded-lg object-contain shadow-2xl">
+                        <img id="lightbox-img" src="" alt="Hình ảnh phóng to" class="max-w-full max-h-[80vh] rounded-lg object-contain shadow-2xl">
                     </div>
                 `;
                 document.body.appendChild(lightbox);
@@ -3687,21 +4169,107 @@
             // dù đang làm việc ở mục Tin tức, Lịch khám hay Kho thuốc.
         };
 
-        window.handleAdminLogin = function(e) {
-            e.preventDefault(); const u = document.getElementById('admin-username').value; const p = document.getElementById('admin-password').value;
-            const valid = adminUsers.find(x => x.username === u);
-            if(valid && p === 'admin123') {
-                window.closeModal(); document.getElementById('main-website').classList.add('hidden'); document.getElementById('admin-dashboard').classList.remove('hidden'); window.scrollTo(0,0); window.switchAdminTab('news');
-                // Bật trực cuộc gọi ngay khi đăng nhập, không cần mở tab Khám từ xa.
-                if (window.checkCmsVideoPermission()) window.startCmsIncomingWatcher();
-            } else { document.getElementById('login-error').classList.remove('hidden'); }
+        window.handleAdminLogin = async function(event) {
+            event.preventDefault();
+            
+            const usernameInput = document.getElementById('admin-username').value.trim();
+            const passwordInput = document.getElementById('admin-password').value.trim();
+            const statusMsg = document.getElementById('login-status-msg');
+            const loginError = document.getElementById('login-error');
+
+            if (loginError) loginError.classList.add('hidden');
+            if (statusMsg) {
+                statusMsg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kết nối đến hệ thống Java...';
+                statusMsg.className = "text-blue-600 text-sm font-bold mt-2";
+            }
+
+            try {
+                // Thay đổi URL bên dưới thành endpoint thực tế của Java Backend
+                const response = await fetch('http://localhost:8080/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: usernameInput,
+                        password: passwordInput
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = '✅ Kết nối thành công! Đang chuyển hướng...';
+                        statusMsg.className = "text-green-600 text-sm font-bold mt-2";
+                    }
+                    
+                    // Lưu token xác thực vào localStorage
+                    localStorage.setItem('cms_token', data.token);
+                    
+                    // Chuyển hướng hoặc mở giao diện quản trị CMS
+                    setTimeout(() => {
+                        window.closeModal();
+                        const mainSite = document.getElementById('main-website');
+                        const adminDash = document.getElementById('admin-dashboard');
+                        if (mainSite && adminDash) {
+                            mainSite.classList.add('hidden');
+                            adminDash.classList.remove('hidden');
+                            window.scrollTo(0,0);
+                            if (window.switchAdminTab) window.switchAdminTab('news');
+                            if (window.checkCmsVideoPermission && window.checkCmsVideoPermission()) {
+                                if (window.startCmsIncomingWatcher) window.startCmsIncomingWatcher();
+                            }
+                        } else {
+                            window.location.href = "/admin/dashboard.html";
+                        }
+                    }, 1000);
+                } else {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = `❌ Lỗi: ${data.message || 'Sai thông tin tài khoản.'}`;
+                        statusMsg.className = "text-red-600 text-sm font-bold mt-2";
+                    }
+                }
+            } catch (error) {
+                console.error('Lỗi kết nối Backend Java:', error);
+                // Trường hợp Java Backend offline: Kiểm tra đăng nhập dự phòng local
+                const valid = typeof adminUsers !== 'undefined' && adminUsers.find(x => x.username === usernameInput);
+                if (valid && passwordInput === 'admin123') {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = '✅ Đăng nhập dự phòng thành công! Đang chuyển hướng...';
+                        statusMsg.className = "text-green-600 text-sm font-bold mt-2";
+                    }
+                    setTimeout(() => {
+                        window.closeModal();
+                        const mainSite = document.getElementById('main-website');
+                        const adminDash = document.getElementById('admin-dashboard');
+                        if (mainSite && adminDash) {
+                            mainSite.classList.add('hidden');
+                            adminDash.classList.remove('hidden');
+                            window.scrollTo(0,0);
+                            if (window.switchAdminTab) window.switchAdminTab('news');
+                            if (window.checkCmsVideoPermission && window.checkCmsVideoPermission()) {
+                                if (window.startCmsIncomingWatcher) window.startCmsIncomingWatcher();
+                            }
+                        } else {
+                            window.location.href = "/admin/dashboard.html";
+                        }
+                    }, 1000);
+                } else {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = '⚠️ Không thể kết nối đến máy chủ Java (Backend chưa chạy hoặc lỗi mạng).';
+                        statusMsg.className = "text-red-600 text-sm font-bold mt-2";
+                    }
+                }
+            }
         };
         window.logoutAdmin = function() { window.stopCmsIncomingWatcher(); teleStop(true); document.getElementById('admin-dashboard').classList.add('hidden'); document.getElementById('main-website').classList.remove('hidden'); window.scrollTo(0,0); };
 
         // 7. TELEHEALTH VIDEO CALL ENGINE & FORM HANDLERS
         let activeRoomId = null;
         let isCmsCall = false;
-        let currentCmsUser = { username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' };
+        let currentCmsUser = { username: 'tytbatxat@laocai.gov.vn', name: 'Trạm Y tế Bát Xát', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' };
 
         window.checkCmsVideoPermission = function() {
             const alertBox = document.getElementById('cms-no-permission-alert');
@@ -4799,7 +5367,7 @@
                     v.temp ? `Nhiệt độ ${v.temp}°C` : '',
                     v.weight ? `Cân nặng ${v.weight} kg` : ''
                 ].filter(Boolean).join(', ') || 'chưa có chỉ số sinh hiệu';
-                const prompt = `Bạn là Bác sĩ Trợ lý AI Telehealth hỗ trợ trạm y tế xã. Bệnh nhân: ${TELE.patientName || 'không rõ'}. Sinh hiệu: ${vitalText}. Triệu chứng/ghi chú của cán bộ điểm trạm: "${TELE.symptoms || notes || 'khám tổng quát'}". Hãy đưa ra: 1) Chẩn đoán sơ bộ kèm mã ICD-10, 2) Cận lâm sàng cần chỉ định, 3) Hướng xử trí và đơn thuốc tham khảo theo phác đồ Bộ Y tế. Trình bày ngắn gọn theo gạch đầu dòng.`;
+                const prompt = `Bạn là Bác sĩ Trợ lý AI Telehealth hỗ trợ Trạm Y tế Bát Xát. Bệnh nhân: ${TELE.patientName || 'không rõ'}. Sinh hiệu: ${vitalText}. Triệu chứng/ghi chú của cán bộ điểm trạm: "${TELE.symptoms || notes || 'khám tổng quát'}". Hãy đưa ra: 1) Chẩn đoán sơ bộ kèm mã ICD-10, 2) Cận lâm sàng cần chỉ định, 3) Hướng xử trí và đơn thuốc tham khảo theo phác đồ Bộ Y tế. Trình bày ngắn gọn theo gạch đầu dòng.`;
                 const res = await callGemini(prompt, "Bạn là Y sĩ/ Bác sĩ chuyên khoa y tế cơ sở, trả lời bằng tiếng Việt.");
                 if (diagEl) diagEl.textContent = res || "Chưa nhận được phản hồi từ trợ lý AI.";
             } catch (e) {
@@ -4903,7 +5471,14 @@
                     .sign i { font-size: 8pt; }
                     .gap { height: 13mm; }
                     .muted { color: #475569; font-size: 7.5pt; text-align: center; margin: 2.5mm 0 0; font-style: italic; }
-                </style></head><body>
+                
+        /* TẬP TRUNG BÀN PHÍM (KEYBOARD FOCUS) - ACCESSIBILITY */
+        :focus-visible {
+            outline: 3px solid #0284c7 !important;
+            outline-offset: 2px !important;
+        }
+
+    </style></head><body>
                 <div class="head">
                     <div class="org">Trạm Y tế Bát Xát - Hệ thống Khám chữa bệnh từ xa</div>
                     <h1>Đơn thuốc &amp; Phiếu khám từ xa</h1>
@@ -4936,11 +5511,11 @@
                 <div class="sign">
                     <div>Cán bộ y tế điểm trạm<br><i>(Ký, ghi rõ họ tên)}</div>
                     <div>Y sỹ/ bác sỹ kê đơn<br><i>(Ký, ghi rõ họ tên)</i>
-                            ${signerImage
-                               ? `<div class="sig-img"><img src="${signerImage}" alt="Chữ ký số"></div><div class="sig-note">Đã ký số từ xa</div>`
-                               : '<div class="gap"></div>'}
-                            <div class="sig-name">${teleEscape(signerLabel)}</div>
-                           ${signer && signer.license ? `<div class="sig-note">CCHN: ${teleEscape(signer.license)}</div>` : ''}
+                    ${signerImage
+                    ? `<div class="sig-img"><img src="${signerImage}" alt="Chữ ký số"></div><div class="sig-note">Đã ký số từ xa</div>`
+                    : '<div class="gap"></div>'}
+                    <div class="sig-name">${teleEscape(signerLabel)}</div>
+                    ${signer && signer.license ? `<div class="sig-note">CCHN: ${teleEscape(signer.license)}</div>` : ''}
                     </div>
                 </div>
                 <p class="muted">Đơn thuốc kết xuất tự động từ Hệ thống Khám chữa bệnh Từ xa - Trạm Y tế Bát Xát. Khổ giấy A5.</p>
@@ -5245,7 +5820,7 @@
                         <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto animate-bounce">
                             <i class="fas fa-video"></i>
                         </div>
-                        <h4 class="text-2xl font-black text-gray-900">Đăng ký Khám Từ Xa Thành Công!</h4>
+                        <h2 class="text-2xl font-black text-gray-900">Đăng ký Khám Từ Xa Thành Công!</h2>
                         <p class="text-sm text-gray-600 font-medium leading-relaxed">
                             Hồ sơ của bệnh nhân <b>${name}</b> đã chuyển tới Bác sĩ trực CMS <b>${dept.person}</b>.
                         </p>
@@ -5259,7 +5834,7 @@
                             <button onclick="window.startTelehealthCallFromBooking('${roomId}', '${name.replace(/'/g, "\\'")}', '${(reason || '').replace(/'/g, "\\'")}', '${idCard.replace(/'/g, "\\'")}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-base transition animate-pulse">
                                 <i class="fas fa-phone-alt"></i> VÀO PHÒNG KHÁM VIDEO TỪ XA NGAY
                             </button>
-                            <button onclick="window.closeModal()" class="w-full bg-gray-100 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-200 transition">
+                            <button onclick="window.closeModal()" class="w-full bg-gray-100 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-200 transition" aria-label="Đóng cửa sổ">
                                 Đóng cửa sổ
                             </button>
                         </div>
@@ -5271,7 +5846,7 @@
                         <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto">
                             <i class="fas fa-check-circle"></i>
                         </div>
-                        <h4 class="text-2xl font-black text-gray-900">Ghi nhận lịch khám!</h4>
+                        <h2 class="text-2xl font-black text-gray-900">Ghi nhận lịch khám!</h2>
                         <p class="text-sm text-gray-600 font-medium leading-relaxed">
                             Thông tin đã lưu. Nhấn nút dưới đây để gửi thông báo trực tiếp tới Bác sĩ: <b>${dept.person}</b>
                         </p>
@@ -5279,7 +5854,7 @@
                             <a href="https://zalo.me/${dept.zalo}" target="_blank" class="bg-blue-500 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-600 transition shadow-md w-full flex items-center justify-center gap-2">
                                 <i class="fas fa-paper-plane"></i> Gửi tin báo Y sĩ/ Bác sĩ qua Zalo
                             </a>
-                            <button onclick="window.closeModal()" class="bg-gray-100 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-200 transition">
+                            <button onclick="window.closeModal()" class="bg-gray-100 text-gray-800 font-bold py-2.5 rounded-xl hover:bg-gray-200 transition" aria-label="Đóng cửa sổ">
                                 Đóng
                             </button>
                         </div>
@@ -5308,12 +5883,12 @@
                 console.error("Lỗi gửi góp ý đến Netlify Forms:", err);
             }
             if (container) {
-                container.innerHTML = `<div class="text-center py-10"><div class="text-green-500 text-6xl mb-6"><i class="fas fa-check-circle drop-shadow-md"></i></div><h4 class="text-2xl font-black text-gray-900 mb-3 uppercase">Thành công!</h4><p class="text-gray-600 mb-8 font-medium leading-relaxed">Thông tin góp ý của bạn đã được ghi nhận bảo mật và chuyển đến hòm thư <b>tytbatxat@laocai.gov.vn</b>.</p><button onclick="window.closeModal()" class="bg-gray-100 text-gray-800 font-bold px-8 py-3 rounded-full hover:bg-gray-200 transition shadow-sm w-full sm:w-auto">Đóng cửa sổ</button></div>`;
+                container.innerHTML = `<div class="text-center py-10"><div class="text-green-500 text-6xl mb-6"><i class="fas fa-check-circle drop-shadow-md"></i></div><h3 class="text-2xl font-black text-gray-900 mb-3 uppercase">Thành công!</h3><p class="text-gray-600 mb-8 font-medium leading-relaxed">Thông tin góp ý của bạn đã được ghi nhận bảo mật và chuyển đến hòm thư <b>tytbatxat@laocai.gov.vn</b>.</p><button onclick="window.closeModal()" class="bg-gray-100 text-gray-800 font-bold px-8 py-3 rounded-full hover:bg-gray-200 transition shadow-sm w-full sm:w-auto" aria-label="Đóng cửa sổ">Đóng cửa sổ</button></div>`;
             }
         };
 
         window.handleVaccineSubmit = function(e) {
-            e.preventDefault(); e.target.closest('.p-6').innerHTML = `<div class="text-center py-8"><h4 class="text-2xl font-black mb-4 text-gray-900">Đăng ký thành công!</h4><p class="text-gray-600 mb-6 font-medium leading-relaxed">Hãy ấn nút dưới đây để thông báo danh sách tới Cán bộ Chuyên trách tiêm chủng xã.</p><div class="flex flex-col gap-3"><a href="https://zalo.me/0336768348" target="_blank" class="bg-blue-500 text-white font-bold px-8 py-3.5 rounded-xl hover:bg-blue-600 transition shadow-lg w-full flex items-center justify-center gap-2 text-lg">Báo Cán bộ phụ trách</a><button onclick="window.closeModal()" class="bg-gray-100 text-gray-800 font-bold px-8 py-3 rounded-xl hover:bg-gray-200 transition">Đóng</button></div></div>`;
+            e.preventDefault(); e.target.closest('.p-6').innerHTML = `<div class="text-center py-8"><h3 class="text-2xl font-black mb-4 text-gray-900">Đăng ký thành công!</h3><p class="text-gray-600 mb-6 font-medium leading-relaxed">Hãy ấn nút dưới đây để thông báo danh sách tới Cán bộ Chuyên trách tiêm chủng xã.</p><div class="flex flex-col gap-3"><a href="https://zalo.me/0336768348" target="_blank" class="bg-blue-500 text-white font-bold px-8 py-3.5 rounded-xl hover:bg-blue-600 transition shadow-lg w-full flex items-center justify-center gap-2 text-lg">Báo Cán bộ phụ trách</a><button onclick="window.closeModal()" class="bg-gray-100 text-gray-800 font-bold px-8 py-3 rounded-xl hover:bg-gray-200 transition" aria-label="Đóng cửa sổ">Đóng</button></div></div>`;
         };
 
         window.lookupResultAI = function(e) {
@@ -5880,7 +6455,30 @@
             } catch (err) {
                 console.error("Lỗi thiết lập nhạc nền:", err);
             }
+
+            // HÀM MỞ BẢNG ĐIỀU KHIỂN CÁN BỘ ĐIỂM TRẠM (/tram)
+            window.openStationPanel = function() {
+                const overlay = document.getElementById('modal-overlay');
+                const modal = document.getElementById('modal-station-panel');
+                if (overlay && modal) {
+                    document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
+                    overlay.classList.remove('hidden');
+                    modal.classList.remove('hidden');
+                    if (typeof window.loadCmsData === 'function') window.loadCmsData();
+                    if (typeof window.startQueuePolling === 'function') window.startQueuePolling();
+                }
+            };
+
+            // Tự động mở Bảng điều khiển nếu truy cập đường dẫn /tram
+            if (window.location.pathname.startsWith('/tram')) {
+                setTimeout(() => {
+                    if (typeof window.openStationPanel === 'function') {
+                        window.openStationPanel();
+                    }
+                }, 400);
+            }
         };
     </script>
+    <script src="/app.js" defer></script>
 </body>
 </html>
