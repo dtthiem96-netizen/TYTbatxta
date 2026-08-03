@@ -64,6 +64,17 @@
   to = "/"
   status = 200
 
+# Đường dẫn cho Bảng điều khiển Quản trị Nội bộ Admin
+[[redirects]]
+  from = "/admin"
+  to = "/admin/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/index.html"
+  status = 200
+
 # API mapping: chuyển /api/* sang Netlify Functions
 [[redirects]]
   from = "/api/*"
