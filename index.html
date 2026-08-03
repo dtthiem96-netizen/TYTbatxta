@@ -992,6 +992,39 @@
                         <p id="tele-vital-sync-status" class="text-[10px] text-slate-500 text-center">Chỉ số tự động đồng bộ lên màn hình khám của Bác sĩ.</p>
                     </div>
 
+                    <!-- Kết luận từ Bác sĩ tuyến trên -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mb-2 flex items-center gap-2">
+                            <i class="fas fa-stethoscope"></i> Chẩn đoán
+                        </h4>
+                        <p id="patient-doctor-diagnosis" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có chẩn đoán. Bác sĩ tuyến trên sẽ gửi sau khi thăm khám.</p>
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 mt-3 mb-2 flex items-center gap-2">
+                            <i class="fas fa-route"></i> Hướng xử trí
+                        </h4>
+                        <p id="patient-doctor-plan" class="text-[11px] text-slate-400 italic leading-relaxed">Chưa có hướng xử trí.</p>
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-cyan-400 mt-3 mb-2 flex items-center gap-2">
+                            <i class="fas fa-pills"></i> Thuốc kê đơn
+                        </h4>
+                        <p id="patient-doctor-drugs" class="text-[11px] text-slate-400 italic leading-relaxed whitespace-pre-line">Chưa có thuốc kê đơn.</p>
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 mt-3 mb-2 flex items-center gap-2">
+                            <i class="fas fa-comment-medical"></i> Lời dặn của bác sỹ
+                        </h4>
+                        <p id="patient-doctor-advice" class="text-[11px] text-slate-400 italic leading-relaxed">Bác sĩ chưa gửi lời dặn.</p>
+
+                        <div class="mt-4 pt-3 border-t border-slate-800 space-y-2">
+                            <label class="block text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
+                                <i class="fas fa-file-signature"></i> Y sỹ / Bác sỹ kê đơn (ký số từ xa)
+                            </label>
+                            <select id="tele-prescription-signer" onchange="window.selectPrescriptionSigner(this.value, true)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-purple-500">
+                                <option value="">-- Chọn người ký đơn --</option>
+                            </select>
+                            <div class="bg-white rounded-lg h-14 flex items-center justify-center overflow-hidden">
+                                <img id="tele-signer-signature-preview" src="" alt="Chữ ký số" class="hidden max-h-full max-w-full object-contain">
+                                <span id="tele-signer-signature-empty" class="text-[10px] text-slate-500 italic px-2 text-center">Chọn tên người ký để đóng chữ ký số lên đơn thuốc.</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Khung nhắn tin trực tiếp với Bác sĩ -->
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex-1 flex flex-col justify-between">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
@@ -1392,6 +1425,7 @@
                             <input type="password" id="admin-password" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-gray-900 font-medium text-gray-900" placeholder="••••••••">
                         </div>
                         <p id="login-error" class="text-red-500 text-sm font-bold hidden bg-red-50 p-3 rounded-xl border border-red-100"><i class="fas fa-exclamation-circle mr-1"></i> Sai thông tin Email hoặc Mật khẩu!</p>
+                        <p id="login-status-msg" class="text-sm font-bold mt-2"></p>
                     </div>
                     <div class="mt-8">
                         <button type="submit" class="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl hover:bg-black transition shadow-lg text-lg">Xác thực hệ thống đám mây</button>
@@ -4122,14 +4156,100 @@
             // dù đang làm việc ở mục Tin tức, Lịch khám hay Kho thuốc.
         };
 
-        window.handleAdminLogin = function(e) {
-            e.preventDefault(); const u = document.getElementById('admin-username').value; const p = document.getElementById('admin-password').value;
-            const valid = adminUsers.find(x => x.username === u);
-            if(valid && p === 'admin123') {
-                window.closeModal(); document.getElementById('main-website').classList.add('hidden'); document.getElementById('admin-dashboard').classList.remove('hidden'); window.scrollTo(0,0); window.switchAdminTab('news');
-                // Bật trực cuộc gọi ngay khi đăng nhập, không cần mở tab Khám từ xa.
-                if (window.checkCmsVideoPermission()) window.startCmsIncomingWatcher();
-            } else { document.getElementById('login-error').classList.remove('hidden'); }
+        window.handleAdminLogin = async function(event) {
+            event.preventDefault();
+            
+            const usernameInput = document.getElementById('admin-username').value.trim();
+            const passwordInput = document.getElementById('admin-password').value.trim();
+            const statusMsg = document.getElementById('login-status-msg');
+            const loginError = document.getElementById('login-error');
+
+            if (loginError) loginError.classList.add('hidden');
+            if (statusMsg) {
+                statusMsg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kết nối đến hệ thống Java...';
+                statusMsg.className = "text-blue-600 text-sm font-bold mt-2";
+            }
+
+            try {
+                // Thay đổi URL bên dưới thành endpoint thực tế của Java Backend
+                const response = await fetch('http://localhost:8080/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: usernameInput,
+                        password: passwordInput
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = '✅ Kết nối thành công! Đang chuyển hướng...';
+                        statusMsg.className = "text-green-600 text-sm font-bold mt-2";
+                    }
+                    
+                    // Lưu token xác thực vào localStorage
+                    localStorage.setItem('cms_token', data.token);
+                    
+                    // Chuyển hướng hoặc mở giao diện quản trị CMS
+                    setTimeout(() => {
+                        window.closeModal();
+                        const mainSite = document.getElementById('main-website');
+                        const adminDash = document.getElementById('admin-dashboard');
+                        if (mainSite && adminDash) {
+                            mainSite.classList.add('hidden');
+                            adminDash.classList.remove('hidden');
+                            window.scrollTo(0,0);
+                            if (window.switchAdminTab) window.switchAdminTab('news');
+                            if (window.checkCmsVideoPermission && window.checkCmsVideoPermission()) {
+                                if (window.startCmsIncomingWatcher) window.startCmsIncomingWatcher();
+                            }
+                        } else {
+                            window.location.href = "/admin/dashboard.html";
+                        }
+                    }, 1000);
+                } else {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = `❌ Lỗi: ${data.message || 'Sai thông tin tài khoản.'}`;
+                        statusMsg.className = "text-red-600 text-sm font-bold mt-2";
+                    }
+                }
+            } catch (error) {
+                console.error('Lỗi kết nối Backend Java:', error);
+                // Trường hợp Java Backend offline: Kiểm tra đăng nhập dự phòng local
+                const valid = typeof adminUsers !== 'undefined' && adminUsers.find(x => x.username === usernameInput);
+                if (valid && passwordInput === 'admin123') {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = '✅ Đăng nhập dự phòng thành công! Đang chuyển hướng...';
+                        statusMsg.className = "text-green-600 text-sm font-bold mt-2";
+                    }
+                    setTimeout(() => {
+                        window.closeModal();
+                        const mainSite = document.getElementById('main-website');
+                        const adminDash = document.getElementById('admin-dashboard');
+                        if (mainSite && adminDash) {
+                            mainSite.classList.add('hidden');
+                            adminDash.classList.remove('hidden');
+                            window.scrollTo(0,0);
+                            if (window.switchAdminTab) window.switchAdminTab('news');
+                            if (window.checkCmsVideoPermission && window.checkCmsVideoPermission()) {
+                                if (window.startCmsIncomingWatcher) window.startCmsIncomingWatcher();
+                            }
+                        } else {
+                            window.location.href = "/admin/dashboard.html";
+                        }
+                    }, 1000);
+                } else {
+                    if (statusMsg) {
+                        statusMsg.innerHTML = '⚠️ Không thể kết nối đến máy chủ Java (Backend chưa chạy hoặc lỗi mạng).';
+                        statusMsg.className = "text-red-600 text-sm font-bold mt-2";
+                    }
+                }
+            }
         };
         window.logoutAdmin = function() { window.stopCmsIncomingWatcher(); teleStop(true); document.getElementById('admin-dashboard').classList.add('hidden'); document.getElementById('main-website').classList.remove('hidden'); window.scrollTo(0,0); };
 
