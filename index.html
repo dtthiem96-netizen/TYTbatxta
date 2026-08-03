@@ -48,7 +48,7 @@
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'], },
                     colors: {
-                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' }
+                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' }
                     }
                 }
             }
@@ -61,8 +61,19 @@
         }
         body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
         .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .service-card:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .service-card:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border-color: #e0f2fe; }
         .service-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .feedback-btn {
+            position: fixed; left: -140px; top: 50%; transform: translateY(-50%);
+            background-color: #f59e0b; color: white; padding: 14px 22px;
+            border-radius: 0 30px 30px 0; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); transition: left 0.3s ease;
+            z-index: 45; display: flex; align-items: center; gap: 12px; cursor: pointer;
+        }
+        .feedback-btn:hover { left: 0; }
+        .feedback-btn i { font-size: 1.3rem; }
+        .feedback-btn::after { content: '\f086'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; right: 15px; display: block; }
+        .feedback-btn:hover::after { display: none; }
         .markdown-body strong { font-weight: 700; color: #111827; }
         .markdown-body br { margin-bottom: 8px; content: ""; display: block; }
         .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
@@ -141,6 +152,11 @@
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased relative">
+
+    <!-- Nút Góp ý/Phản ánh (Cố định góc trái) -->
+    <div class="feedback-btn" onclick="window.openModal('modal-gopy')">
+        <span>Phản ánh & Ý kiến</span>
+    </div>
 
     <!-- ================= GIAO DIỆN NGƯỜI DÂN (FRONTEND) ================= -->
     <div id="main-website">
