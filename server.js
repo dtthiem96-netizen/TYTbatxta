@@ -129,6 +129,22 @@ function evaluateVitals(vitals) {
 
 // API Routes
 
+// 0. CMS Data Endpoint
+app.get('/api/cms', (req, res) => {
+  return res.json({
+    success: true,
+    users: [
+      { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' },
+      { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true' },
+      { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false' },
+      { id: 'U4', username: 'canbotram@laocai.gov.vn', name: 'Y sĩ Nguyễn Văn A', role: 'Cán bộ điểm trạm', canReceiveVideo: 'true' }
+    ],
+    prescriptionSigners: [
+      { id: 'SIG1', name: 'BS. Nguyễn Thị Mai', title: 'Bác sỹ Chuyên khoa I', license: '001234/LC-CCHN', workplace: 'Trạm Y tế Bát Xát', isDefault: 'true' }
+    ]
+  });
+});
+
 // 1. Station Login / Authentication API
 app.post('/api/login', (req, res) => {
   const { stationCode, operatorName, role } = req.body;

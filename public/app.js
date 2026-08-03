@@ -48,9 +48,11 @@ let queuePollInterval = null;
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 Initializing Telehealth Station Panel...');
   
-  // Set default values in UI
-  document.getElementById('display-station-code').textContent = stationCode;
-  document.getElementById('display-operator-name').textContent = operatorName;
+  // Set default values in UI safely
+  const elCode = document.getElementById('display-station-code');
+  if (elCode) elCode.textContent = stationCode;
+  const elOp = document.getElementById('display-operator-name');
+  if (elOp) elOp.textContent = operatorName;
 
   // Tải dữ liệu tài khoản và bác sĩ từ CMS
   loadCmsData();
@@ -1112,3 +1114,26 @@ function playBeepTone(freq = 800, duration = 100) {
     // Ignore audio context autoplay restrictions if present
   }
 }
+
+// Global Window Bindings for HTML Event Handlers
+window.loadCmsData = loadCmsData;
+window.populateCmsAccountsDropdown = populateCmsAccountsDropdown;
+window.onCmsAccountSelect = onCmsAccountSelect;
+window.startQueuePolling = startQueuePolling;
+window.refreshIncomingCallsQueue = refreshIncomingCallsQueue;
+window.acceptPatientCall = acceptPatientCall;
+window.joinRoom = joinRoom;
+window.toggleCameraDevice = toggleCameraDevice;
+window.toggleMic = toggleMic;
+window.toggleVideo = toggleVideo;
+window.toggleSpeechToText = toggleSpeechToText;
+window.sendVitalsToDoctor = sendVitalsToDoctor;
+window.requestAIConsultation = requestAIConsultation;
+window.finishAndExportReport = finishAndExportReport;
+window.closeReportModal = closeReportModal;
+window.openLoginModal = openLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.submitLogin = submitLogin;
+window.sendChatMessage = sendChatMessage;
+window.handleChatKeyPress = handleChatKeyPress;
+window.closeAlertBanner = closeAlertBanner;
