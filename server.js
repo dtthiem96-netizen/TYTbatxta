@@ -129,6 +129,50 @@ function evaluateVitals(vitals) {
 
 // API Routes
 
+// 0. CMS API
+app.get('/api/cms', (req, res) => {
+  return res.json({
+    users: [
+      { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' },
+      { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true' },
+      { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false' },
+      { id: 'U4', username: 'canbotram@laocai.gov.vn', name: 'Y sĩ Cán bộ Điểm trạm', role: 'Cán bộ Điểm trạm (Station Operator)', canReceiveVideo: 'true' }
+    ],
+    prescriptionSigners: [
+      { id: 'SIG1', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', title: 'Bác sĩ', license: '001234/LCA-CCHN', workplace: 'Trạm Y tế Bát Xát', signature: '', isDefault: 'true', ts: Date.now() },
+      { id: 'SIG2', name: 'Trạm trưởng', title: 'BS. Trạm Trưởng', license: '001000/LCA-CCHN', workplace: 'Trạm Y tế Bát Xát', signature: '', isDefault: 'false', ts: Date.now() }
+    ],
+    news: [
+      { id: 'N3', title: 'Cảnh báo khẩn: Gia tăng ca mắc sốt xuất huyết tại địa bàn xã', description: 'Trạm Y tế Bát Xát khuyến cáo bà con diệt bọ gậy, dọn dẹp vật chứa nước.', date: '29/05/2026', icon: 'fa-mosquito', color: 'red', ts: 3, image: null },
+      { id: 'N2', title: 'Hướng dẫn phòng tránh ngộ độc nấm độc rừng mùa hè', description: 'Tuyệt đối không hái nấm lạ, nấm có màu sắc sặc sỡ để ăn.', date: '25/05/2026', icon: 'fa-skull-crossbones', color: 'orange', ts: 2, image: null }
+    ],
+    vaccines: [
+      { id: 'V1', date: 'Sáng 05/08/2026', time: '07:30 - 11:30', target: 'Trẻ em & Phụ nữ mang thai thuộc: Thôn 1, Thôn 2, Thôn 3, Thôn 4, Thôn 5', ts: 2 },
+      { id: 'V2', date: 'Sáng 06/08/2026', time: '07:30 - 11:30', target: 'Trẻ em & Phụ nữ mang thai thuộc: Thôn 6, Thôn 7, Thôn 8, Thôn 9, Thôn 10', ts: 1 }
+    ],
+    documents: [
+      { id: 'D1', title: 'Mẫu Giấy xin chuyển tuyến BHYT chuẩn', type: 'Biểu mẫu y tế', url: '#', date: '26/05/2026', ts: 2 },
+      { id: 'D2', title: 'Tài liệu hướng dẫn 3 bước phòng Sốt Rét tại nhà', type: 'Tài liệu y tế', url: '#', date: '25/05/2026', ts: 1 }
+    ],
+    services: [
+      { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'BS. Trạm Trưởng', zalo: '0382103002', ts: 3 },
+      { id: 'S2', name: 'Phòng Khám Sản - Phụ Khoa', person: 'Nữ hộ sinh chuyên trách', zalo: '0382103002', ts: 2 },
+      { id: 'S3', name: 'Phòng Y Học Cổ Truyền', person: 'Cán bộ Đông Y', zalo: '0382103002', ts: 1 }
+    ],
+    contacts: [
+      { id: 'C1', name: 'BS. Trạm Trưởng', role: 'Trạm trưởng Trạm Y tế', phone: '0382103002', ts: 3 },
+      { id: 'C2', name: 'Nữ hộ sinh chuyên trách', role: 'Phòng Khám Sản - Phụ Khoa', phone: '0382103002', ts: 2 },
+      { id: 'C3', name: 'Cán bộ Đông Y', role: 'Phòng Y Học Cổ Truyền', phone: '0382103002', ts: 1 }
+    ],
+    videos: [
+      { id: 'VD1', title: 'Hướng dẫn rửa tay 6 bước chuẩn Bộ Y tế', description: 'Video hướng dẫn rửa tay bằng xà phòng đúng cách phòng tránh dịch bệnh truyền nhiễm hiệu quả.', url: 'https://www.youtube.com/embed/fA4P9B2U-q0', date: '01/08/2026', ts: 101, isCollapsed: 'false' },
+      { id: 'VD2', title: 'Sơ cứu dị vật đường thở ở trẻ em', description: 'Hướng dẫn phụ huynh và giáo viên cách xử trí nhanh khi trẻ bị hóc dị vật bằng nghiệm pháp Heimlich an toàn.', url: 'https://www.youtube.com/embed/T00O3IitfRE', date: '28/07/2026', ts: 100, isCollapsed: 'false' }
+    ],
+    appointments: [],
+    siteConfigs: []
+  });
+});
+
 // 1. Station Login / Authentication API
 app.post('/api/login', (req, res) => {
   const { stationCode, operatorName, role } = req.body;

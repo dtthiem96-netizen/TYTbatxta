@@ -1,39 +1,81 @@
-README.md - Tài liệu hệ thống Website Trạm Y tế Bát Xát
-1. Thông tin đơn vị quản lý
-Tên đơn vị: Trạm Y tế Bát Xát (trực thuộc Ủy ban nhân dân xã Bát Xát quản lý trực tiếp)
-Địa chỉ: Thôn 08, Xã Bát Xát, tỉnh Lào Cai
-Điện thoại: 0382103002
-Email: tytbatxat@laocai.gov.vn
-Fanpage: Trạm Y tế Bát Xát
-2. Tổng quan kho lưu trữ (Repository Overview)
-Kho lưu trữ này chứa mã nguồn, tài liệu hướng dẫn và các tệp cấu hình triển khai hệ thống thông tin, trang web chính thức của Trạm Y tế Bát Xát.
-Thành phần
-Tên tệp / Thư mục
-Mô tả chi tiết
- 
-Cấu hình gốc
-.gitignore, SECURITY.md
-Các tệp cấu hình bảo mật và loại trừ tệp khi quản lý mã nguồn Git.
-Tài liệu
-README.md
-Tài liệu mô tả tổng quan dự án, hướng dẫn cài đặt và vận hành hệ thống.
-Tài nguyên đa phương tiện
-assets/tram_music.mp3
-Tệp âm thanh nhạc nền, tuyên truyền của Trạm Y tế.
-GitHub Actions Workflows
-google-cloudrun-docker.yml
-google-cloudrun-source.yml
-jekyll-gh-pages.yml
-nextjs.yml
-python-app.yml
-static.yml
-Các tệp cấu hình tự động hóa CI/CD, triển khai ứng dụng lên Google Cloud Run, GitHub Pages và các nền tảng khác.
+# Hệ Thống Khám Chữa Bệnh Từ Xa (Telehealth) & Cổng Thông Tin Trạm Y Tế Bát Xát
 
-3. Quy định pháp lý và Thể thức văn bản
-Toàn bộ văn bản, biểu mẫu, kế hoạch chuyên môn và thông tin phát hành trên hệ thống website tuân thủ chặt chẽ các quy định hiện hành:
-Thể thức văn bản: Thực hiện đúng theo Nghị định số 30/2020/NĐ-CP của Chính phủ về công tác văn thư.
-Ứng dụng CNTT & Chữ ký số: Tích hợp bộ công cụ ký số theo Nghị định số 30/2020/NĐ-CP do Ban Cơ yếu Chính phủ cung cấp (VGCASignService) trong việc phát hành văn bản điện tử.
-4. Hướng dẫn phát triển và đóng góp
-Clone kho lưu trữ về môi trường làm việc cục bộ.
-Cấu hình các biến môi trường cần thiết cho ứng dụng Web / Next.js / Python.
-Kiểm tra tính toàn vẹn của mã nguồn và các tệp cấu hình workflow trước khi đẩy lên nhánh chính (main).
+Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khám, lắng nghe và trao đổi với Bác sĩ tư vấn tuyến trên (hoặc Trợ lý AI lâm sàng hỗ trợ), đồng thời truyền tải hình ảnh/âm thanh thăm khám thực tế từ bệnh nhân.
+
+---
+
+## 1. Cấu Trúc Dự Án & Các Tệp Chính
+
+- **`server.js`**: Node.js (Express.js) server quản lý phòng khám, API sinh hiệu, trợ lý AI lâm sàng, xuất phiếu khám và kênh signaling WebRTC thời gian thực.
+- **`public/index.html`**: Giao diện chuẩn Y tế (màu xanh navy/trắng), phân chia bố cục rõ ràng giữa Màn hình Video Call đa chiều, Bảng Sinh hiệu bệnh nhân và Bảng Ghi chú lâm sàng / AI Co-pilot.
+- **`public/app.js` & `app.js`**: Logic xử lý chuyển đổi camera cận cảnh/toàn cảnh, bật/tắt mic, thu âm chuyển giọng nói thành văn bản (Speech-to-Text), đồng bộ chỉ số sinh hiệu và báo động cảnh báo cấp cứu thời gian thực.
+- **`admin/index.html` & `public/admin/index.html`**: Bảng điều khiển Quản trị nội bộ dành cho Cán bộ Y tế (Quản lý bài viết tin tức, cập nhật lịch tiêm chủng, tiếp nhận lịch đăng ký khám).
+- **`netlify/functions/`**: Bộ serverless functions triển khai trên Netlify (`vitals.ts`, `signal.ts`, `clinical-ai.ts`, `cms.ts`, `examination-report.ts`, `station-auth.ts`, `video.ts`, `ai.ts`).
+- **`db/`**: Schema và kết nối cơ sở dữ liệu Netlify Database (PostgreSQL / Drizzle ORM).
+
+---
+
+## 2. Các Phân Hệ Chức Năng
+
+1. **Bảng điều khiển Cán bộ Y tế (Station Operator Panel)**
+   - Đăng nhập theo Mã điểm trạm (`TYT-BATXAT-01`) & Tên cán bộ trực.
+   - Bảng nhập nhanh Sinh hiệu Bệnh nhân (Vitals): Huyết áp (mmHg), Nhịp tim (bpm), SpO2 (%), Nhiệt độ (°C), Cân nặng (kg). Đồng bộ tức thì lên màn hình khám tuyến trên.
+
+2. **Màn hình Video Call Khám Đa Chiều (Tele-Consultation Room)**
+   - **Luồng Video chính**: Hiển thị Bác sĩ tư vấn tuyến trên / Bác sĩ chuyên khoa tiếp nhận cuộc gọi.
+   - **Luồng Video cận cảnh**: Cán bộ trạm chủ động chuyển đổi giữa Camera 1 (Toàn cảnh phòng khám) và Camera 2 (Cận cảnh soi tổn thương/họng/da của bệnh nhân).
+   - **Luồng Âm thanh kép (Dual Audio)**: Cán bộ y tế và bệnh nhân cùng nghe được Bác sĩ qua loa ngoài; Micro thu âm rõ ràng lời thoại.
+
+3. **Trợ lý Lâm sàng AI (Clinical Co-Pilot)**
+   - Khung "Ghi chép lâm sàng" hỗ trợ công nghệ Speech-to-Text (chuyển lời nói Y sĩ/ Bác sĩ thành văn bản).
+   - Khung "Gợi ý chẩn đoán & Đơn thuốc tham khảo": AI tự động phân tích chỉ số sinh hiệu & triệu chứng để đưa ra cảnh báo cờ đỏ (Red Flags), mã ICD-10 và hướng xử trí tham khảo.
+
+4. **Thanh Điều Khiển Cuộc Gọi**
+   - Nút Chuyển đổi Camera (Góc rộng / Cận cảnh tổn thương).
+   - Nút Bật/Tắt Mic điểm trạm.
+   - Nút "Gửi chỉ số sinh hiệu" tới bác sĩ tuyến trên.
+   - Nút "Hoàn thành & Xuất Phiếu khám".
+
+---
+
+## 3. Hướng Dẫn Chạy Chương Trình
+
+### Môi trường Cục bộ (Local Node.js Server)
+
+1. **Cài đặt các gói phụ thuộc (nếu cần)**:
+   ```bash
+   npm install
+   ```
+
+2. **Khởi chạy Server**:
+   ```bash
+   npm start
+   # Hoặc: node server.js
+   ```
+
+3. **Truy cập ứng dụng**:
+   - **Bảng điều khiển Cán bộ Y tế Điểm trạm**: `http://localhost:3000/tram` (hoặc `http://localhost:3000/public/index.html`)
+   - **Trang Cổng thông tin & Khám bệnh cho người dân**: `http://localhost:3000/`
+   - **Cổng Quản trị Nội bộ (Admin CMS)**: `http://localhost:3000/admin`
+
+---
+
+### Môi trường Mô Phỏng Netlify (Netlify CLI / Dev)
+
+1. **Khởi chạy Netlify Dev Server**:
+   ```bash
+   npm run dev
+   # Hoặc: netlify dev --port 8889
+   ```
+
+2. **Truy cập qua Netlify Local Port 8889**:
+   - **Bảng điều khiển Cán bộ Y tế Điểm trạm**: `http://localhost:8889/tram`
+   - **Cổng Quản trị Nội bộ**: `http://localhost:8889/admin`
+
+---
+
+## 4. Tài Khoản Đăng Nhập Thử Nghiệm (Mẫu)
+
+- **Trạm trưởng**: `tytbatxat@laocai.gov.vn` / Mật khẩu: `admin123`
+- **Bác sĩ Tư vấn Telehealth**: `bacsituvan@laocai.gov.vn`
+- **Cán bộ Trực điểm trạm**: `canbotram@laocai.gov.vn`
