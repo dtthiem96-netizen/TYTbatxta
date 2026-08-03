@@ -149,6 +149,77 @@
             outline-offset: 2px !important;
         }
 
+        /* NÚT BẤM CALL TO ACTION (CTA) - CẤP CỨU & TRẠM Y TẾ */
+        .btn-call-emergency,
+        a[href="tel:115"] {
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        .btn-call-emergency *,
+        a[href="tel:115"] * {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        .btn-call-emergency:hover,
+        a[href="tel:115"]:hover {
+            background-color: #b91c1c !important;
+            color: #ffffff !important;
+        }
+
+        .btn-call-station,
+        a[href="tel:0382103002"] {
+            background-color: #059669 !important; /* Xanh lá cây y tế */
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        .btn-call-station *,
+        a[href="tel:0382103002"] * {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        .btn-call-station:hover,
+        a[href="tel:0382103002"]:hover {
+            background-color: #047857 !important;
+            color: #ffffff !important;
+        }
+
+        /* FOOTER / CHÂN TRANG Y TẾ SỐ */
+        footer, #lien-he {
+            background-color: #0c4a6e !important; /* Xanh dương đậm chuẩn y tế */
+            color: #ffffff !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+            font-size: 15px !important;
+            line-height: 1.6 !important;
+        }
+        footer *, #lien-he * {
+            color: #ffffff !important;
+            font-size: max(15px, 1em);
+        }
+        footer a, #lien-he a {
+            color: #ffffff !important;
+            text-decoration: none;
+        }
+        footer a:hover, #lien-he a:hover {
+            color: #7dd3fc !important;
+            text-decoration: underline;
+        }
+        @media screen and (max-width: 768px) {
+            footer .grid, #lien-he .grid {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 2rem !important;
+            }
+            footer .flex-col-mobile, #lien-he .flex-col-mobile {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 1.25rem !important;
+            }
+            footer .text-center-mobile, #lien-he .text-center-mobile {
+                text-align: left !important;
+            }
+        }
+
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased relative">
@@ -230,7 +301,8 @@
                 <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Tin tức & Lịch tiêm</a>
                 <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-gray-700 border-b border-gray-100">Kho Tài liệu & Biểu mẫu</a>
                 <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-4 text-center px-4 py-3 text-white font-bold bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
-                <a href="tel:0382103002" class="block mt-2 text-center px-4 py-3 text-white font-bold bg-red-600 rounded-xl shadow-md"><i class="fas fa-phone-alt mr-2"></i> Gọi Cấp Cứu 115</a>
+                <a href="tel:115" class="btn-call-emergency block mt-2 text-center px-4 py-3 text-white font-bold bg-red-600 rounded-xl shadow-md"><i class="fas fa-truck-medical mr-2"></i> Gọi Cấp Cứu 115</a>
+                <a href="tel:0382103002" class="btn-call-station block mt-2 text-center px-4 py-3 text-white font-bold bg-emerald-600 rounded-xl shadow-md"><i class="fas fa-phone-volume mr-2"></i> Gọi Trạm Y tế Bát Xát: 0382.103.002</a>
             </div>
         </header>
 
@@ -281,11 +353,15 @@
                 <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border-t-8 border-red-500">
                     <h3 data-cms-id="emergency-title" class="text-xl font-black text-gray-800 mb-6 text-center uppercase tracking-wider"><i class="fas fa-ambulance text-red-500 mr-2"></i> Kênh liên hệ khẩn cấp</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <a href="tel:0382103002" class="group bg-red-50 hover:bg-red-600 text-red-700 hover:text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-red-100 shadow-sm">
-                            <i class="fas fa-phone-volume text-4xl mb-2 group-hover:scale-110 transition-transform"></i><div class="font-bold text-lg">Gọi Trạm Y tế Bát Xát</div><div class="text-2xl font-black">0382.103.002</div>
+                        <a href="tel:0382103002" class="btn-call-station group bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-emerald-500 shadow-md">
+                            <i class="fas fa-phone-volume text-4xl mb-2 group-hover:scale-110 transition-transform text-white"></i>
+                            <div class="font-bold text-lg text-white">Gọi Trạm Y tế Bát Xát</div>
+                            <div class="text-2xl font-black text-white">0382.103.002</div>
                         </a>
-                        <a href="tel:115" class="group bg-red-600 hover:bg-red-700 text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all shadow-md">
-                            <i class="fas fa-truck-medical text-5xl mb-2 group-hover:animate-pulse"></i><div class="font-bold text-lg uppercase">Gọi cấp cứu</div><div class="text-4xl font-black">115</div>
+                        <a href="tel:115" class="btn-call-emergency group bg-red-600 hover:bg-red-700 text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all shadow-md border-2 border-red-500">
+                            <i class="fas fa-truck-medical text-5xl mb-2 group-hover:animate-pulse text-white"></i>
+                            <div class="font-bold text-lg uppercase text-white">Gọi Cấp Cứu 115</div>
+                            <div class="text-4xl font-black text-white">115</div>
                         </a>
                         <button onclick="window.openModal('modal-danhba')" class="group bg-blue-50 hover:bg-blue-600 text-medical-700 hover:text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-blue-100 shadow-sm">
                             <i class="fas fa-user-nurse text-4xl mb-2 group-hover:scale-110 transition-transform"></i><div class="font-bold text-lg">Danh bạ Cán bộ Y tế</div><div class="text-sm font-bold mt-1">Xem chi tiết SĐT trực ban</div>
@@ -543,62 +619,74 @@
         </div>
 
         <!-- FOOTER / LIÊN HỆ -->
-        <footer id="lien-he" class="bg-medical-900 text-white pt-16 pb-8 border-t-8 border-medical-700">
+        <footer id="lien-he" class="bg-sky-950 text-white pt-16 pb-8 border-t-8 border-sky-800">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
                     <div>
                         <div class="flex items-center gap-4 mb-6">
                             <div class="bg-white p-1.5 rounded-full inline-block shadow-lg">
-                                <img src="logo.png" alt="Logo" class="w-14 h-14 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230284c7\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
+                                <img src="logo.png" alt="Logo Trạm Y tế Bát Xát" class="w-14 h-14 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230284c7\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
                             </div>
-                            <h3 class="text-2xl font-black uppercase tracking-widest text-blue-50 leading-tight">Trạm Y Tế<br>Bát Xát</h3>
+                            <h3 class="text-2xl font-black uppercase tracking-widest text-white leading-tight">Trạm Y tế Bát Xát</h3>
                         </div>
-                        <p class="text-blue-100 text-base leading-relaxed mb-6 font-medium text-justify">
-                            Trực thuộc Ủy Ban nhân dân xã Bát Xát quản lý trực tiếp. Đơn vị sự nghiệp y tế tuyến cơ sở, đảm bảo công tác chăm sóc sức khỏe ban đầu, phòng chống dịch bệnh cho nhân dân trên địa bàn.
+                        <p class="text-white text-base leading-relaxed mb-6 font-medium">
+                            Đơn vị y tế cơ sở chăm sóc sức khỏe ban đầu, phòng chống dịch bệnh và đảm bảo an sinh y tế cho nhân dân trên địa bàn.
                         </p>
+                        <div class="mt-4">
+                            <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl transition shadow-md" title="Trang Facebook Trạm Y tế Bát Xát">
+                                <i class="fab fa-facebook text-2xl text-white"></i>
+                                <span class="text-white text-sm">Trang Facebook Trạm Y tế Bát Xát</span>
+                            </a>
+                        </div>
                     </div>
 
                     <div>
-                        <h3 class="text-xl font-bold mb-6 border-b-2 border-medical-700 pb-2 uppercase tracking-wide text-blue-50">Thông tin liên hệ</h3>
-                        <ul class="space-y-5 text-blue-100 text-base">
+                        <h3 class="text-xl font-bold mb-6 border-b-2 border-sky-700 pb-2 uppercase tracking-wide text-white">Thông tin liên hệ</h3>
+                        <ul class="space-y-4 text-white text-base">
                             <li class="flex items-start gap-3">
-                                <i class="fas fa-map-marker-alt mt-1.5 text-xl text-medical-400"></i>
-                                <span class="font-medium">Trạm Y tế Bát Xát - Thôn Bát Xát 4, Xã Bát Xát, Tỉnh Lào Cai</span>
+                                <i class="fas fa-building mt-1.5 text-xl text-sky-300"></i>
+                                <span class="font-bold">Tên cơ quan: Trạm Y tế Bát Xát</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i class="fas fa-map-marker-alt mt-1.5 text-xl text-sky-300"></i>
+                                <span class="font-medium">Địa chỉ: Thôn 08, Xã Bát Xát, tỉnh Lào Cai.</span>
                             </li>
                             <li class="flex items-center gap-3">
-                                <i class="fas fa-phone-alt text-xl text-medical-400"></i>
-                                <a href="tel:0382103002" class="hover:text-white transition text-xl font-black">0382.103.002</a>
+                                <i class="fas fa-phone-alt text-xl text-sky-300"></i>
+                                <span class="font-medium">Điện thoại: <a href="tel:0382103002" class="hover:underline font-black text-xl text-white">0382.103.002</a></span>
                             </li>
-                            <li class="flex items-start gap-3 pt-3 mt-3 border-t border-medical-800">
-                                <i class="far fa-clock mt-1 text-xl text-medical-400"></i>
+                            <li class="flex items-center gap-3">
+                                <i class="fas fa-envelope text-xl text-sky-300"></i>
+                                <span class="font-medium">Email: <a href="mailto:tytbatxat@laocai.gov.vn" class="hover:underline font-bold text-white">tytbatxat@laocai.gov.vn</a></span>
+                            </li>
+                            <li class="flex items-start gap-3 pt-3 border-t border-sky-800">
+                                <i class="far fa-clock mt-1 text-xl text-sky-300"></i>
                                 <div>
-                                    <strong class="text-white text-lg block mb-1">Giờ làm việc:</strong>
-                                    Sáng: 07:30 - 12:00<br>
-                                    Chiều: 13:30 - 17:00<br>
-                                    <em class="text-medical-300 font-bold mt-1 inline-block">Trực cấp cứu: 24/24h (Kể cả Lễ, Tết)</em>
+                                    <strong class="text-white text-base block mb-1">Giờ làm việc:</strong>
+                                    Sáng: 07:30 - 12:00 | Chiều: 13:30 - 17:00<br>
+                                    <em class="text-sky-300 font-bold mt-1 inline-block">Trực cấp cứu: 24/24h (Kể cả Lễ, Tết)</em>
                                 </div>
                             </li>
                         </ul>
                     </div>
 
                     <div>
-                        <h3 class="text-xl font-bold mb-6 border-b-2 border-medical-700 pb-2 uppercase tracking-wide text-blue-50">Bản đồ vị trí</h3>
-                        <div class="w-full h-56 bg-gray-200 rounded-xl overflow-hidden relative shadow-inner border border-medical-700">
-                            <div class="absolute inset-0 bg-medical-800 flex flex-col justify-center items-center text-center p-4">
-                                <i class="fas fa-map-marked-alt text-5xl text-medical-400 mb-3 drop-shadow-md"></i>
-                                <p class="text-base text-blue-100 font-bold leading-tight">Bản đồ vị trí Trạm Y Tế<br>Thôn Bát Xát 4, Xã Bát Xát</p>
-                                <a href="https://maps.google.com" target="_blank" class="mt-4 text-sm bg-white text-medical-900 px-5 py-2.5 rounded-full font-black hover:bg-medical-50 transition shadow-lg active:scale-95 transform">Mở Google Maps</a>
+                        <h3 class="text-xl font-bold mb-6 border-b-2 border-sky-700 pb-2 uppercase tracking-wide text-white">Bản đồ vị trí</h3>
+                        <div class="w-full h-56 bg-gray-200 rounded-xl overflow-hidden relative shadow-inner border border-sky-700">
+                            <div class="absolute inset-0 bg-sky-900 flex flex-col justify-center items-center text-center p-4">
+                                <i class="fas fa-map-marked-alt text-5xl text-sky-300 mb-3 drop-shadow-md"></i>
+                                <p class="text-base text-white font-bold leading-tight">Trạm Y tế Bát Xát<br>Thôn 08, Xã Bát Xát, tỉnh Lào Cai</p>
+                                <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="mt-4 text-sm bg-white text-sky-950 px-5 py-2.5 rounded-full font-black hover:bg-sky-50 transition shadow-lg active:scale-95 transform">Mở Google Maps</a>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="border-t border-medical-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-blue-200 font-medium">
-                    <p class="mb-4 md:mb-0 text-center md:text-left">&copy; 2026 Trạm Y tế Bát Xát.</p>
+                <div class="border-t border-sky-800 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-white font-medium flex-col-mobile">
+                    <p class="mb-4 md:mb-0 text-center md:text-left text-center-mobile">&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
                     <div class="flex items-center gap-4 flex-wrap justify-center">
-                        <a href="#" class="hover:text-white transition">Chính sách bảo mật</a>
-                        <a href="/tram" onclick="window.openStationPanel(); return false;" class="hover:text-white border-l-2 border-medical-600 pl-4 font-black text-emerald-400 tracking-wide" title="Bảng điều khiển dành cho Cán bộ Y tế trực tại Điểm trạm">BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM</a>
-                        <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-medical-600 pl-4 font-black text-medical-400 tracking-wide">QUẢN TRỊ CMS</a>
+                        <a href="#" class="hover:text-sky-300 transition text-white">Chính sách bảo mật</a>
+                        <a href="/admin" class="hover:text-sky-300 border-l-2 border-sky-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ NỘI BỘ</a>
                     </div>
                 </div>
             </div>
@@ -831,8 +919,8 @@
                                     Chưa có cán bộ tiếp nhận. Bạn có thể gọi trực tiếp qua điện thoại hoặc Zalo trong lúc chờ.
                                 </p>
                                 <div class="flex gap-2">
-                                    <a href="tel:0382103002" class="flex-1 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
-                                        <i class="fas fa-phone-alt"></i> Gọi 0382 103 002
+                                    <a href="tel:0382103002" class="btn-call-station flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
+                                        <i class="fas fa-phone-alt"></i> Gọi Trạm: 0382 103 002
                                     </a>
                                     <a href="https://zalo.me/0382103002" target="_blank" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
                                         <i class="fas fa-comment-sms"></i> Nhắn Zalo trạm
