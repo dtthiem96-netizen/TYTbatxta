@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS Quản Trị Website - Trạm Y tế Bát Xát</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+    <!-- TOP HEADER BAR -->
+    <header class="bg-[#0b416b] text-white px-6 py-3 flex items-center justify-between shadow-md">
+        <div class="flex items-center space-x-4">
+            <div class="bg-white p-2 rounded-lg text-[#0b416b] font-bold">
+                <i class="fa-solid fa-plus-square text-xl text-red-600"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-wide uppercase">CMS Quản Trị Website</h1>
+                <p class="text-xs text-gray-300 font-medium">Trạm Y tế Bát Xát</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <!-- Database Status Badge -->
+            <div class="bg-[#135284] border border-blue-400/30 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Cơ sở dữ liệu đám mây (Postgres)</span>
+            </div>
+
+            <!-- Exit Button -->
+            <a href="/" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition shadow">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                <span>THOÁT RA TRANG CHỦ</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <div class="flex-1 flex p-6 gap-6 max-w-[1600px] mx-auto w-full">
+
+        <!-- SIDEBAR MENU -->
+        <aside class="w-80 bg-white rounded-2xl shadow-sm border border-gray-200/80 p-4 flex flex-col justify-between shrink-0">
+            <div class="space-y-1.5">
+                <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-2">Hạng mục cấu hình</p>
+                
+                <!-- Active Item -->
+                <a href="#" class="flex items-center space-x-3 px-3.5 py-3 rounded-xl bg-blue-50 text-blue-700 font-semibold text-sm transition">
+                    <i class="fa-solid fa-newspaper text-base"></i>
+                    <span>Quản lý Bản tin & Thông báo</span>
+                </a>
+
+                <a href="#" class="flex items-center space-x-3 px-3.5 py-3 rounded-xl text-gray-600 hover:bg-gray-50 font-medium text-sm transition">
+                    <i class="fa-solid fa-folder-open text-base text-gray-500"></i>
+                    <span>Kho Tài liệu & Biểu mẫu</span>
+                </a>
+
+                <a href="#" class="flex items-center space-x-3 px-3.5 py-3 rounded-xl text-gray-600 hover:bg-gray-50 font-medium text-sm transition">
+                    <i class="fa-solid fa-list-check text-base text-gray-500"></i>
+                    <span>Quản lý Dịch vụ (Luồng Zalo)</span>
+                </a>
+
+                <a href="#" class="flex items-center space-x-3 px-3.5 py-3 rounded-xl text-gray-600 hover:bg-gray-50 font-medium text-sm transition">
+                    <i class="fa-solid fa-id-badge text-base text-gray-500"></i>
+                    <span>Quản lý Danh bạ Cán bộ</span>
+                </a>
+
+                <a href="#" class="flex items-center justify-between px-3.5 py-3 rounded-xl text-gray-600 hover:bg-gray-50 font-medium text-sm transition">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid fa-video text-base text-gray-500"></i>
+                        <span>Cuộc gọi Video & Khám Từ xa</span>
+                    </div>
+                    <span class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">4</span>
+                </a>
+
+                <a href="#" class="flex items-center space-x-3 px-3.5 py-3 rounded-xl text-gray-600 hover:bg-gray-50 font-medium text-sm transition">
+                    <i class="fa-solid fa-photo-film text-base text-gray-500"></i>
+                    <span>Quản lý Video Y khoa</span>
+                </a>
+
+                <a href="#" class="flex items-center space-x-3 px-3.5 py-3 rounded-xl text-gray-600 hover:bg-gray-50 font-medium text-sm transition">
+                    <i class="fa-solid fa-shield-halved text-base text-gray-500"></i>
+                    <span>Phân quyền Hệ thống</span>
+                </a>
+
+                <a href="#" class="flex items-center space-x-3 px-3.5 py-3 rounded-xl text-gray-600 hover:bg-gray-50 font-medium text-sm transition">
+                    <i class="fa-solid fa-signature text-base text-gray-500"></i>
+                    <span>Chữ ký số & Người ký đơn</span>
+                </a>
+            </div>
+
+            <!-- Bottom Visual Editor Button -->
+            <div class="pt-4 border-t border-gray-100">
+                <a href="#" class="flex items-center space-x-3 px-3.5 py-3 rounded-xl border border-purple-200 bg-purple-50/50 text-purple-700 hover:bg-purple-100/60 font-semibold text-sm transition">
+                    <i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i>
+                    <span>Chỉnh sửa Giao diện trực quan</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- CONTENT AREA -->
+        <main class="flex-1 space-y-6">
+
+            <!-- TOP FORM CARD -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6">
+                <!-- Heading & AI Button -->
+                <div class="flex items-center justify-between pb-4 border-b border-gray-100 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Quản lý Bản tin & Thông báo</h2>
+                        <p class="text-xs text-gray-500 mt-0.5 font-medium">HỆ THỐNG QUẢN LÝ TIN TỨC VÀ THÔNG TIN LỊCH TIÊM ĐỒNG BỘ, TINH GỌN</p>
+                    </div>
+                    <button class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-sm transition">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Soạn bằng AI ✨</span>
+                    </button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex space-x-6 border-b border-gray-200 mb-6 text-sm">
+                    <button class="pb-3 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span>Đăng bản tin Y tế</span>
+                    </button>
+                    <button class="pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium flex items-center space-x-2 transition">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Đăng lịch tiêm / Thông báo</span>
+                    </button>
+                </div>
+
+                <!-- Form Fields -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">TIÊU ĐỀ BẢN TIN</label>
+                        <input type="text" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">NỘI DUNG CHI TIẾT</label>
+                        <textarea rows="4" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <button type="button" class="bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-2 transition">
+                            <i class="fa-solid fa-paperclip text-gray-500"></i>
+                            <span>Đính kèm ảnh & Tài liệu (Tùy chọn)</span>
+                        </button>
+
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-sm transition">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>Xuất bản bài viết</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLE SECTION -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6">
+                <div class="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
+                    <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center space-x-2">
+                        <i class="fa-solid fa-table-list text-blue-600"></i>
+                        <span>DANH SÁCH BẢN TIN & THÔNG BÁO ĐÃ ĐĂNG</span>
+                    </h3>
+                    <button class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center space-x-1">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        <span>Thống kê xem trực tiếp</span>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-200 text-gray-400 text-[11px] font-bold uppercase tracking-wider">
+                                <th class="py-3 px-4">TIÊU ĐỀ / LỊCH ĐĂNG</th>
+                                <th class="py-3 px-4">PHÂN LOẠI</th>
+                                <th class="py-3 px-4 text-center">LƯỢT XEM</th>
+                                <th class="py-3 px-4 text-center">XÓA</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 text-sm">
+                            <tr class="hover:bg-gray-50/50 transition">
+                                <td class="py-4 px-4">
+                                    <p class="font-semibold text-gray-800">15/07/2026 - Tiêm trẻ em thuộc diện tiêm chủng mũi viêm não nhật bản 2 + 3. Tại các điểm trạm và ngoại trạm (tại nhà văn hoá thôn Láo Vàng, Suối Chải, Trung Hồ)</p>
+                                    <p class="text-xs text-gray-400 mt-1 flex items-center space-x-1">
+                                        <i class="fa-regular fa-clock"></i>
+                                        <span>15/07/2026</span>
+                                    </p>
+                                </td>
+                                <td class="py-4 px-4">
+                                    <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1 rounded-full inline-block">
+                                        Thông báo Trạm
+                                    </span>
+                                </td>
+                                <td class="py-4 px-4 text-center font-semibold text-gray-700">
+                                    <div class="flex items-center justify-center space-x-1 text-gray-600">
+                                        <i class="fa-regular fa-eye text-gray-400"></i>
+                                        <span>41008047909257</span>
+                                    </div>
+                                </td>
+                                <td class="py-4 px-4 text-center">
+                                    <button class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center space-x-1">
+                                        <i class="fa-regular fa-trash-can"></i>
+                                        <span>Xóa</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+</body>
+</html>
