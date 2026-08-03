@@ -1,0 +1,23 @@
+{
+  "name": "tytbatxat",
+  "version": "1.0.0",
+  "description": "Hệ thống Khám chữa bệnh Từ xa (Telehealth) & Cổng thông tin Trạm Y tế Bát Xát",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "netlify dev --port 8889"
+  },
+  "dependencies": {
+    "@google/genai": "^2.8.0",
+    "@netlify/blobs": "^10.7.9",
+    "@netlify/database": "^1.0.0",
+    "drizzle-orm": "beta",
+    "express": "^4.19.2",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "beta",
+    "typescript": "^5.4.5"
+  }
+}
