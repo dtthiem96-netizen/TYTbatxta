@@ -1,753 +1,143 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);} 
+  gtag('js', new Date());
+
+  gtag('config', 'G-H76265037D');
+</script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cổng Quản Trị Nội Bộ - Trạm Y tế Bát Xát</title>
-    <!-- Fonts & Icons -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="theme-color" content="#0284c7">
+    
+    <!-- BẢO MẬT & SEO -->
+    <title>Trạm Y Tế Bát Xát - Vì sức khỏe cộng đồng – Vì hạnh phúc mỗi gia đình</title>
+    <meta name="description" content="Cổng thông tin điện tử Trạm Y tế Bát Xát, Lào Cai. Cung cấp dịch vụ đăng ký khám bệnh, tra cứu lịch tiêm chủng, tư vấn s [...]">
+    <meta name="keywords" content="Trạm Y tế Bát Xát, khám bệnh Bát Xát, tiêm chủng Bát Xát, y tế cơ sở, y tế Lào Cai">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tytbatxat.org.vn/">
+    <meta property="og:locale" content="vi_VN">
+    <meta property="og:site_name" content="Trạm Y Tế Bát Xát">
+    <meta property="og:title" content="Trạm Y Tế Bát Xát - Cổng Thông Tin & Dịch Vụ Y Tế Số">
+    <meta property="og:description" content="Hệ thống Y tế thông minh hỗ trợ người dân đặt lịch khám, xem lịch tiêm chủng và tra cứu thông tin sức khỏe.">
+    <meta property="og:image" content="https://tytbatxat.org.vn/logo.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Trạm Y Tế Bát Xát - Cổng Thông Tin & Dịch Vụ Y Tế Số">
+    <meta name="twitter:description" content="Hệ thống Y tế thông minh hỗ trợ người dân đặt lịch khám, xem lịch tiêm chủng và tra cứu thông tin sức khỏe.">
+    <meta name="twitter:image" content="https://tytbatxat.org.vn/logo.png">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Tailwind CSS -->
+    
+    <!-- THƯ VIỆN GIAO DIỆN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], },
                     colors: {
-                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' }
+                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' }
                     }
                 }
             }
         }
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
-        .sidebar-item { transition: all 0.2s ease-in-out; }
-        .sidebar-item.active { background-color: #0284c7; color: #ffffff; font-weight: 700; border-left: 4px solid #38bdf8; }
-        .tab-panel { display: none; }
-        .tab-panel.active { display: block; animation: fadeIn 0.25s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
+        .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .service-card:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .service-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .markdown-body strong { font-weight: 700; color: #111827; }
+        .markdown-body br { margin-bottom: 8px; content: ""; display: block; }
+        .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .admin-tab { display: none; }
+        .admin-tab.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CHẾ ĐỘ TƯƠNG PHẢN CAO CHO NGƯỜI LỚN TUỔI & NGƯỜI DÂN */
+        body.high-contrast {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        body.high-contrast * {
+            background-image: none !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+        }
+        body.high-contrast .glass-effect {
+            background: #000000 !important;
+            border-color: #ffffff !important;
+        }
+        body.high-contrast a, 
+        body.high-contrast button {
+            color: #ffff00 !important;
+            text-decoration: underline !important;
+        }
+        body.high-contrast p,
+        body.high-contrast span,
+        body.high-contrast h1,
+        body.high-contrast h2,
+        body.high-contrast h3,
+        body.high-contrast h4,
+        body.high-contrast h5,
+        body.high-contrast h6,
+        body.high-contrast div,
+        body.high-contrast td,
+        body.high-contrast th {
+            color: #ffffff !important;
+            background-color: transparent !important;
+        }
+        body.high-contrast input,
+        body.high-contrast textarea,
+        body.high-contrast select {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+            border: 2px solid #ffffff !important;
+        }
+        body.high-contrast .bg-white,
+        body.high-contrast .bg-gray-50,
+        body.high-contrast .bg-gray-100,
+        body.high-contrast .bg-medical-50,
+        body.high-contrast .bg-medical-100 {
+            background-color: #111111 !important;
+            border: 1px solid #ffffff !important;
+        }
+        body.high-contrast .text-medical-900,
+        body.high-contrast .text-medical-800,
+        body.high-contrast .text-medical-700,
+        body.high-contrast .text-medical-600 {
+            color: #ffff00 !important;
+        }
+        body.high-contrast .border-gray-200,
+        body.high-contrast .border-gray-100,
+        body.high-contrast .border-medical-200 {
+            border-color: #ffffff !important;
+        }
     </style>
 </head>
-<body class="min-h-screen bg-slate-100 flex flex-col">
-
-    <!-- ================= 1. TRANG ĐĂNG NHẬP (LOGIN VIEW) ================= -->
-    <div id="admin-login-view" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900">
-        <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-            <!-- Header Card -->
-            <div class="bg-gradient-to-r from-sky-800 to-sky-900 p-8 text-center text-white relative">
-                <div class="w-20 h-20 bg-white rounded-full p-2 mx-auto mb-4 shadow-xl flex items-center justify-center">
-                    <i class="fas fa-user-shield text-4xl text-sky-700"></i>
-                </div>
-                <h1 class="text-2xl font-black uppercase tracking-wide text-white">Trạm Y tế Bát Xát</h1>
-                <p class="text-sky-200 text-xs font-bold uppercase tracking-wider mt-1">Cổng Quản Trị Nội Bộ Dành Cho Cán Bộ Y Tế</p>
-            </div>
-
-            <!-- Form Body -->
-            <div class="p-8">
-                <div id="login-alert" class="hidden mb-4 p-3.5 rounded-xl text-sm font-bold bg-red-50 text-red-700 border border-red-200 flex items-center gap-2">
-                    <i class="fas fa-exclamation-circle text-lg"></i>
-                    <span id="login-alert-text">Tên đăng nhập hoặc mật khẩu không chính xác.</span>
-                </div>
-
-                <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-5">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Tên đăng nhập / Email</label>
-                        <div class="relative">
-                            <i class="fas fa-envelope absolute left-4 top-3.5 text-slate-400"></i>
-                            <input type="text" id="admin-username" required placeholder="tytbatxat@laocai.gov.vn" value="tytbatxat@laocai.gov.vn" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 font-medium text-slate-800">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Mật khẩu</label>
-                        <div class="relative">
-                            <i class="fas fa-lock absolute left-4 top-3.5 text-slate-400"></i>
-                            <input type="password" id="admin-password" required placeholder="••••••••" value="admin123" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 font-medium text-slate-800">
-                        </div>
-                    </div>
-
-                    <button type="submit" id="btn-login-submit" class="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-3.5 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2 text-base">
-                        <i class="fas fa-right-to-bracket"></i> Đăng Nhập Cổng Quản Trị
-                    </button>
-                </form>
-
-                <div class="mt-6 pt-6 border-t border-slate-200 text-center">
-                    <button type="button" onclick="fillQuickLogin()" class="text-xs font-bold text-sky-700 hover:text-sky-900 bg-sky-50 px-3.5 py-2 rounded-lg border border-sky-200 hover:bg-sky-100 transition">
-                        <i class="fas fa-key mr-1"></i> Sử dụng Tài khoản Cán bộ Y tế Mẫu
-                    </button>
-                    <p class="text-xs text-slate-400 mt-4">Hệ thống bảo mật nội bộ ngành Y tế Lào Cai</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ================= 2. BẢNG ĐIỀU KHIỂN QUẢN TRỊ (ADMIN DASHBOARD) ================= -->
-    <div id="admin-dashboard-view" class="hidden min-h-screen flex flex-col">
-        
-        <!-- Header -->
-        <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
-            <div class="px-6 py-3.5 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="bg-sky-600 text-white p-2 rounded-xl flex items-center justify-center shadow">
-                        <i class="fas fa-hospital-user text-xl"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-extrabold text-lg text-white leading-tight uppercase">Trạm Y tế Bát Xát</h1>
-                        <p class="text-xs text-sky-400 font-bold">Hệ Thống Bảng Điều Khiển Quản Trị Nội Bộ</p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 bg-slate-800 px-3.5 py-1.5 rounded-full border border-slate-700">
-                        <i class="fas fa-user-doctor text-sky-400"></i>
-                        <span id="display-user-name" class="text-xs font-bold text-slate-200">BS. Nguyễn Thị Mai</span>
-                        <span id="display-user-role" class="bg-sky-900 text-sky-300 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Quản trị viên</span>
-                    </div>
-
-                    <button onclick="handleLogout()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1.5">
-                        <i class="fas fa-sign-out-alt"></i> Đăng xuất
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Main Body: Sidebar + Main Area -->
-        <div class="flex-1 flex overflow-hidden">
-            
-            <!-- Left Sidebar Navigation -->
-            <aside class="w-72 bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col shrink-0">
-                <div class="p-4 text-xs font-black uppercase text-slate-400 tracking-wider border-b border-slate-800">
-                    <i class="fas fa-bars-staggered mr-2 text-sky-400"></i> Menu Quản Trị
-                </div>
-
-                <nav class="p-3 space-y-1.5 flex-1">
-                    <button onclick="switchTab('news')" id="tab-btn-news" class="sidebar-item active w-full text-left px-4 py-3.5 rounded-xl font-medium text-sm flex items-center gap-3">
-                        <i class="fas fa-newspaper text-base w-5"></i>
-                        <span>Quản lý Tin tức</span>
-                    </button>
-
-                    <button onclick="switchTab('vaccine')" id="tab-btn-vaccine" class="sidebar-item w-full text-left px-4 py-3.5 rounded-xl font-medium text-sm flex items-center gap-3">
-                        <i class="fas fa-syringe text-base w-5"></i>
-                        <span>Cập nhật Lịch tiêm</span>
-                    </button>
-
-                    <button onclick="switchTab('appointments')" id="tab-btn-appointments" class="sidebar-item w-full text-left px-4 py-3.5 rounded-xl font-medium text-sm flex items-center gap-3">
-                        <i class="fas fa-calendar-check text-base w-5"></i>
-                        <span>Quản lý Lịch khám</span>
-                    </button>
-                </nav>
-
-                <div class="p-4 bg-slate-950/60 border-t border-slate-800 text-xs text-slate-400">
-                    <div class="flex items-center gap-2 font-bold text-slate-300 mb-1">
-                        <i class="fas fa-shield-halved text-emerald-400"></i> Phiên làm việc an toàn
-                    </div>
-                    <span>Cơ quan: Trạm Y tế Bát Xát</span><br>
-                    <span>Địa chỉ: Thôn 08, Xã Bát Xát</span>
-                </div>
-            </aside>
-
-            <!-- Main Content Area -->
-            <main class="flex-1 bg-slate-100 p-6 overflow-y-auto">
-
-                <!-- TAB 1: QUẢN LÝ TIN TỨC -->
-                <section id="panel-news" class="tab-panel active space-y-6">
-                    <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div>
-                            <h2 class="text-2xl font-black text-slate-900 flex items-center gap-2">
-                                <i class="fas fa-newspaper text-sky-600"></i> Quản Lý Tin Tức & Y Tế
-                            </h2>
-                            <p class="text-xs text-slate-500 font-medium mt-1">Đăng bài viết, thông báo dịch bệnh và tin tuyên truyền sức khỏe cho nhân dân</p>
-                        </div>
-                        <button onclick="openNewsModal()" class="bg-sky-700 hover:bg-sky-800 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-2 text-sm">
-                            <i class="fas fa-plus-circle"></i> Thêm Tin Tức Mới
-                        </button>
-                    </div>
-
-                    <!-- Filter & Stats -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center text-xl font-bold">
-                                <i class="fas fa-file-lines"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs font-bold text-slate-400 uppercase">Tổng bài viết</div>
-                                <div id="news-count-total" class="text-2xl font-black text-slate-900">0</div>
-                            </div>
-                        </div>
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs font-bold text-slate-400 uppercase">Đã xuất bản</div>
-                                <div id="news-count-published" class="text-2xl font-black text-slate-900">0</div>
-                            </div>
-                        </div>
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl font-bold">
-                                <i class="fas fa-triangle-exclamation"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs font-bold text-slate-400 uppercase">Cảnh báo dịch bệnh</div>
-                                <div id="news-count-alert" class="text-2xl font-black text-slate-900">0</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- News Table -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                            <span class="font-bold text-xs uppercase tracking-wider text-slate-600">Danh sách bài viết tin tức</span>
-                            <span class="text-xs text-slate-400 font-medium">Trạm Y tế Bát Xát</span>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="bg-slate-100 text-slate-700 text-xs uppercase font-bold border-b border-slate-200">
-                                        <th class="p-4">STT</th>
-                                        <th class="p-4">Tiêu đề bài viết</th>
-                                        <th class="p-4">Danh mục</th>
-                                        <th class="p-4">Ngày đăng</th>
-                                        <th class="p-4">Trạng thái</th>
-                                        <th class="p-4 text-center">Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="news-table-body" class="divide-y divide-slate-100 text-sm font-medium">
-                                    <!-- Dynamic rows -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- TAB 2: CẬP NHẬT LỊCH TIÊM -->
-                <section id="panel-vaccine" class="tab-panel space-y-6">
-                    <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div>
-                            <h2 class="text-2xl font-black text-slate-900 flex items-center gap-2">
-                                <i class="fas fa-syringe text-emerald-600"></i> Cập Nhật Lịch Tiêm Chủng
-                            </h2>
-                            <p class="text-xs text-slate-500 font-medium mt-1">Lập lịch tiêm phòng định kỳ cho trẻ em và phụ nữ mang thai các thôn bản</p>
-                        </div>
-                        <button onclick="openVaccineModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-2 text-sm">
-                            <i class="fas fa-plus-circle"></i> Thêm Lịch Tiêm Mới
-                        </button>
-                    </div>
-
-                    <!-- Vaccine Table -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                            <span class="font-bold text-xs uppercase tracking-wider text-slate-600">Danh sách lịch tiêm chủng trạm</span>
-                            <span class="text-xs text-slate-400 font-medium">Cập nhật bởi Cán bộ chuyên trách</span>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="bg-slate-100 text-slate-700 text-xs uppercase font-bold border-b border-slate-200">
-                                        <th class="p-4">STT</th>
-                                        <th class="p-4">Ngày tiêm</th>
-                                        <th class="p-4">Khung giờ</th>
-                                        <th class="p-4">Đối tượng & Thôn bản áp dụng</th>
-                                        <th class="p-4 text-center">Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="vaccine-table-body" class="divide-y divide-slate-100 text-sm font-medium">
-                                    <!-- Dynamic rows -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- TAB 3: QUẢN LÝ LỊCH KHÁM -->
-                <section id="panel-appointments" class="tab-panel space-y-6">
-                    <div class="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div>
-                            <h2 class="text-2xl font-black text-slate-900 flex items-center gap-2">
-                                <i class="fas fa-calendar-check text-purple-600"></i> Quản Lý Lịch Khám & Khám Từ Xa
-                            </h2>
-                            <p class="text-xs text-slate-500 font-medium mt-1">Tiếp nhận và xử lý lịch đăng ký khám bệnh, gọi tư vấn Telehealth từ người dân</p>
-                        </div>
-                        <button onclick="openAppointmentModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-2 text-sm">
-                            <i class="fas fa-calendar-plus"></i> Đăng Ký Lịch Khám Mới
-                        </button>
-                    </div>
-
-                    <!-- Appointments Table -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                            <span class="font-bold text-xs uppercase tracking-wider text-slate-600">Danh sách lượt đăng ký khám bệnh</span>
-                            <div class="flex gap-2">
-                                <button onclick="filterAppointments('ALL')" class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-200 text-slate-700">Tất cả</button>
-                                <button onclick="filterAppointments('PENDING')" class="px-3 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800">Chờ khám</button>
-                                <button onclick="filterAppointments('DONE')" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800">Đã khám</button>
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="bg-slate-100 text-slate-700 text-xs uppercase font-bold border-b border-slate-200">
-                                        <th class="p-4">Mã</th>
-                                        <th class="p-4">Bệnh nhân</th>
-                                        <th class="p-4">Số điện thoại</th>
-                                        <th class="p-4">Ngày hẹn</th>
-                                        <th class="p-4">Khoa/Lý do khám</th>
-                                        <th class="p-4">Trạng thái</th>
-                                        <th class="p-4 text-center">Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="appointment-table-body" class="divide-y divide-slate-100 text-sm font-medium">
-                                    <!-- Dynamic rows -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
-            </main>
-        </div>
-    </div>
-
-    <!-- ================= MODALS DÀNH CHO ADMIN ================= -->
-    <!-- Modal News -->
-    <div id="modal-news" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4">
-            <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-bold text-lg text-slate-900" id="news-modal-title">Thêm bài viết mới</h3>
-                <button onclick="closeNewsModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <form onsubmit="saveNews(event)" class="space-y-4">
-                <input type="hidden" id="news-id">
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tiêu đề tin tức</label>
-                    <input type="text" id="news-title" required class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-none focus:border-sky-600">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Danh mục / Tóm tắt</label>
-                    <textarea id="news-desc" rows="3" required class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-none focus:border-sky-600"></textarea>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày đăng</label>
-                        <input type="text" id="news-date" placeholder="03/08/2026" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Loại tin</label>
-                        <select id="news-color" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium">
-                            <option value="sky">Tin thông thường</option>
-                            <option value="orange">Khuyến cáo sức khỏe</option>
-                            <option value="red">Cảnh báo khẩn/Dịch bệnh</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-2 pt-3 border-t">
-                    <button type="button" onclick="closeNewsModal()" class="px-4 py-2 rounded-xl border text-sm font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
-                    <button type="submit" class="px-5 py-2 rounded-xl bg-sky-700 text-white text-sm font-bold hover:bg-sky-800 shadow">Lưu Bài Viết</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Vaccine -->
-    <div id="modal-vaccine" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4">
-            <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-bold text-lg text-slate-900">Thêm Lịch tiêm chủng</h3>
-                <button onclick="closeVaccineModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <form onsubmit="saveVaccine(event)" class="space-y-4">
-                <input type="hidden" id="vaccine-id">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày tiêm</label>
-                        <input type="text" id="vaccine-date" required placeholder="Sáng 10/08/2026" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Khung giờ</label>
-                        <input type="text" id="vaccine-time" required placeholder="07:30 - 11:30" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Đối tượng & Địa bàn thôn bản</label>
-                    <textarea id="vaccine-target" rows="3" required placeholder="Trẻ em & Phụ nữ mang thai thuộc Thôn 08, Thôn 09" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium"></textarea>
-                </div>
-                <div class="flex justify-end gap-2 pt-3 border-t">
-                    <button type="button" onclick="closeVaccineModal()" class="px-4 py-2 rounded-xl border text-sm font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
-                    <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 shadow">Lưu Lịch Tiêm</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Appointment -->
-    <div id="modal-appointment" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4">
-            <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-bold text-lg text-slate-900">Đăng ký / Cập nhật Lịch khám</h3>
-                <button onclick="closeAppointmentModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <form onsubmit="saveAppointment(event)" class="space-y-4">
-                <input type="hidden" id="app-id">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tên bệnh nhân</label>
-                        <input type="text" id="app-name" required placeholder="Nguyễn Văn A" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Số điện thoại</label>
-                        <input type="tel" id="app-phone" required placeholder="0987654321" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày khám</label>
-                        <input type="text" id="app-date" required placeholder="05/08/2026" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Khoa / Phòng</label>
-                        <input type="text" id="app-dept" placeholder="Phòng Khám Đa Khoa" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Lý do khám / Triệu chứng</label>
-                    <input type="text" id="app-reason" placeholder="Khám sức khỏe định kỳ" class="w-full border rounded-xl px-3.5 py-2 text-sm font-medium">
-                </div>
-                <div class="flex justify-end gap-2 pt-3 border-t">
-                    <button type="button" onclick="closeAppointmentModal()" class="px-4 py-2 rounded-xl border text-sm font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
-                    <button type="submit" class="px-5 py-2 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 shadow">Lưu Lịch Khám</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ================= JAVASCRIPT LOGIC ================= -->
-    <script>
-        // State
-        let currentAdminUser = null;
-        let newsData = [
-            { id: 'N1', title: 'Cảnh báo khẩn: Gia tăng ca mắc sốt xuất huyết tại địa bàn xã Bát Xát', desc: 'Trạm Y tế Bát Xát khuyến cáo bà con phát quang bụi rậm, diệt bọ gậy, dọn dẹp vật chứa nước đọng.', date: '01/08/2026', color: 'red', status: 'PUBLISHED' },
-            { id: 'N2', title: 'Hướng dẫn phòng tránh ngộ độc nấm rừng mùa mưa', desc: 'Người dân tuyệt đối không hái nấm lạ, nấm có màu sắc sặc sỡ để chế biến món ăn.', date: '28/07/2026', color: 'orange', status: 'PUBLISHED' },
-            { id: 'N3', title: 'Thông báo lịch tiêm vắc xin phòng Dại cho gia súc và khuyến cáo người dân', desc: 'Khi bị chó mèo cắn, người dân cần đến Trạm Y tế Bát Xát để được rửa vết thương và tiêm phòng dại kịp thời.', date: '20/07/2026', color: 'sky', status: 'PUBLISHED' }
-        ];
-
-        let vaccineData = [
-            { id: 'V1', date: 'Sáng 05/08/2026', time: '07:30 - 11:30', target: 'Trẻ em dưới 1 tuổi & Phụ nữ mang thai thuộc Thôn 01, Thôn 02, Thôn 03, Thôn 04' },
-            { id: 'V2', date: 'Sáng 06/08/2026', time: '07:30 - 11:30', target: 'Trẻ em & Phụ nữ mang thai thuộc Thôn 05, Thôn 06, Thôn 07, Thôn 08' }
-        ];
-
-        let appointmentData = [
-            { id: 'LK001', name: 'Trần Văn Mạnh', phone: '0912345678', date: '04/08/2026', dept: 'Phòng Khám Đa Khoa', reason: 'Ho sốt kéo dài 3 ngày', status: 'PENDING' },
-            { id: 'LK002', name: 'Lý Thị Mỷ', phone: '0389123456', date: '03/08/2026', dept: 'Phòng Sản Nhi', reason: 'Khám thai định kỳ tháng thứ 7', status: 'DONE' }
-        ];
-
-        // Init
-        document.addEventListener('DOMContentLoaded', () => {
-            const saved = sessionStorage.getItem('admin_user');
-            if (saved) {
-                try {
-                    currentAdminUser = JSON.parse(saved);
-                    showDashboard();
-                } catch(e) {
-                    showLogin();
-                }
-            } else {
-                showLogin();
-            }
-            loadDataFromAPI();
-        });
-
-        async function loadDataFromAPI() {
-            try {
-                const res = await fetch('/api/cms');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.news && data.news.length > 0) newsData = data.news;
-                    if (data.vaccines && data.vaccines.length > 0) vaccineData = data.vaccines;
-                    if (data.appointments && data.appointments.length > 0) appointmentData = data.appointments;
-                }
-            } catch (err) {
-                console.log('Sử dụng dữ liệu khởi tạo local.');
-            }
-            renderNews();
-            renderVaccines();
-            renderAppointments();
-        }
-
-        // Login Logic
-        async function handleLoginSubmit(e) {
-            e.preventDefault();
-            const username = document.getElementById('admin-username').value.trim();
-            const password = document.getElementById('admin-password').value.trim();
-            const btn = document.getElementById('btn-login-submit');
-            const alertBox = document.getElementById('login-alert');
-
-            alertBox.classList.add('hidden');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xác thực...';
-
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-
-                if (res.ok) {
-                    const json = await res.json();
-                    if (json.success && json.user) {
-                        currentAdminUser = json.user;
-                        sessionStorage.setItem('admin_user', JSON.stringify(currentAdminUser));
-                        showDashboard();
-                        return;
-                    }
-                }
-            } catch(err) {
-                console.warn('API error, using local validation');
-            }
-
-            // Fallback authentication
-            if (username && password) {
-                currentAdminUser = {
-                    id: 'U1',
-                    username: username,
-                    name: username.includes('mai') ? 'BS. Nguyễn Thị Mai' : 'Cán bộ Y tế Bát Xát',
-                    role: 'Quản trị viên (Admin)'
-                };
-                sessionStorage.setItem('admin_user', JSON.stringify(currentAdminUser));
-                showDashboard();
-            } else {
-                alertBox.classList.remove('hidden');
-            }
-            btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Đăng Nhập Cổng Quản Trị';
-        }
-
-        function fillQuickLogin() {
-            document.getElementById('admin-username').value = 'tytbatxat@laocai.gov.vn';
-            document.getElementById('admin-password').value = 'admin123';
-        }
-
-        function showLogin() {
-            document.getElementById('admin-login-view').classList.remove('hidden');
-            document.getElementById('admin-dashboard-view').classList.add('hidden');
-        }
-
-        function showDashboard() {
-            document.getElementById('admin-login-view').classList.add('hidden');
-            document.getElementById('admin-dashboard-view').classList.remove('hidden');
-
-            if (currentAdminUser) {
-                document.getElementById('display-user-name').textContent = currentAdminUser.name || 'Cán bộ Y tế';
-                document.getElementById('display-user-role').textContent = currentAdminUser.role || 'Quản trị viên';
-            }
-            renderNews();
-            renderVaccines();
-            renderAppointments();
-        }
-
-        function handleLogout() {
-            sessionStorage.removeItem('admin_user');
-            currentAdminUser = null;
-            showLogin();
-        }
-
-        // Tab Navigation
-        function switchTab(tabName) {
-            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
-
-            const btn = document.getElementById(`tab-btn-${tabName}`);
-            const panel = document.getElementById(`panel-${tabName}`);
-
-            if (btn) btn.classList.add('active');
-            if (panel) panel.classList.add('active');
-        }
-
-        // --- Render News ---
-        function renderNews() {
-            const tbody = document.getElementById('news-table-body');
-            tbody.innerHTML = '';
-
-            let redCount = 0;
-            newsData.forEach((item, idx) => {
-                if (item.color === 'red') redCount++;
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-50 transition';
-                tr.innerHTML = `
-                    <td class="p-4 text-slate-400 font-bold">${idx + 1}</td>
-                    <td class="p-4 font-bold text-slate-800">${item.title}</td>
-                    <td class="p-4 text-slate-600"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${item.color === 'red' ? 'bg-red-100 text-red-700' : 'bg-sky-100 text-sky-800'}">${item.color === 'red' ? 'Dịch bệnh' : 'Y tế số'}</span></td>
-                    <td class="p-4 text-slate-500 text-xs">${item.date || 'Hôm nay'}</td>
-                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Xuất bản</span></td>
-                    <td class="p-4 text-center">
-                        <button onclick="deleteNews('${item.id}')" class="text-red-600 hover:text-red-800 font-bold text-xs bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition">
-                            <i class="fas fa-trash"></i> Xóa
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('news-count-total').textContent = newsData.length;
-            document.getElementById('news-count-published').textContent = newsData.length;
-            document.getElementById('news-count-alert').textContent = redCount;
-        }
-
-        function openNewsModal() { document.getElementById('modal-news').classList.remove('hidden'); }
-        function closeNewsModal() { document.getElementById('modal-news').classList.add('hidden'); }
-
-        function saveNews(e) {
-            e.preventDefault();
-            const title = document.getElementById('news-title').value.trim();
-            const desc = document.getElementById('news-desc').value.trim();
-            const date = document.getElementById('news-date').value.trim() || '03/08/2026';
-            const color = document.getElementById('news-color').value;
-
-            newsData.unshift({
-                id: 'N' + Date.now(),
-                title, desc, date, color, status: 'PUBLISHED'
-            });
-
-            renderNews();
-            closeNewsModal();
-            document.getElementById('news-title').value = '';
-            document.getElementById('news-desc').value = '';
-        }
-
-        function deleteNews(id) {
-            if (confirm('Bạn có chắc chắn muốn xóa bài viết này?')) {
-                newsData = newsData.filter(x => x.id !== id);
-                renderNews();
-            }
-        }
-
-        // --- Render Vaccines ---
-        function renderVaccines() {
-            const tbody = document.getElementById('vaccine-table-body');
-            tbody.innerHTML = '';
-
-            vaccineData.forEach((item, idx) => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-50 transition';
-                tr.innerHTML = `
-                    <td class="p-4 text-slate-400 font-bold">${idx + 1}</td>
-                    <td class="p-4 font-bold text-slate-900">${item.date}</td>
-                    <td class="p-4 text-slate-700 font-bold">${item.time}</td>
-                    <td class="p-4 text-slate-600">${item.target}</td>
-                    <td class="p-4 text-center">
-                        <button onclick="deleteVaccine('${item.id}')" class="text-red-600 hover:text-red-800 font-bold text-xs bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition">
-                            <i class="fas fa-trash"></i> Xóa
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function openVaccineModal() { document.getElementById('modal-vaccine').classList.remove('hidden'); }
-        function closeVaccineModal() { document.getElementById('modal-vaccine').classList.add('hidden'); }
-
-        function saveVaccine(e) {
-            e.preventDefault();
-            const date = document.getElementById('vaccine-date').value.trim();
-            const time = document.getElementById('vaccine-time').value.trim();
-            const target = document.getElementById('vaccine-target').value.trim();
-
-            vaccineData.unshift({
-                id: 'V' + Date.now(),
-                date, time, target
-            });
-
-            renderVaccines();
-            closeVaccineModal();
-            document.getElementById('vaccine-date').value = '';
-            document.getElementById('vaccine-time').value = '';
-            document.getElementById('vaccine-target').value = '';
-        }
-
-        function deleteVaccine(id) {
-            if (confirm('Bạn muốn xóa lịch tiêm chủng này?')) {
-                vaccineData = vaccineData.filter(x => x.id !== id);
-                renderVaccines();
-            }
-        }
-
-        // --- Render Appointments ---
-        let filterApp = 'ALL';
-        function filterAppointments(status) {
-            filterApp = status;
-            renderAppointments();
-        }
-
-        function renderAppointments() {
-            const tbody = document.getElementById('appointment-table-body');
-            tbody.innerHTML = '';
-
-            const list = filterApp === 'ALL' ? appointmentData : appointmentData.filter(x => x.status === filterApp);
-
-            list.forEach((item) => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-50 transition';
-                tr.innerHTML = `
-                    <td class="p-4 text-sky-700 font-bold">${item.id}</td>
-                    <td class="p-4 font-bold text-slate-900">${item.name}</td>
-                    <td class="p-4 text-slate-700 font-bold">${item.phone}</td>
-                    <td class="p-4 text-slate-600">${item.date}</td>
-                    <td class="p-4 text-slate-600">${item.dept || 'Khám chung'} - <span class="italic text-xs">${item.reason}</span></td>
-                    <td class="p-4">
-                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${item.status === 'DONE' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
-                            ${item.status === 'DONE' ? 'Đã khám' : 'Chờ tiếp nhận'}
-                        </span>
-                    </td>
-                    <td class="p-4 text-center flex justify-center gap-2">
-                        ${item.status !== 'DONE' ? `<button onclick="approveAppointment('${item.id}')" class="text-emerald-700 hover:text-emerald-900 font-bold text-xs bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200 transition"><i class="fas fa-check"></i> Tiếp nhận</button>` : ''}
-                        <button onclick="deleteAppointment('${item.id}')" class="text-red-600 hover:text-red-800 font-bold text-xs bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function openAppointmentModal() { document.getElementById('modal-appointment').classList.remove('hidden'); }
-        function closeAppointmentModal() { document.getElementById('modal-appointment').classList.add('hidden'); }
-
-        function saveAppointment(e) {
-            e.preventDefault();
-            const name = document.getElementById('app-name').value.trim();
-            const phone = document.getElementById('app-phone').value.trim();
-            const date = document.getElementById('app-date').value.trim();
-            const dept = document.getElementById('app-dept').value.trim();
-            const reason = document.getElementById('app-reason').value.trim();
-
-            appointmentData.unshift({
-                id: 'LK' + String(appointmentData.length + 1).padStart(3, '0'),
-                name, phone, date, dept, reason, status: 'PENDING'
-            });
-
-            renderAppointments();
-            closeAppointmentModal();
-            document.getElementById('app-name').value = '';
-            document.getElementById('app-phone').value = '';
-        }
-
-        function approveAppointment(id) {
-            const item = appointmentData.find(x => x.id === id);
-            if (item) {
-                item.status = 'DONE';
-                renderAppointments();
-            }
-        }
-
-        function deleteAppointment(id) {
-            if (confirm('Xóa lượt đăng ký khám này?')) {
-                appointmentData = appointmentData.filter(x => x.id !== id);
-                renderAppointments();
-            }
-        }
-    </script>
-</body>
-</html>
+<body class="bg-gray-50 text-gray-800 antialiased relative">
+
+    <!-- ================= GIAO DIỆN NGƯỜI DÂN (FRONTEND) ================= -->
+    <div id="main-website">
+
+        <!-- HEADER -->
+        <header class="glass-effect fixed w-full top-0 z-40 border-b border-gray-200 shadow-sm">
+            <!-- ACCESSIBILITY TOOLBAR (Thanh hỗ trợ tiếp cận cho người dân) -->
+            <div class="bg-medical-700 text-white py-1.5 px-4 text-xs font-semibold border-b border-white/10">
+                <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="flex items-center gap-1 text-blue-100 font-bold"><i class="fas fa-universal-access"></i> HỖ TRỢ BÀ CON:</span>
+                        <span class="text-white/30">|</span>
+                        <span class="text-blue-100 font-bold">Cỡ chữ:</span>
+                        <button onclick="window.changeFontSize('small')" class="px-2 py-0.5 rounded hover:bg-white/10 text-[10px] font-bold border border-white/20 transition-all" id="font-btn-sma[...]
