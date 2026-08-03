@@ -1,89 +1,183 @@
-<!-- public/index.html (trimmed header and unrelated blocks kept as-is) -->
 <!doctype html>
 <html lang="vi">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TYT Bat Xat - Public Panel</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    .custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
-    .custom-scrollbar::-webkit-scrollbar { height:8px; width:8px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius:8px; }
-  </style>
-</head>
-<body class="bg-gray-900 text-slate-200">
-  <div class="max-w-5xl mx-auto p-6">
-    <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trạm Y Tế Bát Xát - Cổng Khám Bệnh Từ Xa</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        height: 8px;
+        width: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+      }
+      /* Visible keyboard focus styles for accessibility */
+      :focus-visible {
+        outline: 3px solid #38bdf8 !important;
+        outline-offset: 2px !important;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-slate-200 min-h-screen">
+    <main class="max-w-5xl mx-auto p-6">
+      <header class="mb-6 pb-4 border-b border-slate-800">
+        <h1 class="text-2xl font-extrabold text-slate-100 flex items-center gap-2">
+          <i class="fas fa-hospital-user text-blue-400" aria-hidden="true"></i>
+          Cổng Khám Bệnh Từ Xa - Trạm Y Tế Bát Xát
+        </h1>
+      </header>
 
-      <!-- Bảng Sinh hiệu & Khung nhắn tin (kết hợp) -->
-      <div class="space-y-3 flex flex-col justify-between">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Bảng Sinh hiệu & Khung nhắn tin (kết hợp) -->
+        <section aria-label="Định danh bệnh nhân và Trao đổi với bác sĩ" class="space-y-3 flex flex-col justify-between">
           <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 space-y-2">
-              <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400">
-                  <i class="fas fa-id-card"></i> Định danh bệnh nhân (in trên đơn thuốc)
-              </h4>
-              <label class="block text-[10px] text-slate-400">Số thẻ BHYT hoặc số CCCD</label>
-              <input type="text" id="tele-patient-idcard" placeholder="VD: HS4010112345678 / 001099012345" onchange="window.teleSyncPatientIdentity(false)" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-2 py-1.5 text-sm" />
-              <button onclick="window.teleSyncPatientIdentity(true)" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2">
-                  <i class="fas fa-paper-plane"></i> Gửi định danh tới Bác sĩ
-              </button>
+            <h2 class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <i class="fas fa-id-card" aria-hidden="true"></i> Định danh bệnh nhân (in trên đơn thuốc)
+            </h2>
+            <label for="tele-patient-idcard" class="block text-[10px] text-slate-400">
+              Số thẻ BHYT hoặc số CCCD
+            </label>
+            <input
+              type="text"
+              id="tele-patient-idcard"
+              placeholder="VD: HS4010112345678 / 001099012345"
+              onchange="window.teleSyncPatientIdentity(false)"
+              class="w-full bg-slate-700 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-amber-500"
+            />
+            <button
+              type="button"
+              onclick="window.teleSyncPatientIdentity(true)"
+              class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2"
+            >
+              <i class="fas fa-paper-plane" aria-hidden="true"></i> Gửi định danh tới Bác sĩ
+            </button>
           </div>
 
           <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex-1 flex flex-col justify-between">
-              <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
-                  <i class="fas fa-comments"></i> Trao đổi với Bác sĩ
-              </h4>
-              <div id="patient-chat-box" class="h-48 overflow-y-auto custom-scrollbar pr-1 my-2 border-t border-b border-slate-700 py-2 text-xs text-slate-300">
-                  <div class="bg-slate-700/50 p-2 rounded-lg text-slate-400 text-[11px] italic">
-                      Hệ thống: Cuộc gọi khám từ xa bảo mật đã khởi tạo. Bác sĩ trực CMS sẽ trả lời trực tiếp.
-                  </div>
+            <h2 class="font-bold text-xs uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+              <i class="fas fa-comments" aria-hidden="true"></i> Trao đổi với Bác sĩ
+            </h2>
+            <div
+              id="patient-chat-box"
+              role="log"
+              aria-live="polite"
+              aria-label="Lịch sử tin nhắn trao đổi"
+              class="h-48 overflow-y-auto custom-scrollbar pr-1 my-2 border-t border-b border-slate-700 py-2 text-xs text-slate-300"
+            >
+              <div class="bg-slate-700/50 p-2 rounded-lg text-slate-400 text-[11px] italic">
+                Hệ thống: Cuộc gọi khám từ xa bảo mật đã khởi tạo. Bác sĩ trực CMS sẽ trả lời trực tiếp.
               </div>
-              <div class="flex gap-2 mt-2">
-                  <input type="text" id="patient-chat-input" placeholder="Nhập tin nhắn..." onkeydown="if(event.key==='Enter'){event.preventDefault();window.sendPatientChatMessage();}" class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm" />
-                  <button onclick="window.sendPatientChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold">
-                      <i class="fas fa-paper-plane"></i>
-                  </button>
-              </div>
-              <button onclick="window.teleExportReport()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
-                  <i class="fas fa-file-circle-check"></i> Hoàn thành &amp; In đơn thuốc (A5)
+            </div>
+            <div class="flex gap-2 mt-2">
+              <label for="patient-chat-input" class="sr-only">Nhập tin nhắn trao đổi với bác sĩ</label>
+              <input
+                type="text"
+                id="patient-chat-input"
+                placeholder="Nhập tin nhắn..."
+                onkeydown="
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    window.sendPatientChatMessage();
+                  }
+                "
+                class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onclick="window.sendPatientChatMessage()"
+                aria-label="Gửi tin nhắn"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-bold"
+              >
+                <i class="fas fa-paper-plane" aria-hidden="true"></i>
               </button>
+            </div>
+            <button
+              type="button"
+              onclick="window.teleExportReport()"
+              class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2"
+            >
+              <i class="fas fa-file-circle-check" aria-hidden="true"></i> Hoàn thành &amp; In đơn thuốc (A5)
+            </button>
           </div>
+        </section>
+
+        <!-- Preview Section -->
+        <section aria-label="Màn hình xem trước của Bác sĩ" class="col-span-2">
+          <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+            <h2 class="font-black text-lg text-slate-100">Màn hình Bác sĩ / CMS (preview)</h2>
+            <p class="text-slate-400 text-sm mt-2">
+              Phần này là preview/placeholder cho màn hình bác sĩ. Các chức năng
+              gốc (Chẩn đoán, kê đơn, ký số) chỉ khả dụng trên CMS.
+            </p>
+          </div>
+        </section>
       </div>
+    </main>
 
-      <!-- Placeholder: other two columns -->
-      <div class="col-span-2">
-        <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-          <h3 class="font-black text-lg">Màn hình Bác sĩ / CMS (preview)</h3>
-          <p class="text-slate-400 text-sm mt-2">Phần này là preview/placeholder cho màn hình bác sĩ. Các chức năng gốc (Ch���n đoán, kê đơn, ký số) chỉ khả dụng trên CMS.</p>
-        </div>
-      </div>
+    <script>
+      // Minimal safe client helpers used by public panel
+      window.teleSyncPatientIdentity = function (force = false) {
+        const idcard =
+          document.getElementById("tele-patient-idcard")?.value || "";
+        console.log("[public] teleSyncPatientIdentity", force, idcard);
+        // Send to signaling server (Netlify function / local server)
+        fetch("/api/vitals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            roomId: "public-room",
+            patientName: idcard,
+            bpSys: null,
+          }),
+        })
+          .then((r) => r.json())
+          .then(console.log)
+          .catch(console.warn);
+      };
 
-    </div>
-  </div>
+      window.sendPatientChatMessage = function () {
+        const input = document.getElementById("patient-chat-input");
+        if (!input || !input.value) return;
+        const text = input.value.trim();
+        input.value = "";
+        const box = document.getElementById("patient-chat-box");
+        const el = document.createElement("div");
+        el.className =
+          "p-2 rounded-lg bg-blue-600 text-white text-xs self-end max-w-[85%]";
+        el.textContent = text;
+        box.appendChild(el);
+        box.scrollTop = box.scrollHeight;
+        // fire to server
+        fetch("/api/signal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "signal",
+            roomId: "public-room",
+            peerId: "public-peer",
+            type: "chat",
+            payload: { text },
+          }),
+        }).catch(console.warn);
+      };
 
-  <script>
-    // Minimal safe client helpers used by public panel
-    window.teleSyncPatientIdentity = function(force=false) {
-      const idcard = document.getElementById('tele-patient-idcard')?.value || '';
-      console.log('[public] teleSyncPatientIdentity', force, idcard);
-      // Send to signaling server (Netlify function / local server)
-      fetch('/api/vitals', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ roomId: 'public-room', patientName: idcard, bpSys: null }) }).then(r=>r.json()).then(console.log).catch(console.warn);
-    }
-
-    window.sendPatientChatMessage = function(){
-      const input = document.getElementById('patient-chat-input');
-      if(!input || !input.value) return;
-      const text = input.value.trim();
-      input.value = '';
-      const box = document.getElementById('patient-chat-box');
-      const el = document.createElement('div'); el.className='p-2 rounded-lg bg-blue-600 text-white text-xs self-end max-w-[85%]'; el.textContent = text;
-      box.appendChild(el); box.scrollTop = box.scrollHeight;
-      // fire to server
-      fetch('/api/signal', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'signal', roomId:'public-room', peerId:'public-peer', type:'chat', payload:{ text } }) }).catch(console.warn);
-    }
-
-    window.teleExportReport = function(){ alert('Yêu cầu in phiếu khám được gửi (demo).'); }
-  </script>
-</body>
+      window.teleExportReport = function () {
+        alert("Yêu cầu in phiếu khám được gửi (demo).");
+      };
+    </script>
+  </body>
 </html>

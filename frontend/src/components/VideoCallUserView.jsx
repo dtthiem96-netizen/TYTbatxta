@@ -14,7 +14,7 @@ export default function VideoCallUserView({ callId, token }) {
     load();
   }, [callId, token]);
 
-  if (!payload) return <div>Đang tải...</div>;
+  if (!payload) return <div role="status" aria-live="polite">Đang tải...</div>;
 
   const { doctor } = payload;
 
@@ -28,25 +28,27 @@ export default function VideoCallUserView({ callId, token }) {
   };
 
   return (
-    <div className="video-call-user">
-      <div className="video-window">{/* WebRTC video here */}</div>
-      <div className="doctor-minimal">
-        <h3>Bác sĩ: {doctor.name}</h3>
+    <main className="video-call-user">
+      <div className="video-window" role="region" aria-label="Khung video cuộc gọi">{/* WebRTC video here */}</div>
+      <section className="doctor-minimal" aria-labelledby="doctor-info-heading">
+        <h2 id="doctor-info-heading">Bác sĩ: {doctor.name}</h2>
         <form onSubmit={handleSubmit}>
           {doctor.minimalFields.map(field => (
             <div key={field.id} className="field">
-              <label>{field.label}{field.required ? '*' : ''}</label>
+              <label htmlFor={`input-${field.id}`}>{field.label}{field.required ? '*' : ''}</label>
               <input
+                id={`input-${field.id}`}
                 name={field.id}
                 type={field.type === 'text' ? 'text' : 'text'}
                 required={field.required}
+                aria-required={field.required}
                 onChange={(e) => handleChange(field.id, e.target.value)}
               />
             </div>
           ))}
           <button type="submit">Gửi</button>
         </form>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
