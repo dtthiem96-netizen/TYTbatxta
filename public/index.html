@@ -12,7 +12,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="theme-color" content="#0284c7">
-    
+
+    <!-- ================= NETLIFY IDENTITY (ĐĂNG NHẬP NỘI BỘ) ================= -->
+    <!-- Tiện ích đăng nhập Netlify Identity. Trên trang chủ nó chỉ có một việc:
+         nhận đường liên kết trong thư mời / thư đặt lại mật khẩu (dạng
+         https://tenmien/#invite_token=...) rồi mở hộp thoại đặt mật khẩu.
+         Widget cũng là thứ đặt cookie nf_jwt - chính cookie mà CDN của Netlify
+         đọc để xét conditions = {Role = [...]} cho đường dẫn /admin/*. -->
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js" defer></script>
+    <script>
+    (function () {
+        // CHẶN VÒNG LẶP ĐĂNG NHẬP.
+        // Không có đoạn này, người được mời bấm liên kết trong email sẽ đặt mật
+        // khẩu xong rồi bị bỏ lại ở trang chủ: không có gì đưa họ sang /admin/,
+        // nên họ bấm lại liên kết trong email - lần này token đã dùng rồi nên
+        // widget báo lỗi, và họ mắc trong vòng bấm-lỗi-bấm-lại.
+        var AUTH_HASH = /(^|[#&])(invite_token|recovery_token|confirmation_token|email_change_token)=/;
+
+        function stripAuthHash() {
+            // Token đã tiêu thụ mà còn nằm trong URL thì mỗi lần tải lại trang
+            // widget lại thử dùng nó và lại báo lỗi. Xoá khỏi thanh địa chỉ.
+            if (!AUTH_HASH.test(window.location.hash)) return;
+            if (!window.history || !window.history.replaceState) return;
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+
+        window.addEventListener('load', function () {
+            var identity = window.netlifyIdentity;
+            if (!identity) return; // Chặn quảng cáo / mất mạng: trang vẫn chạy bình thường.
+
+            identity.on('login', function () {
+                identity.close();
+                stripAuthHash();
+                // Chỉ chuyển tiếp khi đang ở ngoài khu quản trị, tránh /admin/
+                // tự chuyển về chính nó.
+                if (window.location.pathname.indexOf('/admin') !== 0) {
+                    window.location.replace('/admin/');
+                }
+            });
+
+            identity.on('close', stripAuthHash);
+            identity.on('error', stripAuthHash);
+        });
+    })();
+    </script>
+
     <!-- BẢO MẬT & SEO -->
     <title>Trạm Y Tế Bát Xát - Vì sức khỏe cộng đồng – Vì hạnh phúc mỗi gia đình</title>
     <meta name="description" content="Cổng thông tin điện tử Trạm Y tế Bát Xát, Lào Cai. Cung cấp dịch vụ đăng ký khám bệnh, tra cứu lịch tiêm chủng, tư vấn sức khỏe AI, tải biểu mẫu y tế và tin tức phòng chống dịch bệnh.">
@@ -1010,6 +1054,31 @@
                         <p id="tele-vital-sync-status" class="text-[10px] text-slate-500 text-center">Chỉ số tự động đồng bộ lên màn hình khám của Bác sĩ.</p>
                     </div>
 
+                    <!-- Kết luận của Bác sĩ tuyến trên gửi về cho người dân -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-emerald-900/60 space-y-2">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                            <i class="fas fa-stethoscope"></i> Kết luận của Bác sĩ tư vấn
+                        </h4>
+                        <div class="space-y-1.5 text-xs">
+                            <div>
+                                <span class="block text-[10px] text-slate-400 font-bold">Chẩn đoán:</span>
+                                <p id="patient-doctor-diagnosis" class="text-white font-bold italic">Chưa có chẩn đoán. Y sĩ/ Bác sĩ sẽ gửi sau khi thăm khám.</p>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] text-slate-400 font-bold">Hướng xử trí:</span>
+                                <p id="patient-doctor-plan" class="text-blue-200 italic">Chưa có hướng xử trí.</p>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] text-slate-400 font-bold">Thuốc kê đơn:</span>
+                                <p id="patient-doctor-drugs" class="text-emerald-200 whitespace-pre-line italic">Chưa có thuốc kê đơn.</p>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] text-slate-400 font-bold">Lời dặn:</span>
+                                <p id="patient-doctor-advice" class="text-amber-200 italic">Y sĩ/ Bác sĩ chưa gửi lời dặn.</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Khung nhắn tin trực tiếp với Bác sĩ (Đã mở rộng tối ưu) -->
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex-1 flex flex-col justify-between space-y-3">
                         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -1518,8 +1587,15 @@
             </div>
             <div class="p-6 space-y-4 text-xs">
                 <div>
-                    <label class="block text-slate-300 font-bold mb-1" for="input-station-code">Mã Điểm Trạm Y Tế</label>
-                    <input type="text" id="input-station-code" value="TYT-BATXAT-01" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500">
+                    <label class="block text-slate-300 font-bold mb-1" for="input-station-code">Điểm trạm y tế khu vực</label>
+                    <select id="input-station-code" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold focus:outline-none focus:border-blue-500">
+                        <option value="TYT-BATXAT-01">TYT-BATXAT-01 — Trạm Y tế Bát Xát (Trung tâm)</option>
+                        <option value="TYT-AMLUONG-02">TYT-AMLUONG-02 — Điểm trạm Ẩm Lương</option>
+                        <option value="TYT-YTY-03">TYT-YTY-03 — Điểm trạm Y Tý</option>
+                        <option value="TYT-BANXEO-04">TYT-BANXEO-04 — Điểm trạm Bản Xèo</option>
+                        <option value="TYT-LUNGFIN-05">TYT-LUNGFIN-05 — Điểm trạm Lũng Pô Fin</option>
+                    </select>
+                    <p class="text-[10px] text-slate-500 mt-1 italic">Chọn đúng điểm trạm đang trực để Bác sĩ tuyến trên và Trợ lý AI định tuyến cuộc gọi về nơi cần hỗ trợ.</p>
                 </div>
                 <div>
                     <label class="block text-slate-300 font-bold mb-1" for="input-cms-account">Tài khoản Cán bộ CMS (Hệ thống)</label>
@@ -1569,6 +1645,13 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
+                    <select id="station-switcher" onchange="window.switchStation(this.value)" title="Chuyển điểm trạm khu vực" class="bg-slate-800 border border-blue-800/70 text-blue-200 text-[11px] font-bold font-mono px-2.5 py-1.5 rounded-xl focus:outline-none focus:border-blue-500">
+                        <option value="TYT-BATXAT-01">TYT-BATXAT-01 · Bát Xát</option>
+                        <option value="TYT-AMLUONG-02">TYT-AMLUONG-02 · Ẩm Lương</option>
+                        <option value="TYT-YTY-03">TYT-YTY-03 · Y Tý</option>
+                        <option value="TYT-BANXEO-04">TYT-BANXEO-04 · Bản Xèo</option>
+                        <option value="TYT-LUNGFIN-05">TYT-LUNGFIN-05 · Lũng Pô Fin</option>
+                    </select>
                     <button onclick="window.openLoginModal()" class="bg-slate-800 hover:bg-slate-700 text-blue-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700">
                         <i class="fas fa-user-gear"></i> Đổi tài khoản CMS
                     </button>
@@ -1663,23 +1746,23 @@
                         </button>
                     </div>
 
-                    <!-- Thẻ hiển thị sinh hiệu thực tế -->
+                    <!-- Thẻ hiển thị sinh hiệu thực tế (tự đổi màu theo mức nguy hiểm) -->
                     <div class="grid grid-cols-2 gap-2 text-xs">
                         <div id="card-bp" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
                             <div class="text-[10px] text-slate-400">Huyết áp</div>
-                            <div id="hud-bp" class="font-black text-sm text-white">135/85</div>
+                            <div id="display-bp" class="font-black text-sm text-white">135/85</div>
                         </div>
                         <div id="card-hr" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
                             <div class="text-[10px] text-slate-400">Nhịp tim</div>
-                            <div id="hud-hr" class="font-black text-sm text-rose-400">82 bpm</div>
+                            <div id="display-hr" class="font-black text-sm text-rose-400">82</div>
                         </div>
                         <div id="card-spo2" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
                             <div class="text-[10px] text-slate-400">SpO2</div>
-                            <div id="hud-spo2" class="font-black text-sm text-emerald-400">97%</div>
+                            <div id="display-spo2" class="font-black text-sm text-emerald-400">97%</div>
                         </div>
                         <div id="card-temp" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
                             <div class="text-[10px] text-slate-400">Nhiệt độ</div>
-                            <div id="hud-temp" class="font-black text-sm text-amber-400">37.2°C</div>
+                            <div id="display-temp" class="font-black text-sm text-amber-400">37.2°C</div>
                         </div>
                     </div>
                 </div>
@@ -1690,23 +1773,44 @@
                         <video id="remote-video" autoplay playsinline class="w-full h-full object-cover hidden"></video>
                         <div id="remote-placeholder" class="flex flex-col items-center justify-center text-slate-400 p-6 text-center">
                             <i class="fas fa-user-md text-6xl text-blue-500 mb-3 animate-pulse"></i>
-                            <h4 id="hud-patient-name" class="font-bold text-base text-white mb-1">Bệnh nhân</h4>
+                            <h4 class="font-bold text-base text-white mb-1">Bác sĩ tuyến trên / Trợ lý AI</h4>
                             <p class="text-xs text-slate-400">Chờ Bác sĩ tuyến trên / AI kết nối tư vấn...</p>
                             <span id="call-timer" class="text-xs font-mono text-emerald-400 mt-2 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">00:00</span>
                         </div>
-                        <video id="local-video" autoplay playsinline muted class="w-32 h-24 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl absolute bottom-3 right-3 object-cover"></video>
+
+                        <!-- Thẻ HUD sinh hiệu chồng trên khung hình khám -->
+                        <div class="absolute top-3 left-3 space-y-1.5 pointer-events-none">
+                            <div class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-xl px-2.5 py-1 text-[11px] font-bold text-white shadow-lg">
+                                <i class="fa-solid fa-user text-blue-400 mr-1"></i><span id="hud-patient-name">Bệnh nhân</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 max-w-[15rem]">
+                                <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-white shadow">HA <strong id="hud-bp" class="font-black">135/85</strong></span>
+                                <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-rose-300 shadow">Tim <strong id="hud-hr" class="font-black">82</strong></span>
+                                <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-emerald-300 shadow">SpO2 <strong id="hud-spo2" class="font-black">97%</strong></span>
+                                <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-amber-300 shadow">Nhiệt <strong id="hud-temp" class="font-black">37.2°C</strong></span>
+                            </div>
+                            <span id="active-cam-mode-badge" class="bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full font-medium text-[11px] inline-block"><i class="fa-solid fa-video"></i> Camera 1: Toàn Cảnh Phòng Khám</span>
+                        </div>
+
+                        <!-- Luồng video cận cảnh của điểm trạm (PiP) -->
+                        <div class="absolute bottom-3 right-3">
+                            <video id="local-video" autoplay playsinline muted class="w-32 h-24 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl object-cover"></video>
+                            <span id="pip-label" class="absolute bottom-1 left-1 bg-slate-950/85 text-[9px] font-bold text-blue-200 px-1.5 py-0.5 rounded border border-slate-700">Cam Toàn Cảnh</span>
+                        </div>
                     </div>
+
+                    <p id="camera-status-text" class="text-[11px] text-slate-400 text-center font-medium">Camera: Góc Rộng Phòng Khám</p>
 
                     <!-- Thanh điều khiển cuộc gọi -->
                     <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-900 p-3 rounded-2xl border border-slate-800">
-                        <button onclick="window.toggleCameraDevice()" title="Chuyển đổi Camera" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow">
+                        <button onclick="window.toggleCameraDevice()" id="btn-toggle-camera" title="Chuyển đổi Camera (Góc rộng / Cận cảnh)" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow border border-slate-700">
                             <i class="fas fa-camera-rotate"></i> <span id="cam-label">Góc rộng</span>
                         </button>
-                        <button onclick="window.toggleMic()" id="mic-btn" title="Bật/Tắt Micro" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow">
-                            <i class="fas fa-microphone"></i>
+                        <button onclick="window.toggleMic()" id="btn-toggle-mic" title="Bật/Tắt Micro điểm trạm" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700">
+                            <i id="icon-mic" class="fa-solid fa-microphone text-emerald-400 text-sm"></i>
                         </button>
-                        <button onclick="window.toggleVideo()" id="video-btn" title="Bật/Tắt Camera" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow">
-                            <i class="fas fa-video"></i>
+                        <button onclick="window.toggleVideo()" id="btn-toggle-video" title="Bật/Tắt Camera" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700">
+                            <i id="icon-video" class="fa-solid fa-video text-blue-400 text-sm"></i>
                         </button>
                         <button onclick="window.sendVitalsToDoctor()" title="Gửi chỉ số sinh hiệu" class="px-3 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
                             <i class="fas fa-paper-plane"></i> Gửi sinh hiệu
@@ -1773,8 +1877,12 @@
                                 <i class="fas fa-pen-to-square"></i> Ghi chép &amp; Đơn thuốc trực tiếp
                             </h4>
                             <button onclick="window.toggleSpeechToText()" id="stt-btn" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/40 text-[10px] px-2 py-1 rounded flex items-center gap-1 transition">
-                                <i class="fas fa-microphone-lines"></i> Speech-to-Text
+                                <i class="fas fa-microphone-lines"></i> <span id="stt-btn-text">Giọng nói (STT)</span>
                             </button>
+                        </div>
+                        <div id="stt-status" class="hidden text-[10px] text-rose-300 bg-rose-950/70 border border-rose-800 rounded-lg px-2 py-1 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping"></span>
+                            Đang thu âm và chuyển lời nói thành văn bản (tiếng Việt)...
                         </div>
                         <textarea id="clinical-notes" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="Diễn biến bệnh, triệu chứng cơ năng..."></textarea>
                         
@@ -1851,6 +1959,7 @@
                     <div class="text-right">
                         <p class="font-mono font-black text-blue-700 text-sm" id="rpt-code">PK-20260803-01</p>
                         <p class="text-[10px] text-gray-500" id="rpt-date">Mã phiếu khám &amp; Đơn thuốc</p>
+                        <p class="text-[10px] font-mono font-bold text-emerald-700" id="rpt-station">TYT-BATXAT-01</p>
                     </div>
                 </div>
 
@@ -1919,6 +2028,14 @@
                 </div>
 
                 <!-- Diễn biến lâm sàng & Chẩn đoán (Cho phép sửa trực tiếp) -->
+                <div>
+                    <label class="block font-bold text-xs uppercase text-gray-800 mb-1" for="rpt-edit-symptoms">Triệu chứng chính khi tới trạm:</label>
+                    <input type="text" id="rpt-edit-symptoms" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500" placeholder="Sốt nhẹ, mệt mỏi, ho khan...">
+                </div>
+                <div>
+                    <label class="block font-bold text-xs uppercase text-gray-800 mb-1" for="rpt-edit-clinical-notes">Diễn biến lâm sàng ghi nhận tại điểm trạm:</label>
+                    <textarea id="rpt-edit-clinical-notes" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-gray-900 focus:outline-none focus:border-blue-500" placeholder="Bệnh nhân tỉnh táo, tim phổi ổn định..."></textarea>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                         <label class="block font-bold text-xs uppercase text-gray-800 mb-1">Chẩn đoán sơ bộ &amp; Mã ICD-10:</label>
@@ -3396,6 +3513,12 @@
 
                 paginationEl.innerHTML = buttonsHtml;
             }
+        };
+
+        /* Bí danh giữ lại từ nhánh trước: nhiều nơi trong CMS và luồng đặt hẹn
+           vẫn gọi window.renderUI(). Trỏ về bản vẽ lại toàn bộ giao diện. */
+        window.renderUI = function() {
+            window.renderAll();
         };
 
         window.renderAll = function() {
@@ -5654,9 +5777,9 @@
             }
         };
 
-        window.finishAndExportReport = function() {
-            window.teleExportReport();
-        };
+        /* Bảng điều khiển điểm trạm dùng bản kết xuất riêng trong app.js
+           (window.finishAndExportReport) vì nó gửi kèm sinh hiệu, tuổi/giới tính và
+           kết luận AI của điểm trạm. Ở đây chỉ giữ luồng của Bác sĩ/CMS. */
 
         window.onReportSignerChange = function(signerId) {
             window.selectPrescriptionSigner(signerId, true);
@@ -5763,14 +5886,44 @@
                 </head>
                 <body>
                     ${clone.innerHTML}
-                    <script>
-                        setTimeout(() => { window.print(); window.close(); }, 400);
-                    </script>
                 </body>
                 </html>
             `);
             printWin.document.close();
+
+            // In sau khi ảnh chữ ký số đã tải xong, tránh mất chữ ký trên bản in A5.
+            printA5WindowWhenReady(printWin);
         };
+
+        /**
+         * Chờ toàn bộ ảnh (đặc biệt là ảnh chữ ký số dạng data-URL) trong cửa sổ in
+         * giải mã xong rồi mới gọi print, sau đó đóng cửa sổ.
+         */
+        function printA5WindowWhenReady(win) {
+            const fire = () => {
+                try {
+                    win.focus();
+                    win.print();
+                } catch (err) {
+                    console.warn('Không gọi được hộp thoại in:', err);
+                }
+            };
+
+            const run = () => {
+                const images = Array.from(win.document.images || []);
+                const pending = images.filter(img => !img.complete);
+                if (!pending.length) {
+                    fire();
+                    return;
+                }
+                Promise.all(pending.map(img => new Promise(resolve => {
+                    img.addEventListener('load', resolve, { once: true });
+                    img.addEventListener('error', resolve, { once: true });
+                }))).then(fire);
+            };
+
+            setTimeout(run, 400);
+        }
 
         window.downloadReportWord = function() {
             const area = document.getElementById('report-print-area');
@@ -5802,28 +5955,6 @@
 
         window.downloadReportPDF = function() {
             window.printReportA5();
-        };
-                window.showToast("Trình duyệt đã chặn cửa sổ in. Hãy cho phép pop-up để xuất đơn thuốc.");
-                return;
-            }
-            win.document.open();
-            win.document.write(html);
-            win.document.close();
-            // Chờ ảnh chữ ký số giải mã xong rồi mới in để đơn thuốc không bị mất chữ ký.
-            const printWhenReady = () => {
-                const images = Array.from(win.document.images || []);
-                const pending = images.filter(img => !img.complete);
-                if (pending.length) {
-                    Promise.all(pending.map(img => new Promise(resolve => {
-                        img.addEventListener('load', resolve, { once: true });
-                        img.addEventListener('error', resolve, { once: true });
-                    }))).then(() => { try { win.print(); } catch (e) {} });
-                } else {
-                    try { win.print(); } catch (e) {}
-                }
-            };
-            setTimeout(printWhenReady, 400);
-            window.showToast("Đã hoàn thành lượt khám và kết xuất đơn thuốc khổ A5.");
         };
 
         /* Hàng đợi cuộc gọi: cán bộ CMS thấy và nghe ngay điểm trạm nào đang gọi tới,

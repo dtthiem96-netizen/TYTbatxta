@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS Nội dung Git (Decap) - Trạm Y tế Bát Xát</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Netlify Identity PHẢI được nạp TRƯỚC Decap.
+         Backend git-gateway của Decap không có form đăng nhập riêng: nó tìm
+         window.netlifyIdentity và giao toàn bộ việc xác thực cho widget. Thiếu
+         widget thì CMS báo "Unable to access identity settings". -->
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+
+    <!-- Nói rõ đường dẫn cấu hình. Decap mặc định tìm ./config.yml cạnh trang
+         này, nhưng khai báo tường minh để trang có thể đổi tên/đổi chỗ mà không
+         làm hỏng CMS. -->
+    <link href="/admin/config.yml" type="text/yaml" rel="cms-config-url">
+</head>
+<body>
+    <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
+    <script>
+    (function () {
+        // Trang này đã nằm sau cửa RBAC /admin/* của Netlify, nên tới được đây
+        // nghĩa là cookie nf_jwt đã hợp lệ. Vẫn giữ init() + refresh() để phiên
+        // biên tập dài hơn một giờ không bị hết token giữa lúc đang soạn bài.
+        window.addEventListener('load', function () {
+            var identity = window.netlifyIdentity;
+            if (!identity) return;
+            identity.init();
+            setInterval(function () {
+                if (identity.currentUser()) identity.refresh();
+            }, 30 * 60 * 1000);
+            identity.on('logout', function () { window.location.replace('/'); });
+        });
+    })();
+    </script>
+</body>
+</html>

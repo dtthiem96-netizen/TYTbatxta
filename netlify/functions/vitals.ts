@@ -32,7 +32,15 @@ type Vitals = {
   weight: number;
 };
 
-/** Đánh giá mức độ nguy hiểm của sinh hiệu để bật cảnh báo tại điểm trạm. */
+/**
+ * Đánh giá mức độ nguy hiểm của sinh hiệu để bật cảnh báo tại điểm trạm.
+ *
+ * Ngưỡng phải TRÙNG với evaluateVitalsLocally() trong app.js: trạm bật biểu ngữ
+ * cảnh báo ngay tại trình duyệt, còn bản ghi chính thức thì do hàm này tạo ra.
+ * Nếu hai bên lệch nhau thì cán bộ trạm thấy CẤP CỨU trong khi hồ sơ chỉ ghi
+ * WARNING (hoặc NORMAL) - tuyến trên đọc lại sẽ đánh giá thấp mức nguy hiểm.
+ * `tools/vitals-parity.mjs` khoá hai bản này lại với nhau.
+ */
 function evaluateVitals(v: Vitals) {
   const alerts: Array<{ level: string; msg: string }> = [];
   let status = "NORMAL";
@@ -60,12 +68,20 @@ function evaluateVitals(v: Vitals) {
     warn(`Cảnh báo Huyết áp bất thường: ${v.bp_sys}/${v.bp_dia} mmHg.`);
   }
 
-  if (v.temperature >= 39.0) {
-    warn(`Sốt cao (${v.temperature}°C). Cần chườm ấm & xem xét hạ sốt khẩn.`);
+  if (v.heart_rate >= 130 || v.heart_rate <= 45) {
+    critical(
+      `CẢNH BÁO CẤP CỨU: Nhịp tim ${v.heart_rate} bpm ngoài ngưỡng an toàn. Cần điện tâm đồ ECG ngay!`
+    );
+  } else if (v.heart_rate > 100 || v.heart_rate < 55) {
+    warn(`Nhịp tim bất thường (${v.heart_rate} bpm). Cần kiểm tra điện tâm đồ ECG.`);
   }
 
-  if (v.heart_rate > 120 || v.heart_rate < 50) {
-    warn(`Nhịp tim bất thường (${v.heart_rate} bpm). Cần kiểm tra điện tâm đồ ECG.`);
+  if (v.temperature >= 39.5 || v.temperature <= 35) {
+    critical(
+      `CẢNH BÁO CẤP CỨU: Nhiệt độ ${v.temperature}°C. Nguy cơ sốt cao/hạ nhiệt độ.`
+    );
+  } else if (v.temperature >= 38.5) {
+    warn(`Sốt cao (${v.temperature}°C). Cần chườm ấm & xem xét hạ sốt khẩn.`);
   }
 
   return { status, alerts };

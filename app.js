@@ -1,14 +1,38 @@
 // Telehealth Station Application Logic - Vanilla JS
 
+/**
+ * Danh sách điểm trạm y tế khu vực. Mỗi điểm trạm có một phòng trực riêng để
+ * Bác sĩ tuyến trên và Trợ lý AI biết cuộc gọi đến từ đâu.
+ */
+const STATIONS = [
+  { code: 'TYT-BATXAT-01', name: 'Trạm Y tế Bát Xát (Trung tâm)' },
+  { code: 'TYT-AMLUONG-02', name: 'Điểm trạm Ẩm Lương' },
+  { code: 'TYT-YTY-03', name: 'Điểm trạm Y Tý' },
+  { code: 'TYT-BANXEO-04', name: 'Điểm trạm Bản Xèo' },
+  { code: 'TYT-LUNGFIN-05', name: 'Điểm trạm Lũng Pô Fin' }
+];
+
+/** Phòng trực mặc định của một điểm trạm, ví dụ TYT-YTY-03 -> room-tyt-yty-03. */
+function defaultRoomForStation(code) {
+  return 'room-' + String(code || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function stationName(code) {
+  const found = STATIONS.find(s => s.code === code);
+  return found ? found.name : code;
+}
+
 let stationCode = 'TYT-BATXAT-01';
 let operatorName = 'Y sĩ Nguyễn Văn A';
 let role = 'station_operator';
-let roomId = 'room-tytbatxat01';
+let roomId = defaultRoomForStation(stationCode);
 
 // Signaling chạy qua HTTP long-poll (/api/signal) thay cho WebSocket:
 // nền tảng serverless không giữ kết nối socket lâu dài, và đây cũng chính là
 // giao thức mà màn hình Y sĩ/ Bác sĩ trong trang chính đang dùng.
 const SIGNAL_URL = '/api/signal';
+// Sàn nghỉ tối thiểu giữa hai lượt long-poll, chống quay vòng không nghỉ.
+const POLL_MIN_GAP_MS = 500;
 let peerId = null;
 let signalCursor = 0;
 let polling = false;
@@ -16,6 +40,8 @@ let pollToken = 0;
 let pendingCandidates = [];
 let remotePeerName = null;
 let isConnected = false;
+let rejoinTimer = null;
+let rejoinAttempts = 0;
 
 let peerConnection = null;
 let localStream = null;
@@ -44,15 +70,21 @@ let cmsSigners = [];
 let loggedInCmsUser = null;
 let queuePollInterval = null;
 
+/** Kết quả phân tích gần nhất của Trợ lý AI lâm sàng (dùng khi xuất phiếu khám). */
+let currentAIAnalysis = null;
+
 // Initialize Application
-document.addEventListener('DOMContentLoaded', () => {
+let stationPanelStarted = false;
+function startStationPanel() {
+  // Chỉ khởi tạo một lần: nếu chạy hai lần sẽ có hai vòng long-poll và hai bộ
+  // đếm thời gian cùng hoạt động, làm lưu lượng gọi /api/signal tăng gấp đôi.
+  if (stationPanelStarted) return;
+  stationPanelStarted = true;
+
   console.log('🚀 Initializing Telehealth Station Panel...');
-  
-  // Set default values in UI safely
-  const elCode = document.getElementById('display-station-code');
-  if (elCode) elCode.textContent = stationCode;
-  const elOp = document.getElementById('display-operator-name');
-  if (elOp) elOp.textContent = operatorName;
+
+  // Đồng bộ tên điểm trạm / cán bộ trực lên tiêu đề bảng điều khiển
+  renderStationIdentity();
 
   // Tải dữ liệu tài khoản và bác sĩ từ CMS
   loadCmsData();
@@ -69,9 +101,67 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Speech-to-Text Engine
   initSpeechRecognition();
 
+  // Đẩy ghi chép lâm sàng gõ tay sang tuyến trên theo nhịp
+  const notesEl = document.getElementById('clinical-notes');
+  if (notesEl) notesEl.addEventListener('input', scheduleNotesSync);
+
   // Start Call Timer
   startCallTimer();
-});
+}
+
+// app.js được nạp với thuộc tính defer nên thường chạy trước DOMContentLoaded,
+// nhưng nếu tệp bị nạp muộn (bộ nhớ đệm, chèn động) thì sự kiện đã đi qua và
+// bảng điều khiển sẽ không bao giờ khởi tạo - nên xét luôn cả readyState.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startStationPanel, { once: true });
+} else {
+  // Hoãn sang microtask kế tiếp để mọi khai báo let/const ở cuối tệp kịp khởi
+  // tạo trước khi khởi động (nếu gọi ngay tại đây sẽ vướng vùng chết TDZ).
+  Promise.resolve().then(startStationPanel);
+}
+
+/** Hiển thị mã điểm trạm, tên điểm trạm và cán bộ trực trên mọi vị trí liên quan. */
+function renderStationIdentity() {
+  const elCode = document.getElementById('display-station-code');
+  if (elCode) {
+    elCode.textContent = stationCode;
+    elCode.title = stationName(stationCode);
+  }
+
+  const elOp = document.getElementById('display-operator-name');
+  if (elOp) elOp.textContent = operatorName;
+
+  ['input-station-code', 'station-switcher'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel && sel.value !== stationCode) sel.value = stationCode;
+  });
+}
+
+/**
+ * Chuyển sang một điểm trạm khu vực khác: rời phòng trực cũ và vào phòng trực
+ * của điểm trạm mới để tuyến trên nhìn thấy đúng nơi đang cần hỗ trợ.
+ */
+function switchStation(code) {
+  if (!code || code === stationCode) return;
+
+  const previousPeerId = peerId;
+  const previousRoomId = roomId;
+
+  stationCode = code;
+  roomId = defaultRoomForStation(code);
+  renderStationIdentity();
+
+  if (previousPeerId && previousRoomId) {
+    fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'leave', roomId: previousRoomId, peerId: previousPeerId })
+    }).catch(() => {});
+  }
+
+  appendChatMessage('Hệ thống', `Đã chuyển sang ${stationName(code)} [${code}].`);
+  joinRoom();
+}
 
 // Load CMS Users & Prescription Signers
 async function loadCmsData() {
@@ -234,6 +324,10 @@ function sendSignal(type, payload, to) {
 
 async function joinRoom() {
   stopPolling();
+  if (rejoinTimer) {
+    clearTimeout(rejoinTimer);
+    rejoinTimer = null;
+  }
   peerId = newPeerId();
   signalCursor = 0;
   pendingCandidates = [];
@@ -250,6 +344,7 @@ async function joinRoom() {
       symptoms: document.getElementById('patient-symptoms')?.value || ''
     });
 
+    rejoinAttempts = 0;
     signalCursor = joined.cursor || 0;
     updateConnectionBadge(true, 'Đã vào phòng khám - chờ tiếp nhận');
     appendChatMessage('Hệ thống', `Đã vào phòng khám [${roomId}].`);
@@ -275,9 +370,24 @@ async function joinRoom() {
     }
   } catch (err) {
     console.error('Không vào được phòng khám:', err);
-    updateConnectionBadge(false, 'Mất kết nối - đang thử lại...');
-    setTimeout(joinRoom, 3000);
+    scheduleRejoin();
   }
+}
+
+/**
+ * Thử vào lại phòng khám với thời gian chờ tăng dần (3s -> 6s -> 12s -> 24s,
+ * tối đa 30s). Lịch cũ luôn bị huỷ trước khi đặt lịch mới để không có nhiều
+ * vòng joinRoom cùng chạy song song, gây nhân đôi lưu lượng gọi /api/signal.
+ */
+function scheduleRejoin() {
+  if (rejoinTimer) clearTimeout(rejoinTimer);
+  const delay = Math.min(3000 * Math.pow(2, rejoinAttempts), 30000);
+  rejoinAttempts += 1;
+  updateConnectionBadge(false, `Mất kết nối - thử lại sau ${Math.round(delay / 1000)}s...`);
+  rejoinTimer = setTimeout(() => {
+    rejoinTimer = null;
+    joinRoom();
+  }, delay);
 }
 
 function stopPolling() {
@@ -286,25 +396,40 @@ function stopPolling() {
 }
 
 async function pollLoop(token) {
+  let backoff = 0;
   while (polling && pollToken === token) {
     try {
       const url = `${SIGNAL_URL}?roomId=${encodeURIComponent(roomId)}&peerId=${encodeURIComponent(peerId)}&cursor=${signalCursor}`;
+      const startedAt = Date.now();
       const res = await fetch(url);
       if (!res.ok) throw new Error('poll ' + res.status);
       const data = await res.json();
       if (!polling || pollToken !== token) return;
 
+      backoff = 0;
       if (typeof data.cursor === 'number') signalCursor = data.cursor;
       updateConnectionBadge(true, isConnected ? 'Đang kết nối với tuyến trên' : 'Đã vào phòng khám - chờ tiếp nhận');
 
-      for (const msg of (data.messages || [])) {
+      const messages = data.messages || [];
+      for (const msg of messages) {
         await handleSignalMessage(msg);
+      }
+
+      // /api/signal giữ mỗi yêu cầu tới 7 giây trước khi trả về rỗng. Nếu nó
+      // trả ngay mà không có bản tin nào (hàm bị cấu hình sai, phản hồi đổi
+      // dạng...) thì vòng lặp này sẽ quay không nghỉ và gọi hàm hàng trăm lần
+      // mỗi phút - nên đặt sàn nghỉ tối thiểu giữa hai lượt hỏi.
+      if (!messages.length && Date.now() - startedAt < POLL_MIN_GAP_MS) {
+        await new Promise(r => setTimeout(r, POLL_MIN_GAP_MS));
       }
     } catch (err) {
       if (!polling || pollToken !== token) return;
       console.warn('Mất tín hiệu signaling, đang thử lại...', err.message);
       updateConnectionBadge(false, 'Mất kết nối - đang thử lại...');
-      await new Promise(r => setTimeout(r, 2000));
+      // Giãn dần nhịp thử lại (2s -> 4s -> 8s, tối đa 15s) để một hàm
+      // /api/signal đang lỗi không bị dội hàng trăm yêu cầu mỗi phút.
+      backoff = backoff ? Math.min(backoff * 2, 15000) : 2000;
+      await new Promise(r => setTimeout(r, backoff));
     }
   }
 }
@@ -398,16 +523,40 @@ function updateConnectionBadge(connected, text) {
   const badge = document.getElementById('connection-badge');
   const badgeText = document.getElementById('connection-status-text');
 
-  if (connected) {
-    badge.className = 'flex items-center space-x-2 bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 text-xs px-3 py-1.5 rounded-full';
-    badgeText.textContent = text;
-  } else {
-    badge.className = 'flex items-center space-x-2 bg-red-950/80 border border-red-800/80 text-red-400 text-xs px-3 py-1.5 rounded-full';
-    badgeText.textContent = text;
+  if (badge) {
+    badge.className = connected
+      ? 'inline-flex items-center space-x-1 bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full'
+      : 'inline-flex items-center space-x-1 bg-red-950/80 border border-red-800/80 text-red-400 text-[10px] px-2 py-0.5 rounded-full';
   }
+  if (badgeText) badgeText.textContent = text;
+}
+
+/**
+ * WebRTC chỉ tồn tại trên origin an toàn (https hoặc localhost) và trên trình
+ * duyệt đủ mới. Kiểm tra trước để phần còn lại của bảng điều khiển (sinh hiệu,
+ * trợ lý AI, phiếu khám A5) vẫn chạy khi không gọi được video.
+ */
+function webRTCSupported() {
+  return typeof RTCPeerConnection === 'function'
+    && typeof RTCSessionDescription === 'function'
+    && typeof RTCIceCandidate === 'function';
+}
+
+let webRTCWarningShown = false;
+function warnWebRTCUnavailable() {
+  updateConnectionBadge(false, 'Trình duyệt không hỗ trợ gọi video');
+  if (webRTCWarningShown) return;
+  webRTCWarningShown = true;
+  console.warn('WebRTC không khả dụng: cần trang https (hoặc localhost) và trình duyệt hỗ trợ.');
+  appendChatMessage(
+    'Hệ thống',
+    'Thiết bị/trình duyệt này chưa gọi được video (cần truy cập bằng https). '
+    + 'Các chức năng nhập sinh hiệu, trợ lý AI và in phiếu khám A5 vẫn dùng bình thường.'
+  );
 }
 
 // 2. WebRTC Audio/Video Connection Setup
+/** @returns {boolean} true nếu đã tạo được kết nối ngang hàng. */
 function initPeerConnection() {
   if (peerConnection) {
     try {
@@ -415,6 +564,12 @@ function initPeerConnection() {
       peerConnection.onicecandidate = null;
       peerConnection.close();
     } catch (err) {}
+    peerConnection = null;
+  }
+
+  if (!webRTCSupported()) {
+    warnWebRTCUnavailable();
+    return false;
   }
 
   const configuration = {
@@ -425,7 +580,14 @@ function initPeerConnection() {
     iceCandidatePoolSize: 4
   };
 
-  peerConnection = new RTCPeerConnection(configuration);
+  try {
+    peerConnection = new RTCPeerConnection(configuration);
+  } catch (err) {
+    peerConnection = null;
+    console.error('Không khởi tạo được RTCPeerConnection:', err);
+    warnWebRTCUnavailable();
+    return false;
+  }
 
   // Add local stream tracks to WebRTC connection
   if (localStream) {
@@ -457,10 +619,12 @@ function initPeerConnection() {
       sendSignal('ice', event.candidate);
     }
   };
+
+  return true;
 }
 
 async function createWebRTCOffer() {
-  if (!peerConnection) initPeerConnection();
+  if (!peerConnection && !initPeerConnection()) return;
   try {
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
@@ -472,7 +636,7 @@ async function createWebRTCOffer() {
 
 async function handleWebRTCOffer(offer) {
   if (!offer) return;
-  if (!peerConnection) initPeerConnection();
+  if (!peerConnection && !initPeerConnection()) return;
   try {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
     await drainPendingCandidates();
@@ -782,6 +946,14 @@ async function sendVitalsToDoctor() {
   // Update UI local cards
   updateVitalsCards(currentVitals);
 
+  // Bật biểu ngữ cảnh báo ngay tại trạm, không phải chờ máy chủ trả lời.
+  const localEval = evaluateVitalsLocally(currentVitals);
+  if (localEval.alerts.length) {
+    showAlertBanner(localEval.alerts.map(a => a.msg).join(' '), localEval.status);
+  } else {
+    closeAlertBanner();
+  }
+
   playBeepTone(1000, 150);
 
   try {
@@ -809,13 +981,11 @@ async function sendVitalsToDoctor() {
     const result = await response.json();
     if (result.success) {
       appendChatMessage('Sinh hiệu', `Đã đồng bộ chỉ số: HA ${bpSys}/${bpDia} mmHg, SpO2 ${spo2}%, Tim ${heartRate} bpm.`);
-      
-      // Check emergency alerts
-      if (result.data?.evaluation?.alerts?.length > 0) {
-        const criticalMsg = result.data.evaluation.alerts.map(a => a.msg).join(' ');
-        showAlertBanner(criticalMsg);
-      } else {
-        closeAlertBanner();
+
+      // Ưu tiên kết quả đánh giá của máy chủ nếu có.
+      const evaluation = result.data?.evaluation;
+      if (evaluation?.alerts?.length) {
+        showAlertBanner(evaluation.alerts.map(a => a.msg).join(' '), evaluation.status);
       }
 
       // Automatically trigger AI Co-pilot analysis on new vitals submit
@@ -823,7 +993,67 @@ async function sendVitalsToDoctor() {
     }
   } catch (err) {
     console.error('Error submitting vitals:', err);
+    appendChatMessage('Hệ thống', 'Không gửi được sinh hiệu lên máy chủ, chỉ số vẫn được lưu tại màn hình trạm.');
   }
+}
+
+/**
+ * Đánh giá sinh hiệu ngay tại trình duyệt, dùng đúng ngưỡng của /api/vitals.
+ * Nhờ vậy biểu ngữ cảnh báo vẫn bật kịp khi đường truyền tới máy chủ bị chậm.
+ */
+function evaluateVitalsLocally(v) {
+  const alerts = [];
+  let status = 'NORMAL';
+
+  const num = (x) => Number(String(x).replace(',', '.'));
+  const critical = (msg) => { alerts.push({ level: 'CRITICAL', msg }); status = 'CRITICAL'; };
+  const warn = (msg) => { alerts.push({ level: 'WARNING', msg }); if (status !== 'CRITICAL') status = 'WARNING'; };
+
+  const spo2 = num(v.spo2);
+  const sys = num(v.bpSys);
+  const dia = num(v.bpDia);
+  const hr = num(v.heartRate);
+  const temp = num(v.temperature);
+
+  if (Number.isFinite(spo2)) {
+    if (spo2 < 92) critical(`CẢNH BÁO CẤP CỨU: SpO2 giảm nguy hiểm (${spo2}% < 92%). Cần thở Oxy hỗ trợ ngay!`);
+    else if (spo2 < 95) warn(`SpO2 thấp (${spo2}%). Theo dõi sát đường hô hấp.`);
+  }
+  if (Number.isFinite(sys) && Number.isFinite(dia)) {
+    if (sys >= 160 || dia >= 100) critical(`CẢNH BÁO CẤP CỨU: Cơn tăng huyết áp (${sys}/${dia} mmHg). Nguy cơ biến cố tim mạch/đột quỵ!`);
+    else if (sys >= 140 || sys < 90 || dia >= 90 || dia < 60) warn(`Huyết áp bất thường: ${sys}/${dia} mmHg.`);
+  }
+  if (Number.isFinite(hr)) {
+    if (hr >= 130 || hr <= 45) critical(`CẢNH BÁO CẤP CỨU: Nhịp tim ${hr} bpm ngoài ngưỡng an toàn.`);
+    else if (hr > 100 || hr < 55) warn(`Nhịp tim bất thường: ${hr} bpm.`);
+  }
+  if (Number.isFinite(temp)) {
+    if (temp >= 39.5 || temp <= 35) critical(`CẢNH BÁO CẤP CỨU: Nhiệt độ ${temp}°C. Nguy cơ sốt cao/hạ nhiệt độ.`);
+    else if (temp >= 38.5) warn(`Sốt cao: ${temp}°C.`);
+  }
+
+  return { status, alerts };
+}
+
+/** Đổi màu thẻ sinh hiệu theo mức nguy hiểm: bình thường / cảnh báo / cấp cứu. */
+function paintVitalCard(cardId, level) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  if (level === 'CRITICAL') {
+    card.className = 'bg-red-950/90 p-2.5 rounded-xl border-2 border-red-600 text-center animate-pulse';
+  } else if (level === 'WARNING') {
+    card.className = 'bg-amber-950/90 p-2.5 rounded-xl border-2 border-amber-600 text-center';
+  } else {
+    card.className = 'bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center';
+  }
+}
+
+function levelFor(value, warnFn, criticalFn) {
+  const n = Number(String(value).replace(',', '.'));
+  if (!Number.isFinite(n)) return 'NORMAL';
+  if (criticalFn(n)) return 'CRITICAL';
+  if (warnFn(n)) return 'WARNING';
+  return 'NORMAL';
 }
 
 function updateVitalsCards(v) {
@@ -832,32 +1062,35 @@ function updateVitalsCards(v) {
     if (el) el.textContent = text;
   };
 
+  // Thẻ sinh hiệu ở cột nhập liệu
   setText('display-bp', `${v.bpSys}/${v.bpDia}`);
-  setText('display-hr', v.heartRate);
+  setText('display-hr', `${v.heartRate} bpm`);
   setText('display-spo2', `${v.spo2}%`);
   setText('display-temp', `${v.temperature}°C`);
 
-  // Update In-Video HUD Overlay
+  // Thẻ HUD chồng trên khung hình khám
   setText('hud-bp', `${v.bpSys}/${v.bpDia}`);
   setText('hud-hr', v.heartRate);
   setText('hud-spo2', `${v.spo2}%`);
   setText('hud-temp', `${v.temperature}°C`);
 
   const pName = document.getElementById('patient-name')?.value || 'Bệnh nhân';
-  const pAge = document.getElementById('patient-age')?.value || '45';
-  setText('hud-patient-name', `${pName} (${pAge}T)`);
+  const pAge = document.getElementById('patient-age')?.value || '';
+  const pGender = document.getElementById('patient-gender')?.value || '';
+  const detail = [pAge ? `${pAge}T` : '', pGender].filter(Boolean).join(' · ');
+  setText('hud-patient-name', detail ? `${pName} (${detail})` : pName);
 
-  // Color Coding Card Alert logic
-  const cardSpO2 = document.getElementById('card-spo2');
-  if (cardSpO2) {
-    if (Number(v.spo2) < 92) {
-      cardSpO2.className = 'bg-red-950/90 p-2.5 rounded-xl border-2 border-red-600 text-center animate-pulse';
-    } else if (Number(v.spo2) < 95) {
-      cardSpO2.className = 'bg-amber-950/90 p-2.5 rounded-xl border-2 border-amber-600 text-center';
-    } else {
-      cardSpO2.className = 'bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center';
-    }
-  }
+  // Tô màu cảnh báo cho từng thẻ chỉ số
+  paintVitalCard('card-spo2', levelFor(v.spo2, n => n < 95, n => n < 92));
+  paintVitalCard('card-hr', levelFor(v.heartRate, n => n > 100 || n < 55, n => n >= 130 || n <= 45));
+  paintVitalCard('card-temp', levelFor(v.temperature, n => n >= 38.5, n => n >= 39.5 || n <= 35));
+
+  const sys = Number(v.bpSys);
+  const dia = Number(v.bpDia);
+  let bpLevel = 'NORMAL';
+  if (sys >= 160 || dia >= 100) bpLevel = 'CRITICAL';
+  else if (sys >= 140 || sys < 90 || dia >= 90 || dia < 60) bpLevel = 'WARNING';
+  paintVitalCard('card-bp', bpLevel);
 }
 
 /**
@@ -968,15 +1201,31 @@ function renderAIResults(data) {
 
 // 7. Finish Consultation & Export Examination Sheet Report
 async function finishAndExportReport() {
-  const patientName = document.getElementById('patient-name')?.value || 'Trần Văn Nam';
-  const patientAge = document.getElementById('patient-age')?.value || '58';
-  const patientGender = document.getElementById('patient-gender')?.value || 'Nam';
-  const symptoms = document.getElementById('patient-symptoms')?.value || 'Chưa ghi nhận';
-  const clinicalNotes = document.getElementById('clinical-notes')?.value || 'Bệnh nhân tỉnh táo, tim phổi ổn định.';
+  const val = (id) => document.getElementById(id)?.value?.trim() || '';
 
-  const diagnosisText = currentAIAnalysis?.diagnosisList ? currentAIAnalysis.diagnosisList.join('; ') : 'Viêm đường hô hấp trên cấp tính (J06.9)';
-  const prescriptionText = currentAIAnalysis?.prescriptions ? currentAIAnalysis.prescriptions.map((rx, idx) => `${idx + 1}. ${rx.name} - ${rx.dosage}`).join('\n') : '1. Paracetamol 500mg - Uống 1 viên x 3 lần/ngày khi sốt >= 38.5°C';
+  const patientName = val('patient-name') || 'Bệnh nhân';
+  const patientAge = val('patient-age') || '';
+  const patientGender = val('patient-gender') || 'Nam';
+  const symptoms = val('patient-symptoms') || 'Chưa ghi nhận';
+  const clinicalNotes = val('clinical-notes') || 'Bệnh nhân tỉnh táo, tim phổi ổn định.';
 
+  // Kết luận do cán bộ trạm / bác sĩ tư vấn gõ trực tiếp được ưu tiên hơn gợi ý của AI.
+  const manualDiagnosis = val('station-dx-diagnosis');
+  const manualDrugs = val('station-dx-drugs');
+  const manualAdvice = val('station-doctor-advice');
+
+  const aiDiagnosis = currentAIAnalysis?.diagnosisList?.length
+    ? currentAIAnalysis.diagnosisList.join('; ')
+    : 'Viêm đường hô hấp trên cấp tính (J06.9)';
+  const aiPrescription = currentAIAnalysis?.prescriptions?.length
+    ? currentAIAnalysis.prescriptions.map((rx, idx) => `${idx + 1}. ${rx.name} - ${rx.dosage}`).join('\n')
+    : '1. Paracetamol 500mg - Uống 1 viên x 3 lần/ngày khi sốt >= 38.5°C';
+
+  const diagnosisText = manualDiagnosis || aiDiagnosis;
+  const prescriptionText = manualDrugs || aiPrescription;
+  const treatmentPlan = 'Điều trị nội khoa tại điểm trạm / Theo dõi 48 giờ';
+
+  let reportData = null;
   try {
     const response = await fetch('/api/examination-report', {
       method: 'POST',
@@ -992,96 +1241,127 @@ async function finishAndExportReport() {
         clinicalNotes,
         diagnosis: diagnosisText,
         icd10: currentAIAnalysis?.icd10Codes?.join(', ') || 'J06.9',
-        treatmentPlan: 'Điều trị nội khoa tại điểm trạm / Theo dõi 48 giờ',
+        treatmentPlan,
         prescription: prescriptionText,
-        doctorNotes: ''
+        doctorNotes: manualAdvice
       })
     });
-
     const result = await response.json();
-    if (result.success && result.data) {
-      const setText = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = val;
-      };
-      const setVal = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val;
-      };
-
-      // Populate Report Modal
-      setText('rpt-code', `PK-${result.data.reportCode || Date.now().toString().slice(-6)}`);
-      setText('rpt-date', `Ngày: ${new Date().toLocaleDateString('vi-VN')}`);
-      
-      // Update both static view elements and input elements
-      setText('rpt-patient-name', patientName);
-      setVal('rpt-edit-patient-name', patientName);
-
-      setText('rpt-patient-age-gender', `${patientAge} tuổi - ${patientGender}`);
-      setVal('rpt-edit-age-gender', `${patientAge} tuổi - ${patientGender}`);
-
-      setText('rpt-symptoms', symptoms);
-      setText('rpt-station', stationCode);
-      
-      setText('rpt-operator', operatorName);
-      setVal('rpt-edit-operator', operatorName);
-      setText('rpt-sig-operator-name', operatorName);
-
-      // Report Vitals
-      setText('rpt-val-bp', `${currentVitals.bpSys}/${currentVitals.bpDia}`);
-      setText('rpt-val-hr', `${currentVitals.heartRate} bpm`);
-      setText('rpt-val-spo2', `${currentVitals.spo2}%`);
-      setText('rpt-val-temp', `${currentVitals.temperature}°C`);
-      setText('rpt-val-weight', `${currentVitals.weight || 60} kg`);
-
-      const vitalsRow = document.getElementById('rpt-vitals-row');
-      if (vitalsRow) {
-        vitalsRow.innerHTML = `
-          <td class="p-1.5 border border-slate-300">${currentVitals.bpSys}/${currentVitals.bpDia}</td>
-          <td class="p-1.5 border border-slate-300">${currentVitals.heartRate}</td>
-          <td class="p-1.5 border border-slate-300">${currentVitals.spo2}%</td>
-          <td class="p-1.5 border border-slate-300">${currentVitals.temperature}°C</td>
-          <td class="p-1.5 border border-slate-300">${currentVitals.weight || 60}</td>
-        `;
-      }
-
-      setText('rpt-clinical-notes', clinicalNotes);
-      
-      setText('rpt-diagnosis', diagnosisText);
-      setVal('rpt-edit-diagnosis', diagnosisText);
-
-      setText('rpt-treatment-plan', result.data.treatmentPlan || 'Điều trị nội khoa tại điểm trạm / Theo dõi 48 giờ');
-      setVal('rpt-edit-treatment', result.data.treatmentPlan || 'Điều trị nội khoa tại điểm trạm / Theo dõi 48 giờ');
-
-      const rptRx = document.getElementById('rpt-prescriptions');
-      if (rptRx) rptRx.innerHTML = prescriptionText.split('\n').map(p => `<p>${p}</p>`).join('');
-      setVal('rpt-edit-prescription', prescriptionText);
-
-      setText('rpt-sig-operator', operatorName);
-
-      // Open Modal safely
-      const overlay = document.getElementById('modal-overlay');
-      const rptModal = document.getElementById('report-modal');
-      if (overlay) overlay.classList.remove('hidden');
-      if (rptModal) {
-        document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
-        rptModal.classList.remove('hidden');
-      }
-
-      // Đánh dấu buổi khám đã hoàn tất.
-      signalPost({ action: 'complete' })
-        .catch(err => console.warn('Không cập nhật được trạng thái phòng khám:', err.message));
-    }
+    if (result.success) reportData = result.data;
   } catch (err) {
     console.error('Error exporting report:', err);
+  }
+
+  // Phiếu khám vẫn phải in được kể cả khi không lưu được lên máy chủ.
+  renderReportModal({
+    reportData,
+    patientName,
+    patientAge,
+    patientGender,
+    symptoms,
+    clinicalNotes,
+    diagnosisText,
+    prescriptionText,
+    treatmentPlan,
+    advice: manualAdvice
+  });
+
+  if (!reportData) {
+    appendChatMessage('Hệ thống', 'Chưa lưu được phiếu khám lên máy chủ - bản in A5 vẫn sẵn sàng để in.');
+    return;
+  }
+
+  // Đánh dấu buổi khám đã hoàn tất.
+  signalPost({ action: 'complete' })
+    .catch(err => console.warn('Không cập nhật được trạng thái phòng khám:', err.message));
+}
+
+/** Đổ toàn bộ dữ liệu buổi khám vào cửa sổ Phiếu khám & Đơn thuốc khổ A5. */
+function renderReportModal(ctx) {
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+  const setVal = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  };
+
+  const code = ctx.reportData?.reportCode || `PK-${Date.now().toString().slice(-6)}`;
+  setText('rpt-code', String(code).startsWith('PK-') ? code : `PK-${code}`);
+  setText('rpt-date', `Ngày: ${new Date().toLocaleDateString('vi-VN')}`);
+  setText('rpt-station', `${stationCode} - ${stationName(stationCode)}`);
+
+  // Thông tin bệnh nhân & cán bộ (các ô cho phép sửa trực tiếp trước khi in)
+  setVal('rpt-edit-patient-name', ctx.patientName);
+  const ageGender = [ctx.patientAge ? `${ctx.patientAge} tuổi` : '', ctx.patientGender].filter(Boolean).join(' - ');
+  setVal('rpt-edit-age-gender', ageGender);
+  setVal('rpt-edit-operator', operatorName);
+  setText('rpt-sig-operator-name', operatorName);
+
+  setVal('rpt-edit-symptoms', ctx.symptoms);
+  setVal('rpt-edit-clinical-notes', ctx.clinicalNotes);
+
+  // Sinh hiệu
+  const v = currentVitals;
+  setText('rpt-val-bp', `${v.bpSys}/${v.bpDia}`);
+  setText('rpt-val-hr', `${v.heartRate} bpm`);
+  setText('rpt-val-spo2', `${v.spo2}%`);
+  setText('rpt-val-temp', `${v.temperature}°C`);
+  setText('rpt-val-weight', `${v.weight || 60} kg`);
+
+  // Chẩn đoán, hướng xử trí, đơn thuốc, lời dặn
+  setVal('rpt-edit-diagnosis', ctx.diagnosisText);
+  setVal('rpt-edit-treatment', ctx.reportData?.treatmentPlan || ctx.treatmentPlan);
+  setVal('rpt-edit-prescription', ctx.prescriptionText);
+  if (ctx.advice) setVal('rpt-edit-advice', ctx.advice);
+
+  // Chữ ký số của Bác sĩ kê đơn (do engine liên thông trong trang chính quản lý)
+  if (typeof window.renderSignerSelectors === 'function') window.renderSignerSelectors();
+  if (typeof window.renderActiveSignerPreview === 'function') window.renderActiveSignerPreview();
+
+  openReportModal();
+}
+
+/**
+ * window.openModal() ẩn mọi .modal-content trước khi mở cửa sổ mới, nên phiếu
+ * khám sẽ che mất Bảng điều khiển trạm. Ghi nhớ trạng thái để khi đóng phiếu
+ * thì cán bộ được trả về đúng bảng điều khiển đang khám, không bị đẩy ra trang
+ * chủ giữa lúc cuộc gọi vẫn đang diễn ra.
+ */
+let stationPanelWasOpen = false;
+
+function openReportModal() {
+  const panel = document.getElementById('modal-station-panel');
+  stationPanelWasOpen = !!panel && !panel.classList.contains('hidden');
+
+  if (typeof window.openModal === 'function') {
+    window.openModal('report-modal');
+    return;
+  }
+  const overlay = document.getElementById('modal-overlay');
+  const rptModal = document.getElementById('report-modal');
+  if (overlay) overlay.classList.remove('hidden');
+  if (rptModal) {
+    document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
+    rptModal.classList.remove('hidden');
   }
 }
 
 function closeReportModal() {
   const rptModal = document.getElementById('report-modal');
   if (rptModal) rptModal.classList.add('hidden');
+
+  const panel = document.getElementById('modal-station-panel');
+  if (stationPanelWasOpen && panel) {
+    panel.classList.remove('hidden');
+    stationPanelWasOpen = false;
+    return;
+  }
+
   const overlay = document.getElementById('modal-overlay');
   if (overlay) overlay.classList.add('hidden');
+  document.body.style.overflow = 'auto';
 }
 
 // 8. Station Login Modal Handlers
@@ -1155,6 +1435,7 @@ function sendChatMessage() {
 
 function appendChatMessage(sender, text, time = '') {
   const chatBox = document.getElementById('chat-box');
+  if (!chatBox) return;
   const msgEl = document.createElement('div');
   msgEl.className = 'text-slate-200 leading-normal bg-slate-900/80 p-1 rounded border border-slate-800';
   msgEl.innerHTML = `<span class="font-semibold text-blue-400">${sender}</span> <span class="text-[9px] text-slate-500">${time}</span>: <span>${text}</span>`;
@@ -1163,13 +1444,29 @@ function appendChatMessage(sender, text, time = '') {
 }
 
 // 10. Audio & Alert Helpers
-function showAlertBanner(msg) {
-  document.getElementById('alert-banner-msg').textContent = msg;
-  document.getElementById('alert-banner').classList.remove('hidden');
+
+/**
+ * Biểu ngữ cảnh báo khẩn cấp cho chỉ số sinh tồn nguy hiểm.
+ * level = 'CRITICAL' (đỏ, nháy) hoặc 'WARNING' (hổ phách).
+ */
+function showAlertBanner(msg, level = 'CRITICAL') {
+  const banner = document.getElementById('alert-banner');
+  const msgEl = document.getElementById('alert-banner-msg');
+  if (msgEl) msgEl.textContent = msg;
+  if (!banner) return;
+
+  const isCritical = level !== 'WARNING';
+  banner.className = isCritical
+    ? 'bg-rose-950/90 border-b border-rose-700 px-6 py-2.5 text-xs text-rose-200 flex items-center justify-between font-bold animate-pulse'
+    : 'bg-amber-950/90 border-b border-amber-700 px-6 py-2.5 text-xs text-amber-200 flex items-center justify-between font-bold';
+  banner.classList.remove('hidden');
+
+  if (isCritical) playBeepTone(1200, 320);
 }
 
 function closeAlertBanner() {
-  document.getElementById('alert-banner').classList.add('hidden');
+  const banner = document.getElementById('alert-banner');
+  if (banner) banner.classList.add('hidden');
 }
 
 function startCallTimer() {
@@ -1207,6 +1504,8 @@ window.startQueuePolling = startQueuePolling;
 window.refreshIncomingCallsQueue = refreshIncomingCallsQueue;
 window.acceptPatientCall = acceptPatientCall;
 window.joinRoom = joinRoom;
+window.switchStation = switchStation;
+window.stationList = STATIONS;
 window.toggleCameraDevice = toggleCameraDevice;
 window.toggleMic = toggleMic;
 window.toggleVideo = toggleVideo;

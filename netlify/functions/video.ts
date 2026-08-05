@@ -1,5 +1,12 @@
 import { getStore } from "@netlify/blobs";
 
+/**
+ * Metadata của Netlify Blobs có kiểu Record<string, unknown>, nên contentType
+ * phải được kiểm tra là chuỗi trước khi đưa vào header của Response.
+ */
+const asMime = (value: unknown, fallback: string) =>
+  typeof value === "string" && value.trim() ? value : fallback;
+
 export default async (req: Request) => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
@@ -30,7 +37,7 @@ export default async (req: Request) => {
       });
     }
 
-    const mimeType = metadata.metadata?.contentType || "video/mp4";
+    const mimeType = asMime(metadata.metadata?.contentType, "video/mp4");
     const blob = await store.get(id, { type: "blob" });
     if (!blob) {
       return new Response(JSON.stringify({ error: "Video file empty" }), {
