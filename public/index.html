@@ -276,6 +276,10 @@
                         <a href="#" onclick="window.switchPage('news')" id="nav-news" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Tin tức & Lịch tiêm</a>
                         <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế')" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Tải Tài Liệu</a>
                         
+                        <button onclick="window.openStationPanel()" class="bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold transition text-[15px] flex items-center gap-2 px-4 py-2 rounded-full shadow-md border border-emerald-500/40">
+                            <i class="fas fa-notes-medical text-lg text-emerald-400"></i> Bảng Điểm Trạm
+                        </button>
+
                         <button onclick="window.openModal('modal-aisearch')" class="text-white hover:bg-purple-700 font-bold transition text-[15px] flex items-center gap-2 bg-[#5e35b1] px-4 py-2 rounded-full border border-purple-400/30 shadow-md">
                             <i class="fas fa-robot text-lg"></i> Tìm kiếm AI
                         </button>
@@ -300,7 +304,8 @@
                 <a href="#" onclick="window.switchPage('dept'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Khoa & Phòng Chức năng</a>
                 <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Tin tức & Lịch tiêm</a>
                 <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Kho Tài liệu & Biểu mẫu</a>
-                <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-4 text-center px-4 py-3 text-white font-bold bg-[#1976d2] hover:bg-[#1565c0] rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
+                <a href="#" onclick="window.openStationPanel(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-2 text-center px-4 py-3 text-emerald-300 font-bold bg-slate-800 hover:bg-slate-700 rounded-xl shadow-md border border-emerald-500/40"><i class="fas fa-notes-medical mr-2"></i> Bảng điều khiển Cán bộ Điểm trạm (/tram)</a>
+                <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-2 text-center px-4 py-3 text-white font-bold bg-[#1976d2] hover:bg-[#1565c0] rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
                 <a href="tel:115" class="btn-call-emergency block mt-2 text-center px-4 py-3 text-white font-bold bg-[#e53935] hover:bg-[#d32f2f] rounded-xl shadow-md"><i class="fas fa-truck-medical mr-2"></i> Gọi Cấp Cứu 115</a>
                 <a href="tel:0382103002" class="btn-call-station block mt-2 text-center px-4 py-3 text-white font-bold bg-emerald-600 rounded-xl shadow-md"><i class="fas fa-phone-volume mr-2"></i> Gọi Trạm Y tế Bát Xát: 0382.103.002</a>
             </div>
@@ -1573,6 +1578,15 @@
                 </div>
             </div>
 
+            <!-- Emergency Alert Banner -->
+            <div id="alert-banner" class="hidden bg-rose-950/90 border-b border-rose-700 px-6 py-2.5 text-xs text-rose-200 flex items-center justify-between font-bold animate-pulse">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-triangle-exclamation text-rose-400 text-sm"></i>
+                    <span id="alert-banner-msg">Cảnh báo sinh hiệu bất thường!</span>
+                </div>
+                <button onclick="window.closeAlertBanner()" class="text-rose-400 hover:text-white text-xs px-2"><i class="fas fa-times"></i></button>
+            </div>
+
             <!-- Content Grid -->
             <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <!-- Cột trái: Hàng đợi cuộc gọi & Sinh hiệu bệnh nhân (4 col) -->
@@ -1596,9 +1610,22 @@
                             <i class="fas fa-heartbeat"></i> Nhập nhanh Sinh hiệu Bệnh nhân
                         </h4>
                         <div class="space-y-2 text-xs">
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-name">Họ và tên bệnh nhân</label>
+                                    <input type="text" id="patient-name" value="Nguyễn Văn B" placeholder="VD: Nguyễn Văn B" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-age">Tuổi</label>
+                                    <input type="number" id="patient-age" value="45" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 font-bold text-white text-center focus:outline-none focus:border-amber-500">
+                                </div>
+                            </div>
                             <div>
-                                <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-name">Họ và tên bệnh nhân</label>
-                                <input type="text" id="patient-name" placeholder="VD: Nguyễn Văn B" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-amber-500">
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-gender">Giới tính</label>
+                                <select id="patient-gender" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-amber-500">
+                                    <option value="Nam">Nam</option>
+                                    <option value="Nữ">Nữ</option>
+                                </select>
                             </div>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
