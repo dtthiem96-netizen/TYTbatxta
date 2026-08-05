@@ -4,6 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cổng Quản Trị Nội Bộ - Trạm Y tế Bát Xát</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- ================= NETLIFY IDENTITY (ĐĂNG NHẬP NỘI BỘ) ================= -->
+    <!-- Trang này nằm sau cửa RBAC của Netlify (xem netlify.toml): chỉ tài khoản
+         Identity có role "admin" hoặc "can_bo_tram" mới nhận được status 200.
+         Widget được nạp ở đây để: (1) giữ cookie nf_jwt luôn còn hiệu lực khi
+         phiên làm việc kéo dài quá một giờ, (2) cho phép đăng xuất thật sự,
+         (3) hiển thị đúng tên cán bộ đang đăng nhập. -->
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js" defer></script>
+    <script>
+    (function () {
+        var ALLOWED_ROLES = ['admin', 'can_bo_tram'];
+
+        function rolesOf(user) {
+            return (user && user.app_metadata && user.app_metadata.roles) || [];
+        }
+
+        window.addEventListener('load', function () {
+            var identity = window.netlifyIdentity;
+            if (!identity) return;
+
+            identity.init();
+
+            // Hết hạn token sau một giờ. Làm mới định kỳ để cán bộ đang nhập liệu
+            // giữa buổi không bị cửa RBAC đẩy ra trang 401 khi tải lại trang.
+            setInterval(function () {
+                if (identity.currentUser()) identity.refresh();
+            }, 30 * 60 * 1000);
+
+            identity.on('logout', function () {
+                window.location.replace('/');
+            });
+
+            // Chỉ để hiển thị và ghi log; quyền truy cập thật do CDN quyết định.
+            var user = identity.currentUser();
+            window.NETLIFY_IDENTITY_USER = user || null;
+            window.NETLIFY_IDENTITY_ROLES = rolesOf(user);
+            window.netlifyIdentityLogout = function () { identity.logout(); };
+            if (user && !rolesOf(user).some(function (r) { return ALLOWED_ROLES.indexOf(r) !== -1; })) {
+                console.warn('Tài khoản Identity hiện tại không có role hợp lệ:', rolesOf(user));
+            }
+        });
+    })();
+    </script>
     <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -1,0 +1,27 @@
+name: 'Kiểm tra tính toàn vẹn bản dựng Trạm Y tế'
+description: 'Kiểm tra cú pháp index.html/app.js và đối chiếu bản gốc với bản phân phối trong public/ trước khi triển khai lên Netlify.'
+author: 'Trạm Y tế Bát Xát'
+
+branding:
+  icon: 'activity'
+  color: 'green'
+
+inputs:
+  root:
+    description: 'Thư mục gốc của dự án cần kiểm tra.'
+    required: false
+    default: '.'
+  strict:
+    description: 'Đặt "true" để coi mọi cảnh báo (ID DOM thiếu, tệp lệch nhau) là lỗi và dừng workflow.'
+    required: false
+    default: 'false'
+
+outputs:
+  errors:
+    description: 'Số lỗi nghiêm trọng phát hiện được.'
+  warnings:
+    description: 'Số cảnh báo phát hiện được.'
+
+runs:
+  using: 'node24'
+  main: 'main.js'

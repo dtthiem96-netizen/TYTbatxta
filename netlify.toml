@@ -1,13 +1,44 @@
+# =============================================================================
+#  Trạm Y tế Bát Xát - Cấu hình triển khai Netlify
+#  Dự án web tĩnh (HTML/CSS/JS) + Netlify Functions cho API /api/*
+# =============================================================================
+
 [build]
+  # Thư mục publish là thư mục gốc của repo (index.html, app.js, logo.png,
+  # assets/, admin/, public/ đều nằm ở đây). Đây là web tĩnh nên không có bước
+  # biên dịch nào.
   publish = "."
+  # KHÔNG khai báo command ở đây: lệnh build được đặt trong giao diện Netlify
+  # (hiện là "npm run build", xem commandOrigin: ui trong log build). Nếu khai
+  # báo command ở tệp này thì nó sẽ ghi đè giá trị trong giao diện.
+  #
+  # "npm run build" ứng với script build trong package.json, chạy node main.js -
+  # bộ kiểm tra tính toàn vẹn. Ở chế độ không strict nó chỉ trả mã lỗi khi có lỗi
+  # nghiêm trọng thật (khối <script> nội tuyến sai cú pháp, số thẻ mở/đóng
+  # <script> không khớp, app.js sai cú pháp) - đúng những trường hợp mà trang sẽ
+  # chết nếu vẫn cho triển khai. Cảnh báo đồng bộ không chặn triển khai.
+  #
+  # Cố ý KHÔNG chạy npm run test:smoke ở đây: bộ nạp thử cần jsdom và chạy lâu
+  # hơn, chỗ của nó là GitHub Actions. Một điểm khác biệt của jsdom giữa hai môi
+  # trường không được phép chặn bản triển khai của trạm y tế.
+
+[build.environment]
+  NODE_VERSION = "24"
 
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"
 
 [dev]
   port = 8889
   publish = "."
   framework = "#static"
+
+# -----------------------------------------------------------------------------
+#  REDIRECTS - xử lý theo thứ tự từ trên xuống, luật khớp đầu tiên sẽ thắng.
+#  Lưu ý: Netlify khớp Serverless Functions (/api/*) TRƯỚC khi chạy redirects,
+#  nên luật bắt-tất-cả bên dưới không che các endpoint API.
+# -----------------------------------------------------------------------------
 
 # Đường dẫn gọn cho Bảng điều khiển Cán bộ Y tế Điểm trạm.
 [[redirects]]
@@ -20,8 +51,8 @@
   to = "/public/index.html"
   status = 200
 
-# Thư mục gốc được publish nguyên trạng, nên chặn các tệp chỉ dùng cho máy chủ nội bộ
-# để chúng không tải về được từ trang công khai.
+# Thư mục gốc được publish nguyên trạng, nên chặn các tệp chỉ dùng cho máy chủ
+# nội bộ để chúng không tải về được từ trang công khai.
 [[redirects]]
   from = "/telehealth.db"
   to = "/"
@@ -33,3 +64,291 @@
   to = "/"
   status = 404
   force = true
+
+# Mã nguồn và tệp cấu hình của bản dựng cũng nằm trong thư mục gốc nên đều tải
+# về được nếu không chặn: sơ đồ cơ sở dữ liệu (db/), nguồn TypeScript của các
+# Netlify Function (netlify/), thành phần React chưa dùng (frontend/), bộ kiểm
+# tra (main.js, tools/) và khai báo phụ thuộc. Không có tệp nào trong số này
+# được trang gọi tới - trang chỉ nạp /app.js - nên chặn hết là an toàn.
+# Lưu ý: /netlify/* khác /.netlify/* (đường dẫn Image CDN và Functions lúc chạy)
+# và khác /api/* (đường dẫn công khai của các Function), nên không ảnh hưởng gì.
+[[redirects]]
+  from = "/db/*"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify/*"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/frontend/*"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/tools/*"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/main.js"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/action.yml"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/drizzle.config.ts"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package.json"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package-lock.json"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/deno.lock"
+  to = "/"
+  status = 404
+  force = true
+
+# Thư mục phụ thuộc không bao giờ được trang gọi tới. Chặn thẳng thay vì tin
+# rằng bước triển khai tự loại nó ra khỏi thư mục publish.
+[[redirects]]
+  from = "/node_modules/*"
+  to = "/"
+  status = 404
+  force = true
+
+# -----------------------------------------------------------------------------
+#  KHOÁ KHU QUẢN TRỊ BẰNG ROLE-BASED ACCESS CONTROL (RBAC)
+#
+#  Cơ chế: Netlify Identity đặt cookie nf_jwt sau khi đăng nhập. CDN của Netlify
+#  đọc cookie đó ngay tại biên, kiểm tra chữ ký và đọc app_metadata.roles, rồi
+#  mới quyết định phục vụ tệp - không có vòng gọi về máy chủ, và không thể vượt
+#  qua bằng cách sửa JavaScript trong trình duyệt.
+#
+#  force = true là BẮT BUỘC ở cả hai luật. Không có force, luật chỉ là phương án
+#  dự phòng khi không có tệp tĩnh nào khớp - mà /admin/index.html là tệp tĩnh
+#  thật, nên Netlify sẽ phục vụ thẳng nó cho mọi người và cửa khoá thành vô nghĩa.
+#
+#  Vai trò được gán ở Netlify UI: Identity > (chọn người dùng) > Roles. Đổi vai
+#  trò KHÔNG làm token đang dùng mất hiệu lực - vai trò mới có tác dụng ở lần
+#  làm mới token kế tiếp (đăng nhập lại hoặc refresh()).
+# -----------------------------------------------------------------------------
+
+# Luật 1 + 2: người có vai trò hợp lệ được phục vụ nguyên trang (status 200).
+[[redirects]]
+  from = "/admin"
+  to = "/admin/index.html"
+  status = 200
+  force = true
+  conditions = {Role = ["admin", "can_bo_tram"]}
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/:splat"
+  status = 200
+  force = true
+  conditions = {Role = ["admin", "can_bo_tram"]}
+
+# Luật 3 + 4: luật dự phòng, BẮT BUỘC phải có. Khi conditions không khớp, Netlify
+# bỏ qua luật trên và xét tiếp xuống đây. Thiếu luật này thì người không có quyền
+# nhận một trang 404 trơ trọi, không có đường nào để đăng nhập.
+# /401.html cố ý KHÔNG nằm dưới /admin/ - nếu trang đăng nhập cũng bị khoá theo
+# vai trò thì không ai vào được để mà đăng nhập.
+[[redirects]]
+  from = "/admin"
+  to = "/401.html"
+  status = 401
+  force = true
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/401.html"
+  status = 401
+  force = true
+
+# Bản sao trong public/admin tồn tại chỉ vì bộ kiểm tra đồng bộ bản phân phối.
+# Nếu để truy cập được thì nó là cửa sau đi vòng qua toàn bộ khối RBAC ở trên,
+# nên chặn thẳng: khu quản trị chỉ có duy nhất một cửa vào là /admin.
+[[redirects]]
+  from = "/public/admin/*"
+  to = "/"
+  status = 404
+  force = true
+
+# Xử lý 404: mọi đường dẫn không khớp tệp tĩnh nào đều trả về trang chính với
+# status 200 (điều hướng phía client). Luật không dùng force nên vẫn ưu tiên
+# tệp thật nếu có - phải đặt CUỐI CÙNG trong danh sách redirects.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# -----------------------------------------------------------------------------
+#  HEADERS - Cache-Control
+#  Ảnh, font, audio và mọi thứ trong assets/: cache 1 năm + immutable.
+#  HTML và /app.js: không cache, luôn kiểm tra lại để người dùng nhận bản mới.
+#
+#  Các luật được viết sao cho KHÔNG chồng nhau: tài liệu Netlify nói header cùng
+#  tên sẽ được nối giá trị lại, nên hai luật cùng khớp một đường dẫn mà đặt
+#  Cache-Control khác nhau sẽ sinh ra header vô nghĩa thay vì luật này thắng
+#  luật kia. Điều kiện không chồng nhau được main.js kiểm tra tự động.
+# -----------------------------------------------------------------------------
+
+# --- HTML: luôn tải lại bản mới nhất ---------------------------------------
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+[[headers]]
+  for = "/*/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+[[headers]]
+  for = "/*/*/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+# --- JavaScript -------------------------------------------------------------
+# CỐ Ý KHÔNG dùng luật chung "/*.js" với max-age 1 năm.
+#
+# Toàn trang chỉ nạp duy nhất một tệp JavaScript: /app.js, và tên tệp KHÔNG có
+# vân tay nội dung (index.html gọi thẳng src="/app.js"). Nếu gắn
+# "max-age=31536000, immutable" cho tệp này thì mỗi lần sửa mã, người dùng đã
+# từng mở trang sẽ tiếp tục chạy BẢN CŨ tới một năm - "immutable" còn dặn trình
+# duyệt đừng hỏi lại máy chủ dù người dùng bấm tải lại. Với một công cụ khám
+# chữa bệnh, để bản lỗi nằm lại trong máy cán bộ trạm là rủi ro không đánh đổi
+# được bằng chút băng thông tiết kiệm.
+#
+# Nên /app.js được đối xử như HTML: luôn hỏi lại máy chủ. Netlify trả ETag nên
+# lần nào không đổi cũng chỉ là một phản hồi 304 rỗng, gần như không tốn gì.
+#
+# Cũng không đặt luật "/*/*.js": nó sẽ khớp /public/app.js. Hai luật cùng khớp
+# một đường dẫn mà đặt Cache-Control khác nhau thì Netlify NỐI hai giá trị lại
+# (tài liệu về multi-value header), sinh ra một header vô nghĩa - nên các luật ở
+# đây được viết sao cho không chồng nhau.
+#
+# Khi nào cần cache 1 năm cho JS/CSS: đặt tệp có vân tay nội dung trong tên
+# (ví dụ /assets/app.9f2c1b.js) vào thư mục assets/ - đã có luật riêng bên dưới.
+[[headers]]
+  for = "/app.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+[[headers]]
+  for = "/public/app.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+# --- Cấu hình CMS -----------------------------------------------------------
+# Decap tải /admin/config.yml mỗi lần mở CMS. Nếu tệp này bị cache, người biên
+# tập sẽ thấy cấu trúc trường cũ trong khi repo đã đổi - rất khó đoán ra nguyên
+# nhân. Luôn kiểm tra lại với máy chủ.
+# (Cố ý KHÔNG đặt Content-Type ở đây: Netlify đã tự gắn Content-Type cho tệp
+# tĩnh, và hai header cùng tên sẽ bị NỐI giá trị lại thành một chuỗi vô nghĩa.)
+[[headers]]
+  for = "/admin/config.yml"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+# --- CSS --------------------------------------------------------------------
+# Hiện trang không có tệp .css riêng (giao diện dùng Tailwind qua CDN). Cũng
+# không đặt luật chung "/*.css" cache 1 năm ở đây, vì cùng một cái bẫy như
+# /app.js: một tệp .css không có vân tay nội dung mà bị đóng băng một năm thì
+# mọi sửa đổi giao diện về sau sẽ không tới được người đang dùng. Tệp CSS có
+# vân tay trong tên, đặt vào assets/, đã được luật /assets/* bên dưới lo.
+
+# --- Ảnh, icon, font, âm thanh ---------------------------------------------
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.jpeg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.gif"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.ico"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.woff2"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.mp3"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Toàn bộ thư mục tài sản tĩnh (bao gồm cả public/assets khi truy cập trực tiếp).
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/public/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# --- Bảo mật cơ bản cho mọi phản hồi ---------------------------------------
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(self), geolocation=(self)"

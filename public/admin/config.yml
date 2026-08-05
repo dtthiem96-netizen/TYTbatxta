@@ -1,0 +1,91 @@
+# =============================================================================
+#  Decap CMS (Netlify CMS) - Trạm Y tế Bát Xát
+#  Đường dẫn tệp: /admin/config.yml
+#  Trang nạp cấu hình này: /admin/decap.html
+# =============================================================================
+
+backend:
+  # git-gateway = Netlify đứng giữa CMS và GitHub. Cán bộ trạm KHÔNG cần tài
+  # khoản GitHub và KHÔNG có quyền ghi trực tiếp vào repo: mọi thay đổi đi qua
+  # Netlify Identity rồi mới tới Git API bằng token của Netlify.
+  name: git-gateway
+
+  # Nhánh mà CMS ghi vào. Repo này dùng "main".
+  branch: main
+
+  # Thông điệp commit tiếng Việt cho dễ đọc lịch sử thay đổi nội dung.
+  commit_messages:
+    create: 'Thêm {{collection}} "{{slug}}"'
+    update: 'Cập nhật {{collection}} "{{slug}}"'
+    delete: 'Xoá {{collection}} "{{slug}}"'
+    uploadMedia: 'Tải lên tệp "{{path}}"'
+    deleteMedia: 'Xoá tệp "{{path}}"'
+    openAuthoring: '{{message}}'
+
+# -----------------------------------------------------------------------------
+#  KHÔNG CHO ĐĂNG KÝ TỰ DO
+# -----------------------------------------------------------------------------
+#  Lưu ý quan trọng: config.yml KHÔNG có khoá nào tắt được đăng ký. Decap chỉ
+#  hiển thị đúng những gì dịch vụ Identity cho phép, nên việc chặn người lạ tự
+#  tạo tài khoản phải làm ở HAI chỗ trong bảng điều khiển Netlify:
+#
+#   1. Project configuration > Identity > Registration
+#      => chọn "Invite only". Khi đó GoTrue trả 403 "Signups not allowed for
+#         this instance" cho mọi lời gọi đăng ký, và tab "Sign up" biến mất
+#         khỏi hộp thoại đăng nhập. Chỉ Quản trị viên mời được người mới.
+#
+#   2. Project configuration > Identity > Services > Git Gateway > Roles
+#      => điền: admin, can_bo_tram
+#         Để trống ô này nghĩa là MỌI tài khoản Identity đều ghi được vào repo,
+#         kể cả tài khoản chỉ vừa được mời mà chưa gán vai trò. Ô Roles là lớp
+#         chặn ở tầng ghi dữ liệu, còn conditions = {Role = [...]} trong
+#         netlify.toml chặn ở tầng truy cập trang. Cần cả hai.
+#
+#  Vai trò được gán từng người tại Identity > (chọn người dùng) > Roles.
+# -----------------------------------------------------------------------------
+
+# Bài viết được lưu nháp và phải chờ duyệt trước khi xuất bản.
+# Mỗi bản nháp là một nhánh riêng trên GitHub; bảng "Workflow" trong CMS có ba
+# cột Bản nháp / Đang duyệt / Sẵn sàng, và chỉ khi bấm "Publish" thì nội dung
+# mới được trộn vào nhánh main và Netlify mới dựng lại trang.
+publish_mode: editorial_workflow
+
+# Nơi lưu tệp đính kèm do người biên tập tải lên, và đường dẫn công khai của nó.
+# LƯU Ý: ảnh trong assets/ được cache một năm (xem netlify.toml). Khi thay ảnh
+# cũ, hãy đặt TÊN TỆP MỚI thay vì ghi đè, nếu không người đã xem trang sẽ còn
+# thấy ảnh cũ rất lâu.
+media_folder: 'assets/uploads'
+public_folder: '/assets/uploads'
+
+# Hiển thị nút "Xem trang" trỏ về đúng tên miền công khai.
+site_url: 'https://tytbatxat.netlify.app'
+display_url: 'https://tytbatxat.netlify.app'
+logo_url: '/logo.png'
+
+collections:
+  # --- Tin tức (mẫu để nhân bản cho Thông báo Trạm, Lịch tiêm chủng...) -------
+  - name: 'tin-tuc'
+    label: 'Tin tức'
+    label_singular: 'Bản tin'
+    description: 'Bản tin và thông báo của Trạm Y tế. Lưu nháp rồi chờ duyệt mới xuất bản.'
+    folder: 'content/tin-tuc'
+    create: true
+    slug: '{{year}}-{{month}}-{{day}}-{{slug}}'
+    sortable_fields: ['date', 'title']
+    view_filters: []
+    fields:
+      - label: 'Tiêu đề'
+        name: 'title'
+        widget: 'string'
+        hint: 'Tiêu đề hiển thị trên trang chủ.'
+
+      - label: 'Ngày đăng'
+        name: 'date'
+        widget: 'datetime'
+        date_format: 'DD/MM/YYYY'
+        time_format: 'HH:mm'
+        format: 'YYYY-MM-DDTHH:mm:ssZ'
+
+      - label: 'Nội dung'
+        name: 'body'
+        widget: 'markdown'
