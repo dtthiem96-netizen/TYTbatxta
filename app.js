@@ -588,13 +588,21 @@ async function toggleCameraDevice() {
   const isCloseup = currentCamIndex === 1;
   const label = isCloseup ? 'Camera 2: Cận Cảnh Tổn Thương / Họng / Da' : 'Camera 1: Toàn Cảnh Phòng Khám';
 
-  // Update UI Labels
-  document.getElementById('pip-label').textContent = isCloseup ? 'Cam Cận Cảnh' : 'Cam Toàn Cảnh';
-  document.getElementById('camera-status-text').textContent = `Camera: ${isCloseup ? 'Cận Cảnh Soi Tổn Thương' : 'Góc Rộng Phòng Khám'}`;
+  // Update UI Labels safely
+  const camLabel = document.getElementById('cam-label');
+  if (camLabel) camLabel.textContent = isCloseup ? 'Cận cảnh' : 'Góc rộng';
+
+  const pipLabel = document.getElementById('pip-label');
+  if (pipLabel) pipLabel.textContent = isCloseup ? 'Cam Cận Cảnh' : 'Cam Toàn Cảnh';
+
+  const camStatus = document.getElementById('camera-status-text');
+  if (camStatus) camStatus.textContent = `Camera: ${isCloseup ? 'Cận Cảnh Soi Tổn Thương' : 'Góc Rộng Phòng Khám'}`;
   
   const badge = document.getElementById('active-cam-mode-badge');
-  badge.innerHTML = `<i class="fa-solid fa-video"></i> ${label}`;
-  badge.className = isCloseup ? 'bg-amber-950 text-amber-400 border border-amber-800 px-2.5 py-0.5 rounded-full font-medium text-[11px]' : 'bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full font-medium text-[11px]';
+  if (badge) {
+    badge.innerHTML = `<i class="fa-solid fa-video"></i> ${label}`;
+    badge.className = isCloseup ? 'bg-amber-950 text-amber-400 border border-amber-800 px-2.5 py-0.5 rounded-full font-medium text-[11px]' : 'bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full font-medium text-[11px]';
+  }
 
   // Play audio tone trigger
   playBeepTone(600, 100);
@@ -621,15 +629,17 @@ function toggleMic() {
     isMicMuted = !isMicMuted;
     audioTrack.enabled = !isMicMuted;
 
-    const micBtn = document.getElementById('btn-toggle-mic');
-    const micIcon = document.getElementById('icon-mic');
+    const micBtn = document.getElementById('btn-toggle-mic') || document.getElementById('mic-btn');
+    const micIcon = document.getElementById('icon-mic') || micBtn?.querySelector('i');
 
-    if (isMicMuted) {
-      micBtn.className = 'bg-red-900 hover:bg-red-800 text-white p-2.5 rounded-xl text-xs font-medium border border-red-700 transition flex items-center justify-center w-10 h-10 shadow';
-      micIcon.className = 'fa-solid fa-microphone-slash text-red-300 text-sm';
-    } else {
-      micBtn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl text-xs font-medium border border-slate-700 transition flex items-center justify-center w-10 h-10 shadow';
-      micIcon.className = 'fa-solid fa-microphone text-emerald-400 text-sm';
+    if (micBtn) {
+      if (isMicMuted) {
+        micBtn.className = 'w-10 h-10 rounded-xl bg-red-900 hover:bg-red-800 text-white flex items-center justify-center text-sm transition shadow border border-red-700';
+        if (micIcon) micIcon.className = 'fa-solid fa-microphone-slash text-red-300 text-sm';
+      } else {
+        micBtn.className = 'w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700';
+        if (micIcon) micIcon.className = 'fa-solid fa-microphone text-emerald-400 text-sm';
+      }
     }
   }
 }
@@ -642,15 +652,17 @@ function toggleVideo() {
     isVideoMuted = !isVideoMuted;
     videoTrack.enabled = !isVideoMuted;
 
-    const videoBtn = document.getElementById('btn-toggle-video');
-    const videoIcon = document.getElementById('icon-video');
+    const videoBtn = document.getElementById('btn-toggle-video') || document.getElementById('video-btn');
+    const videoIcon = document.getElementById('icon-video') || videoBtn?.querySelector('i');
 
-    if (isVideoMuted) {
-      videoBtn.className = 'bg-red-900 hover:bg-red-800 text-white p-2.5 rounded-xl text-xs font-medium border border-red-700 transition flex items-center justify-center w-10 h-10 shadow';
-      videoIcon.className = 'fa-solid fa-video-slash text-red-300 text-sm';
-    } else {
-      videoBtn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl text-xs font-medium border border-slate-700 transition flex items-center justify-center w-10 h-10 shadow';
-      videoIcon.className = 'fa-solid fa-video text-blue-400 text-sm';
+    if (videoBtn) {
+      if (isVideoMuted) {
+        videoBtn.className = 'w-10 h-10 rounded-xl bg-red-900 hover:bg-red-800 text-white flex items-center justify-center text-sm transition shadow border border-red-700';
+        if (videoIcon) videoIcon.className = 'fa-solid fa-video-slash text-red-300 text-sm';
+      } else {
+        videoBtn.className = 'w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700';
+        if (videoIcon) videoIcon.className = 'fa-solid fa-video text-blue-400 text-sm';
+      }
     }
   }
 }
@@ -725,9 +737,15 @@ function startSpeechToText() {
   isListeningSTT = true;
   speechRecognition.start();
 
-  document.getElementById('stt-btn-text').textContent = 'Đang thu âm...';
-  document.getElementById('stt-btn').className = 'bg-red-900/90 hover:bg-red-800 text-red-200 border border-red-600 text-[10px] px-2 py-1 rounded flex items-center gap-1 transition animate-pulse';
-  document.getElementById('stt-status').classList.remove('hidden');
+  const sttText = document.getElementById('stt-btn-text');
+  if (sttText) sttText.textContent = 'Đang thu âm...';
+
+  const sttBtn = document.getElementById('stt-btn');
+  if (sttBtn) sttBtn.className = 'bg-red-900/90 hover:bg-red-800 text-red-200 border border-red-600 text-[10px] px-2 py-1 rounded flex items-center gap-1 transition animate-pulse';
+
+  const sttStatus = document.getElementById('stt-status');
+  if (sttStatus) sttStatus.classList.remove('hidden');
+
   playBeepTone(800, 150);
 }
 
@@ -735,24 +753,29 @@ function stopSpeechToText() {
   isListeningSTT = false;
   if (speechRecognition) speechRecognition.stop();
 
-  document.getElementById('stt-btn-text').textContent = 'Giọng nói (STT)';
-  document.getElementById('stt-btn').className = 'bg-slate-700 hover:bg-slate-600 text-emerald-400 border border-emerald-500/40 text-[10px] px-2 py-1 rounded flex items-center gap-1 transition';
-  document.getElementById('stt-status').classList.add('hidden');
+  const sttText = document.getElementById('stt-btn-text');
+  if (sttText) sttText.textContent = 'Giọng nói (STT)';
+
+  const sttBtn = document.getElementById('stt-btn');
+  if (sttBtn) sttBtn.className = 'bg-slate-700 hover:bg-slate-600 text-emerald-400 border border-emerald-500/40 text-[10px] px-2 py-1 rounded flex items-center gap-1 transition';
+
+  const sttStatus = document.getElementById('stt-status');
+  if (sttStatus) sttStatus.classList.add('hidden');
 }
 
 // 5. Patient Vitals Submission & Real-time Sync
 async function sendVitalsToDoctor() {
-  const patientName = document.getElementById('patient-name').value || 'Bệnh nhân';
-  const patientAge = document.getElementById('patient-age').value || '45';
-  const patientGender = document.getElementById('patient-gender').value || 'Nam';
+  const patientName = document.getElementById('patient-name')?.value || 'Bệnh nhân';
+  const patientAge = document.getElementById('patient-age')?.value || '45';
+  const patientGender = document.getElementById('patient-gender')?.value || 'Nam';
 
-  const bpSys = document.getElementById('vitals-bp-sys').value || 120;
-  const bpDia = document.getElementById('vitals-bp-dia').value || 80;
-  const heartRate = document.getElementById('vitals-hr').value || 75;
-  const spo2 = document.getElementById('vitals-spo2').value || 98;
-  const temperature = document.getElementById('vitals-temp').value || 36.8;
-  const weight = document.getElementById('vitals-weight').value || 60;
-  const symptoms = document.getElementById('patient-symptoms').value || '';
+  const bpSys = document.getElementById('vitals-bp-sys')?.value || 120;
+  const bpDia = document.getElementById('vitals-bp-dia')?.value || 80;
+  const heartRate = document.getElementById('vitals-hr')?.value || 75;
+  const spo2 = document.getElementById('vitals-spo2')?.value || 98;
+  const temperature = document.getElementById('vitals-temp')?.value || 36.8;
+  const weight = document.getElementById('vitals-weight')?.value || 60;
+  const symptoms = document.getElementById('patient-symptoms')?.value || '';
 
   currentVitals = { bpSys, bpDia, heartRate, spo2, temperature, weight };
 
@@ -804,28 +827,36 @@ async function sendVitalsToDoctor() {
 }
 
 function updateVitalsCards(v) {
-  document.getElementById('display-bp').textContent = `${v.bpSys}/${v.bpDia}`;
-  document.getElementById('display-hr').textContent = v.heartRate;
-  document.getElementById('display-spo2').textContent = `${v.spo2}%`;
-  document.getElementById('display-temp').textContent = `${v.temperature}°C`;
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+
+  setText('display-bp', `${v.bpSys}/${v.bpDia}`);
+  setText('display-hr', v.heartRate);
+  setText('display-spo2', `${v.spo2}%`);
+  setText('display-temp', `${v.temperature}°C`);
 
   // Update In-Video HUD Overlay
-  document.getElementById('hud-bp').textContent = `${v.bpSys}/${v.bpDia}`;
-  document.getElementById('hud-hr').textContent = v.heartRate;
-  document.getElementById('hud-spo2').textContent = `${v.spo2}%`;
+  setText('hud-bp', `${v.bpSys}/${v.bpDia}`);
+  setText('hud-hr', v.heartRate);
+  setText('hud-spo2', `${v.spo2}%`);
+  setText('hud-temp', `${v.temperature}°C`);
 
-  const pName = document.getElementById('patient-name').value;
-  const pAge = document.getElementById('patient-age').value;
-  document.getElementById('hud-patient-name').textContent = `${pName} (${pAge}T)`;
+  const pName = document.getElementById('patient-name')?.value || 'Bệnh nhân';
+  const pAge = document.getElementById('patient-age')?.value || '45';
+  setText('hud-patient-name', `${pName} (${pAge}T)`);
 
   // Color Coding Card Alert logic
   const cardSpO2 = document.getElementById('card-spo2');
-  if (Number(v.spo2) < 92) {
-    cardSpO2.className = 'bg-red-950/90 p-2 rounded-lg border-2 border-red-600 text-center animate-pulse';
-  } else if (Number(v.spo2) < 95) {
-    cardSpO2.className = 'bg-amber-950/90 p-2 rounded-lg border-2 border-amber-600 text-center';
-  } else {
-    cardSpO2.className = 'bg-slate-900 p-2 rounded-lg border border-slate-800 text-center';
+  if (cardSpO2) {
+    if (Number(v.spo2) < 92) {
+      cardSpO2.className = 'bg-red-950/90 p-2.5 rounded-xl border-2 border-red-600 text-center animate-pulse';
+    } else if (Number(v.spo2) < 95) {
+      cardSpO2.className = 'bg-amber-950/90 p-2.5 rounded-xl border-2 border-amber-600 text-center';
+    } else {
+      cardSpO2.className = 'bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center';
+    }
   }
 }
 
@@ -865,12 +896,12 @@ function updateVitalsUIFromRemote(v) {
 
 // 6. Clinical AI Co-Pilot Assistant Integration
 async function requestAIConsultation() {
-  const patientName = document.getElementById('patient-name').value || 'Bệnh nhân';
-  const patientAge = document.getElementById('patient-age').value || '45';
-  const patientGender = document.getElementById('patient-gender').value || 'Nam';
+  const patientName = document.getElementById('patient-name')?.value || 'Bệnh nhân';
+  const patientAge = document.getElementById('patient-age')?.value || '45';
+  const patientGender = document.getElementById('patient-gender')?.value || 'Nam';
 
-  const notes = document.getElementById('clinical-notes').value || '';
-  const symptoms = document.getElementById('patient-symptoms').value || '';
+  const notes = document.getElementById('clinical-notes')?.value || '';
+  const symptoms = document.getElementById('patient-symptoms')?.value || '';
 
   try {
     const response = await fetch('/api/clinical-ai', {
@@ -899,40 +930,49 @@ async function requestAIConsultation() {
 function renderAIResults(data) {
   // Red Flag Alerts
   const redFlagsContainer = document.getElementById('ai-red-flags');
-  if (data.redFlags && data.redFlags.length > 0) {
-    redFlagsContainer.innerHTML = data.redFlags.map(f => `<div>${f}</div>`).join('');
-    redFlagsContainer.classList.remove('hidden');
-  } else {
-    redFlagsContainer.classList.add('hidden');
+  if (redFlagsContainer) {
+    if (data.redFlags && data.redFlags.length > 0) {
+      redFlagsContainer.innerHTML = data.redFlags.map(f => `<div>${f}</div>`).join('');
+      redFlagsContainer.classList.remove('hidden');
+    } else {
+      redFlagsContainer.classList.add('hidden');
+    }
   }
 
   // Diagnostic List
   const diagList = document.getElementById('ai-diagnosis-list');
-  diagList.innerHTML = data.diagnosisList.map(d => `<li>${d}</li>`).join('');
+  if (diagList && data.diagnosisList) {
+    diagList.innerHTML = data.diagnosisList.map(d => `<li>${d}</li>`).join('');
+  }
 
   // Paraclinicals List
   const paraList = document.getElementById('ai-paraclinicals-list');
-  paraList.innerHTML = data.paraclinicals.map(p => `<li>${p}</li>`).join('');
+  if (paraList && data.paraclinicals) {
+    paraList.innerHTML = data.paraclinicals.map(p => `<li>${p}</li>`).join('');
+  }
 
   // Prescriptions List
   const rxList = document.getElementById('ai-prescription-list');
-  rxList.innerHTML = data.prescriptions.map(rx => `
-    <div class="bg-slate-800/80 p-1.5 rounded border border-slate-700/60">
-      <div class="font-semibold text-emerald-300">${rx.name}</div>
-      <div class="text-[10px] text-slate-300">${rx.dosage} (${rx.note || ''})</div>
-    </div>
-  `).join('');
+  if (rxList && data.prescriptions) {
+    rxList.innerHTML = data.prescriptions.map(rx => `
+      <div class="bg-slate-800/80 p-1.5 rounded border border-slate-700/60">
+        <div class="font-semibold text-emerald-300">${rx.name}</div>
+        <div class="text-[10px] text-slate-300">${rx.dosage} (${rx.note || ''})</div>
+      </div>
+    `).join('');
+  }
 
-  document.getElementById('ai-confidence').textContent = `Độ tin cậy AI: ${data.aiConfidence || '94%'}`;
+  const confidenceEl = document.getElementById('ai-confidence');
+  if (confidenceEl) confidenceEl.textContent = `Độ tin cậy AI: ${data.aiConfidence || '94%'}`;
 }
 
 // 7. Finish Consultation & Export Examination Sheet Report
 async function finishAndExportReport() {
-  const patientName = document.getElementById('patient-name').value || 'Trần Văn Nam';
-  const patientAge = document.getElementById('patient-age').value || '58';
-  const patientGender = document.getElementById('patient-gender').value || 'Nam';
-  const symptoms = document.getElementById('patient-symptoms').value || 'Chưa ghi nhận';
-  const clinicalNotes = document.getElementById('clinical-notes').value || 'Bệnh nhân tỉnh táo, tim phổi ổn định.';
+  const patientName = document.getElementById('patient-name')?.value || 'Trần Văn Nam';
+  const patientAge = document.getElementById('patient-age')?.value || '58';
+  const patientGender = document.getElementById('patient-gender')?.value || 'Nam';
+  const symptoms = document.getElementById('patient-symptoms')?.value || 'Chưa ghi nhận';
+  const clinicalNotes = document.getElementById('clinical-notes')?.value || 'Bệnh nhân tỉnh táo, tim phổi ổn định.';
 
   const diagnosisText = currentAIAnalysis?.diagnosisList ? currentAIAnalysis.diagnosisList.join('; ') : 'Viêm đường hô hấp trên cấp tính (J06.9)';
   const prescriptionText = currentAIAnalysis?.prescriptions ? currentAIAnalysis.prescriptions.map((rx, idx) => `${idx + 1}. ${rx.name} - ${rx.dosage}`).join('\n') : '1. Paracetamol 500mg - Uống 1 viên x 3 lần/ngày khi sốt >= 38.5°C';
@@ -960,32 +1000,73 @@ async function finishAndExportReport() {
 
     const result = await response.json();
     if (result.success && result.data) {
-      // Populate Printable Report Modal
-      document.getElementById('rpt-code').textContent = `MÃ PHIẾU: ${result.data.reportCode}`;
-      document.getElementById('rpt-date').textContent = `Ngày: ${new Date().toLocaleDateString('vi-VN')}`;
-      document.getElementById('rpt-patient-name').textContent = patientName;
-      document.getElementById('rpt-patient-age-gender').textContent = `${patientAge} tuổi - ${patientGender}`;
-      document.getElementById('rpt-symptoms').textContent = symptoms;
-      document.getElementById('rpt-station').textContent = stationCode;
-      document.getElementById('rpt-operator').textContent = operatorName;
+      const setText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+      };
 
-      document.getElementById('rpt-vitals-row').innerHTML = `
-        <td class="p-1.5 border border-slate-300">${currentVitals.bpSys}/${currentVitals.bpDia}</td>
-        <td class="p-1.5 border border-slate-300">${currentVitals.heartRate}</td>
-        <td class="p-1.5 border border-slate-300">${currentVitals.spo2}%</td>
-        <td class="p-1.5 border border-slate-300">${currentVitals.temperature}°C</td>
-        <td class="p-1.5 border border-slate-300">${currentVitals.weight || 60}</td>
-      `;
+      // Populate Report Modal
+      setText('rpt-code', `PK-${result.data.reportCode || Date.now().toString().slice(-6)}`);
+      setText('rpt-date', `Ngày: ${new Date().toLocaleDateString('vi-VN')}`);
+      
+      // Update both static view elements and input elements
+      setText('rpt-patient-name', patientName);
+      setVal('rpt-edit-patient-name', patientName);
 
-      document.getElementById('rpt-clinical-notes').textContent = clinicalNotes;
-      document.getElementById('rpt-diagnosis').textContent = diagnosisText;
-      document.getElementById('rpt-treatment-plan').textContent = result.data.treatmentPlan || 'Điều trị nội khoa tại điểm trạm / Theo dõi 48 giờ';
-      document.getElementById('rpt-prescriptions').innerHTML = prescriptionText.split('\n').map(p => `<p>${p}</p>`).join('');
+      setText('rpt-patient-age-gender', `${patientAge} tuổi - ${patientGender}`);
+      setVal('rpt-edit-age-gender', `${patientAge} tuổi - ${patientGender}`);
 
-      document.getElementById('rpt-sig-operator').textContent = operatorName;
+      setText('rpt-symptoms', symptoms);
+      setText('rpt-station', stationCode);
+      
+      setText('rpt-operator', operatorName);
+      setVal('rpt-edit-operator', operatorName);
+      setText('rpt-sig-operator-name', operatorName);
 
-      // Open Modal
-      document.getElementById('report-modal').classList.remove('hidden');
+      // Report Vitals
+      setText('rpt-val-bp', `${currentVitals.bpSys}/${currentVitals.bpDia}`);
+      setText('rpt-val-hr', `${currentVitals.heartRate} bpm`);
+      setText('rpt-val-spo2', `${currentVitals.spo2}%`);
+      setText('rpt-val-temp', `${currentVitals.temperature}°C`);
+      setText('rpt-val-weight', `${currentVitals.weight || 60} kg`);
+
+      const vitalsRow = document.getElementById('rpt-vitals-row');
+      if (vitalsRow) {
+        vitalsRow.innerHTML = `
+          <td class="p-1.5 border border-slate-300">${currentVitals.bpSys}/${currentVitals.bpDia}</td>
+          <td class="p-1.5 border border-slate-300">${currentVitals.heartRate}</td>
+          <td class="p-1.5 border border-slate-300">${currentVitals.spo2}%</td>
+          <td class="p-1.5 border border-slate-300">${currentVitals.temperature}°C</td>
+          <td class="p-1.5 border border-slate-300">${currentVitals.weight || 60}</td>
+        `;
+      }
+
+      setText('rpt-clinical-notes', clinicalNotes);
+      
+      setText('rpt-diagnosis', diagnosisText);
+      setVal('rpt-edit-diagnosis', diagnosisText);
+
+      setText('rpt-treatment-plan', result.data.treatmentPlan || 'Điều trị nội khoa tại điểm trạm / Theo dõi 48 giờ');
+      setVal('rpt-edit-treatment', result.data.treatmentPlan || 'Điều trị nội khoa tại điểm trạm / Theo dõi 48 giờ');
+
+      const rptRx = document.getElementById('rpt-prescriptions');
+      if (rptRx) rptRx.innerHTML = prescriptionText.split('\n').map(p => `<p>${p}</p>`).join('');
+      setVal('rpt-edit-prescription', prescriptionText);
+
+      setText('rpt-sig-operator', operatorName);
+
+      // Open Modal safely
+      const overlay = document.getElementById('modal-overlay');
+      const rptModal = document.getElementById('report-modal');
+      if (overlay) overlay.classList.remove('hidden');
+      if (rptModal) {
+        document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
+        rptModal.classList.remove('hidden');
+      }
 
       // Đánh dấu buổi khám đã hoàn tất.
       signalPost({ action: 'complete' })
@@ -997,7 +1078,10 @@ async function finishAndExportReport() {
 }
 
 function closeReportModal() {
-  document.getElementById('report-modal').classList.add('hidden');
+  const rptModal = document.getElementById('report-modal');
+  if (rptModal) rptModal.classList.add('hidden');
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay) overlay.classList.add('hidden');
 }
 
 // 8. Station Login Modal Handlers
