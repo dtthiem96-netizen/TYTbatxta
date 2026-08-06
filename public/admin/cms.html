@@ -29,9 +29,9 @@
 
         <div class="flex items-center space-x-4">
             <!-- Database Status Badge -->
-            <div class="bg-[#135284] border border-blue-400/30 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium flex items-center space-x-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Cơ sở dữ liệu đám mây (Postgres)</span>
+            <div id="cloud-status" class="bg-[#135284] border border-blue-400/30 text-slate-200 px-3 py-1.5 rounded-full text-xs font-medium flex items-center space-x-2">
+                <span id="cloud-status-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                <span id="cloud-status-text">Đang kết nối cơ sở dữ liệu…</span>
             </div>
 
             <!-- Exit Button -->
@@ -123,40 +123,76 @@
 
                 <!-- Tabs -->
                 <div class="flex space-x-6 border-b border-gray-200 mb-6 text-sm">
-                    <button class="pb-3 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center space-x-2">
+                    <button type="button" id="tab-btn-news" onclick="switchComposer('news')" class="pb-3 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center space-x-2">
                         <i class="fa-solid fa-pen-to-square"></i>
                         <span>Đăng bản tin Y tế</span>
                     </button>
-                    <button class="pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium flex items-center space-x-2 transition">
+                    <button type="button" id="tab-btn-vaccine" onclick="switchComposer('vaccine')" class="pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium flex items-center space-x-2 transition">
                         <i class="fa-solid fa-calendar-days"></i>
                         <span>Đăng lịch tiêm / Thông báo</span>
                     </button>
                 </div>
 
                 <!-- Form Fields -->
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">TIÊU ĐỀ BẢN TIN</label>
-                        <input type="text" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                <form id="composer-form" onsubmit="publishEntry(event)" class="space-y-4">
+                    <!-- Nhóm trường của bản tin -->
+                    <div id="fields-news" class="space-y-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">TIÊU ĐỀ BẢN TIN</label>
+                            <input type="text" id="news-title" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">NỘI DUNG CHI TIẾT</label>
+                            <textarea id="news-desc" rows="4" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">NGÀY ĐĂNG</label>
+                                <input type="text" id="news-date" placeholder="Để trống sẽ lấy ngày hôm nay" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">PHÂN LOẠI</label>
+                                <select id="news-color" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                                    <option value="red">Cảnh báo dịch bệnh</option>
+                                    <option value="orange">Khuyến cáo y tế</option>
+                                    <option value="sky">Thông tin chung</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">NỘI DUNG CHI TIẾT</label>
-                        <textarea rows="4" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"></textarea>
+                    <!-- Nhóm trường của lịch tiêm / thông báo trạm -->
+                    <div id="fields-vaccine" class="space-y-4 hidden">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">NGÀY TIÊM</label>
+                                <input type="text" id="vaccine-date" placeholder="Sáng 10/08/2026" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">KHUNG GIỜ</label>
+                                <input type="text" id="vaccine-time" placeholder="07:30 - 11:30" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">ĐỐI TƯỢNG & THÔN BẢN ÁP DỤNG</label>
+                            <textarea id="vaccine-target" rows="3" placeholder="Trẻ em & Phụ nữ mang thai thuộc Thôn 08, Thôn 09" class="w-full bg-gray-50/50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"></textarea>
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-between pt-2">
-                        <button type="button" class="bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center space-x-2 transition">
-                            <i class="fa-solid fa-paperclip text-gray-500"></i>
-                            <span>Đính kèm ảnh & Tài liệu (Tùy chọn)</span>
-                        </button>
+                        <p class="text-[11px] text-gray-400 font-medium flex items-center space-x-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Nội dung được ghi thẳng vào cơ sở dữ liệu đám mây của trạm và hiển thị ngay trên trang công khai.</span>
+                        </p>
 
-                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-sm transition">
+                        <button type="submit" id="btn-publish" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-sm transition">
                             <i class="fa-solid fa-paper-plane"></i>
                             <span>Xuất bản bài viết</span>
                         </button>
                     </div>
-                </div>
+                </form>
             </div>
 
             <!-- TABLE SECTION -->
@@ -166,9 +202,9 @@
                         <i class="fa-solid fa-table-list text-blue-600"></i>
                         <span>DANH SÁCH BẢN TIN & THÔNG BÁO ĐÃ ĐĂNG</span>
                     </h3>
-                    <button class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center space-x-1">
-                        <i class="fa-solid fa-chart-simple"></i>
-                        <span>Thống kê xem trực tiếp</span>
+                    <button type="button" onclick="loadEntries()" class="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center space-x-1">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>Tải lại từ cơ sở dữ liệu</span>
                     </button>
                 </div>
 
@@ -178,36 +214,13 @@
                             <tr class="border-b border-gray-200 text-gray-400 text-[11px] font-bold uppercase tracking-wider">
                                 <th class="py-3 px-4">TIÊU ĐỀ / LỊCH ĐĂNG</th>
                                 <th class="py-3 px-4">PHÂN LOẠI</th>
-                                <th class="py-3 px-4 text-center">LƯỢT XEM</th>
+                                <th class="py-3 px-4 text-center">MÃ BẢN GHI</th>
                                 <th class="py-3 px-4 text-center">XÓA</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100 text-sm">
-                            <tr class="hover:bg-gray-50/50 transition">
-                                <td class="py-4 px-4">
-                                    <p class="font-semibold text-gray-800">15/07/2026 - Tiêm trẻ em thuộc diện tiêm chủng mũi viêm não nhật bản 2 + 3. Tại các điểm trạm và ngoại trạm (tại nhà văn hoá thôn Láo Vàng, Suối Chải, Trung Hồ)</p>
-                                    <p class="text-xs text-gray-400 mt-1 flex items-center space-x-1">
-                                        <i class="fa-regular fa-clock"></i>
-                                        <span>15/07/2026</span>
-                                    </p>
-                                </td>
-                                <td class="py-4 px-4">
-                                    <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1 rounded-full inline-block">
-                                        Thông báo Trạm
-                                    </span>
-                                </td>
-                                <td class="py-4 px-4 text-center font-semibold text-gray-700">
-                                    <div class="flex items-center justify-center space-x-1 text-gray-600">
-                                        <i class="fa-regular fa-eye text-gray-400"></i>
-                                        <span>41008047909257</span>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-4 text-center">
-                                    <button class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center space-x-1">
-                                        <i class="fa-regular fa-trash-can"></i>
-                                        <span>Xóa</span>
-                                    </button>
-                                </td>
+                        <tbody id="entries-table-body" class="divide-y divide-gray-100 text-sm">
+                            <tr>
+                                <td colspan="4" class="py-8 px-4 text-center text-gray-400 font-medium">Đang tải dữ liệu từ cơ sở dữ liệu đám mây…</td>
                             </tr>
                         </tbody>
                     </table>
@@ -216,6 +229,307 @@
 
         </main>
     </div>
+    <!-- Khay thông báo kết quả ghi dữ liệu -->
+    <div id="toast-tray" class="fixed bottom-6 right-6 z-50 space-y-2 w-96 max-w-[calc(100vw-3rem)]"></div>
+
+    <script>
+    /* =====================================================================
+     * LƯU TRỮ NỘI DUNG CMS LÊN CƠ SỞ DỮ LIỆU ĐÁM MÂY
+     *
+     * Trang này trước đây là bản dựng giao diện tĩnh: nút "Xuất bản bài viết"
+     * không gắn với xử lý nào, bảng bên dưới là một dòng cố định viết thẳng
+     * trong HTML, còn phù hiệu ở thanh tiêu đề luôn sáng xanh "Cơ sở dữ liệu
+     * đám mây (Postgres)" bất kể có kết nối được hay không. Kết quả là người
+     * biên tập soạn xong, bấm xuất bản, và không có gì được lưu ở đâu cả.
+     *
+     * Toàn bộ nội dung bây giờ đi qua Netlify Function /api/cms - lớp truy cập
+     * duy nhất tới Netlify Database (Postgres có quản lý) của site, cũng chính
+     * là nơi trang công khai đọc dữ liệu ra. Bảng "news" và "vaccines" được
+     * dùng lại nguyên vẹn nên bản tin đăng ở đây hiện ngay trên trang chủ.
+     * ===================================================================== */
+    const CMS_API = '/api/cms';
+
+    let composerMode = 'news';
+    let newsEntries = [];
+    let vaccineEntries = [];
+
+    function setCloudStatus(state, message) {
+        const dot = document.getElementById('cloud-status-dot');
+        const text = document.getElementById('cloud-status-text');
+        if (!dot || !text) return;
+        const dotClass = {
+            online: 'bg-emerald-400 animate-pulse',
+            saving: 'bg-amber-400 animate-pulse',
+            offline: 'bg-red-500'
+        }[state] || 'bg-slate-400';
+        dot.className = 'w-2 h-2 rounded-full ' + dotClass;
+        text.className = state === 'online' ? 'text-emerald-300' : (state === 'offline' ? 'text-red-300' : 'text-slate-200');
+        text.textContent = message;
+    }
+
+    function showToast(message, type) {
+        const tray = document.getElementById('toast-tray');
+        if (!tray) return;
+        const ok = type !== 'error';
+        const box = document.createElement('div');
+        box.className = 'px-4 py-3 rounded-xl shadow-lg text-sm font-semibold border flex items-start gap-2.5 '
+            + (ok ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-red-600 text-white border-red-700');
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid mt-0.5 ' + (ok ? 'fa-circle-check' : 'fa-triangle-exclamation');
+        const span = document.createElement('span');
+        span.textContent = message;
+        box.appendChild(icon);
+        box.appendChild(span);
+        tray.appendChild(box);
+        setTimeout(() => box.remove(), ok ? 4000 : 9000);
+    }
+
+    /* Luật chuyển hướng bắt-tất-cả của site trả về trang chủ kèm status 200 cho
+     * mọi đường dẫn không khớp function nào, nên res.ok một mình không chứng
+     * minh được là lệnh ghi đã tới nơi. Chỉ chấp nhận phản hồi JSON hợp lệ. */
+    async function readCmsResponse(res) {
+        const raw = await res.text();
+        let json = null;
+        try { json = JSON.parse(raw); } catch (e) { json = null; }
+        if (!res.ok) throw new Error((json && json.error) || ('máy chủ trả về mã ' + res.status));
+        if (!json) throw new Error('máy chủ không trả về dữ liệu JSON (có thể Netlify Function /api/cms chưa được triển khai)');
+        if (json.error) throw new Error(json.error);
+        return json;
+    }
+
+    async function cmsWrite(payload) {
+        setCloudStatus('saving', 'Đang ghi lên cơ sở dữ liệu…');
+        let res;
+        try {
+            res = await fetch(CMS_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch (err) {
+            setCloudStatus('offline', 'Mất kết nối cơ sở dữ liệu');
+            throw new Error('không kết nối được máy chủ (' + err.message + ')');
+        }
+        let json;
+        try {
+            json = await readCmsResponse(res);
+        } catch (err) {
+            setCloudStatus('offline', 'Ghi dữ liệu thất bại');
+            throw err;
+        }
+        if (!json.success) {
+            setCloudStatus('offline', 'Ghi dữ liệu thất bại');
+            throw new Error('máy chủ không xác nhận đã lưu');
+        }
+        setCloudStatus('online', 'Đã lưu vào cơ sở dữ liệu đám mây');
+        return json;
+    }
+
+    function switchComposer(mode) {
+        composerMode = mode;
+        const isNews = mode === 'news';
+        document.getElementById('fields-news').classList.toggle('hidden', !isNews);
+        document.getElementById('fields-vaccine').classList.toggle('hidden', isNews);
+
+        const active = 'pb-3 border-b-2 border-blue-600 text-blue-600 font-bold flex items-center space-x-2';
+        const idle = 'pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium flex items-center space-x-2 transition';
+        document.getElementById('tab-btn-news').className = isNews ? active : idle;
+        document.getElementById('tab-btn-vaccine').className = isNews ? idle : active;
+
+        const label = document.querySelector('#btn-publish span');
+        if (label) label.textContent = isNews ? 'Xuất bản bài viết' : 'Đăng lịch tiêm';
+    }
+
+    function byTsDesc(a, b) { return (Number(b.ts) || 0) - (Number(a.ts) || 0); }
+
+    async function loadEntries() {
+        const tbody = document.getElementById('entries-table-body');
+        try {
+            const res = await fetch(CMS_API, { cache: 'no-store' });
+            const data = await readCmsResponse(res);
+            newsEntries = Array.isArray(data.news) ? data.news.slice().sort(byTsDesc) : [];
+            vaccineEntries = Array.isArray(data.vaccines) ? data.vaccines.slice().sort(byTsDesc) : [];
+            setCloudStatus('online', 'Cơ sở dữ liệu đám mây (Postgres)');
+            renderEntries();
+        } catch (err) {
+            newsEntries = [];
+            vaccineEntries = [];
+            setCloudStatus('offline', 'Không đọc được cơ sở dữ liệu');
+            tbody.innerHTML = '';
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 4;
+            td.className = 'py-8 px-4 text-center text-red-600 font-semibold';
+            td.textContent = 'Không tải được dữ liệu: ' + err.message;
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }
+    }
+
+    function renderEntries() {
+        const tbody = document.getElementById('entries-table-body');
+        tbody.innerHTML = '';
+
+        const rows = []
+            .concat(newsEntries.map(item => ({
+                type: 'news',
+                id: item.id,
+                title: item.title,
+                meta: item.date,
+                badge: item.color === 'red' ? 'Cảnh báo dịch bệnh' : (item.color === 'orange' ? 'Khuyến cáo y tế' : 'Bản tin Y tế'),
+                badgeClass: item.color === 'red'
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-sky-50 text-sky-700 border-sky-200'
+            })))
+            .concat(vaccineEntries.map(item => ({
+                type: 'vaccines',
+                id: item.id,
+                title: item.date + ' (' + item.time + ') - ' + item.target,
+                meta: item.date,
+                badge: 'Thông báo Trạm',
+                badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            })));
+
+        if (rows.length === 0) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 4;
+            td.className = 'py-8 px-4 text-center text-gray-400 font-medium';
+            td.textContent = 'Chưa có bản tin hay thông báo nào trong cơ sở dữ liệu.';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            return;
+        }
+
+        rows.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50/50 transition';
+
+            const tdTitle = document.createElement('td');
+            tdTitle.className = 'py-4 px-4';
+            const pTitle = document.createElement('p');
+            pTitle.className = 'font-semibold text-gray-800';
+            pTitle.textContent = row.title;
+            const pMeta = document.createElement('p');
+            pMeta.className = 'text-xs text-gray-400 mt-1';
+            pMeta.textContent = row.meta || '';
+            tdTitle.appendChild(pTitle);
+            tdTitle.appendChild(pMeta);
+
+            const tdBadge = document.createElement('td');
+            tdBadge.className = 'py-4 px-4';
+            const badge = document.createElement('span');
+            badge.className = 'border text-xs font-semibold px-3 py-1 rounded-full inline-block ' + row.badgeClass;
+            badge.textContent = row.badge;
+            tdBadge.appendChild(badge);
+
+            const tdId = document.createElement('td');
+            tdId.className = 'py-4 px-4 text-center font-mono text-xs text-gray-500';
+            tdId.textContent = row.id;
+
+            const tdAction = document.createElement('td');
+            tdAction.className = 'py-4 px-4 text-center';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center space-x-1';
+            btn.innerHTML = '<i class="fa-regular fa-trash-can"></i><span>Xóa</span>';
+            btn.addEventListener('click', () => removeEntry(row.type, row.id));
+            tdAction.appendChild(btn);
+
+            tr.appendChild(tdTitle);
+            tr.appendChild(tdBadge);
+            tr.appendChild(tdId);
+            tr.appendChild(tdAction);
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function publishEntry(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-publish');
+        let payload;
+
+        if (composerMode === 'news') {
+            const title = document.getElementById('news-title').value.trim();
+            const desc = document.getElementById('news-desc').value.trim();
+            const date = document.getElementById('news-date').value.trim() || new Date().toLocaleDateString('vi-VN');
+            const color = document.getElementById('news-color').value;
+            if (!title) {
+                showToast('Vui lòng nhập tiêu đề bản tin trước khi xuất bản.', 'error');
+                return;
+            }
+            // Khớp đúng các cột của bảng "news" trong db/schema.ts.
+            payload = {
+                action: 'save',
+                type: 'news',
+                data: {
+                    id: 'N' + Date.now(),
+                    title: title,
+                    description: desc,
+                    date: date,
+                    color: color,
+                    icon: color === 'red' ? 'fa-triangle-exclamation' : 'fa-newspaper',
+                    ts: Date.now()
+                }
+            };
+        } else {
+            const date = document.getElementById('vaccine-date').value.trim();
+            const time = document.getElementById('vaccine-time').value.trim();
+            const target = document.getElementById('vaccine-target').value.trim();
+            if (!date || !time || !target) {
+                showToast('Vui lòng nhập đủ ngày tiêm, khung giờ và đối tượng áp dụng.', 'error');
+                return;
+            }
+            // Khớp đúng các cột của bảng "vaccines" trong db/schema.ts.
+            payload = {
+                action: 'save',
+                type: 'vaccines',
+                data: { id: 'V' + Date.now(), date: date, time: time, target: target, ts: Date.now() }
+            };
+        }
+
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add('opacity-60', 'cursor-not-allowed');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Đang lưu lên đám mây...</span>';
+
+        try {
+            await cmsWrite(payload);
+            await loadEntries();
+            showToast('Đã xuất bản và lưu vào cơ sở dữ liệu đám mây.');
+            // Chỉ dọn biểu mẫu khi máy chủ đã xác nhận, để nội dung vừa soạn
+            // không biến mất nếu lệnh ghi thất bại.
+            if (composerMode === 'news') {
+                document.getElementById('news-title').value = '';
+                document.getElementById('news-desc').value = '';
+                document.getElementById('news-date').value = '';
+            } else {
+                document.getElementById('vaccine-date').value = '';
+                document.getElementById('vaccine-time').value = '';
+                document.getElementById('vaccine-target').value = '';
+            }
+        } catch (err) {
+            showToast('Chưa lưu được nội dung: ' + err.message + ' — nội dung vừa soạn vẫn được giữ nguyên.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('opacity-60', 'cursor-not-allowed');
+            btn.innerHTML = original;
+        }
+    }
+
+    async function removeEntry(type, id) {
+        if (!confirm('Xóa mục này khỏi cơ sở dữ liệu đám mây?')) return;
+        try {
+            await cmsWrite({ action: 'delete', type: type, id: id });
+            await loadEntries();
+            showToast('Đã xóa khỏi cơ sở dữ liệu đám mây.');
+        } catch (err) {
+            showToast('Chưa xóa được: ' + err.message, 'error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadEntries);
+    </script>
 
 </body>
 </html>
