@@ -2,6 +2,7 @@ import { db } from "../../db/index.js";
 import { news, vaccines, documents, services, users, siteConfigs, contacts, videos, appointments, prescriptionSigners } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 import { getStore } from "@netlify/blobs";
+import { publicUser } from "../lib/auth.js";
 
 const defaultUsers = [
   { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true', stationAccess: 'true' },
@@ -9,6 +10,10 @@ const defaultUsers = [
   { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false', stationAccess: 'false' },
   { id: 'U4', username: 'canbotram@laocai.gov.vn', name: 'Y sĩ Cán bộ Điểm trạm', role: 'Cán bộ Điểm trạm (Station Operator)', canReceiveVideo: 'true', stationAccess: 'true' }
 ];
+
+/* Khoá cấu hình mang bí mật của hệ thống, không được đi ra trình duyệt cùng
+   phần cấu hình công khai (tên phòng khám, ...). */
+const PRIVATE_CONFIG_IDS = new Set(['auth-jwt-secret']);
 
 const defaultSigners = [
   { id: 'SIG1', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', title: 'Bác sĩ', license: '001234/LCA-CCHN', workplace: 'Trạm Y tế Bát Xát', signature: '', isDefault: 'true', ts: Date.now() },
@@ -106,6 +111,7 @@ export default async (req: Request) => {
       let appointmentsList = await db.select().from(appointments);
 
       let configsList = await db.select().from(siteConfigs);
+      configsList = configsList.filter(c => !PRIVATE_CONFIG_IDS.has(c.id));
 
       // Danh sách người ký đơn thuốc kèm chữ ký số đã lưu sẵn
       let signersList = await db.select().from(prescriptionSigners);
@@ -140,7 +146,11 @@ export default async (req: Request) => {
         vaccines: vaccinesList,
         documents: docsList,
         services: servicesList,
-        users: usersList,
+        /* Danh sách tài khoản đi qua publicUser(): chuỗi băm mật khẩu và mọi
+           trường nhạy cảm khác bị loại bỏ trước khi rời máy chủ. Tuyến này công
+           khai (trang chủ dùng để dựng danh sách bác sĩ trực), nên đây là ranh
+           giới bắt buộc. */
+        users: usersList.map(publicUser),
         contacts: contactsList,
         videos: videosList,
         appointments: appointmentsList,
@@ -270,13 +280,18 @@ export default async (req: Request) => {
             await db.insert(contacts).values(data);
           }
         } else if (type === "users") {
-          const existing = await db.select().from(users).where(eq(users.id, data.id));
-          if (existing.length > 0) {
-            await db.update(users).set(data).where(eq(users.id, data.id));
-          } else {
-            await db.insert(users).values(data);
-          }
+          /* Tài khoản KHÔNG còn ghi được qua tuyến công khai này. Nếu để nguyên,
+             bất kỳ ai gửi một lệnh POST cũng tự cấp được cho mình quyền vào Mod
+             Bảng điều khiển điểm trạm - vô hiệu hoá toàn bộ phần phân quyền.
+             Mọi thao tác tài khoản đi qua /api/admin-users, nơi bắt buộc phiếu
+             phiên có phạm vi "admin". */
+          return new Response(JSON.stringify({
+            error: "Thao tác tài khoản phải thực hiện qua /api/admin-users (yêu cầu quyền Quản trị)."
+          }), { headers, status: 403 });
         } else if (type === "siteConfigs") {
+          if (PRIVATE_CONFIG_IDS.has(String(data?.id || ""))) {
+            return new Response(JSON.stringify({ error: "Không được sửa cấu hình hệ thống này." }), { headers, status: 403 });
+          }
           const existing = await db.select().from(siteConfigs).where(eq(siteConfigs.id, data.id));
           if (existing.length > 0) {
             await db.update(siteConfigs).set(data).where(eq(siteConfigs.id, data.id));
@@ -322,8 +337,14 @@ export default async (req: Request) => {
         } else if (type === "contacts") {
           await db.delete(contacts).where(eq(contacts.id, id));
         } else if (type === "users") {
-          await db.delete(users).where(eq(users.id, id));
+          // Xoá tài khoản cũng chỉ được phép qua /api/admin-users.
+          return new Response(JSON.stringify({
+            error: "Thao tác tài khoản phải thực hiện qua /api/admin-users (yêu cầu quyền Quản trị)."
+          }), { headers, status: 403 });
         } else if (type === "siteConfigs") {
+          if (PRIVATE_CONFIG_IDS.has(String(id || ""))) {
+            return new Response(JSON.stringify({ error: "Không được xoá cấu hình hệ thống này." }), { headers, status: 403 });
+          }
           await db.delete(siteConfigs).where(eq(siteConfigs.id, id));
         } else if (type === "videos") {
           await db.delete(videos).where(eq(videos.id, id));

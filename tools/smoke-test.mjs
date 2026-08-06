@@ -107,6 +107,15 @@ function stubBrowser(win, note) {
     return /Điểm trạm|Station|Admin|Quản trị/i.test(u.role || '');
   };
 
+  /* Phạm vi quyền của phiếu phiên, tương ứng scopesFor() trong netlify/lib/auth.ts. */
+  const scopesOf = (u) => {
+    const list = [];
+    if (authRule(u)) list.push('station');
+    if (/admin|quản trị|quan tri/i.test(u.role || '')) list.push('admin');
+    if (String(u.canReceiveVideo || 'true') !== 'false') list.push('video');
+    return list;
+  };
+
   win.fetch = (url, opts) => {
     const u = String(url);
     if (u.includes('/api/signal')) return okJson({ peers: [], messages: [], rooms: [], onDuty: [] });
@@ -116,6 +125,20 @@ function stubBrowser(win, note) {
       return okJson({ reportCode: 'SMOKE-001', treatmentPlan: 'Theo dõi 48 giờ' });
     }
     if (u.includes('/api/station-auth')) {
+      const method = String((opts && opts.method) || 'GET').toUpperCase();
+      const authHeader = String(((opts && opts.headers) || {}).Authorization || '');
+
+      /* GET = kiểm tra lại phiếu phiên. Rào chắn của module gọi tuyến này trước khi
+         mở thân Bảng điều khiển, nên bản giả lập phải trả đủ scopes. */
+      if (method === 'GET') {
+        const username = authHeader.replace(/^Bearer\s+smoke-token:/, '');
+        const holder = CMS_USERS.find((x) => x.username === username);
+        if (!holder || !authRule(holder)) {
+          return jsonRes(401, { success: false, error: 'Phiên đăng nhập không hợp lệ' });
+        }
+        return jsonRes(200, { success: true, user: holder, scopes: scopesOf(holder) });
+      }
+
       let body = {};
       try { body = JSON.parse((opts && opts.body) || '{}'); } catch { body = {}; }
       const user = CMS_USERS.find((x) => x.username === body.username);
@@ -128,7 +151,14 @@ function stubBrowser(win, note) {
           error: 'Tài khoản chưa được CMS Quản trị cấp quyền truy cập Bảng điều khiển trạm'
         });
       }
-      return jsonRes(200, { success: true, user });
+      return jsonRes(200, {
+        success: true,
+        user,
+        token: 'smoke-token:' + user.username,
+        expiresAt: 4102444800000,
+        scopes: scopesOf(user),
+        mustChangePassword: false
+      });
     }
     if (u.includes('/api/cms')) {
       // /api/cms trả các bộ sưu tập ở cấp cao nhất (không bọc trong "data").
@@ -349,6 +379,34 @@ async function runPage(pageFile, route) {
   }
   if (txt('station-auth-user-name') !== GRANTED_USER.name) {
     note('phân quyền', `#station-auth-user-name = "${txt('station-auth-user-name')}" (mong đợi tên cán bộ đăng nhập)`);
+  }
+
+  /* Giả mạo phiếu phiên trong sessionStorage (mô phỏng người dùng tự dựng phiên rồi
+     mở module qua URL). Rào chắn phải hỏi lại máy chủ chứ không tin bộ nhớ trình duyệt. */
+  if (typeof win.setStationSession === 'function' && typeof win.openStationPanel === 'function') {
+    win.setStationSession({
+      token: 'smoke-token:khong-ton-tai',
+      username: 'khong-ton-tai@laocai.gov.vn',
+      name: 'Phiên giả mạo',
+      expiresAt: 4102444800000
+    });
+    try {
+      await Promise.race([win.openStationPanel(), wait(3000)]);
+    } catch (err) {
+      note('phân quyền', err.stack || err.message);
+    }
+    await wait(300);
+    if (!isHidden('modal-station-panel')) {
+      note('phân quyền', 'phiếu phiên giả mạo trong sessionStorage vẫn mở được #modal-station-panel');
+    }
+    if (typeof win.getStationSession === 'function' && win.getStationSession()) {
+      note('phân quyền', 'phiếu phiên giả mạo không bị xoá sau khi máy chủ từ chối');
+    }
+    // Đăng nhập lại bằng tài khoản hợp lệ để các kiểm tra phía sau chạy trong module.
+    await tryLogin(GRANTED_USER.username, STATION_PASSWORD, 'đăng nhập lại sau kiểm tra giả mạo');
+    if (isHidden('modal-station-panel')) {
+      note('phân quyền', 'không mở lại được #modal-station-panel sau khi đăng nhập lại');
+    }
   }
 
   // Tên phòng khám phải biến động theo CMS Quản trị, mọi vị trí hiển thị cùng đổi.

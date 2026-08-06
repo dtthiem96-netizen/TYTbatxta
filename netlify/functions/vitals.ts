@@ -1,6 +1,7 @@
 import { db } from "../../db/index.js";
 import { stationVitals, telehealthRooms, telehealthSignals } from "../../db/schema.js";
 import { desc, eq } from "drizzle-orm";
+import { authErrorResponse, requireScope, type AuthContext } from "../lib/auth.js";
 
 /**
  * Sinh hiệu bệnh nhân do Bảng điều khiển điểm trạm (public/index.html) gửi lên.
@@ -10,13 +11,17 @@ import { desc, eq } from "drizzle-orm";
  *
  * Bản tin đẩy sang Bác sĩ dùng đúng định dạng mà engine telehealth trong index.html
  * đang đọc ({ bp, hr, spo2, temp, weight, at }) để hai đầu hiểu nhau mà không cần chuyển đổi.
+ *
+ * Đây là dữ liệu sức khoẻ của bệnh nhân, nên cả hai chiều đều nằm sau middleware
+ * phân quyền: người gọi phải có phiếu phiên còn hạn kèm quyền "station" mà CMS
+ * Quản trị đã cấp cho tài khoản.
  */
 
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
 };
 
@@ -103,7 +108,7 @@ async function handleGet(url: URL) {
   return json({ success: true, data: records });
 }
 
-async function handlePost(req: Request) {
+async function handlePost(req: Request, ctx: AuthContext) {
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return json({ success: false, message: "Body không hợp lệ" }, 400);
 
@@ -115,7 +120,8 @@ async function handlePost(req: Request) {
   const roomId = String(body.roomId || "default-room");
   const peerId = String(body.peerId || "station");
   const stationCode = String(body.stationCode || "TYT-BATXAT");
-  const operatorName = String(body.operatorName || "Cán bộ Y tế");
+  // Cán bộ đo sinh hiệu lấy từ phiếu phiên đã xác thực, không lấy theo thân yêu cầu.
+  const operatorName = ctx.user.name || String(body.operatorName || "Cán bộ Y tế");
   const patientName = String(body.patientName || "Bệnh nhân");
   const patientGender = String(body.patientGender || "Nam");
   const patientAge = Math.trunc(num(body.patientAge, 45));
@@ -208,10 +214,13 @@ export default async (req: Request) => {
   }
 
   try {
+    const ctx = await requireScope(req, "station");
     if (req.method === "GET") return await handleGet(new URL(req.url));
-    if (req.method === "POST") return await handlePost(req);
+    if (req.method === "POST") return await handlePost(req, ctx);
     return json({ success: false, message: "Method not allowed" }, 405);
   } catch (err: any) {
+    const authResponse = authErrorResponse(err, headers);
+    if (authResponse) return authResponse;
     console.error("vitals error", err);
     return json({ success: false, message: err?.message || "Lỗi xử lý sinh hiệu" }, 500);
   }
