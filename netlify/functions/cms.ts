@@ -2,13 +2,17 @@ import { db } from "../../db/index.js";
 import { news, vaccines, documents, services, users, siteConfigs, contacts, videos, appointments, prescriptionSigners } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 import { getStore } from "@netlify/blobs";
-import { publicUser } from "../lib/auth.js";
+import { publicUser, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD_HASH } from "../lib/auth.js";
 
+/* Bộ tài khoản gieo hạt khi bảng users còn trống.
+   Riêng Quản trị viên (U1) được nạp sẵn chuỗi băm bcrypt của mật khẩu mặc định
+   để site mới dựng là đăng nhập được ngay; các tài khoản còn lại chưa có mật
+   khẩu riêng và đi theo luồng mật khẩu khởi tạo trong station-auth.ts. */
 const defaultUsers = [
-  { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true', stationAccess: 'true' },
-  { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true', stationAccess: 'false' },
-  { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false', stationAccess: 'false' },
-  { id: 'U4', username: 'canbotram@laocai.gov.vn', name: 'Y sĩ Cán bộ Điểm trạm', role: 'Cán bộ Điểm trạm (Station Operator)', canReceiveVideo: 'true', stationAccess: 'true' }
+  { id: 'U1', username: DEFAULT_ADMIN_USERNAME, name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true', stationAccess: 'true', passwordHash: DEFAULT_ADMIN_PASSWORD_HASH, email: DEFAULT_ADMIN_USERNAME, stationCode: 'TYT-BATXAT-01', status: 'ACTIVE', mustChangePassword: 'false' },
+  { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true', stationAccess: 'false', passwordHash: null, email: 'bacsituvan@laocai.gov.vn', stationCode: 'TYT-BATXAT-01', status: 'ACTIVE', mustChangePassword: 'false' },
+  { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false', stationAccess: 'false', passwordHash: null, email: 'bientapvien@laocai.gov.vn', stationCode: 'TYT-BATXAT-01', status: 'ACTIVE', mustChangePassword: 'false' },
+  { id: 'U4', username: 'canbotram@laocai.gov.vn', name: 'Y sĩ Cán bộ Điểm trạm', role: 'Cán bộ Điểm trạm (Station Operator)', canReceiveVideo: 'true', stationAccess: 'true', passwordHash: null, email: 'canbotram@laocai.gov.vn', stationCode: 'TYT-BATXAT-01', status: 'ACTIVE', mustChangePassword: 'false' }
 ];
 
 /* Khoá cấu hình mang bí mật của hệ thống, không được đi ra trình duyệt cùng

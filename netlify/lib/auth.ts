@@ -22,6 +22,22 @@ import { eq } from "drizzle-orm";
 /** Số vòng bcrypt. 10 là mức cân bằng giữa an toàn và thời gian chạy hàm. */
 const BCRYPT_ROUNDS = 10;
 
+/** Tên đăng nhập của Quản trị viên hệ thống (tài khoản gốc của Trạm Y tế Bát Xát). */
+export const DEFAULT_ADMIN_USERNAME = "tytbatxat@laocai.gov.vn";
+
+/**
+ * Chuỗi băm bcrypt của mật khẩu Quản trị mặc định.
+ *
+ * Hệ thống chỉ giữ chuỗi băm, không bao giờ giữ mật khẩu dạng rõ - kể cả trong
+ * mã nguồn. Giá trị này khớp với bản di trú
+ * netlify/database/migrations/20260806035628_set_default_admin_account, dùng cho
+ * trường hợp cơ sở dữ liệu còn trống và bộ dữ liệu gieo hạt trong cms.ts phải
+ * tạo lại tài khoản Quản trị. Sau khi Quản trị đổi mật khẩu, giá trị đã lưu
+ * trong bảng users mới là nguồn duy nhất - hằng số này không ghi đè lên nó.
+ */
+export const DEFAULT_ADMIN_PASSWORD_HASH =
+  "$2b$10$sU8HOOtV7CpoeNOjpUtEuODFWYMoFGuurqXf0/Lf2oCXuAuks1UVG";
+
 /** Thời hạn phiếu phiên: 8 giờ, đủ một ca trực tại điểm trạm. */
 export const TOKEN_TTL_SECONDS = 8 * 60 * 60;
 

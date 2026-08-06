@@ -45,13 +45,15 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
  * Mật khẩu khởi tạo cho những tài khoản CHƯA từng được đặt mật khẩu riêng.
  *
  * Đây là lối vào duy nhất còn lại của cơ chế "một mật khẩu dùng chung" cũ, và
- * nó chỉ áp dụng khi cột password_hash còn trống. Ngay khi Quản trị đặt mật
- * khẩu cho tài khoản trong CMS (Quản trị hệ thống → Phân quyền hệ thống), lối
- * này đóng lại vĩnh viễn với tài khoản đó. Đặt biến môi trường STATION_PASSWORD
- * để thay giá trị mặc định dùng khi phát triển.
+ * nó chỉ áp dụng khi cột password_hash còn trống. Tài khoản Quản trị
+ * (tytbatxat@laocai.gov.vn) đã có chuỗi băm riêng nạp sẵn từ bản di trú
+ * 20260806035628_set_default_admin_account nên KHÔNG còn đi qua lối này. Ngay
+ * khi Quản trị đặt mật khẩu cho một tài khoản trong CMS (Quản trị hệ thống →
+ * Phân quyền hệ thống), lối này cũng đóng lại vĩnh viễn với tài khoản đó. Đặt
+ * biến môi trường STATION_PASSWORD để thay giá trị mặc định.
  */
 function bootstrapPassword(): string {
-  return process.env.STATION_PASSWORD || process.env.STATION_DEFAULT_PASSWORD || "admin123";
+  return process.env.STATION_PASSWORD || process.env.STATION_DEFAULT_PASSWORD || "Admin123@";
 }
 
 /** Thời điểm đăng nhập gần nhất - ghi lại nhưng không được làm hỏng luồng đăng nhập. */
