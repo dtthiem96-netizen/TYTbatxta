@@ -32,7 +32,6 @@ export default async (req: Request) => {
 
     const user = found[0];
     const role = (user.role || "").toString();
-    const isStation = /điểm trạm|diem tram|station|Điểm trạm/i.test(role);
 
     // Password check using environment variable; fallback to a development password.
     const secret = process.env.STATION_PASSWORD || process.env.STATION_DEFAULT_PASSWORD || null;
@@ -47,11 +46,35 @@ export default async (req: Request) => {
       }
     }
 
-    if (!isStation) {
-      return new Response(JSON.stringify({ success: false, error: "Account is not permitted to use the station panel" }), { headers, status: 403 });
+    /*
+     * Quyền vào Module Bảng điều khiển trạm do CMS Quản trị cấp qua cột station_access.
+     * Cột này mới được thêm nên các tài khoản tạo từ trước còn để trống; khi đó suy ra
+     * quyền từ vai trò (Cán bộ Điểm trạm / Quản trị viên) để không khoá nhầm những
+     * tài khoản vốn đã sử dụng Bảng điều khiển. Khi Quản trị đặt rõ ràng 'true'/'false'
+     * thì giá trị đó luôn thắng.
+     */
+    const granted = (user.stationAccess || "").toString().trim().toLowerCase();
+    const inferredFromRole = /điểm trạm|diem tram|station|admin|quản trị|quan tri/i.test(role);
+    const allowed = granted === "true" || (granted !== "false" && inferredFromRole);
+
+    if (!allowed) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Tài khoản chưa được CMS Quản trị cấp quyền truy cập Bảng điều khiển trạm"
+      }), { headers, status: 403 });
     }
 
-    return new Response(JSON.stringify({ success: true, user: { id: user.id, username: user.username, name: user.name, role: user.role, canReceiveVideo: user.canReceiveVideo } }), { headers, status: 200 });
+    return new Response(JSON.stringify({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role,
+        canReceiveVideo: user.canReceiveVideo,
+        stationAccess: allowed ? "true" : "false"
+      }
+    }), { headers, status: 200 });
   } catch (err: any) {
     console.error(err);
     return new Response(JSON.stringify({ error: err?.message || String(err) }), { headers, status: 500 });

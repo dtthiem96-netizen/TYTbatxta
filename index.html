@@ -319,10 +319,10 @@
                         <a href="#" onclick="window.switchPage('dept')" id="nav-dept" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Khoa & Phòng</a>
                         <a href="#" onclick="window.switchPage('news')" id="nav-news" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Tin tức & Lịch tiêm</a>
                         <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế')" class="text-blue-100 hover:text-white border-b-2 border-transparent hover:border-blue-300 pb-1 font-bold transition text-[15px]">Tải Tài Liệu</a>
-                        
-                        <button onclick="window.openStationPanel()" class="bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold transition text-[15px] flex items-center gap-2 px-4 py-2 rounded-full shadow-md border border-emerald-500/40">
-                            <i class="fas fa-notes-medical text-lg text-emerald-400"></i> Bảng Điểm Trạm
-                        </button>
+
+                        <!-- Module "Bảng điều khiển trạm y tế Bát Xát" đã được chuyển xuống chân trang,
+                             thay thế hoàn toàn lối vào Bảng điều khiển trạm cũ. Thanh tiêu đề chỉ còn
+                             các chức năng dành cho người dân. -->
 
                         <button onclick="window.openModal('modal-aisearch')" class="text-white hover:bg-purple-700 font-bold transition text-[15px] flex items-center gap-2 bg-[#5e35b1] px-4 py-2 rounded-full border border-purple-400/30 shadow-md">
                             <i class="fas fa-robot text-lg"></i> Tìm kiếm AI
@@ -348,7 +348,6 @@
                 <a href="#" onclick="window.switchPage('dept'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Khoa & Phòng Chức năng</a>
                 <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Tin tức & Lịch tiêm</a>
                 <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Kho Tài liệu & Biểu mẫu</a>
-                <a href="#" onclick="window.openStationPanel(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-2 text-center px-4 py-3 text-emerald-300 font-bold bg-slate-800 hover:bg-slate-700 rounded-xl shadow-md border border-emerald-500/40"><i class="fas fa-notes-medical mr-2"></i> Bảng điều khiển Cán bộ Điểm trạm (/tram)</a>
                 <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-2 text-center px-4 py-3 text-white font-bold bg-[#1976d2] hover:bg-[#1565c0] rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
                 <a href="tel:115" class="btn-call-emergency block mt-2 text-center px-4 py-3 text-white font-bold bg-[#e53935] hover:bg-[#d32f2f] rounded-xl shadow-md"><i class="fas fa-truck-medical mr-2"></i> Gọi Cấp Cứu 115</a>
                 <a href="tel:0382103002" class="btn-call-station block mt-2 text-center px-4 py-3 text-white font-bold bg-emerald-600 rounded-xl shadow-md"><i class="fas fa-phone-volume mr-2"></i> Gọi Trạm Y tế Bát Xát: 0382.103.002</a>
@@ -747,7 +746,20 @@
                     <p class="mb-4 md:mb-0 text-center md:text-left text-center-mobile">&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
                     <div class="flex items-center gap-4 flex-wrap justify-center">
                         <a href="#" class="hover:text-white transition text-blue-200">Chính sách bảo mật</a>
-                        <a href="/tram" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-emerald-400 tracking-wide" title="Bảng điều khiển dành cho Cán bộ Y tế trực tại Điểm trạm">BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM</a>
+
+                        <!-- ===== MODULE BẢNG ĐIỀU KHIỂN TRẠM Y TẾ =====
+                             Module được chuyển từ thanh tiêu đề xuống đúng vị trí của lối vào
+                             "Bảng điều khiển trạm" cũ và thay thế hoàn toàn lối vào đó.
+                             Tên phòng khám là biến động, lấy từ CMS Quản trị (khoá station-clinic-name).
+                             Mọi lượt mở đều đi qua rào chắn đăng nhập. -->
+                        <button type="button" id="footer-station-module" onclick="window.openStationPanel()" title="Bảng điều khiển dành cho Cán bộ Y tế trực tại Điểm trạm - yêu cầu đăng nhập tài khoản được CMS Quản trị cấp quyền" class="group inline-flex items-center gap-3 border-l-2 border-blue-700 pl-4 text-left transition">
+                            <span class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 flex items-center justify-center shadow-inner group-hover:bg-emerald-500/25 transition"><i class="fas fa-notes-medical"></i></span>
+                            <span class="leading-tight">
+                                <span class="block font-black text-emerald-400 group-hover:text-emerald-300 tracking-wide transition">BẢNG ĐIỀU KHIỂN <span data-station-clinic-name>TRẠM Y TẾ BÁT XÁT</span></span>
+                                <span class="block text-[11px] text-blue-300 font-bold"><i class="fas fa-lock text-[9px] mr-1"></i>Yêu cầu đăng nhập tài khoản được cấp quyền</span>
+                            </span>
+                        </button>
+
                         <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ CMS</a>
                     </div>
                 </div>
@@ -1579,13 +1591,18 @@
         <div id="login-modal" class="modal-content hidden bg-slate-900 text-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800">
             <div class="bg-slate-950 p-5 flex justify-between items-center border-b border-slate-800">
                 <h3 class="font-bold text-lg text-blue-400 flex items-center gap-2">
-                    <i class="fas fa-hospital-user"></i> Đăng nhập Cán bộ Điểm trạm
+                    <i class="fas fa-shield-halved"></i> Đăng nhập Bảng điều khiển <span data-station-clinic-name>Trạm Y tế Bát Xát</span>
                 </h3>
                 <button onclick="window.closeLoginModal()" class="text-slate-400 hover:text-white bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center transition">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="p-6 space-y-4 text-xs">
+                <div class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-[11px] text-slate-400 leading-relaxed">
+                    <i class="fas fa-lock text-blue-400 mr-1"></i> Module này bị khoá. Chỉ tài khoản đã được
+                    <strong class="text-slate-200">CMS Quản trị cấp quyền truy cập Bảng điều khiển trạm</strong>
+                    mới đăng nhập và thao tác được.
+                </div>
                 <div>
                     <label class="block text-slate-300 font-bold mb-1" for="input-station-code">Điểm trạm y tế khu vực</label>
                     <select id="input-station-code" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold focus:outline-none focus:border-blue-500">
@@ -1613,9 +1630,16 @@
                         <option value="station_operator">Cán bộ Y tế Điểm trạm</option>
                     </select>
                 </div>
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-station-password">Mật khẩu truy cập</label>
+                    <input type="password" id="input-station-password" autocomplete="current-password" placeholder="Mật khẩu do Quản trị CMS cấp" onkeydown="window.handleStationLoginKey(event)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
+                </div>
+                <p id="station-login-status" class="text-[11px] font-bold text-slate-400">
+                    <i class="fas fa-lock mr-1"></i> Thông tin đăng nhập được xác thực trên máy chủ trước khi mở Bảng điều khiển.
+                </p>
                 <div class="pt-2">
-                    <button onclick="window.submitLogin()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg text-sm flex items-center justify-center gap-2">
-                        <i class="fas fa-right-to-bracket"></i> Xác nhận & Vào Bảng điều khiển
+                    <button id="station-login-submit" onclick="window.submitLogin()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg text-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-right-to-bracket"></i> Đăng nhập & Vào Bảng điều khiển
                     </button>
                 </div>
             </div>
@@ -1630,8 +1654,10 @@
                         <i class="fas fa-notes-medical"></i>
                     </div>
                     <div>
-                        <h3 class="font-black text-base text-white flex items-center gap-2">
-                            BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM Y TẾ BÁT XÁT
+                        <h3 class="font-black text-base text-white flex items-center gap-2 flex-wrap">
+                            <span>BẢNG ĐIỀU KHIỂN</span>
+                            <!-- Tên phòng khám biến động: nạp từ site_configs (CMS Quản trị), không cứng trong mã. -->
+                            <span id="station-clinic-name" data-cms-id="station-clinic-name" data-station-clinic-name>TRẠM Y TẾ BÁT XÁT</span>
                             <span id="display-station-code" class="text-xs bg-blue-600 px-2 py-0.5 rounded font-mono text-white">TYT-BATXAT-01</span>
                         </h3>
                         <p class="text-xs text-slate-400 flex items-center gap-2">
@@ -1652,8 +1678,14 @@
                         <option value="TYT-BANXEO-04">TYT-BANXEO-04 · Bản Xèo</option>
                         <option value="TYT-LUNGFIN-05">TYT-LUNGFIN-05 · Lũng Pô Fin</option>
                     </select>
+                    <span id="station-auth-user" class="hidden items-center gap-1.5 bg-emerald-950 border border-emerald-800 text-emerald-300 text-[10px] font-bold px-2.5 py-1.5 rounded-xl" title="Tài khoản đang đăng nhập vào Bảng điều khiển">
+                        <i class="fas fa-user-shield"></i> <span id="station-auth-user-name">—</span>
+                    </span>
                     <button onclick="window.openLoginModal()" class="bg-slate-800 hover:bg-slate-700 text-blue-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700">
                         <i class="fas fa-user-gear"></i> Đổi tài khoản CMS
+                    </button>
+                    <button onclick="window.logoutStationPanel()" class="bg-slate-800 hover:bg-rose-900 text-rose-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 hover:border-rose-700" title="Thoát khỏi Bảng điều khiển trạm">
+                        <i class="fas fa-right-from-bracket"></i> Đăng xuất
                     </button>
                     <button onclick="window.closeModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 w-8 h-8 rounded-full flex items-center justify-center transition">
                         <i class="fas fa-times"></i>
@@ -2668,10 +2700,26 @@
 
                 <!-- ADMIN TAB: CONFIG & USERS -->
                 <div id="admin-config-section" class="admin-tab space-y-6">
+                    <!-- CẤU HÌNH TÊN PHÒNG KHÁM HIỂN THỊ TRÊN MODULE BẢNG ĐIỀU KHIỂN TRẠM -->
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+                        <div class="mb-4 pb-4 border-b border-gray-100">
+                            <h2 class="text-2xl font-black text-gray-900">Tên phòng khám trên Bảng điều khiển trạm</h2>
+                            <p class="text-sm text-gray-500 mt-1">Tên nhập ở đây được lưu lên cơ sở dữ liệu đám mây và hiển thị động trên Module Bảng điều khiển trạm cùng lối vào ở chân trang. Cập nhật trực tiếp tại đây, không cần sửa mã nguồn hay triển khai lại.</p>
+                        </div>
+                        <form onsubmit="window.handleSaveClinicName(event)" class="flex flex-col md:flex-row gap-3 md:items-end">
+                            <div class="flex-1">
+                                <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-clinic-name">Tên phòng khám hiển thị</label>
+                                <input type="text" id="cfg-clinic-name" required placeholder="Ví dụ: Trạm Y tế Bát Xát" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                            </div>
+                            <button type="submit" class="bg-gray-800 text-white font-bold px-5 py-2.5 rounded-lg hover:bg-black transition whitespace-nowrap"><i class="fas fa-cloud-arrow-up mr-1"></i> Lưu tên phòng khám</button>
+                        </form>
+                        <p id="cfg-clinic-name-status" class="text-xs font-bold text-gray-400 mt-3">Đang hiển thị: <span data-station-clinic-name>Trạm Y tế Bát Xát</span></p>
+                    </div>
+
                     <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
                         <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Cấu hình phân quyền hệ thống</h2></div>
                         <form onsubmit="window.handleAddUser(event)" class="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-6">
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                                 <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-acc">Email công vụ</label><input type="email" id="cfg-user-acc" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
                                 <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-name">Họ tên cán bộ</label><input type="text" id="cfg-user-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
                                 <div>
@@ -2690,6 +2738,13 @@
                                         <option value="false">Không được phép</option>
                                     </select>
                                 </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-station">Quyền vào Bảng điều khiển trạm</label>
+                                    <select id="cfg-user-station" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
+                                        <option value="true">Được phép đăng nhập</option>
+                                        <option value="false">Không được phép</option>
+                                    </select>
+                                </div>
                             </div>
                             <button type="submit" class="bg-gray-800 text-white font-bold px-5 py-2 rounded-lg hover:bg-black transition">Thêm vào danh sách</button>
                         </form>
@@ -2700,6 +2755,7 @@
                                     <th class="p-3 font-bold">Họ và tên</th>
                                     <th class="p-3 font-bold">Cấp bậc / Vai trò</th>
                                     <th class="p-3 font-bold text-center">Quyền Video Call</th>
+                                    <th class="p-3 font-bold text-center">Quyền vào Bảng điều khiển trạm</th>
                                     <th class="p-3 font-bold text-center">Thao tác</th>
                                 </tr>
                             </thead>
@@ -3640,11 +3696,16 @@
                     const videoBadge = canVideo 
                         ? `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserVideoPermission('${u.id}')" title="Nhấn để đổi quyền"><i class="fas fa-video text-emerald-600"></i> Được phép</span>`
                         : `<span class="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserVideoPermission('${u.id}')" title="Nhấn để đổi quyền"><i class="fas fa-video-slash text-gray-400"></i> Khóa quyền</span>`;
+                    const canStation = window.hasStationAccess(u);
+                    const stationBadge = canStation
+                        ? `<span class="px-2.5 py-1 bg-blue-100 text-blue-800 border border-blue-300 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserStationPermission('${u.id}')" title="Nhấn để đổi quyền truy cập Bảng điều khiển trạm"><i class="fas fa-unlock text-blue-600"></i> Được phép</span>`
+                        : `<span class="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserStationPermission('${u.id}')" title="Nhấn để đổi quyền truy cập Bảng điều khiển trạm"><i class="fas fa-lock text-gray-400"></i> Khóa quyền</span>`;
                     return `<tr class="hover:bg-gray-50">
                         <td class="p-3 font-bold text-gray-800">${u.username}</td>
                         <td class="p-3 text-gray-700 font-medium">${u.name}</td>
                         <td class="p-3"><span class="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-full text-xs font-bold">${u.role}</span></td>
                         <td class="p-3 text-center">${videoBadge}</td>
+                        <td class="p-3 text-center">${stationBadge}</td>
                         <td class="p-3 text-center"><button type="button" onclick="window.deleteItem('users', '${u.id}')" class="text-red-500 hover:text-red-700 p-1" title="Xóa tài khoản"><i class="fas fa-trash-alt"></i></button></td>
                     </tr>`;
                 }).join('');
@@ -3963,18 +4024,92 @@
             e.target.reset();
         };
         window.handleAddService = function(e) { e.preventDefault(); window.saveToDb('services', { id: 'S'+Date.now(), name: document.getElementById('srv-name').value, person: document.getElementById('srv-person').value, zalo: document.getElementById('srv-zalo').value, ts: Date.now() }); e.target.reset(); };
-        window.handleAddUser = function(e) { 
-            e.preventDefault(); 
-            const u = document.getElementById('cfg-user-acc').value; 
+        window.handleAddUser = function(e) {
+            e.preventDefault();
+            const u = document.getElementById('cfg-user-acc').value;
             const n = document.getElementById('cfg-user-name').value;
             const r = document.getElementById('cfg-user-role').value;
             const v = document.getElementById('cfg-user-video') ? document.getElementById('cfg-user-video').value : 'true';
-            if(adminUsers.find(x=>x.username===u)) return window.showToast("Tài khoản đã tồn tại!"); 
-            const newUser = { id: 'U'+Date.now(), username: u, name: n, role: r, canReceiveVideo: v };
+            const s = document.getElementById('cfg-user-station') ? document.getElementById('cfg-user-station').value : 'false';
+            if(adminUsers.find(x=>x.username===u)) return window.showToast("Tài khoản đã tồn tại!");
+            const newUser = { id: 'U'+Date.now(), username: u, name: n, role: r, canReceiveVideo: v, stationAccess: s };
             adminUsers.push(newUser);
             window.saveToDb('users', newUser);
-            e.target.reset(); 
+            e.target.reset();
             window.showToast("Đã thêm cán bộ & phân quyền thành công!");
+        };
+
+        /* Quyền truy cập Module Bảng điều khiển trạm.
+           Cột stationAccess mới có thể còn trống trên các tài khoản tạo từ trước, nên khi
+           chưa được đặt rõ ràng thì suy ra từ vai trò (Quản trị viên / Cán bộ Điểm trạm)
+           để không khoá nhầm những tài khoản vốn đã dùng Bảng điều khiển. */
+        window.hasStationAccess = function(user) {
+            if (!user) return false;
+            if (user.stationAccess === 'true') return true;
+            if (user.stationAccess === 'false') return false;
+            const role = user.role || '';
+            return /Điểm trạm|Station|Admin|Quản trị/i.test(role);
+        };
+
+        window.toggleUserStationPermission = function(userId) {
+            const user = adminUsers.find(u => u.id === userId);
+            if (!user) return;
+            user.stationAccess = window.hasStationAccess(user) ? 'false' : 'true';
+            window.saveToDb('users', user);
+            window.renderUI();
+            window.showToast(`Đã ${user.stationAccess === 'true' ? 'cấp' : 'thu hồi'} quyền vào Bảng điều khiển trạm cho ${user.name}`);
+        };
+
+        /* ===== TÊN PHÒNG KHÁM BIẾN ĐỘNG (CMS QUẢN TRỊ) =====
+           Giá trị chuẩn nằm ở phần tử #station-clinic-name (khoá site_configs
+           "station-clinic-name"). Hàm dưới đây rải giá trị đó ra mọi vị trí có gắn
+           thuộc tính data-station-clinic-name: tiêu đề Bảng điều khiển, lối vào ở chân
+           trang, popup đăng nhập và ô cấu hình trong CMS. */
+        window.applyStationClinicName = function(value) {
+            const src = document.getElementById('station-clinic-name');
+            let name = (value === undefined || value === null) ? '' : String(value).trim();
+            if (!name) name = src ? src.textContent.trim() : '';
+            if (!name) name = 'Trạm Y tế Bát Xát';
+
+            document.querySelectorAll('[data-station-clinic-name]').forEach(el => { el.textContent = name; });
+
+            const input = document.getElementById('cfg-clinic-name');
+            if (input && document.activeElement !== input) input.value = name;
+            return name;
+        };
+
+        window.handleSaveClinicName = async function(e) {
+            e.preventDefault();
+            const input = document.getElementById('cfg-clinic-name');
+            const status = document.getElementById('cfg-clinic-name-status');
+            const value = (input && input.value || '').trim();
+            if (!value) return;
+
+            if (status) {
+                status.className = 'text-xs font-bold text-blue-600 mt-3';
+                status.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Đang lưu lên cơ sở dữ liệu đám mây...';
+            }
+            try {
+                const res = await fetch('/api/cms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'save', type: 'siteConfigs', data: { id: 'station-clinic-name', value: value } })
+                });
+                if (!res.ok) throw new Error('Không lưu được cấu hình');
+                const applied = window.applyStationClinicName(value);
+                if (status) {
+                    status.className = 'text-xs font-bold text-green-600 mt-3';
+                    status.textContent = '✅ Đã cập nhật tên phòng khám: ' + applied;
+                }
+                window.showToast('Đã cập nhật tên phòng khám trên Bảng điều khiển trạm!');
+            } catch (err) {
+                console.error(err);
+                if (status) {
+                    status.className = 'text-xs font-bold text-rose-600 mt-3';
+                    status.textContent = '⚠️ Không lưu được lên đám mây. Vui lòng kiểm tra kết nối và thử lại.';
+                }
+                window.showToast('Lỗi khi lưu tên phòng khám!');
+            }
         };
 
         window.toggleUserVideoPermission = function(userId) {
@@ -6702,6 +6837,9 @@
                         });
                     }
 
+                    // Rải tên phòng khám vừa nạp ra Module Bảng điều khiển trạm & lối vào chân trang.
+                    window.applyStationClinicName();
+
                     const cloudStatus = document.getElementById('cloud-status');
                     if (cloudStatus) {
                         cloudStatus.innerHTML = `<div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div><span>Cơ sở dữ liệu đám mây (Postgres)</span>`;
@@ -6712,6 +6850,7 @@
                 console.warn("Lỗi kết nối API Postgres, sử dụng dữ liệu mặc định", e);
             }
             window.renderAll();
+            window.applyStationClinicName();
 
             // Theo dõi số cán bộ đang trực để người dân biết gọi có ai nghe hay không.
             try { window.startPublicDutyWatcher(); } catch (e) { console.warn('Không bật được theo dõi cán bộ trực:', e); }
@@ -6867,20 +7006,107 @@
                 console.error("Lỗi thiết lập nhạc nền:", err);
             }
 
-            // HÀM MỞ BẢNG ĐIỀU KHIỂN CÁN BỘ ĐIỂM TRẠM (/tram)
+            /* =====================================================================
+               MODULE BẢNG ĐIỀU KHIỂN TRẠM Y TẾ - RÀO CHẮN ĐĂNG NHẬP
+               Module đã được chuyển khỏi thanh tiêu đề xuống chân trang. Mọi lối vào
+               (nút chân trang, đường dẫn /tram) đều phải qua hàm openStationPanel bên
+               dưới, và hàm này chỉ mở thân module khi phiên đăng nhập đã được máy chủ
+               /api/station-auth xác thực thành công.
+               ===================================================================== */
+            const STATION_SESSION_KEY = 'tyt-station-session';
+
+            window.getStationSession = function() {
+                try {
+                    const raw = sessionStorage.getItem(STATION_SESSION_KEY);
+                    if (!raw) return null;
+                    const session = JSON.parse(raw);
+                    return (session && session.username) ? session : null;
+                } catch (err) {
+                    return null;
+                }
+            };
+
+            window.setStationSession = function(user) {
+                try { sessionStorage.setItem(STATION_SESSION_KEY, JSON.stringify(user || {})); } catch (err) {}
+                window.renderStationAuthBadge();
+            };
+
+            window.clearStationSession = function() {
+                try { sessionStorage.removeItem(STATION_SESSION_KEY); } catch (err) {}
+                window.renderStationAuthBadge();
+            };
+
+            window.renderStationAuthBadge = function() {
+                const session = window.getStationSession();
+                const badge = document.getElementById('station-auth-user');
+                const nameEl = document.getElementById('station-auth-user-name');
+                if (nameEl) nameEl.textContent = session ? (session.name || session.username) : '—';
+                if (badge) {
+                    badge.classList.toggle('hidden', !session);
+                    badge.classList.toggle('inline-flex', !!session);
+                }
+            };
+
+            // Popup đăng nhập mở độc lập (khi chưa có Bảng điều khiển phía sau).
+            window.openStationLoginModal = function() {
+                const overlay = document.getElementById('modal-overlay');
+                const modal = document.getElementById('login-modal');
+                if (!overlay || !modal) return;
+
+                document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
+                overlay.classList.remove('hidden');
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+
+                if (typeof window.loadCmsData === 'function') window.loadCmsData();
+
+                const status = document.getElementById('station-login-status');
+                if (status) {
+                    status.className = 'text-[11px] font-bold text-slate-400';
+                    status.innerHTML = '<i class="fas fa-lock mr-1"></i> Module yêu cầu đăng nhập bằng tài khoản đã được CMS Quản trị cấp quyền.';
+                }
+                const pwd = document.getElementById('input-station-password');
+                if (pwd) { pwd.value = ''; setTimeout(() => pwd.focus(), 120); }
+            };
+
+            // Mở thân module - luôn đi qua rào chắn đăng nhập.
             window.openStationPanel = function() {
+                if (!window.getStationSession()) {
+                    window.openStationLoginModal();
+                    return;
+                }
+
                 const overlay = document.getElementById('modal-overlay');
                 const modal = document.getElementById('modal-station-panel');
                 if (overlay && modal) {
                     document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
                     overlay.classList.remove('hidden');
                     modal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                    window.renderStationAuthBadge();
+                    if (typeof window.applyStationClinicName === 'function') window.applyStationClinicName();
                     if (typeof window.loadCmsData === 'function') window.loadCmsData();
                     if (typeof window.startQueuePolling === 'function') window.startQueuePolling();
                 }
             };
 
-            // Tự động mở Bảng điều khiển nếu truy cập đường dẫn /tram
+            window.logoutStationPanel = function() {
+                window.clearStationSession();
+                if (typeof window.stopQueuePolling === 'function') window.stopQueuePolling();
+                window.closeModal();
+                window.showToast('Đã đăng xuất khỏi Bảng điều khiển trạm.');
+            };
+
+            window.handleStationLoginKey = function(event) {
+                if (event && event.key === 'Enter') {
+                    event.preventDefault();
+                    window.submitLogin();
+                }
+            };
+
+            window.renderStationAuthBadge();
+
+            // Đường dẫn /tram vẫn mở module, nhưng vẫn phải qua bước đăng nhập.
             if (window.location.pathname.startsWith('/tram')) {
                 setTimeout(() => {
                     if (typeof window.openStationPanel === 'function') {

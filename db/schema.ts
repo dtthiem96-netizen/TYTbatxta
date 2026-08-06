@@ -51,6 +51,8 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   role: text("role").notNull(),
   canReceiveVideo: text("can_receive_video").default("true"),
+  // Quyền đăng nhập Module Bảng điều khiển trạm, do CMS Quản trị cấp/thu hồi.
+  stationAccess: text("station_access").default("false"),
 });
 
 export const siteConfigs = pgTable("site_configs", {

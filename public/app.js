@@ -185,8 +185,18 @@ function populateCmsAccountsDropdown() {
   const selectEl = document.getElementById('input-cms-account');
   if (!selectEl) return;
 
-  // Lọc danh sách tài khoản thuộc Cán bộ điểm trạm / Quản trị viên
-  const stationAccounts = cmsUsers.filter(u => u.role.includes('Trạm') || u.role.includes('Cán bộ') || u.role.includes('Admin') || u.canReceiveVideo === 'true');
+  /* Chỉ liệt kê tài khoản đã được CMS Quản trị cấp quyền vào Bảng điều khiển trạm.
+     Cột stationAccess mới thêm nên tài khoản cũ có thể còn trống - khi đó suy ra từ
+     vai trò, đúng như quy tắc mà /api/station-auth áp dụng ở phía máy chủ. Máy chủ
+     vẫn là nơi quyết định cuối cùng, danh sách này chỉ để tránh chọn nhầm. */
+  const hasStationAccess = (u) => {
+    if (!u) return false;
+    if (u.stationAccess === 'true') return true;
+    if (u.stationAccess === 'false') return false;
+    return /Điểm trạm|Station|Admin|Quản trị/i.test(u.role || '');
+  };
+
+  const stationAccounts = cmsUsers.filter(hasStationAccess);
   const accountsToRender = stationAccounts.length > 0 ? stationAccounts : cmsUsers;
 
   selectEl.innerHTML = '<option value="">-- Chọn tài khoản cán bộ trực trạm --</option>' +
@@ -216,6 +226,12 @@ function startQueuePolling() {
   if (queuePollInterval) clearInterval(queuePollInterval);
   refreshIncomingCallsQueue();
   queuePollInterval = setInterval(refreshIncomingCallsQueue, 3500);
+}
+
+/** Dừng quét hàng đợi khi cán bộ đăng xuất khỏi Bảng điều khiển. */
+function stopQueuePolling() {
+  if (queuePollInterval) clearInterval(queuePollInterval);
+  queuePollInterval = null;
 }
 
 async function refreshIncomingCallsQueue() {
@@ -1365,52 +1381,122 @@ function closeReportModal() {
 }
 
 // 8. Station Login Modal Handlers
+//    Rào chắn đăng nhập của Module Bảng điều khiển trạm: thông tin đăng nhập được
+//    máy chủ /api/station-auth xác thực trước, chỉ khi máy chủ trả về hợp lệ thì
+//    phiên làm việc mới được ghi nhận và thân module mới được mở.
+const STATION_AUTH_URL = '/api/station-auth';
+
 function openLoginModal() {
-  document.getElementById('login-modal').classList.remove('hidden');
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay) overlay.classList.remove('hidden');
+
+  const modal = document.getElementById('login-modal');
+  if (modal) modal.classList.remove('hidden');
+
+  const pwd = document.getElementById('input-station-password');
+  if (pwd) pwd.value = '';
 }
 
 function closeLoginModal() {
   document.getElementById('login-modal').classList.add('hidden');
 }
 
-function submitLogin() {
+/** Hiển thị trạng thái xác thực ngay trong popup đăng nhập. */
+function setStationLoginStatus(message, tone) {
+  const el = document.getElementById('station-login-status');
+  if (!el) return;
+
+  const tones = {
+    info: 'text-[11px] font-bold text-slate-400',
+    pending: 'text-[11px] font-bold text-blue-400',
+    error: 'text-[11px] font-bold text-rose-400',
+    success: 'text-[11px] font-bold text-emerald-400'
+  };
+  el.className = tones[tone] || tones.info;
+  el.textContent = message;
+}
+
+async function submitLogin() {
   const code = document.getElementById('input-station-code').value.trim();
-  const selectedCmsUsername = document.getElementById('input-cms-account')?.value;
+  const selectedCmsUsername = (document.getElementById('input-cms-account')?.value || '').trim();
   const typedName = document.getElementById('input-operator-name').value.trim();
+  const password = document.getElementById('input-station-password')?.value || '';
+  const submitBtn = document.getElementById('station-login-submit');
 
-  let finalOperatorName = typedName;
-  if (selectedCmsUsername) {
-    const foundUser = cmsUsers.find(u => u.username === selectedCmsUsername);
-    if (foundUser) {
-      loggedInCmsUser = foundUser;
-      finalOperatorName = foundUser.name;
+  if (!code) return setStationLoginStatus('Vui lòng chọn điểm trạm đang trực.', 'error');
+  if (!selectedCmsUsername) return setStationLoginStatus('Vui lòng chọn tài khoản cán bộ đã được CMS Quản trị cấp quyền.', 'error');
+  if (!password) return setStationLoginStatus('Vui lòng nhập mật khẩu truy cập.', 'error');
+
+  if (submitBtn) submitBtn.disabled = true;
+  setStationLoginStatus('Đang xác thực tài khoản với hệ thống CMS...', 'pending');
+
+  let result = null;
+  try {
+    const res = await fetch(STATION_AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: selectedCmsUsername, password })
+    });
+    result = await res.json().catch(() => null);
+
+    if (!res.ok || !result || result.success !== true) {
+      // Lỗi phía máy chủ (500) có thể kèm chi tiết kỹ thuật - không hiển thị ra giao diện.
+      const reason = res.status >= 500
+        ? 'Hệ thống xác thực đang gián đoạn, vui lòng liên hệ Quản trị CMS.'
+        : ((result && result.error) || 'Tài khoản hoặc mật khẩu không hợp lệ.');
+      setStationLoginStatus('⛔ Từ chối truy cập: ' + reason, 'error');
+      return;
     }
+  } catch (err) {
+    setStationLoginStatus('Không kết nối được máy chủ xác thực. Vui lòng thử lại.', 'error');
+    return;
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
   }
 
-  if (code && finalOperatorName) {
-    const previousPeerId = peerId;
-    const previousRoomId = roomId;
+  const authUser = result.user || { username: selectedCmsUsername, name: typedName };
+  loggedInCmsUser = authUser;
 
-    stationCode = code;
-    operatorName = finalOperatorName;
-    role = 'station_operator'; // Luôn cố định vai trò Cán bộ Y tế Điểm trạm
+  const previousPeerId = peerId;
+  const previousRoomId = roomId;
+  const stationChanged = code !== stationCode;
 
-    document.getElementById('display-station-code').textContent = stationCode;
-    document.getElementById('display-operator-name').textContent = operatorName;
+  stationCode = code;
+  operatorName = authUser.name || typedName || authUser.username;
+  role = 'station_operator'; // Luôn cố định vai trò Cán bộ Y tế Điểm trạm
+  if (stationChanged) roomId = defaultRoomForStation(stationCode);
 
-    closeLoginModal();
+  renderStationIdentity();
 
-    // Rời phòng cũ nếu có
-    if (previousPeerId && previousRoomId) {
-      fetch(SIGNAL_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'leave', roomId: previousRoomId, peerId: previousPeerId })
-      }).catch(() => {});
-    }
-
-    joinRoom();
+  // Ghi nhận phiên làm việc để rào chắn của module cho phép mở thân Bảng điều khiển.
+  if (typeof window.setStationSession === 'function') {
+    window.setStationSession({
+      username: authUser.username,
+      name: operatorName,
+      role: authUser.role || '',
+      stationCode: stationCode,
+      loginAt: Date.now()
+    });
   }
+
+  setStationLoginStatus('✅ Xác thực thành công. Đang mở Bảng điều khiển...', 'success');
+
+  const pwdInput = document.getElementById('input-station-password');
+  if (pwdInput) pwdInput.value = '';
+
+  closeLoginModal();
+  if (typeof window.openStationPanel === 'function') window.openStationPanel();
+
+  // Rời phòng cũ nếu có
+  if (previousPeerId && previousRoomId) {
+    fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'leave', roomId: previousRoomId, peerId: previousPeerId })
+    }).catch(() => {});
+  }
+
+  joinRoom();
 }
 
 // 9. Chat Helpers
@@ -1501,6 +1587,7 @@ window.loadCmsData = loadCmsData;
 window.populateCmsAccountsDropdown = populateCmsAccountsDropdown;
 window.onCmsAccountSelect = onCmsAccountSelect;
 window.startQueuePolling = startQueuePolling;
+window.stopQueuePolling = stopQueuePolling;
 window.refreshIncomingCallsQueue = refreshIncomingCallsQueue;
 window.acceptPatientCall = acceptPatientCall;
 window.joinRoom = joinRoom;
