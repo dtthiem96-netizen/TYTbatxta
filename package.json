@@ -15,6 +15,7 @@
   "dependencies": {
     "@google/genai": "^2.8.0",
     "@netlify/blobs": "^10.7.9",
+    "bcryptjs": "^3.0.3",
     "drizzle-orm": "beta",
     "express": "^4.19.2",
     "ws": "^8.17.0"

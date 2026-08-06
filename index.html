@@ -2716,51 +2716,125 @@
                         <p id="cfg-clinic-name-status" class="text-xs font-bold text-gray-400 mt-3">Đang hiển thị: <span data-station-clinic-name>Trạm Y tế Bát Xát</span></p>
                     </div>
 
+                    <!-- ================= QUẢN LÝ TÀI KHOẢN & PHÂN QUYỀN HỆ THỐNG ================= -->
                     <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
-                        <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Cấu hình phân quyền hệ thống</h2></div>
-                        <form onsubmit="window.handleAddUser(event)" class="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-6">
-                            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-acc">Email công vụ</label><input type="email" id="cfg-user-acc" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-name">Họ tên cán bộ</label><input type="text" id="cfg-user-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900"></div>
+                        <div class="mb-6 pb-4 border-b border-gray-100 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-2xl font-black text-gray-900">Quản lý tài khoản &amp; Phân quyền hệ thống</h2>
+                                <p class="text-sm text-gray-500 mt-1">Tạo tài khoản cấp cho nhân sự / điểm trạm, cấp hoặc thu hồi <strong>Quyền truy cập Mod Bảng điều khiển điểm trạm</strong>, đặt lại mật khẩu và khoá / mở khoá tài khoản. Mật khẩu được lưu dưới dạng băm bcrypt, hệ thống không giữ bản rõ.</p>
+                            </div>
+                            <button type="button" onclick="window.refreshAccounts()" class="bg-white border border-gray-300 text-gray-700 font-bold px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm whitespace-nowrap"><i class="fas fa-rotate mr-1"></i> Tải lại danh sách</button>
+                        </div>
+
+                        <!-- Cảnh báo khi phiên Quản trị chưa được máy chủ xác thực -->
+                        <div id="acc-auth-warning" class="hidden mb-5 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl px-4 py-3 text-sm font-bold">
+                            <i class="fas fa-triangle-exclamation mr-1"></i>
+                            <span id="acc-auth-warning-text">Phiên Quản trị chưa được máy chủ xác thực. Đăng xuất và đăng nhập lại CMS để thao tác trên tài khoản.</span>
+                        </div>
+
+                        <!-- BIỂU MẪU TẠO / SỬA TÀI KHOẢN -->
+                        <form onsubmit="window.handleAccountSubmit(event)" class="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-6">
+                            <input type="hidden" id="acc-editing-id" value="">
+                            <h3 id="acc-form-title" class="text-sm font-black text-gray-900 uppercase tracking-wide mb-4"><i class="fas fa-user-plus text-medical-600 mr-1"></i> Tạo tài khoản truy cập mới</h3>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-name">Họ và tên <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="cfg-user-name" required placeholder="VD: Y sĩ Nguyễn Văn A" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-acc">Tên đăng nhập (Username) <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="cfg-user-acc" required autocomplete="off" placeholder="VD: canbotram@laocai.gov.vn" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-stationcode">Điểm trạm trực thuộc <span class="text-rose-500">*</span></label>
+                                    <select id="cfg-user-stationcode" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
+                                        <option value="TYT-BATXAT-01">TYT-BATXAT-01 — Trạm Y tế Bát Xát (Trung tâm)</option>
+                                        <option value="TYT-AMLUONG-02">TYT-AMLUONG-02 — Điểm trạm Ẩm Lương</option>
+                                        <option value="TYT-YTY-03">TYT-YTY-03 — Điểm trạm Y Tý</option>
+                                        <option value="TYT-BANXEO-04">TYT-BANXEO-04 — Điểm trạm Bản Xèo</option>
+                                        <option value="TYT-LUNGFIN-05">TYT-LUNGFIN-05 — Điểm trạm Lũng Pô Fin</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-password">Mật khẩu <span class="text-rose-500">*</span></label>
+                                    <input type="password" id="cfg-user-password" autocomplete="new-password" placeholder="Tối thiểu 8 ký tự, gồm chữ và số" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-password2">Nhập lại mật khẩu</label>
+                                    <input type="password" id="cfg-user-password2" autocomplete="new-password" placeholder="Nhập lại đúng mật khẩu trên" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-role">Vai trò</label>
                                     <select id="cfg-user-role" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
                                         <option value="Quản trị viên (Admin)">Quản trị viên (Admin)</option>
-                                        <option value="Cán bộ Điểm trạm (Station Operator)">Cán bộ Điểm trạm (Chỉ tiếp nhận cuộc gọi Video)</option>
+                                        <option value="Cán bộ Điểm trạm (Station Operator)">Cán bộ Điểm trạm (Station Operator)</option>
                                         <option value="Bác sĩ nhận cuộc gọi">Bác sĩ nhận cuộc gọi Telehealth</option>
                                         <option value="Cán bộ biên tập (Editor)">Cán bộ biên tập (Editor)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-video">Quyền nhận cuộc gọi Video</label>
-                                    <select id="cfg-user-video" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
-                                        <option value="true">Được phép nhận cuộc gọi</option>
-                                        <option value="false">Không được phép</option>
-                                    </select>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-email">Email liên hệ</label>
+                                    <input type="email" id="cfg-user-email" placeholder="VD: canbo@laocai.gov.vn" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-station">Quyền vào Bảng điều khiển trạm</label>
-                                    <select id="cfg-user-station" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
-                                        <option value="true">Được phép đăng nhập</option>
-                                        <option value="false">Không được phép</option>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-phone">Số điện thoại</label>
+                                    <input type="tel" id="cfg-user-phone" placeholder="VD: 0382103002" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-status">Trạng thái tài khoản</label>
+                                    <select id="cfg-user-status" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
+                                        <option value="ACTIVE">Đang kích hoạt</option>
+                                        <option value="DISABLED">Đang khoá</option>
                                     </select>
                                 </div>
                             </div>
-                            <button type="submit" class="bg-gray-800 text-white font-bold px-5 py-2 rounded-lg hover:bg-black transition">Thêm vào danh sách</button>
+
+                            <p class="text-[11px] text-gray-500 italic mb-3"><i class="fas fa-circle-info mr-1"></i> Phải nhập ít nhất một cách liên hệ (Email hoặc Số điện thoại) để bàn giao tài khoản cho cán bộ.</p>
+
+                            <!-- CẤP QUYỀN TRUY CẬP MODULE -->
+                            <div class="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+                                <p class="text-xs font-black text-gray-900 uppercase tracking-wide mb-3"><i class="fas fa-user-shield text-medical-600 mr-1"></i> Cấp quyền truy cập Module</p>
+                                <label class="flex items-start gap-3 cursor-pointer mb-3">
+                                    <input type="checkbox" id="cfg-user-station" class="mt-0.5 w-4 h-4 accent-blue-600">
+                                    <span>
+                                        <span class="block text-sm font-bold text-gray-900">Quyền truy cập Mod Bảng điều khiển điểm trạm</span>
+                                        <span class="block text-[11px] text-gray-500">Chỉ tài khoản được tích chọn mới đăng nhập và thao tác được trên giao diện Module Bảng điều khiển điểm trạm. Máy chủ chặn cả trường hợp gõ thẳng đường dẫn.</span>
+                                    </span>
+                                </label>
+                                <label class="flex items-start gap-3 cursor-pointer">
+                                    <input type="checkbox" id="cfg-user-video" class="mt-0.5 w-4 h-4 accent-emerald-600" checked>
+                                    <span>
+                                        <span class="block text-sm font-bold text-gray-900">Quyền tiếp nhận cuộc gọi Video Telehealth</span>
+                                        <span class="block text-[11px] text-gray-500">Cho phép tài khoản nhận cuộc gọi khám từ xa từ người dân và tuyến trên.</span>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-3">
+                                <button type="submit" id="acc-form-submit" class="bg-gray-800 text-white font-bold px-5 py-2.5 rounded-lg hover:bg-black transition"><i class="fas fa-user-plus mr-1"></i> Tạo tài khoản</button>
+                                <button type="button" id="acc-form-cancel" onclick="window.resetAccountForm()" class="hidden bg-white border border-gray-300 text-gray-700 font-bold px-5 py-2.5 rounded-lg hover:bg-gray-100 transition">Huỷ chỉnh sửa</button>
+                                <span id="acc-form-status" class="text-xs font-bold text-gray-400"></span>
+                            </div>
                         </form>
-                        <table class="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden">
-                            <thead class="bg-gray-100 text-gray-600 text-xs uppercase">
-                                <tr>
-                                    <th class="p-3 font-bold">Email tài khoản</th>
-                                    <th class="p-3 font-bold">Họ và tên</th>
-                                    <th class="p-3 font-bold">Cấp bậc / Vai trò</th>
-                                    <th class="p-3 font-bold text-center">Quyền Video Call</th>
-                                    <th class="p-3 font-bold text-center">Quyền vào Bảng điều khiển trạm</th>
-                                    <th class="p-3 font-bold text-center">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="admin-user-list" class="divide-y divide-gray-100 text-gray-900"></tbody>
-                        </table>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden">
+                                <thead class="bg-gray-100 text-gray-600 text-xs uppercase">
+                                    <tr>
+                                        <th class="p-3 font-bold">Tên đăng nhập</th>
+                                        <th class="p-3 font-bold">Họ và tên</th>
+                                        <th class="p-3 font-bold">Vai trò</th>
+                                        <th class="p-3 font-bold">Điểm trạm / Liên hệ</th>
+                                        <th class="p-3 font-bold text-center">Quyền Video Call</th>
+                                        <th class="p-3 font-bold text-center">Quyền Mod Bảng điều khiển</th>
+                                        <th class="p-3 font-bold text-center">Trạng thái</th>
+                                        <th class="p-3 font-bold text-center">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-user-list" class="divide-y divide-gray-100 text-gray-900"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -3700,15 +3774,36 @@
                     const stationBadge = canStation
                         ? `<span class="px-2.5 py-1 bg-blue-100 text-blue-800 border border-blue-300 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserStationPermission('${u.id}')" title="Nhấn để đổi quyền truy cập Bảng điều khiển trạm"><i class="fas fa-unlock text-blue-600"></i> Được phép</span>`
                         : `<span class="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserStationPermission('${u.id}')" title="Nhấn để đổi quyền truy cập Bảng điều khiển trạm"><i class="fas fa-lock text-gray-400"></i> Khóa quyền</span>`;
-                    return `<tr class="hover:bg-gray-50">
-                        <td class="p-3 font-bold text-gray-800">${u.username}</td>
+                    const isDisabled = (u.status || 'ACTIVE').toUpperCase() === 'DISABLED';
+                    const statusBadge = isDisabled
+                        ? `<span class="px-2.5 py-1 bg-rose-100 text-rose-800 border border-rose-300 rounded-full text-xs font-bold inline-flex items-center gap-1"><i class="fas fa-user-lock"></i> Đã khóa</span>`
+                        : `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-xs font-bold inline-flex items-center gap-1"><i class="fas fa-user-check"></i> Hoạt động</span>`;
+                    // Nhắc Quản trị những tài khoản chưa từng đặt mật khẩu riêng.
+                    const pwdNote = u.hasPassword === false
+                        ? `<span class="block text-[11px] font-bold text-amber-600 mt-0.5"><i class="fas fa-triangle-exclamation"></i> Chưa đặt mật khẩu riêng</span>`
+                        : (u.mustChangePassword === 'true'
+                            ? `<span class="block text-[11px] font-bold text-blue-600 mt-0.5"><i class="fas fa-key"></i> Cần đổi mật khẩu</span>`
+                            : '');
+                    const contact = [u.email, u.phone].filter(Boolean).join(' · ');
+                    return `<tr class="hover:bg-gray-50 ${isDisabled ? 'opacity-70' : ''}">
+                        <td class="p-3 font-bold text-gray-800">${u.username}${pwdNote}</td>
                         <td class="p-3 text-gray-700 font-medium">${u.name}</td>
                         <td class="p-3"><span class="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-full text-xs font-bold">${u.role}</span></td>
+                        <td class="p-3 text-xs text-gray-600 font-medium"><span class="font-bold text-gray-800">${u.stationCode || '—'}</span><span class="block mt-0.5">${contact || 'Chưa có liên hệ'}</span></td>
                         <td class="p-3 text-center">${videoBadge}</td>
                         <td class="p-3 text-center">${stationBadge}</td>
-                        <td class="p-3 text-center"><button type="button" onclick="window.deleteItem('users', '${u.id}')" class="text-red-500 hover:text-red-700 p-1" title="Xóa tài khoản"><i class="fas fa-trash-alt"></i></button></td>
+                        <td class="p-3 text-center">${statusBadge}</td>
+                        <td class="p-3 text-center whitespace-nowrap">
+                            <button type="button" onclick="window.editAccount('${u.id}')" class="text-blue-600 hover:text-blue-800 p-1.5" title="Chỉnh sửa thông tin"><i class="fas fa-user-pen"></i></button>
+                            <button type="button" onclick="window.resetAccountPassword('${u.id}')" class="text-amber-600 hover:text-amber-800 p-1.5" title="Đặt lại mật khẩu"><i class="fas fa-key"></i></button>
+                            <button type="button" onclick="window.toggleAccountStatus('${u.id}')" class="${isDisabled ? 'text-emerald-600 hover:text-emerald-800' : 'text-gray-500 hover:text-gray-700'} p-1.5" title="${isDisabled ? 'Kích hoạt lại tài khoản' : 'Khóa tài khoản'}"><i class="fas ${isDisabled ? 'fa-unlock' : 'fa-user-lock'}"></i></button>
+                            <button type="button" onclick="window.deleteAccount('${u.id}')" class="text-red-500 hover:text-red-700 p-1.5" title="Xóa tài khoản"><i class="fas fa-trash-alt"></i></button>
+                        </td>
                     </tr>`;
                 }).join('');
+                if (!adminUsers.length) {
+                    usrAdm.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-400 font-medium"><i class="fas fa-users-slash text-3xl mb-2 block"></i>Chưa có tài khoản nào. Hãy tạo tài khoản đầu tiên ở biểu mẫu bên trên.</td></tr>`;
+                }
             }
 
             if (apptAdm) {
@@ -3800,6 +3895,14 @@
 
         // 5. QUẢN TRỊ CMS: XỬ LÝ THÊM & XÓA ĐỒNG BỘ TOÀN DIỆN QUA API POSTGRES
         window.saveToDb = async function(collectionName, dataObj) {
+            /* Tài khoản không đi lối này nữa: /api/cms là tuyến công khai, nếu còn cho
+               ghi bảng users thì bất kỳ ai cũng tự cấp được "Quyền truy cập Mod Bảng
+               điều khiển điểm trạm" cho mình. Máy chủ đã trả 403 cho type=users, ở đây
+               chuyển hướng sớm để thông báo cho đúng thay vì báo lỗi lưu chung chung. */
+            if (collectionName === 'users') {
+                window.showToast('Thao tác tài khoản phải thực hiện trong thẻ "Quản lý tài khoản & Phân quyền hệ thống".');
+                return;
+            }
             try {
                 // Cập nhật mảng local để phản hồi UI ngay lập tức
                 if(collectionName==='news') {
@@ -3827,6 +3930,8 @@
                     videosData.push(dataObj);
                 }
                 if(collectionName==='users') {
+                    // Nhánh này không còn được gọi (xem chốt chặn ở đầu hàm) nhưng giữ lại
+                    // để mảng local vẫn nhất quán nếu có lối gọi cũ nào sót.
                     adminUsers = adminUsers.filter(x => x.id !== dataObj.id);
                     adminUsers.push(dataObj);
                 }
@@ -3851,6 +3956,8 @@
         };
 
         window.deleteItem = async function(collectionName, id) {
+            // Xoá tài khoản phải qua /api/admin-users (có kiểm tra quyền Quản trị).
+            if (collectionName === 'users') return window.deleteAccount(id);
             if(confirm("Xác nhận xóa dữ liệu này khỏi hệ thống?")) {
                 try {
                     // Xóa trên local trước
@@ -4024,25 +4131,286 @@
             e.target.reset();
         };
         window.handleAddService = function(e) { e.preventDefault(); window.saveToDb('services', { id: 'S'+Date.now(), name: document.getElementById('srv-name').value, person: document.getElementById('srv-person').value, zalo: document.getElementById('srv-zalo').value, ts: Date.now() }); e.target.reset(); };
-        window.handleAddUser = function(e) {
-            e.preventDefault();
-            const u = document.getElementById('cfg-user-acc').value;
-            const n = document.getElementById('cfg-user-name').value;
-            const r = document.getElementById('cfg-user-role').value;
-            const v = document.getElementById('cfg-user-video') ? document.getElementById('cfg-user-video').value : 'true';
-            const s = document.getElementById('cfg-user-station') ? document.getElementById('cfg-user-station').value : 'false';
-            if(adminUsers.find(x=>x.username===u)) return window.showToast("Tài khoản đã tồn tại!");
-            const newUser = { id: 'U'+Date.now(), username: u, name: n, role: r, canReceiveVideo: v, stationAccess: s };
-            adminUsers.push(newUser);
-            window.saveToDb('users', newUser);
-            e.target.reset();
-            window.showToast("Đã thêm cán bộ & phân quyền thành công!");
+        /* =====================================================================
+           QUẢN TRỊ HỆ THỐNG → PHÂN QUYỀN HỆ THỐNG
+           Quản lý tài khoản truy cập và cấp "Quyền truy cập Mod Bảng điều khiển
+           điểm trạm". Toàn bộ thao tác đi qua /api/admin-users, tuyến này bắt
+           buộc phiếu phiên có phạm vi "admin" nên giao diện KHÔNG phải là hàng
+           rào duy nhất - đây chỉ là lớp hiển thị, máy chủ mới là nơi quyết định.
+           ===================================================================== */
+        const CMS_ADMIN_SESSION_KEY = 'tyt-cms-admin-session';
+
+        window.getCmsAdminSession = function() {
+            try {
+                const raw = sessionStorage.getItem(CMS_ADMIN_SESSION_KEY);
+                if (!raw) return null;
+                const session = JSON.parse(raw);
+                if (!session || !session.token) return null;
+                if (session.expiresAt && session.expiresAt <= Date.now()) return null;
+                return session;
+            } catch (err) {
+                return null;
+            }
         };
+
+        window.setCmsAdminSession = function(session) {
+            try { sessionStorage.setItem(CMS_ADMIN_SESSION_KEY, JSON.stringify(session || {})); } catch (err) {}
+            window.renderAccountAuthWarning();
+        };
+
+        window.clearCmsAdminSession = function() {
+            try { sessionStorage.removeItem(CMS_ADMIN_SESSION_KEY); } catch (err) {}
+            window.renderAccountAuthWarning();
+        };
+
+        /* Rào chắn phía giao diện: không có phiếu Quản trị thì hiện cảnh báo và
+           vô hiệu hoá biểu mẫu, thay vì để người dùng gõ xong mới nhận lỗi 401. */
+        window.renderAccountAuthWarning = function(message) {
+            const box = document.getElementById('acc-auth-warning');
+            const textEl = document.getElementById('acc-auth-warning-text');
+            if (!box) return;
+            const session = window.getCmsAdminSession();
+            const isAdmin = !!(session && Array.isArray(session.scopes) && session.scopes.indexOf('admin') !== -1);
+
+            if (isAdmin && !message) {
+                box.classList.add('hidden');
+                return;
+            }
+            box.classList.remove('hidden');
+            if (textEl) {
+                textEl.textContent = message || (session
+                    ? 'Tài khoản đang đăng nhập không có quyền Quản trị viên nên không thao tác được trên danh sách tài khoản.'
+                    : 'Phiên Quản trị chưa được máy chủ xác thực. Vui lòng đăng xuất và đăng nhập lại CMS để quản lý tài khoản.');
+            }
+        };
+
+        window.setAccountFormStatus = function(message, tone) {
+            const el = document.getElementById('acc-form-status');
+            if (!el) return;
+            const tones = {
+                info: 'text-xs font-bold text-gray-400',
+                pending: 'text-xs font-bold text-blue-600',
+                error: 'text-xs font-bold text-rose-600',
+                success: 'text-xs font-bold text-emerald-600'
+            };
+            el.className = tones[tone] || tones.info;
+            el.textContent = message || '';
+        };
+
+        /** Gọi API quản lý tài khoản kèm phiếu phiên Quản trị. */
+        window.cmsAdminRequest = async function(payload, method) {
+            const session = window.getCmsAdminSession();
+            if (!session) {
+                window.renderAccountAuthWarning();
+                throw new Error('Phiên Quản trị đã hết hạn. Vui lòng đăng nhập lại CMS.');
+            }
+
+            const options = {
+                method: method || 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + session.token
+                }
+            };
+            if (options.method !== 'GET') options.body = JSON.stringify(payload || {});
+
+            const res = await fetch('/api/admin-users', options);
+            const data = await res.json().catch(() => null);
+
+            if (res.status === 401) {
+                window.clearCmsAdminSession();
+                throw new Error((data && data.error) || 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại CMS.');
+            }
+            if (!res.ok || !data || data.success !== true) {
+                throw new Error((data && data.error) || 'Máy chủ từ chối thao tác quản lý tài khoản.');
+            }
+            return data;
+        };
+
+        /** Nạp lại danh sách tài khoản từ máy chủ (bản đã lọc bỏ mật khẩu). */
+        window.refreshAccounts = async function() {
+            try {
+                const data = await window.cmsAdminRequest(null, 'GET');
+                adminUsers = Array.isArray(data.users) ? data.users : [];
+                window.renderUI();
+                window.renderAccountAuthWarning();
+                window.setAccountFormStatus('Đã tải ' + adminUsers.length + ' tài khoản từ hệ thống.', 'success');
+            } catch (err) {
+                window.renderAccountAuthWarning(err.message);
+                window.setAccountFormStatus(err.message, 'error');
+            }
+        };
+
+        window.resetAccountForm = function() {
+            const set = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
+            const check = (id, value) => { const el = document.getElementById(id); if (el) el.checked = value; };
+
+            set('acc-editing-id', '');
+            set('cfg-user-name', '');
+            set('cfg-user-acc', '');
+            set('cfg-user-password', '');
+            set('cfg-user-password2', '');
+            set('cfg-user-email', '');
+            set('cfg-user-phone', '');
+            set('cfg-user-stationcode', 'TYT-BATXAT-01');
+            set('cfg-user-role', 'Cán bộ Điểm trạm (Station Operator)');
+            set('cfg-user-status', 'ACTIVE');
+            check('cfg-user-station', false);
+            check('cfg-user-video', true);
+
+            const title = document.getElementById('acc-form-title');
+            if (title) title.innerHTML = '<i class="fas fa-user-plus text-medical-600 mr-1"></i> Tạo tài khoản truy cập mới';
+            const submit = document.getElementById('acc-form-submit');
+            if (submit) submit.innerHTML = '<i class="fas fa-user-plus mr-1"></i> Tạo tài khoản';
+            const cancel = document.getElementById('acc-form-cancel');
+            if (cancel) cancel.classList.add('hidden');
+            const pwd = document.getElementById('cfg-user-password');
+            if (pwd) pwd.placeholder = 'Tối thiểu 8 ký tự, gồm chữ và số';
+            window.setAccountFormStatus('', 'info');
+        };
+
+        /** Nạp một tài khoản lên biểu mẫu để chỉnh sửa. */
+        window.editAccount = function(userId) {
+            const user = adminUsers.find(u => u.id === userId);
+            if (!user) return;
+
+            const set = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
+            const check = (id, value) => { const el = document.getElementById(id); if (el) el.checked = value; };
+
+            set('acc-editing-id', user.id);
+            set('cfg-user-name', user.name || '');
+            set('cfg-user-acc', user.username || '');
+            set('cfg-user-password', '');
+            set('cfg-user-password2', '');
+            set('cfg-user-email', user.email || '');
+            set('cfg-user-phone', user.phone || '');
+            set('cfg-user-stationcode', user.stationCode || 'TYT-BATXAT-01');
+            set('cfg-user-role', user.role || 'Cán bộ Điểm trạm (Station Operator)');
+            set('cfg-user-status', (user.status || 'ACTIVE').toUpperCase() === 'DISABLED' ? 'DISABLED' : 'ACTIVE');
+            check('cfg-user-station', window.hasStationAccess(user));
+            check('cfg-user-video', user.canReceiveVideo !== 'false');
+
+            const title = document.getElementById('acc-form-title');
+            if (title) title.innerHTML = '<i class="fas fa-user-pen text-medical-600 mr-1"></i> Chỉnh sửa tài khoản: ' + (user.name || user.username);
+            const submit = document.getElementById('acc-form-submit');
+            if (submit) submit.innerHTML = '<i class="fas fa-floppy-disk mr-1"></i> Lưu thay đổi';
+            const cancel = document.getElementById('acc-form-cancel');
+            if (cancel) cancel.classList.remove('hidden');
+            const pwd = document.getElementById('cfg-user-password');
+            if (pwd) pwd.placeholder = 'Để trống nếu không đổi mật khẩu';
+
+            window.setAccountFormStatus('Đang chỉnh sửa tài khoản ' + (user.username || ''), 'info');
+            const form = document.getElementById('acc-form-title');
+            if (form && form.scrollIntoView) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+
+        /** Tạo mới hoặc cập nhật tài khoản, tuỳ theo biểu mẫu đang ở chế độ nào. */
+        window.handleAccountSubmit = async function(e) {
+            e.preventDefault();
+            const value = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+            const checked = (id) => { const el = document.getElementById(id); return el ? !!el.checked : false; };
+
+            const editingId = value('acc-editing-id');
+            const password = document.getElementById('cfg-user-password') ? document.getElementById('cfg-user-password').value : '';
+            const password2 = document.getElementById('cfg-user-password2') ? document.getElementById('cfg-user-password2').value : '';
+
+            if (!editingId && !password) {
+                return window.setAccountFormStatus('Mật khẩu là bắt buộc khi tạo tài khoản mới.', 'error');
+            }
+            if (password && password !== password2) {
+                return window.setAccountFormStatus('Hai lần nhập mật khẩu không khớp nhau.', 'error');
+            }
+
+            const payload = {
+                action: editingId ? 'update' : 'create',
+                id: editingId || undefined,
+                name: value('cfg-user-name'),
+                username: value('cfg-user-acc'),
+                email: value('cfg-user-email'),
+                phone: value('cfg-user-phone'),
+                stationCode: value('cfg-user-stationcode'),
+                role: value('cfg-user-role'),
+                status: value('cfg-user-status'),
+                stationAccess: checked('cfg-user-station') ? 'true' : 'false',
+                canReceiveVideo: checked('cfg-user-video') ? 'true' : 'false'
+            };
+            if (password) payload.password = password;
+
+            window.setAccountFormStatus('Đang gửi lên máy chủ...', 'pending');
+            try {
+                const data = await window.cmsAdminRequest(payload);
+                window.showToast(data.message || 'Đã lưu tài khoản thành công!');
+                window.resetAccountForm();
+                await window.refreshAccounts();
+                window.setAccountFormStatus(data.message || 'Đã lưu tài khoản.', 'success');
+            } catch (err) {
+                window.setAccountFormStatus(err.message, 'error');
+                window.showToast(err.message);
+            }
+        };
+
+        /** Đặt lại mật khẩu: máy chủ sinh mật khẩu tạm, hiển thị đúng một lần. */
+        window.resetAccountPassword = async function(userId) {
+            const user = adminUsers.find(u => u.id === userId);
+            if (!user) return;
+            if (!confirm('Đặt lại mật khẩu cho tài khoản "' + (user.name || user.username) + '"?\n\nMật khẩu cũ sẽ mất hiệu lực ngay lập tức.')) return;
+
+            window.setAccountFormStatus('Đang đặt lại mật khẩu...', 'pending');
+            try {
+                const data = await window.cmsAdminRequest({ action: 'reset_password', id: userId });
+                await window.refreshAccounts();
+                // Mật khẩu tạm không được lưu bản rõ ở đâu cả, nên phải bàn giao ngay.
+                window.prompt('Mật khẩu tạm của ' + (user.name || user.username) + ' (chỉ hiển thị một lần, hãy sao chép và bàn giao cho cán bộ):', data.temporaryPassword || '');
+                window.setAccountFormStatus(data.message || 'Đã đặt lại mật khẩu.', 'success');
+                window.showToast(data.message || 'Đã đặt lại mật khẩu.');
+            } catch (err) {
+                window.setAccountFormStatus(err.message, 'error');
+                window.showToast(err.message);
+            }
+        };
+
+        /** Kích hoạt / khoá tài khoản. */
+        window.toggleAccountStatus = async function(userId) {
+            const user = adminUsers.find(u => u.id === userId);
+            if (!user) return;
+            const disabling = (user.status || 'ACTIVE').toUpperCase() !== 'DISABLED';
+            const nextStatus = disabling ? 'DISABLED' : 'ACTIVE';
+            if (disabling && !confirm('Khoá tài khoản "' + (user.name || user.username) + '"? Tài khoản sẽ không đăng nhập được vào bất kỳ module nào.')) return;
+
+            try {
+                const data = await window.cmsAdminRequest({ action: 'set_status', id: userId, status: nextStatus });
+                await window.refreshAccounts();
+                window.showToast(data.message || 'Đã cập nhật trạng thái tài khoản.');
+            } catch (err) {
+                window.setAccountFormStatus(err.message, 'error');
+                window.showToast(err.message);
+            }
+        };
+
+        /** Xoá tài khoản khỏi hệ thống. */
+        window.deleteAccount = async function(userId) {
+            const user = adminUsers.find(u => u.id === userId);
+            if (!user) return;
+            if (!confirm('Xoá vĩnh viễn tài khoản "' + (user.name || user.username) + '" khỏi hệ thống?')) return;
+
+            try {
+                const data = await window.cmsAdminRequest({ action: 'delete', id: userId });
+                await window.refreshAccounts();
+                window.showToast(data.message || 'Đã xoá tài khoản.');
+            } catch (err) {
+                window.setAccountFormStatus(err.message, 'error');
+                window.showToast(err.message);
+            }
+        };
+
+        /* Giữ lại tên hàm cũ để các lối gọi sẵn có không gãy. */
+        window.handleAddUser = function(e) { return window.handleAccountSubmit(e); };
 
         /* Quyền truy cập Module Bảng điều khiển trạm.
            Cột stationAccess mới có thể còn trống trên các tài khoản tạo từ trước, nên khi
            chưa được đặt rõ ràng thì suy ra từ vai trò (Quản trị viên / Cán bộ Điểm trạm)
-           để không khoá nhầm những tài khoản vốn đã dùng Bảng điều khiển. */
+           để không khoá nhầm những tài khoản vốn đã dùng Bảng điều khiển. Quy tắc này
+           trùng khít với hasStationAccess() trong netlify/lib/auth.ts và app.js. */
         window.hasStationAccess = function(user) {
             if (!user) return false;
             if (user.stationAccess === 'true') return true;
@@ -4051,13 +4419,25 @@
             return /Điểm trạm|Station|Admin|Quản trị/i.test(role);
         };
 
-        window.toggleUserStationPermission = function(userId) {
+        /** Cấp / thu hồi "Quyền truy cập Mod Bảng điều khiển điểm trạm" ngay trên bảng. */
+        window.toggleUserStationPermission = async function(userId) {
             const user = adminUsers.find(u => u.id === userId);
             if (!user) return;
-            user.stationAccess = window.hasStationAccess(user) ? 'false' : 'true';
-            window.saveToDb('users', user);
-            window.renderUI();
-            window.showToast(`Đã ${user.stationAccess === 'true' ? 'cấp' : 'thu hồi'} quyền vào Bảng điều khiển trạm cho ${user.name}`);
+            const granted = window.hasStationAccess(user) ? 'false' : 'true';
+
+            try {
+                const data = await window.cmsAdminRequest({
+                    action: 'set_permission',
+                    id: userId,
+                    permission: 'station',
+                    granted: granted
+                });
+                await window.refreshAccounts();
+                window.showToast(data.message || 'Đã cập nhật quyền truy cập Module.');
+            } catch (err) {
+                window.setAccountFormStatus(err.message, 'error');
+                window.showToast(err.message);
+            }
         };
 
         /* ===== TÊN PHÒNG KHÁM BIẾN ĐỘNG (CMS QUẢN TRỊ) =====
@@ -4112,13 +4492,24 @@
             }
         };
 
-        window.toggleUserVideoPermission = function(userId) {
+        window.toggleUserVideoPermission = async function(userId) {
             const user = adminUsers.find(u => u.id === userId);
             if (!user) return;
-            user.canReceiveVideo = (user.canReceiveVideo === 'false') ? 'true' : 'false';
-            window.saveToDb('users', user);
-            window.renderUI();
-            window.showToast(`Đã ${user.canReceiveVideo === 'true' ? 'kích hoạt' : 'tắt'} quyền nhận cuộc gọi Video cho ${user.name}`);
+            const granted = (user.canReceiveVideo === 'false') ? 'true' : 'false';
+
+            try {
+                const data = await window.cmsAdminRequest({
+                    action: 'set_permission',
+                    id: userId,
+                    permission: 'video',
+                    granted: granted
+                });
+                await window.refreshAccounts();
+                window.showToast(data.message || 'Đã cập nhật quyền nhận cuộc gọi Video.');
+            } catch (err) {
+                window.setAccountFormStatus(err.message, 'error');
+                window.showToast(err.message);
+            }
         };
 
         /* ===== CHỮ KÝ SỐ & NGƯỜI KÝ ĐƠN THUỐC =====
@@ -4602,13 +4993,31 @@
             }
         };
 
+        /* Đăng nhập CMS Quản trị.
+           Trước đây hàm này chỉ kiểm tra ở trình duyệt nên gõ tên nào cũng vào được.
+           Nay phiếu phiên do máy chủ cấp (/api/station-auth, scope "cms"): mật khẩu
+           đối chiếu bằng bcrypt, tài khoản bị khoá bị chặn ngay, và phiếu này chính
+           là thứ mà /api/admin-users đòi hỏi khi Quản trị thao tác tài khoản. */
         window.handleAdminLogin = async function(event) {
             event.preventDefault();
-            
+
             const usernameInput = document.getElementById('admin-username').value.trim();
             const passwordInput = document.getElementById('admin-password').value.trim();
             const statusMsg = document.getElementById('login-status-msg');
             const loginError = document.getElementById('login-error');
+
+            const showError = (message) => {
+                if (statusMsg) {
+                    statusMsg.innerHTML = '';
+                    statusMsg.className = "text-sm font-bold mt-2";
+                }
+                if (loginError) {
+                    loginError.classList.remove('hidden');
+                    loginError.textContent = message;
+                } else {
+                    window.showToast(message);
+                }
+            };
 
             if (loginError) loginError.classList.add('hidden');
             if (statusMsg) {
@@ -4616,23 +5025,59 @@
                 statusMsg.className = "text-blue-600 text-sm font-bold mt-2";
             }
 
-            // Tìm thông tin tài khoản
-            const foundUser = adminUsers.find(u => u.username === usernameInput) || {
-                username: usernameInput,
-                name: usernameInput.includes('canbotram') ? 'Cán bộ Y tế Điểm trạm' : 'Cán bộ Y tế',
-                role: usernameInput.includes('canbotram') ? 'Cán bộ Điểm trạm (Station Operator)' : 'Quản trị viên (Admin)',
-                canReceiveVideo: 'true'
-            };
-            currentCmsUser = foundUser;
+            let session = null;
+            try {
+                const res = await fetch('/api/station-auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usernameInput, password: passwordInput, scope: 'cms' })
+                });
+                const data = await res.json().catch(() => null);
+                if (!res.ok || !data || data.success !== true) {
+                    return showError((data && data.error) || 'Tên đăng nhập hoặc mật khẩu không đúng.');
+                }
+                session = data;
+            } catch (err) {
+                console.error(err);
+                return showError('Không kết nối được máy chủ xác thực. Vui lòng thử lại.');
+            }
 
-            const isStation = foundUser.role && (foundUser.role.includes('Điểm trạm') || foundUser.role.includes('Station'));
+            currentCmsUser = session.user || { username: usernameInput, name: usernameInput, role: 'Cán bộ', canReceiveVideo: 'true' };
+            const scopes = Array.isArray(session.scopes) ? session.scopes : [];
+
+            /* Giữ phiếu trong sessionStorage: đóng tab là mất, không rớt sang phiên khác.
+               Các thao tác quản lý tài khoản đọc phiếu này để gắn Authorization. */
+            window.setCmsAdminSession({
+                token: session.token,
+                expiresAt: session.expiresAt,
+                scopes: scopes,
+                user: currentCmsUser
+            });
+            // Có quyền trạm thì mở luôn phiên Bảng điều khiển, khỏi bắt đăng nhập lần hai.
+            if (scopes.indexOf('station') !== -1 && window.setStationSession) {
+                window.setStationSession({
+                    token: session.token,
+                    expiresAt: session.expiresAt,
+                    scopes: scopes,
+                    username: currentCmsUser.username,
+                    name: currentCmsUser.name,
+                    role: currentCmsUser.role,
+                    stationCode: currentCmsUser.stationCode,
+                    loginAt: Date.now()
+                });
+            }
+
+            const isStation = scopes.indexOf('admin') === -1 && scopes.indexOf('station') !== -1;
 
             if (statusMsg) {
                 statusMsg.innerHTML = '✅ Xác thực thành công! Đang chuyển hướng...';
                 statusMsg.className = "text-green-600 text-sm font-bold mt-2";
             }
+            if (session.mustChangePassword) {
+                window.showToast('Tài khoản đang dùng mật khẩu tạm. Vui lòng đổi mật khẩu riêng.');
+            }
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 window.closeModal();
                 const mainSite = document.getElementById('main-website');
                 const adminDash = document.getElementById('admin-dashboard');
@@ -4640,7 +5085,7 @@
                     mainSite.classList.add('hidden');
                     adminDash.classList.remove('hidden');
                     window.scrollTo(0,0);
-                    
+
                     if (isStation) {
                         if (window.switchAdminTab) window.switchAdminTab('telehealth');
                     } else {
@@ -4649,12 +5094,18 @@
                     if (window.checkCmsVideoPermission && window.checkCmsVideoPermission()) {
                         if (window.startCmsIncomingWatcher) window.startCmsIncomingWatcher();
                     }
+                    // Quản trị viên: nạp danh sách tài khoản đầy đủ qua tuyến có phân quyền.
+                    if (scopes.indexOf('admin') !== -1 && window.refreshAccounts) {
+                        await window.refreshAccounts();
+                    } else if (window.renderAccountAuthWarning) {
+                        window.renderAccountAuthWarning();
+                    }
                 } else {
                     window.location.href = "/admin/dashboard.html";
                 }
             }, 500);
         };
-        window.logoutAdmin = function() { window.stopCmsIncomingWatcher(); teleStop(true); document.getElementById('admin-dashboard').classList.add('hidden'); document.getElementById('main-website').classList.remove('hidden'); window.scrollTo(0,0); };
+        window.logoutAdmin = function() { window.stopCmsIncomingWatcher(); teleStop(true); window.clearCmsAdminSession(); document.getElementById('admin-dashboard').classList.add('hidden'); document.getElementById('main-website').classList.remove('hidden'); window.scrollTo(0,0); };
 
         // 7. TELEHEALTH VIDEO CALL ENGINE & FORM HANDLERS
         let activeRoomId = null;
@@ -7020,10 +7471,19 @@
                     const raw = sessionStorage.getItem(STATION_SESSION_KEY);
                     if (!raw) return null;
                     const session = JSON.parse(raw);
-                    return (session && session.username) ? session : null;
+                    if (!session || !session.username) return null;
+                    // Phiếu hết hạn coi như không có phiên, khỏi để người dùng bấm rồi mới nhận lỗi.
+                    if (session.expiresAt && session.expiresAt <= Date.now()) return null;
+                    return session;
                 } catch (err) {
                     return null;
                 }
+            };
+
+            /** Phiếu Bearer để app.js gắn vào mọi lệnh gọi API của Module. */
+            window.getStationToken = function() {
+                const session = window.getStationSession();
+                return session && session.token ? session.token : '';
             };
 
             window.setStationSession = function(user) {
@@ -7034,6 +7494,28 @@
             window.clearStationSession = function() {
                 try { sessionStorage.removeItem(STATION_SESSION_KEY); } catch (err) {}
                 window.renderStationAuthBadge();
+            };
+
+            /* Hỏi lại máy chủ xem phiếu còn hiệu lực và còn quyền "station" không.
+               Quản trị thu hồi ô "Quyền truy cập Mod Bảng điều khiển điểm trạm" hoặc
+               khoá tài khoản thì lần kiểm tra kế tiếp sẽ trượt ngay, không phải chờ
+               phiếu hết hạn. Đây mới là rào chắn thật; sessionStorage chỉ là bộ nhớ tạm. */
+            window.verifyStationSession = async function() {
+                const session = window.getStationSession();
+                if (!session || !session.token) return false;
+                try {
+                    const res = await fetch('/api/station-auth', {
+                        headers: { 'Authorization': 'Bearer ' + session.token }
+                    });
+                    const data = await res.json().catch(() => null);
+                    if (!res.ok || !data || data.success !== true) return false;
+                    const scopes = Array.isArray(data.scopes) ? data.scopes : [];
+                    if (scopes.indexOf('station') === -1) return false;
+                    return true;
+                } catch (err) {
+                    console.error('Không kiểm tra được phiên Bảng điều khiển:', err);
+                    return false;
+                }
             };
 
             window.renderStationAuthBadge = function() {
@@ -7048,7 +7530,7 @@
             };
 
             // Popup đăng nhập mở độc lập (khi chưa có Bảng điều khiển phía sau).
-            window.openStationLoginModal = function() {
+            window.openStationLoginModal = function(message) {
                 const overlay = document.getElementById('modal-overlay');
                 const modal = document.getElementById('login-modal');
                 if (!overlay || !modal) return;
@@ -7062,17 +7544,27 @@
 
                 const status = document.getElementById('station-login-status');
                 if (status) {
-                    status.className = 'text-[11px] font-bold text-slate-400';
-                    status.innerHTML = '<i class="fas fa-lock mr-1"></i> Module yêu cầu đăng nhập bằng tài khoản đã được CMS Quản trị cấp quyền.';
+                    if (message) {
+                        status.className = 'text-[11px] font-bold text-rose-500';
+                        status.innerHTML = '<i class="fas fa-triangle-exclamation mr-1"></i> ' + message;
+                    } else {
+                        status.className = 'text-[11px] font-bold text-slate-400';
+                        status.innerHTML = '<i class="fas fa-lock mr-1"></i> Module yêu cầu đăng nhập bằng tài khoản đã được CMS Quản trị cấp quyền.';
+                    }
                 }
                 const pwd = document.getElementById('input-station-password');
                 if (pwd) { pwd.value = ''; setTimeout(() => pwd.focus(), 120); }
             };
 
             // Mở thân module - luôn đi qua rào chắn đăng nhập.
-            window.openStationPanel = function() {
-                if (!window.getStationSession()) {
-                    window.openStationLoginModal();
+            window.openStationPanel = async function() {
+                const ok = await window.verifyStationSession();
+                if (!ok) {
+                    const had = !!window.getStationSession();
+                    window.clearStationSession();
+                    window.openStationLoginModal(had
+                        ? 'Phiên đăng nhập đã hết hạn hoặc quyền truy cập Module đã bị thu hồi. Vui lòng đăng nhập lại.'
+                        : '');
                     return;
                 }
 
@@ -7088,6 +7580,13 @@
                     if (typeof window.loadCmsData === 'function') window.loadCmsData();
                     if (typeof window.startQueuePolling === 'function') window.startQueuePolling();
                 }
+            };
+
+            /* app.js gọi khi API trả 401/403: đóng module, xoá phiếu và bắt đăng nhập lại. */
+            window.handleStationAuthFailure = function(message) {
+                window.clearStationSession();
+                if (typeof window.stopQueuePolling === 'function') window.stopQueuePolling();
+                window.openStationLoginModal(message || 'Phiên làm việc không còn hiệu lực. Vui lòng đăng nhập lại.');
             };
 
             window.logoutStationPanel = function() {

@@ -12,7 +12,8 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 - **`public/index.html`**: Giao diện chuẩn Y tế (màu xanh navy/trắng), phân chia bố cục rõ ràng giữa Màn hình Video Call đa chiều, Bảng Sinh hiệu bệnh nhân và Bảng Ghi chú lâm sàng / AI Co-pilot.
 - **`public/app.js` & `app.js`**: Logic xử lý chuyển đổi camera cận cảnh/toàn cảnh, bật/tắt mic, thu âm chuyển giọng nói thành văn bản (Speech-to-Text), đồng bộ chỉ số sinh hiệu và báo động cảnh báo cấp cứu thời gian thực.
 - **`admin/index.html` & `public/admin/index.html`**: Bảng điều khiển Quản trị nội bộ dành cho Cán bộ Y tế (Quản lý bài viết tin tức, cập nhật lịch tiêm chủng, tiếp nhận lịch đăng ký khám).
-- **`netlify/functions/`**: Bộ serverless functions triển khai trên Netlify (`vitals.ts`, `signal.ts`, `clinical-ai.ts`, `cms.ts`, `examination-report.ts`, `station-auth.ts`, `video.ts`, `ai.ts`).
+- **`netlify/functions/`**: Bộ serverless functions triển khai trên Netlify (`vitals.ts`, `signal.ts`, `clinical-ai.ts`, `cms.ts`, `examination-report.ts`, `station-auth.ts`, `admin-users.ts`, `video.ts`, `ai.ts`).
+- **`netlify/lib/auth.ts`**: Lớp xác thực dùng chung - băm mật khẩu bcrypt, ký/kiểm tra phiếu phiên JWT và middleware phân quyền `requireScope()`.
 - **`db/`**: Schema và kết nối cơ sở dữ liệu Netlify Database (PostgreSQL / Drizzle ORM).
 
 ---
@@ -21,7 +22,7 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 
 1. **Bảng điều khiển Cán bộ Y tế (Station Operator Panel)**
    - Module nằm ở **chân trang** (thay thế hoàn toàn lối vào Bảng điều khiển trạm cũ); thanh tiêu đề không còn lối vào này.
-   - **Bắt buộc đăng nhập**: mọi lượt mở module đều qua popup xác thực, chỉ tài khoản được CMS Quản trị cấp quyền (`station_access`) mới vào được.
+   - **Bắt buộc đăng nhập**: mọi lượt mở module đều qua popup xác thực, chỉ tài khoản được CMS Quản trị tích ô **"Quyền truy cập Mod Bảng điều khiển điểm trạm"** (`station_access`) mới vào được. Phiên làm việc dùng phiếu JWT và được kiểm tra lại ở cả trình duyệt lẫn máy chủ (xem mục 5).
    - Tên phòng khám hiển thị trên module là **biến động**, sửa trực tiếp trong CMS Quản trị (Cấu hình & Phân quyền → Tên phòng khám).
    - Đăng nhập theo Mã điểm trạm (`TYT-BATXAT-01`) & Tên cán bộ trực.
    - Bảng nhập nhanh Sinh hiệu Bệnh nhân (Vitals): Huyết áp (mmHg), Nhịp tim (bpm), SpO2 (%), Nhiệt độ (°C), Cân nặng (kg). Đồng bộ tức thì lên màn hình khám tuyến trên.
@@ -85,9 +86,44 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 - **Bác sĩ Tư vấn Telehealth**: `bacsituvan@laocai.gov.vn` (mặc định KHÔNG có quyền vào Bảng điều khiển trạm)
 - **Cán bộ Trực điểm trạm**: `canbotram@laocai.gov.vn` (được cấp quyền vào Bảng điều khiển trạm)
 
-Mật khẩu truy cập Bảng điều khiển trạm lấy từ biến môi trường `STATION_PASSWORD`
-(hoặc `STATION_DEFAULT_PASSWORD`). Nếu chưa đặt biến nào, hệ thống chỉ chấp nhận
-mật khẩu phát triển cục bộ - **bắt buộc đặt `STATION_PASSWORD` trước khi chạy thật**.
+Mật khẩu của từng tài khoản do Quản trị đặt trong CMS và được lưu dưới dạng **băm
+bcrypt** (10 vòng) - không nơi nào trong hệ thống giữ mật khẩu dạng rõ.
 
-Quyền vào module được cấp/thu hồi trong CMS Quản trị: **Cấu hình & Phân quyền →
-cột "Quyền vào Bảng điều khiển trạm"** (bấm vào huy hiệu để đổi trạng thái).
+Với các tài khoản có từ trước (chưa có mật khẩu riêng), hệ thống tạm chấp nhận mật
+khẩu dùng chung lấy từ biến môi trường `STATION_PASSWORD` (hoặc
+`STATION_DEFAULT_PASSWORD`) để Quản trị đăng nhập lần đầu mà thiết lập. **Bắt buộc
+đặt `STATION_PASSWORD` trước khi chạy thật**, và ngay khi Quản trị đặt mật khẩu riêng
+cho một tài khoản thì lối tạm này đóng vĩnh viễn với tài khoản đó.
+
+---
+
+## 5. Quản Lý Tài Khoản & Phân Quyền Module Bảng Điều Khiển Điểm Trạm
+
+Vào **CMS Quản trị → Quản trị hệ thống → Quản lý tài khoản & Phân quyền hệ thống**.
+
+**Tạo tài khoản** - các trường bắt buộc: Họ và tên, Tên đăng nhập, Mật khẩu (tối
+thiểu 8 ký tự gồm cả chữ và số), Email hoặc Số điện thoại, và Điểm trạm trực thuộc.
+
+**Cấp quyền** - ô đánh dấu **"Quyền truy cập Mod Bảng điều khiển điểm trạm"**. Chỉ
+tài khoản được tích ô này mới đăng nhập và thao tác được trong module. Quyền có thể
+cấp/thu hồi bất kỳ lúc nào (bấm huy hiệu ở cột *Quyền Mod Bảng điều khiển* trong
+bảng danh sách) và có hiệu lực ngay ở yêu cầu kế tiếp, không phải chờ phiên hết hạn.
+
+**Vòng đời tài khoản** - mỗi dòng có sẵn: Sửa thông tin, Đặt lại mật khẩu (máy chủ
+sinh mật khẩu tạm và hiển thị **đúng một lần**, hãy sao chép ngay), Khoá/Mở tài khoản,
+và Xoá. Tài khoản bị khoá không đăng nhập được vào bất kỳ cổng nào.
+
+### Cơ chế bảo mật
+
+| Lớp | Thực hiện |
+| --- | --- |
+| Mật khẩu | Băm bcrypt 10 vòng (`bcryptjs`), không lưu bản rõ, không trả về qua API |
+| Phiên đăng nhập | JWT HS256 ký bằng Web Crypto, hạn 8 giờ, giữ trong `sessionStorage` |
+| Khoá ký | `STATION_JWT_SECRET` / `JWT_SECRET`; nếu chưa đặt, hệ thống tự sinh và lưu kín trong `site_configs` (tuyến công khai `/api/cms` đã lọc bỏ) |
+| Middleware Backend | `requireScope()` trong `netlify/lib/auth.ts`, áp cho `/api/vitals`, `/api/examination-report`, `/api/admin-users`; **đọc lại quyền từ cơ sở dữ liệu ở mỗi yêu cầu** |
+| Middleware Frontend | `window.verifyStationSession()` hỏi lại `/api/station-auth` trước khi mở thân module, nên tự dựng phiên trong `sessionStorage` hay gõ thẳng `/tram` đều không vào được |
+| Chống giả mạo hồ sơ | Tên cán bộ trên phiếu sinh hiệu và phiếu khám lấy từ phiên đã xác thực, không lấy theo thân yêu cầu |
+
+Ghi tài khoản qua tuyến công khai `/api/cms` đã bị chặn (403): mọi thao tác tài khoản
+phải đi qua `/api/admin-users` với phiếu phiên có quyền Quản trị.
+

@@ -45,15 +45,34 @@ export const contacts = pgTable("contacts", {
   ts: bigint("ts", { mode: "number" }).notNull(),
 });
 
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  name: text("name").notNull(),
-  role: text("role").notNull(),
-  canReceiveVideo: text("can_receive_video").default("true"),
-  // Quyền đăng nhập Module Bảng điều khiển trạm, do CMS Quản trị cấp/thu hồi.
-  stationAccess: text("station_access").default("false"),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    username: text("username").notNull().unique(),
+    name: text("name").notNull(),
+    role: text("role").notNull(),
+    canReceiveVideo: text("can_receive_video").default("true"),
+    // Quyền đăng nhập Module Bảng điều khiển trạm, do CMS Quản trị cấp/thu hồi.
+    stationAccess: text("station_access").default("false"),
+    /* Mật khẩu KHÔNG bao giờ lưu dạng rõ: chỉ giữ chuỗi băm bcrypt ($2b$...).
+       Tài khoản tạo trước tính năng này còn để trống, xem netlify/lib/auth.ts
+       để biết luồng đặt mật khẩu lần đầu. */
+    passwordHash: text("password_hash"),
+    email: text("email"),
+    phone: text("phone"),
+    // Điểm trạm trực thuộc (mã trạm, ví dụ TYT-YTY-03).
+    stationCode: text("station_code"),
+    // ACTIVE | DISABLED - tài khoản bị khoá không đăng nhập được ở bất kỳ cổng nào.
+    status: text("status").default("ACTIVE"),
+    // Bật sau khi Quản trị đặt lại mật khẩu, nhắc cán bộ đổi lại mật khẩu riêng.
+    mustChangePassword: text("must_change_password").default("false"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+    lastLoginAt: bigint("last_login_at", { mode: "number" }),
+  },
+  (table) => [index("users_station_code_idx").on(table.stationCode)]
+);
 
 export const siteConfigs = pgTable("site_configs", {
   id: text("id").primaryKey(),

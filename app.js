@@ -27,6 +27,32 @@ let operatorName = 'Y sĩ Nguyễn Văn A';
 let role = 'station_operator';
 let roomId = defaultRoomForStation(stationCode);
 
+/**
+ * Gọi API của Module Bảng điều khiển kèm phiếu phiên (JWT) do /api/station-auth cấp.
+ *
+ * Các tuyến /api/vitals và /api/examination-report chỉ nhận yêu cầu có quyền
+ * "station"; nếu máy chủ trả 401/403 (phiếu hết hạn, tài khoản bị khoá, hoặc
+ * Quản trị vừa thu hồi ô "Quyền truy cập Mod Bảng điều khiển điểm trạm") thì
+ * đóng module và bắt đăng nhập lại thay vì để cán bộ thao tác vào khoảng không.
+ */
+async function stationApiFetch(url, options) {
+  const opts = Object.assign({}, options);
+  const token = (typeof window.getStationToken === 'function') ? window.getStationToken() : '';
+  opts.headers = Object.assign({}, opts.headers || {});
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+
+  const res = await fetch(url, opts);
+  if (res.status === 401 || res.status === 403) {
+    const data = await res.clone().json().catch(() => null);
+    const message = (data && data.error) || 'Phiên làm việc không còn hiệu lực. Vui lòng đăng nhập lại.';
+    if (typeof window.handleStationAuthFailure === 'function') {
+      window.handleStationAuthFailure(message);
+    }
+    throw new Error(message);
+  }
+  return res;
+}
+
 // Signaling chạy qua HTTP long-poll (/api/signal) thay cho WebSocket:
 // nền tảng serverless không giữ kết nối socket lâu dài, và đây cũng chính là
 // giao thức mà màn hình Y sĩ/ Bác sĩ trong trang chính đang dùng.
@@ -191,13 +217,18 @@ function populateCmsAccountsDropdown() {
      vẫn là nơi quyết định cuối cùng, danh sách này chỉ để tránh chọn nhầm. */
   const hasStationAccess = (u) => {
     if (!u) return false;
+    if ((u.status || 'ACTIVE').toUpperCase() === 'DISABLED') return false;
     if (u.stationAccess === 'true') return true;
     if (u.stationAccess === 'false') return false;
     return /Điểm trạm|Station|Admin|Quản trị/i.test(u.role || '');
   };
 
   const stationAccounts = cmsUsers.filter(hasStationAccess);
-  const accountsToRender = stationAccounts.length > 0 ? stationAccounts : cmsUsers;
+  /* Nếu chưa tài khoản nào được tích quyền thì vẫn liệt kê hết để Quản trị đăng nhập
+     lần đầu mà thiết lập; máy chủ vẫn từ chối tài khoản không có quyền. */
+  const accountsToRender = stationAccounts.length > 0
+    ? stationAccounts
+    : cmsUsers.filter(u => (u.status || 'ACTIVE').toUpperCase() !== 'DISABLED');
 
   selectEl.innerHTML = '<option value="">-- Chọn tài khoản cán bộ trực trạm --</option>' +
     accountsToRender.map(u => `<option value="${u.username}">${u.name} (${u.role}) - ${u.username}</option>`).join('');
@@ -973,7 +1004,7 @@ async function sendVitalsToDoctor() {
   playBeepTone(1000, 150);
 
   try {
-    const response = await fetch('/api/vitals', {
+    const response = await stationApiFetch('/api/vitals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1243,7 +1274,7 @@ async function finishAndExportReport() {
 
   let reportData = null;
   try {
-    const response = await fetch('/api/examination-report', {
+    const response = await stationApiFetch('/api/examination-report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1435,7 +1466,7 @@ async function submitLogin() {
     const res = await fetch(STATION_AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: selectedCmsUsername, password })
+      body: JSON.stringify({ username: selectedCmsUsername, password, scope: 'station' })
     });
     result = await res.json().catch(() => null);
 
@@ -1469,14 +1500,24 @@ async function submitLogin() {
   renderStationIdentity();
 
   // Ghi nhận phiên làm việc để rào chắn của module cho phép mở thân Bảng điều khiển.
+  // Phiếu JWT (result.token) là thứ mọi lệnh gọi API của module gắn kèm; máy chủ đọc
+  // lại quyền từ cơ sở dữ liệu theo từng yêu cầu nên thu hồi quyền có hiệu lực ngay.
   if (typeof window.setStationSession === 'function') {
     window.setStationSession({
+      token: result.token || '',
+      expiresAt: result.expiresAt || 0,
+      scopes: Array.isArray(result.scopes) ? result.scopes : [],
       username: authUser.username,
       name: operatorName,
       role: authUser.role || '',
-      stationCode: stationCode,
+      stationCode: authUser.stationCode || stationCode,
       loginAt: Date.now()
     });
+  }
+
+  if (result.mustChangePassword) {
+    // Mật khẩu tạm do Quản trị cấp - nhắc cán bộ đổi lại mật khẩu riêng.
+    setStationLoginStatus('✅ Đăng nhập thành công. Lưu ý: tài khoản đang dùng mật khẩu tạm, hãy đề nghị Quản trị đổi mật khẩu riêng.', 'success');
   }
 
   setStationLoginStatus('✅ Xác thực thành công. Đang mở Bảng điều khiển...', 'success');
