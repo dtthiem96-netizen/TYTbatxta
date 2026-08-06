@@ -146,6 +146,14 @@
                 </div>
 
                 <div class="flex items-center gap-4">
+                    <!-- Đèn báo trạng thái lưu trữ đám mây. Trước đây trang này chỉ sửa
+                         mảng trong bộ nhớ trình duyệt nên cán bộ không có cách nào biết
+                         dữ liệu đã thực sự nằm trong cơ sở dữ liệu hay chưa. -->
+                    <div id="cloud-status" class="flex items-center gap-2 bg-slate-800 px-3.5 py-1.5 rounded-full border border-slate-700 text-xs font-bold text-slate-300">
+                        <span id="cloud-status-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                        <span id="cloud-status-text">Đang kết nối kho dữ liệu…</span>
+                    </div>
+
                     <div class="flex items-center gap-2 bg-slate-800 px-3.5 py-1.5 rounded-full border border-slate-700">
                         <i class="fas fa-user-doctor text-sky-400"></i>
                         <span id="display-user-name" class="text-xs font-bold text-slate-200">BS. Nguyễn Thị Mai</span>
@@ -468,25 +476,149 @@
         </div>
     </div>
 
+    <!-- Khay thông báo kết quả ghi dữ liệu (thành công / thất bại) -->
+    <div id="toast-tray" class="fixed bottom-6 right-6 z-[60] space-y-2 w-96 max-w-[calc(100vw-3rem)]"></div>
+
     <!-- ================= JAVASCRIPT LOGIC ================= -->
     <script>
-        // State
+        /* ================= TRẠNG THÁI & KHO DỮ LIỆU ĐÁM MÂY =================
+         *
+         * Nguồn sự thật của trang này là cơ sở dữ liệu đám mây của site
+         * (Netlify Database - Postgres có quản lý), truy cập qua Netlify
+         * Function /api/cms. Ba mảng bên dưới CHỈ là bản sao trong bộ nhớ trình
+         * duyệt để vẽ bảng; chúng được nạp lại từ máy chủ sau mỗi lần ghi thành
+         * công, nên những gì cán bộ nhìn thấy đúng bằng những gì đã nằm trong
+         * cơ sở dữ liệu.
+         *
+         * Trước đây các hàm lưu ở dưới chỉ đẩy phần tử vào mảng rồi vẽ lại
+         * bảng, không hề gọi tới máy chủ - bài viết trông như đã đăng nhưng biến
+         * mất ngay khi tải lại trang. Mọi thao tác thêm/sửa/xóa bây giờ đều đi
+         * qua cmsWrite() và chỉ được coi là thành công khi máy chủ xác nhận.
+         *
+         * Tên trường phải TRÙNG với tên cột trong db/schema.ts (description,
+         * patientName, appointmentDate...) vì /api/cms ghi thẳng đối tượng nhận
+         * được xuống bảng: một trường sai tên làm hỏng cả lệnh ghi.
+         */
+        const CMS_API = '/api/cms';
+
         let currentAdminUser = null;
-        let newsData = [
-            { id: 'N1', title: 'Cảnh báo khẩn: Gia tăng ca mắc sốt xuất huyết tại địa bàn xã Bát Xát', desc: 'Trạm Y tế Bát Xát khuyến cáo bà con phát quang bụi rậm, diệt bọ gậy, dọn dẹp vật chứa nước đọng.', date: '01/08/2026', color: 'red', status: 'PUBLISHED' },
-            { id: 'N2', title: 'Hướng dẫn phòng tránh ngộ độc nấm rừng mùa mưa', desc: 'Người dân tuyệt đối không hái nấm lạ, nấm có màu sắc sặc sỡ để chế biến món ăn.', date: '28/07/2026', color: 'orange', status: 'PUBLISHED' },
-            { id: 'N3', title: 'Thông báo lịch tiêm vắc xin phòng Dại cho gia súc và khuyến cáo người dân', desc: 'Khi bị chó mèo cắn, người dân cần đến Trạm Y tế Bát Xát để được rửa vết thương và tiêm phòng dại kịp thời.', date: '20/07/2026', color: 'sky', status: 'PUBLISHED' }
-        ];
+        let newsData = [];
+        let vaccineData = [];
+        let appointmentData = [];
 
-        let vaccineData = [
-            { id: 'V1', date: 'Sáng 05/08/2026', time: '07:30 - 11:30', target: 'Trẻ em dưới 1 tuổi & Phụ nữ mang thai thuộc Thôn 01, Thôn 02, Thôn 03, Thôn 04' },
-            { id: 'V2', date: 'Sáng 06/08/2026', time: '07:30 - 11:30', target: 'Trẻ em & Phụ nữ mang thai thuộc Thôn 05, Thôn 06, Thôn 07, Thôn 08' }
-        ];
+        function byTsDesc(a, b) { return (Number(b.ts) || 0) - (Number(a.ts) || 0); }
 
-        let appointmentData = [
-            { id: 'LK001', name: 'Trần Văn Mạnh', phone: '0912345678', date: '04/08/2026', dept: 'Phòng Khám Đa Khoa', reason: 'Ho sốt kéo dài 3 ngày', status: 'PENDING' },
-            { id: 'LK002', name: 'Lý Thị Mỷ', phone: '0389123456', date: '03/08/2026', dept: 'Phòng Sản Nhi', reason: 'Khám thai định kỳ tháng thứ 7', status: 'DONE' }
-        ];
+        // --- Đèn báo trạng thái kho dữ liệu trên thanh tiêu đề ---
+        function setCloudStatus(state, message) {
+            const dot = document.getElementById('cloud-status-dot');
+            const text = document.getElementById('cloud-status-text');
+            if (!dot || !text) return;
+            const dotClass = {
+                online: 'bg-emerald-400',
+                saving: 'bg-amber-400 animate-pulse',
+                offline: 'bg-red-500'
+            }[state] || 'bg-slate-500';
+            dot.className = 'w-2 h-2 rounded-full ' + dotClass;
+            text.className = state === 'offline' ? 'text-red-300' : 'text-slate-300';
+            text.textContent = message;
+        }
+
+        function showToast(message, type) {
+            const tray = document.getElementById('toast-tray');
+            if (!tray) return;
+            const ok = type !== 'error';
+            const box = document.createElement('div');
+            box.className = 'px-4 py-3 rounded-xl shadow-lg text-sm font-bold border flex items-start gap-2.5 '
+                + (ok ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-red-600 text-white border-red-700');
+            const icon = document.createElement('i');
+            icon.className = 'fas mt-0.5 ' + (ok ? 'fa-circle-check' : 'fa-triangle-exclamation');
+            const span = document.createElement('span');
+            span.textContent = message;
+            box.appendChild(icon);
+            box.appendChild(span);
+            tray.appendChild(box);
+            setTimeout(() => box.remove(), ok ? 4000 : 9000);
+        }
+
+        /* Đọc phản hồi của /api/cms một cách nghiêm ngặt.
+         *
+         * Không thể chỉ tin vào res.ok: luật chuyển hướng bắt-tất-cả trong
+         * netlify.toml trả về trang chủ kèm status 200 cho mọi đường dẫn không
+         * khớp function nào. Nếu function chưa được triển khai, fetch vẫn "thành
+         * công" và trang sẽ báo đã lưu trong khi thực tế không có gì được ghi -
+         * đúng kiểu lỗi âm thầm cần loại bỏ. Vì vậy phải phân tích được JSON và
+         * JSON đó phải nói rõ là thành công. */
+        async function readCmsResponse(res) {
+            const raw = await res.text();
+            let json = null;
+            try { json = JSON.parse(raw); } catch (e) { json = null; }
+            if (!res.ok) {
+                throw new Error((json && json.error) || ('máy chủ trả về mã ' + res.status));
+            }
+            if (!json) {
+                throw new Error('máy chủ không trả về dữ liệu JSON (có thể Netlify Function /api/cms chưa được triển khai)');
+            }
+            if (json.error) throw new Error(json.error);
+            return json;
+        }
+
+        // Gửi một lệnh ghi (save/delete) và chỉ trả về khi máy chủ xác nhận.
+        async function cmsWrite(payload) {
+            setCloudStatus('saving', 'Đang ghi lên đám mây…');
+            let res;
+            try {
+                res = await fetch(CMS_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                setCloudStatus('offline', 'Mất kết nối kho dữ liệu');
+                throw new Error('không kết nối được máy chủ (' + err.message + ')');
+            }
+
+            let json;
+            try {
+                json = await readCmsResponse(res);
+            } catch (err) {
+                setCloudStatus('offline', 'Ghi lên đám mây thất bại');
+                throw err;
+            }
+
+            if (!json.success) {
+                setCloudStatus('offline', 'Ghi lên đám mây thất bại');
+                throw new Error('máy chủ không xác nhận đã lưu');
+            }
+            setCloudStatus('online', 'Đã lưu vào cơ sở dữ liệu đám mây');
+            return json;
+        }
+
+        /* Chạy một thao tác ghi kèm khoá nút bấm và thông báo kết quả.
+         * Trả về true/false để nơi gọi biết có nên đóng biểu mẫu hay không -
+         * khi ghi hỏng, biểu mẫu được giữ nguyên để cán bộ không phải gõ lại. */
+        async function runCmsAction(submitBtn, payload, successMessage, failMessage) {
+            const original = submitBtn ? submitBtn.innerHTML : null;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu lên đám mây...';
+            }
+            try {
+                await cmsWrite(payload);
+                await loadDataFromAPI();
+                showToast(successMessage);
+                return true;
+            } catch (err) {
+                showToast(failMessage + ': ' + err.message, 'error');
+                return false;
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+                    submitBtn.innerHTML = original;
+                }
+            }
+        }
 
         // Init
         document.addEventListener('DOMContentLoaded', () => {
@@ -506,15 +638,22 @@
 
         async function loadDataFromAPI() {
             try {
-                const res = await fetch('/api/cms');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.news && data.news.length > 0) newsData = data.news;
-                    if (data.vaccines && data.vaccines.length > 0) vaccineData = data.vaccines;
-                    if (data.appointments && data.appointments.length > 0) appointmentData = data.appointments;
-                }
+                const res = await fetch(CMS_API, { cache: 'no-store' });
+                const data = await readCmsResponse(res);
+
+                newsData = Array.isArray(data.news) ? data.news.slice().sort(byTsDesc) : [];
+                vaccineData = Array.isArray(data.vaccines) ? data.vaccines.slice().sort(byTsDesc) : [];
+                appointmentData = Array.isArray(data.appointments) ? data.appointments.slice().sort(byTsDesc) : [];
+                setCloudStatus('online', 'Đã đồng bộ cơ sở dữ liệu đám mây');
             } catch (err) {
-                console.log('Sử dụng dữ liệu khởi tạo local.');
+                /* Cố ý KHÔNG dựng dữ liệu mẫu để lấp chỗ trống. Một bảng đầy dữ
+                 * liệu giả khi kho dữ liệu đang hỏng khiến cán bộ tin rằng mọi
+                 * thứ vẫn bình thường và tiếp tục nhập liệu vào hư không. */
+                newsData = [];
+                vaccineData = [];
+                appointmentData = [];
+                setCloudStatus('offline', 'Không đọc được kho dữ liệu');
+                showToast('Không tải được dữ liệu từ đám mây: ' + err.message, 'error');
             }
             renderNews();
             renderVaccines();
@@ -613,6 +752,9 @@
         function renderNews() {
             const tbody = document.getElementById('news-table-body');
             tbody.innerHTML = '';
+            if (newsData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-sm font-medium text-slate-400">Chưa có bản tin nào trong cơ sở dữ liệu đám mây.</td></tr>';
+            }
 
             let redCount = 0;
             newsData.forEach((item, idx) => {
@@ -642,35 +784,62 @@
         function openNewsModal() { document.getElementById('modal-news').classList.remove('hidden'); }
         function closeNewsModal() { document.getElementById('modal-news').classList.add('hidden'); }
 
-        function saveNews(e) {
+        async function saveNews(e) {
             e.preventDefault();
+            const submitBtn = e.target.querySelector('button[type="submit"]');
             const title = document.getElementById('news-title').value.trim();
             const desc = document.getElementById('news-desc').value.trim();
-            const date = document.getElementById('news-date').value.trim() || '03/08/2026';
+            const date = document.getElementById('news-date').value.trim() || new Date().toLocaleDateString('vi-VN');
             const color = document.getElementById('news-color').value;
 
-            newsData.unshift({
-                id: 'N' + Date.now(),
-                title, desc, date, color, status: 'PUBLISHED'
-            });
+            if (!title) {
+                showToast('Vui lòng nhập tiêu đề bản tin trước khi đăng.', 'error');
+                return;
+            }
 
-            renderNews();
-            closeNewsModal();
-            document.getElementById('news-title').value = '';
-            document.getElementById('news-desc').value = '';
+            // Khớp đúng các cột của bảng "news" trong db/schema.ts.
+            const record = {
+                id: 'N' + Date.now(),
+                title: title,
+                description: desc,
+                date: date,
+                color: color,
+                icon: color === 'red' ? 'fa-triangle-exclamation' : 'fa-newspaper',
+                ts: Date.now()
+            };
+
+            const ok = await runCmsAction(
+                submitBtn,
+                { action: 'save', type: 'news', data: record },
+                'Đã đăng bản tin và lưu vào cơ sở dữ liệu đám mây.',
+                'Chưa đăng được bản tin, nội dung vừa nhập vẫn được giữ nguyên'
+            );
+
+            if (ok) {
+                closeNewsModal();
+                document.getElementById('news-title').value = '';
+                document.getElementById('news-desc').value = '';
+                document.getElementById('news-date').value = '';
+            }
         }
 
-        function deleteNews(id) {
-            if (confirm('Bạn có chắc chắn muốn xóa bài viết này?')) {
-                newsData = newsData.filter(x => x.id !== id);
-                renderNews();
-            }
+        async function deleteNews(id) {
+            if (!confirm('Bạn có chắc chắn muốn xóa bài viết này khỏi cơ sở dữ liệu đám mây?')) return;
+            await runCmsAction(
+                null,
+                { action: 'delete', type: 'news', id: id },
+                'Đã xóa bản tin khỏi cơ sở dữ liệu đám mây.',
+                'Chưa xóa được bản tin'
+            );
         }
 
         // --- Render Vaccines ---
         function renderVaccines() {
             const tbody = document.getElementById('vaccine-table-body');
             tbody.innerHTML = '';
+            if (vaccineData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-sm font-medium text-slate-400">Chưa có lịch tiêm chủng nào trong cơ sở dữ liệu đám mây.</td></tr>';
+            }
 
             vaccineData.forEach((item, idx) => {
                 const tr = document.createElement('tr');
@@ -693,29 +862,44 @@
         function openVaccineModal() { document.getElementById('modal-vaccine').classList.remove('hidden'); }
         function closeVaccineModal() { document.getElementById('modal-vaccine').classList.add('hidden'); }
 
-        function saveVaccine(e) {
+        async function saveVaccine(e) {
             e.preventDefault();
+            const submitBtn = e.target.querySelector('button[type="submit"]');
             const date = document.getElementById('vaccine-date').value.trim();
             const time = document.getElementById('vaccine-time').value.trim();
             const target = document.getElementById('vaccine-target').value.trim();
 
-            vaccineData.unshift({
-                id: 'V' + Date.now(),
-                date, time, target
-            });
+            if (!date || !time || !target) {
+                showToast('Vui lòng nhập đủ ngày, khung giờ và đối tượng tiêm.', 'error');
+                return;
+            }
 
-            renderVaccines();
-            closeVaccineModal();
-            document.getElementById('vaccine-date').value = '';
-            document.getElementById('vaccine-time').value = '';
-            document.getElementById('vaccine-target').value = '';
+            // Khớp đúng các cột của bảng "vaccines" trong db/schema.ts.
+            const record = { id: 'V' + Date.now(), date: date, time: time, target: target, ts: Date.now() };
+
+            const ok = await runCmsAction(
+                submitBtn,
+                { action: 'save', type: 'vaccines', data: record },
+                'Đã lưu lịch tiêm chủng vào cơ sở dữ liệu đám mây.',
+                'Chưa lưu được lịch tiêm, nội dung vừa nhập vẫn được giữ nguyên'
+            );
+
+            if (ok) {
+                closeVaccineModal();
+                document.getElementById('vaccine-date').value = '';
+                document.getElementById('vaccine-time').value = '';
+                document.getElementById('vaccine-target').value = '';
+            }
         }
 
-        function deleteVaccine(id) {
-            if (confirm('Bạn muốn xóa lịch tiêm chủng này?')) {
-                vaccineData = vaccineData.filter(x => x.id !== id);
-                renderVaccines();
-            }
+        async function deleteVaccine(id) {
+            if (!confirm('Bạn muốn xóa lịch tiêm chủng này khỏi cơ sở dữ liệu đám mây?')) return;
+            await runCmsAction(
+                null,
+                { action: 'delete', type: 'vaccines', id: id },
+                'Đã xóa lịch tiêm chủng khỏi cơ sở dữ liệu đám mây.',
+                'Chưa xóa được lịch tiêm'
+            );
         }
 
         // --- Render Appointments ---
@@ -731,15 +915,27 @@
 
             const list = filterApp === 'ALL' ? appointmentData : appointmentData.filter(x => x.status === filterApp);
 
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-sm font-medium text-slate-400">Chưa có lượt đăng ký khám nào trong cơ sở dữ liệu đám mây.</td></tr>';
+            }
+
             list.forEach((item) => {
+                // Tên trường lấy đúng theo cột của bảng "appointments" trên
+                // cơ sở dữ liệu đám mây; các tên cũ (name/date/dept/reason) chỉ
+                // tồn tại trong bản dữ liệu giả trước đây nên vẫn đọc dự phòng
+                // để không vỡ giao diện với bản ghi cũ.
+                const pName = item.patientName || item.name || 'Bệnh nhân';
+                const pDate = item.appointmentDate || item.date || '';
+                const pDept = item.service || item.dept || 'Khám chung';
+                const pReason = item.symptoms || item.reason || '';
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 transition';
                 tr.innerHTML = `
                     <td class="p-4 text-sky-700 font-bold">${item.id}</td>
-                    <td class="p-4 font-bold text-slate-900">${item.name}</td>
-                    <td class="p-4 text-slate-700 font-bold">${item.phone}</td>
-                    <td class="p-4 text-slate-600">${item.date}</td>
-                    <td class="p-4 text-slate-600">${item.dept || 'Khám chung'} - <span class="italic text-xs">${item.reason}</span></td>
+                    <td class="p-4 font-bold text-slate-900">${pName}</td>
+                    <td class="p-4 text-slate-700 font-bold">${item.phone || ''}</td>
+                    <td class="p-4 text-slate-600">${pDate}</td>
+                    <td class="p-4 text-slate-600">${pDept} - <span class="italic text-xs">${pReason}</span></td>
                     <td class="p-4">
                         <span class="px-2.5 py-1 rounded-full text-xs font-bold ${item.status === 'DONE' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
                             ${item.status === 'DONE' ? 'Đã khám' : 'Chờ tiếp nhận'}
@@ -759,38 +955,72 @@
         function openAppointmentModal() { document.getElementById('modal-appointment').classList.remove('hidden'); }
         function closeAppointmentModal() { document.getElementById('modal-appointment').classList.add('hidden'); }
 
-        function saveAppointment(e) {
+        async function saveAppointment(e) {
             e.preventDefault();
+            const submitBtn = e.target.querySelector('button[type="submit"]');
             const name = document.getElementById('app-name').value.trim();
             const phone = document.getElementById('app-phone').value.trim();
             const date = document.getElementById('app-date').value.trim();
             const dept = document.getElementById('app-dept').value.trim();
             const reason = document.getElementById('app-reason').value.trim();
 
-            appointmentData.unshift({
-                id: 'LK' + String(appointmentData.length + 1).padStart(3, '0'),
-                name, phone, date, dept, reason, status: 'PENDING'
-            });
+            if (!name || !phone || !date) {
+                showToast('Vui lòng nhập tên bệnh nhân, số điện thoại và ngày khám.', 'error');
+                return;
+            }
 
-            renderAppointments();
-            closeAppointmentModal();
-            document.getElementById('app-name').value = '';
-            document.getElementById('app-phone').value = '';
+            /* Khớp đúng các cột của bảng "appointments" trong db/schema.ts.
+             * Mã lịch khám lấy theo mốc thời gian thay vì theo số lượng bản ghi
+             * đang hiển thị: bộ lọc trên bảng có thể đang ẩn bớt dòng, và hai
+             * cán bộ nhập cùng lúc sẽ sinh ra trùng mã, làm bản ghi này ghi đè
+             * lên bản ghi kia. */
+            const record = {
+                id: 'LK' + Date.now(),
+                patientName: name,
+                phone: phone,
+                appointmentDate: date,
+                service: dept || 'Khám chung',
+                symptoms: reason,
+                status: 'PENDING',
+                ts: Date.now()
+            };
+
+            const ok = await runCmsAction(
+                submitBtn,
+                { action: 'save', type: 'appointments', data: record },
+                'Đã lưu lịch khám vào cơ sở dữ liệu đám mây.',
+                'Chưa lưu được lịch khám, nội dung vừa nhập vẫn được giữ nguyên'
+            );
+
+            if (ok) {
+                closeAppointmentModal();
+                ['app-name', 'app-phone', 'app-date', 'app-dept', 'app-reason']
+                    .forEach(id => { document.getElementById(id).value = ''; });
+            }
         }
 
-        function approveAppointment(id) {
+        async function approveAppointment(id) {
             const item = appointmentData.find(x => x.id === id);
-            if (item) {
-                item.status = 'DONE';
-                renderAppointments();
-            }
+            if (!item) return;
+            // Gửi nguyên bản ghi kèm trạng thái mới để lệnh ghi không làm mất
+            // các cột khác nếu bản ghi cần được tạo lại.
+            const record = Object.assign({}, item, { status: 'DONE' });
+            await runCmsAction(
+                null,
+                { action: 'save', type: 'appointments', data: record },
+                'Đã tiếp nhận lịch khám và cập nhật lên cơ sở dữ liệu đám mây.',
+                'Chưa cập nhật được trạng thái lịch khám'
+            );
         }
 
-        function deleteAppointment(id) {
-            if (confirm('Xóa lượt đăng ký khám này?')) {
-                appointmentData = appointmentData.filter(x => x.id !== id);
-                renderAppointments();
-            }
+        async function deleteAppointment(id) {
+            if (!confirm('Xóa lượt đăng ký khám này khỏi cơ sở dữ liệu đám mây?')) return;
+            await runCmsAction(
+                null,
+                { action: 'delete', type: 'appointments', id: id },
+                'Đã xóa lượt đăng ký khám khỏi cơ sở dữ liệu đám mây.',
+                'Chưa xóa được lượt đăng ký khám'
+            );
         }
     </script>
 </body>
