@@ -20,6 +20,9 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 ## 2. Các Phân Hệ Chức Năng
 
 1. **Bảng điều khiển Cán bộ Y tế (Station Operator Panel)**
+   - Module nằm ở **chân trang** (thay thế hoàn toàn lối vào Bảng điều khiển trạm cũ); thanh tiêu đề không còn lối vào này.
+   - **Bắt buộc đăng nhập**: mọi lượt mở module đều qua popup xác thực, chỉ tài khoản được CMS Quản trị cấp quyền (`station_access`) mới vào được.
+   - Tên phòng khám hiển thị trên module là **biến động**, sửa trực tiếp trong CMS Quản trị (Cấu hình & Phân quyền → Tên phòng khám).
    - Đăng nhập theo Mã điểm trạm (`TYT-BATXAT-01`) & Tên cán bộ trực.
    - Bảng nhập nhanh Sinh hiệu Bệnh nhân (Vitals): Huyết áp (mmHg), Nhịp tim (bpm), SpO2 (%), Nhiệt độ (°C), Cân nặng (kg). Đồng bộ tức thì lên màn hình khám tuyến trên.
 
@@ -78,6 +81,13 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 
 ## 4. Tài Khoản Đăng Nhập Thử Nghiệm (Mẫu)
 
-- **Trạm trưởng**: `tytbatxat@laocai.gov.vn` / Mật khẩu: `admin123`
-- **Bác sĩ Tư vấn Telehealth**: `bacsituvan@laocai.gov.vn`
-- **Cán bộ Trực điểm trạm**: `canbotram@laocai.gov.vn`
+- **Trạm trưởng**: `tytbatxat@laocai.gov.vn` (được cấp quyền vào Bảng điều khiển trạm)
+- **Bác sĩ Tư vấn Telehealth**: `bacsituvan@laocai.gov.vn` (mặc định KHÔNG có quyền vào Bảng điều khiển trạm)
+- **Cán bộ Trực điểm trạm**: `canbotram@laocai.gov.vn` (được cấp quyền vào Bảng điều khiển trạm)
+
+Mật khẩu truy cập Bảng điều khiển trạm lấy từ biến môi trường `STATION_PASSWORD`
+(hoặc `STATION_DEFAULT_PASSWORD`). Nếu chưa đặt biến nào, hệ thống chỉ chấp nhận
+mật khẩu phát triển cục bộ - **bắt buộc đặt `STATION_PASSWORD` trước khi chạy thật**.
+
+Quyền vào module được cấp/thu hồi trong CMS Quản trị: **Cấu hình & Phân quyền →
+cột "Quyền vào Bảng điều khiển trạm"** (bấm vào huy hiệu để đổi trạng thái).

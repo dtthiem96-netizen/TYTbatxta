@@ -38,8 +38,26 @@ const REQUIRED_HANDLERS = [
   'renderSignerSelectors', 'renderActiveSignerPreview', 'finishAndExportReport',
   'sendVitalsToDoctor', 'requestAIConsultation', 'toggleSpeechToText',
   'toggleCameraDevice', 'toggleMic', 'toggleVideo', 'openModal', 'closeModal',
-  'closeAlertBanner', 'closeReportModal'
+  'closeAlertBanner', 'closeReportModal',
+  // Rào chắn đăng nhập & tên phòng khám biến động của Module Bảng điều khiển trạm.
+  'submitLogin', 'logoutStationPanel', 'handleStationLoginKey',
+  'applyStationClinicName', 'getStationSession', 'setStationSession',
+  'handleSaveClinicName', 'hasStationAccess', 'toggleUserStationPermission'
 ];
+
+/* Dữ liệu CMS giả lập: một tài khoản ĐƯỢC cấp quyền vào Bảng điều khiển trạm và
+   một tài khoản KHÔNG được cấp, để kiểm tra cả hai nhánh của luồng phân quyền. */
+const STATION_PASSWORD = 'mat-khau-nap-thu';
+const CLINIC_NAME = 'Trạm Y tế Nạp Thử';
+const GRANTED_USER = {
+  id: 'SMOKE-U1', username: 'canbotram@smoke.test', name: 'Y sĩ Được Cấp Quyền',
+  role: 'Cán bộ Điểm trạm', canReceiveVideo: 'true', stationAccess: 'true'
+};
+const DENIED_USER = {
+  id: 'SMOKE-U2', username: 'bientap@smoke.test', name: 'Biên tập viên Không Quyền',
+  role: 'Biên tập nội dung', canReceiveVideo: 'false', stationAccess: 'false'
+};
+const CMS_USERS = [GRANTED_USER, DENIED_USER];
 
 function buildWindow(html, route, problems) {
   const note = (kind, msg) =>
@@ -70,20 +88,55 @@ function makeConsole(note) {
 function stubBrowser(win, note) {
   win.tailwind = { config: {} };
 
-  const okJson = (data) => new Promise((resolve) => setTimeout(() => resolve({
-    ok: true, status: 200,
-    json: () => Promise.resolve({ success: true, data }),
-    text: () => Promise.resolve(JSON.stringify({ success: true, data })),
+  // Trả lời sau một nhịp timer thật (xem ghi chú đầu tệp).
+  const jsonRes = (status, payload) => new Promise((resolve) => setTimeout(() => resolve({
+    ok: status >= 200 && status < 300, status,
+    json: () => Promise.resolve(payload),
+    text: () => Promise.resolve(JSON.stringify(payload)),
     blob: () => Promise.resolve(new win.Blob([]))
   }), 20));
+  const okJson = (data) => jsonRes(200, { success: true, data });
 
-  win.fetch = (url) => {
+  /* Bản sao rút gọn của quy tắc phân quyền phía máy chủ (netlify/functions/station-auth.ts):
+     chỉ tài khoản được CMS Quản trị cấp quyền mới đăng nhập được Bảng điều khiển trạm. */
+  const authRule = (u) => {
+    if (!u) return false;
+    const granted = String(u.stationAccess || '').trim().toLowerCase();
+    if (granted === 'true') return true;
+    if (granted === 'false') return false;
+    return /Điểm trạm|Station|Admin|Quản trị/i.test(u.role || '');
+  };
+
+  win.fetch = (url, opts) => {
     const u = String(url);
     if (u.includes('/api/signal')) return okJson({ peers: [], messages: [], rooms: [], onDuty: [] });
     if (u.includes('/api/vitals')) return okJson({ evaluation: { status: 'NORMAL', alerts: [] } });
     if (u.includes('/api/clinical-ai')) return okJson({ diagnosisList: [], prescriptions: [], icd10Codes: [] });
     if (u.includes('/api/examination-report')) {
       return okJson({ reportCode: 'SMOKE-001', treatmentPlan: 'Theo dõi 48 giờ' });
+    }
+    if (u.includes('/api/station-auth')) {
+      let body = {};
+      try { body = JSON.parse((opts && opts.body) || '{}'); } catch { body = {}; }
+      const user = CMS_USERS.find((x) => x.username === body.username);
+      if (!user || body.password !== STATION_PASSWORD) {
+        return jsonRes(401, { success: false, error: 'Invalid credentials' });
+      }
+      if (!authRule(user)) {
+        return jsonRes(403, {
+          success: false,
+          error: 'Tài khoản chưa được CMS Quản trị cấp quyền truy cập Bảng điều khiển trạm'
+        });
+      }
+      return jsonRes(200, { success: true, user });
+    }
+    if (u.includes('/api/cms')) {
+      // /api/cms trả các bộ sưu tập ở cấp cao nhất (không bọc trong "data").
+      return jsonRes(200, {
+        success: true,
+        users: CMS_USERS,
+        siteConfigs: [{ id: 'station-clinic-name', value: CLINIC_NAME }]
+      });
     }
     return okJson({});
   };
@@ -214,6 +267,104 @@ async function runPage(pageFile, route) {
   setVal('vitals-spo2', '88');
   setVal('vitals-temp', '39.8');
   setVal('vitals-weight', '52');
+
+  // --- Vị trí mới của module & rào chắn đăng nhập --------------------------
+  const txt = (id) => { const e = $(id); return e ? (e.value ?? e.textContent ?? '').trim() : null; };
+  const isHidden = (id) => { const e = $(id); return !e || e.classList.contains('hidden'); };
+
+  // Module phải nằm ở chân trang và thanh tiêu đề không còn lối vào nào nữa.
+  const footerModule = $('footer-station-module');
+  if (!footerModule) note('vị trí module', 'không thấy #footer-station-module ở chân trang');
+  else if (!footerModule.closest('footer')) note('vị trí module', '#footer-station-module không nằm trong <footer>');
+  const headerEl = win.document.querySelector('header');
+  if (headerEl && /openStationPanel/.test(headerEl.innerHTML)) {
+    note('vị trí module', 'thanh tiêu đề vẫn còn lối vào Bảng điều khiển trạm');
+  }
+
+  // Chưa đăng nhập: mở module chỉ được ra popup đăng nhập, không lộ thân module.
+  try { win.openStationPanel(); } catch (err) { note('luồng: rào chắn đăng nhập', err.stack || err.message); }
+  await wait(400);
+  if (isHidden('login-modal')) note('rào chắn đăng nhập', 'chưa đăng nhập mà không hiện #login-modal');
+  if (!isHidden('modal-station-panel')) note('rào chắn đăng nhập', '#modal-station-panel mở khi chưa đăng nhập');
+
+  // Danh sách tài khoản chỉ gợi ý người đã được CMS Quản trị cấp quyền.
+  const accountSelect = $('input-cms-account');
+  if (!accountSelect) note('không có phần tử', '#input-cms-account');
+  else {
+    const values = Array.from(accountSelect.options).map((o) => o.value);
+    if (!values.includes(GRANTED_USER.username)) {
+      note('danh sách tài khoản', 'tài khoản đã được cấp quyền không có trong #input-cms-account');
+    }
+    if (values.includes(DENIED_USER.username)) {
+      note('danh sách tài khoản', 'tài khoản chưa được cấp quyền vẫn hiện trong #input-cms-account');
+    }
+  }
+
+  const tryLogin = async (username, password, label) => {
+    if (accountSelect && !Array.from(accountSelect.options).some((o) => o.value === username)) {
+      // Thêm tay để mô phỏng người dùng can thiệp danh sách phía trình duyệt:
+      // máy chủ vẫn phải là nơi quyết định cuối cùng.
+      const forged = win.document.createElement('option');
+      forged.value = username;
+      forged.textContent = username;
+      accountSelect.appendChild(forged);
+    }
+    if (accountSelect) accountSelect.value = username;
+    setVal('input-station-password', password);
+    try {
+      await Promise.race([win.submitLogin(), wait(3000)]);
+    } catch (err) {
+      note(`luồng: ${label}`, err.stack || err.message);
+    }
+    await wait(400);
+  };
+
+  // Tài khoản chưa được cấp quyền: bị từ chối, không tạo phiên, không mở module.
+  await tryLogin(DENIED_USER.username, STATION_PASSWORD, 'đăng nhập tài khoản chưa được cấp quyền');
+  if (!isHidden('modal-station-panel')) {
+    note('phân quyền', 'tài khoản chưa được cấp quyền vẫn mở được #modal-station-panel');
+  }
+  if (typeof win.getStationSession === 'function' && win.getStationSession()) {
+    note('phân quyền', 'đã tạo phiên làm việc cho tài khoản chưa được cấp quyền');
+  }
+  if (!/từ chối/i.test(txt('station-login-status') || '')) {
+    note('phân quyền', `#station-login-status không báo từ chối: "${txt('station-login-status')}"`);
+  }
+
+  // Sai mật khẩu: cũng phải bị chặn dù tài khoản có quyền.
+  await tryLogin(GRANTED_USER.username, 'sai-mat-khau', 'đăng nhập sai mật khẩu');
+  if (!isHidden('modal-station-panel')) {
+    note('phân quyền', 'sai mật khẩu vẫn mở được #modal-station-panel');
+  }
+
+  // Tài khoản được CMS Quản trị cấp quyền: đăng nhập thành công và vào module.
+  await tryLogin(GRANTED_USER.username, STATION_PASSWORD, 'đăng nhập tài khoản được cấp quyền');
+  if (isHidden('modal-station-panel')) {
+    note('phân quyền', 'tài khoản được cấp quyền vẫn không mở được #modal-station-panel');
+  }
+  if (!isHidden('login-modal')) note('phân quyền', 'popup đăng nhập không đóng sau khi xác thực thành công');
+  const session = typeof win.getStationSession === 'function' ? win.getStationSession() : null;
+  if (!session || session.username !== GRANTED_USER.username) {
+    note('phân quyền', 'không ghi nhận phiên làm việc sau khi đăng nhập thành công');
+  }
+  if (txt('station-auth-user-name') !== GRANTED_USER.name) {
+    note('phân quyền', `#station-auth-user-name = "${txt('station-auth-user-name')}" (mong đợi tên cán bộ đăng nhập)`);
+  }
+
+  // Tên phòng khám phải biến động theo CMS Quản trị, mọi vị trí hiển thị cùng đổi.
+  const clinicNodes = () => Array.from(win.document.querySelectorAll('[data-station-clinic-name]'));
+  if (clinicNodes().length < 2) note('tên phòng khám', 'thiếu vị trí [data-station-clinic-name] để đồng bộ');
+  setVal('cfg-clinic-name', 'Trạm Y tế Xã Nạp Thử');
+  try {
+    await Promise.race([win.handleSaveClinicName({ preventDefault() {} }), wait(3000)]);
+  } catch (err) {
+    note('luồng: lưu tên phòng khám', err.stack || err.message);
+  }
+  await wait(300);
+  const stale = clinicNodes().filter((el) => el.textContent.trim() !== 'Trạm Y tế Xã Nạp Thử');
+  if (stale.length) {
+    note('tên phòng khám', `${stale.length}/${clinicNodes().length} vị trí chưa nhận tên mới từ CMS Quản trị`);
+  }
 
   const flows = [
     ['mở bảng điều khiển trạm', () => win.openStationPanel()],

@@ -4,10 +4,10 @@ import { eq } from "drizzle-orm";
 import { getStore } from "@netlify/blobs";
 
 const defaultUsers = [
-  { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' },
-  { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true' },
-  { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false' },
-  { id: 'U4', username: 'canbotram@laocai.gov.vn', name: 'Y sĩ Cán bộ Điểm trạm', role: 'Cán bộ Điểm trạm (Station Operator)', canReceiveVideo: 'true' }
+  { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true', stationAccess: 'true' },
+  { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true', stationAccess: 'false' },
+  { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false', stationAccess: 'false' },
+  { id: 'U4', username: 'canbotram@laocai.gov.vn', name: 'Y sĩ Cán bộ Điểm trạm', role: 'Cán bộ Điểm trạm (Station Operator)', canReceiveVideo: 'true', stationAccess: 'true' }
 ];
 
 const defaultSigners = [

@@ -1,0 +1,2 @@
+ALTER TABLE "users" ADD COLUMN "station_access" text DEFAULT 'false';--> statement-breakpoint
+UPDATE "users" SET "station_access" = 'true' WHERE "role" ILIKE '%Điểm trạm%' OR "role" ILIKE '%Station%' OR "role" ILIKE '%Admin%' OR "role" ILIKE '%Quản trị%';

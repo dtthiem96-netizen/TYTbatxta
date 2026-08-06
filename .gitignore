@@ -1,0 +1,5 @@
+# Local Netlify folder
+.netlify
+
+# Gói phụ thuộc cài tại máy (npm install) - không đưa vào kho mã
+node_modules
