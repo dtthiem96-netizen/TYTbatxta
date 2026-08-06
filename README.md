@@ -80,11 +80,27 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 
 ---
 
-## 4. Tài Khoản Đăng Nhập Thử Nghiệm (Mẫu)
+## 4. Tài Khoản Đăng Nhập
 
-- **Trạm trưởng**: `tytbatxat@laocai.gov.vn` (được cấp quyền vào Bảng điều khiển trạm)
+### Tài khoản Quản trị viên hệ thống (Admin)
+
+- **Tên đăng nhập**: `tytbatxat@laocai.gov.vn`
+- **Mật khẩu mặc định**: mật khẩu khởi tạo do đơn vị quy định (`Admin123@`), đã được
+  nạp sẵn dưới dạng **băm bcrypt** trong bản di trú
+  `netlify/database/migrations/20260806035628_set_default_admin_account`.
+- **Quyền**: Quản trị viên (Admin) - vào được CMS Quản trị (`/admin`), Module Bảng
+  điều khiển điểm trạm và nhận cuộc gọi Telehealth.
+
+> **Bắt buộc đổi mật khẩu ngay sau lần đăng nhập đầu tiên** trong
+> *CMS Quản trị → Quản trị hệ thống → Quản lý tài khoản & Phân quyền hệ thống*.
+> Mật khẩu mặc định chỉ dùng để mở khoá hệ thống lần đầu; mật khẩu mới ghi đè giá
+> trị cũ và bản di trú không bao giờ khôi phục lại mật khẩu mặc định.
+
+### Các tài khoản mẫu khác
+
 - **Bác sĩ Tư vấn Telehealth**: `bacsituvan@laocai.gov.vn` (mặc định KHÔNG có quyền vào Bảng điều khiển trạm)
 - **Cán bộ Trực điểm trạm**: `canbotram@laocai.gov.vn` (được cấp quyền vào Bảng điều khiển trạm)
+- **Cán bộ Biên tập**: `bientapvien@laocai.gov.vn` (chỉ biên tập nội dung)
 
 Mật khẩu của từng tài khoản do Quản trị đặt trong CMS và được lưu dưới dạng **băm
 bcrypt** (10 vòng) - không nơi nào trong hệ thống giữ mật khẩu dạng rõ.
@@ -93,7 +109,8 @@ Với các tài khoản có từ trước (chưa có mật khẩu riêng), hệ 
 khẩu dùng chung lấy từ biến môi trường `STATION_PASSWORD` (hoặc
 `STATION_DEFAULT_PASSWORD`) để Quản trị đăng nhập lần đầu mà thiết lập. **Bắt buộc
 đặt `STATION_PASSWORD` trước khi chạy thật**, và ngay khi Quản trị đặt mật khẩu riêng
-cho một tài khoản thì lối tạm này đóng vĩnh viễn với tài khoản đó.
+cho một tài khoản thì lối tạm này đóng vĩnh viễn với tài khoản đó. Tài khoản Quản trị
+ở trên đã có mật khẩu riêng nên không còn đi qua lối tạm này.
 
 ---
 

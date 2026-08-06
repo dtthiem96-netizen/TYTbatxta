@@ -110,7 +110,7 @@
                         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Mật khẩu</label>
                         <div class="relative">
                             <i class="fas fa-lock absolute left-4 top-3.5 text-slate-400"></i>
-                            <input type="password" id="admin-password" required placeholder="••••••••" value="admin123" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 font-medium text-slate-800">
+                            <input type="password" id="admin-password" required placeholder="••••••••" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100 font-medium text-slate-800" autocomplete="current-password">
                         </div>
                     </div>
 
@@ -121,7 +121,7 @@
 
                 <div class="mt-6 pt-6 border-t border-slate-200 text-center">
                     <button type="button" onclick="fillQuickLogin()" class="text-xs font-bold text-sky-700 hover:text-sky-900 bg-sky-50 px-3.5 py-2 rounded-lg border border-sky-200 hover:bg-sky-100 transition">
-                        <i class="fas fa-key mr-1"></i> Sử dụng Tài khoản Cán bộ Y tế Mẫu
+                        <i class="fas fa-key mr-1"></i> Điền sẵn Tài khoản Quản trị hệ thống
                     </button>
                     <p class="text-xs text-slate-400 mt-4">Hệ thống bảo mật nội bộ ngành Y tế Lào Cai</p>
                 </div>
@@ -661,55 +661,64 @@
         }
 
         // Login Logic
+        /* Xác thực bằng cổng chung /api/station-auth (scope "cms"): mật khẩu được
+           đối chiếu bằng bcrypt ở máy chủ, tài khoản bị khoá bị chặn ngay. Trang
+           này TUYỆT ĐỐI không tự phán quyết đăng nhập ở trình duyệt - trước đây
+           có nhánh dự phòng chấp nhận mọi mật khẩu khi API lỗi, nhánh đó đã bỏ. */
         async function handleLoginSubmit(e) {
             e.preventDefault();
             const username = document.getElementById('admin-username').value.trim();
             const password = document.getElementById('admin-password').value.trim();
             const btn = document.getElementById('btn-login-submit');
             const alertBox = document.getElementById('login-alert');
+            const alertText = document.getElementById('login-alert-text');
+            const defaultBtnLabel = '<i class="fas fa-right-to-bracket"></i> Đăng Nhập Cổng Quản Trị';
+
+            const showLoginError = (message) => {
+                if (alertText) alertText.textContent = message;
+                alertBox.classList.remove('hidden');
+                btn.innerHTML = defaultBtnLabel;
+            };
 
             alertBox.classList.add('hidden');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xác thực...';
 
+            if (!username || !password) {
+                return showLoginError('Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.');
+            }
+
+            let data = null;
             try {
-                const res = await fetch('/api/login', {
+                const res = await fetch('/api/station-auth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, scope: 'cms' })
                 });
-
-                if (res.ok) {
-                    const json = await res.json();
-                    if (json.success && json.user) {
-                        currentAdminUser = json.user;
-                        sessionStorage.setItem('admin_user', JSON.stringify(currentAdminUser));
-                        showDashboard();
-                        return;
-                    }
+                data = await res.json().catch(() => null);
+                if (!res.ok || !data || data.success !== true) {
+                    return showLoginError((data && data.error) || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
                 }
-            } catch(err) {
-                console.warn('API error, using local validation');
+            } catch (err) {
+                console.error(err);
+                return showLoginError('Không kết nối được máy chủ xác thực. Vui lòng thử lại.');
             }
 
-            // Fallback authentication
-            if (username && password) {
-                currentAdminUser = {
-                    id: 'U1',
-                    username: username,
-                    name: username.includes('mai') ? 'BS. Nguyễn Thị Mai' : 'Cán bộ Y tế Bát Xát',
-                    role: 'Quản trị viên (Admin)'
-                };
-                sessionStorage.setItem('admin_user', JSON.stringify(currentAdminUser));
-                showDashboard();
-            } else {
-                alertBox.classList.remove('hidden');
+            currentAdminUser = data.user || { username: username, name: username, role: 'Cán bộ' };
+            sessionStorage.setItem('admin_user', JSON.stringify(currentAdminUser));
+            sessionStorage.setItem('admin_token', data.token || '');
+            if (data.mustChangePassword) {
+                showToast('Bạn đang dùng mật khẩu mặc định. Hãy đổi mật khẩu riêng trong CMS Quản trị.', 'warning');
             }
-            btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Đăng Nhập Cổng Quản Trị';
+            showDashboard();
+            btn.innerHTML = defaultBtnLabel;
         }
 
         function fillQuickLogin() {
+            // Chỉ điền sẵn tên đăng nhập; mật khẩu do cán bộ tự nhập.
             document.getElementById('admin-username').value = 'tytbatxat@laocai.gov.vn';
-            document.getElementById('admin-password').value = 'admin123';
+            const pwd = document.getElementById('admin-password');
+            pwd.value = '';
+            pwd.focus();
         }
 
         function showLogin() {
@@ -732,6 +741,7 @@
 
         function handleLogout() {
             sessionStorage.removeItem('admin_user');
+            sessionStorage.removeItem('admin_token');
             currentAdminUser = null;
             showLogin();
         }
