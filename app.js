@@ -1,20 +1,47 @@
 // Telehealth Station Application Logic - Vanilla JS
 
 /**
- * Danh sách điểm trạm y tế khu vực. Mỗi điểm trạm có một phòng trực riêng để
- * Bác sĩ tuyến trên và Trợ lý AI biết cuộc gọi đến từ đâu.
+ * Danh sách điểm phòng khám / điểm trạm y tế khu vực.
+ *
+ * Danh mục gốc nằm ở `window.TELEHEALTH_STATIONS` (khai báo trong index.html) để
+ * ô chọn điểm phòng khám của người dân, ô chọn điểm trạm khi đăng nhập và bảng
+ * điều khiển này luôn dùng chung một danh sách. Mảng dưới đây chỉ là bản dự
+ * phòng khi app.js được nạp trước trang chính.
  */
-const STATIONS = [
-  { code: 'TYT-BATXAT-01', name: 'Trạm Y tế Bát Xát (Trung tâm)' },
-  { code: 'TYT-AMLUONG-02', name: 'Điểm trạm Ẩm Lương' },
-  { code: 'TYT-YTY-03', name: 'Điểm trạm Y Tý' },
-  { code: 'TYT-BANXEO-04', name: 'Điểm trạm Bản Xèo' },
-  { code: 'TYT-LUNGFIN-05', name: 'Điểm trạm Lũng Pô Fin' }
-];
+const STATIONS = (typeof window !== 'undefined' && Array.isArray(window.TELEHEALTH_STATIONS) && window.TELEHEALTH_STATIONS.length)
+  ? window.TELEHEALTH_STATIONS
+  : [
+      { code: 'TYT-BATXAT-01', name: 'Trạm Y tế Bát Xát (Trung tâm)' },
+      { code: 'TYT-BATXAT-BQ-02', name: 'Điểm phòng khám Bản Qua' },
+      { code: 'TYT-BATXAT-BV-03', name: 'Điểm phòng khám Bản Vược' },
+      { code: 'TYT-BATXAT-QK-04', name: 'Điểm phòng khám Quang Kim' },
+      { code: 'TYT-BATXAT-PN-05', name: 'Điểm phòng khám Phìn Ngan' }
+    ];
 
 /** Phòng trực mặc định của một điểm trạm, ví dụ TYT-YTY-03 -> room-tyt-yty-03. */
 function defaultRoomForStation(code) {
-  return 'room-' + String(code || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return 'room-' + stationSlug(code);
+}
+
+function stationSlug(code) {
+  return String(code || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+/**
+ * Suy ra điểm phòng khám đích từ mã phòng. Người dân gọi từ trang chính sẽ tạo
+ * phòng dạng `room-<slug điểm khám>-<mã thời gian>`, nhờ vậy bảng điều khiển
+ * biết cuộc gọi đang đổ chuông vào điểm nào mà không cần thêm cột trong CSDL.
+ */
+function stationFromRoomId(id) {
+  const raw = String(id || '').toLowerCase();
+  let best = null;
+  for (const st of STATIONS) {
+    const slug = stationSlug(st.code);
+    if (raw === 'room-' + slug || raw.startsWith('room-' + slug + '-')) {
+      if (!best || slug.length > stationSlug(best.code).length) best = st;
+    }
+  }
+  return best;
 }
 
 function stationName(code) {
@@ -64,6 +91,8 @@ let signalCursor = 0;
 let polling = false;
 let pollToken = 0;
 let pendingCandidates = [];
+let iceQueue = [];
+let iceQueueTimer = null;
 let remotePeerName = null;
 let isConnected = false;
 let rejoinTimer = null;
@@ -280,6 +309,8 @@ function endTeleconsultation(options) {
   isConnected = false;
   remotePeerName = null;
   pendingCandidates = [];
+  iceQueue = [];
+  if (iceQueueTimer) { clearTimeout(iceQueueTimer); iceQueueTimer = null; }
   showRemotePlaceholder();
   updateCallControlsUI();
   updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
@@ -317,6 +348,15 @@ function updateCallControlsUI() {
 
   const endBtn = document.getElementById('btn-end-call');
   if (endBtn) endBtn.classList.toggle('hidden', !callActive);
+
+  /* Nút "Kết thúc cuộc gọi" trên thanh tiêu đề của module: luôn nhìn thấy dù cán
+     bộ đã cuộn xuống phần sinh hiệu hay biên bản, không phải tìm lại thanh điều
+     khiển dưới khung hình. Nút dùng display:flex nên phải gỡ cả lớp `hidden`. */
+  const endBtnHeader = document.getElementById('btn-end-call-header');
+  if (endBtnHeader) {
+    endBtnHeader.classList.toggle('hidden', !callActive);
+    endBtnHeader.classList.toggle('flex', callActive);
+  }
 
   ['btn-toggle-camera', 'btn-toggle-mic', 'btn-toggle-video'].forEach(id => {
     const btn = document.getElementById(id);
@@ -431,16 +471,25 @@ async function refreshIncomingCallsQueue() {
     listEl.innerHTML = rooms.map(r => {
       const pName = r.patientName || 'Bệnh nhân';
       const isCurrent = r.roomId === roomId;
+      // Người dân đã chọn điểm phòng khám nào thì hiện đúng tên điểm đó, và tô
+      // đậm khi cuộc gọi đang đổ chuông vào chính điểm trạm cán bộ đang trực.
+      const target = stationFromRoomId(r.roomId);
+      const forMe = target && target.code === stationCode;
+      const targetBadge = target
+        ? `<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded font-bold ${forMe ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-700 text-slate-300'}">
+             <i class="fa-solid fa-location-dot"></i> ${target.name}
+           </span>`
+        : '';
       return `
-        <div class="flex items-center justify-between gap-3 bg-slate-900 border ${isCurrent ? 'border-emerald-500' : 'border-slate-700'} p-2 rounded-xl text-xs whitespace-nowrap shadow">
+        <div class="flex items-center justify-between gap-3 bg-slate-900 border ${isCurrent ? 'border-emerald-500' : (forMe ? 'border-emerald-700' : 'border-slate-700')} p-2 rounded-xl text-xs whitespace-nowrap shadow">
           <div class="flex items-center space-x-2">
             <i class="fa-solid fa-user text-blue-400"></i>
             <div>
-              <div class="font-bold text-white text-[12px]">${pName}</div>
+              <div class="font-bold text-white text-[12px]">${pName}${targetBadge}</div>
               <div class="text-[10px] text-slate-400">${r.symptoms || 'Khám sức khỏe tổng quát'}</div>
             </div>
           </div>
-          <button onclick="acceptPatientCall('${r.roomId}', '${pName.replace(/'/g, "\\'")}', '${(r.symptoms||'').replace(/'/g, "\\'")}')" 
+          <button onclick="acceptPatientCall('${r.roomId}', '${pName.replace(/'/g, "\\'")}', '${(r.symptoms||'').replace(/'/g, "\\'")}')"
             class="${isCurrent ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'} text-white font-bold px-3 py-1.5 rounded-lg text-[11px] transition flex items-center gap-1.5">
             <i class="fa-solid fa-headset"></i> ${isCurrent ? 'Đang kết nối' : 'Tiếp nhận cuộc gọi'}
           </button>
@@ -785,9 +834,14 @@ function initPeerConnection() {
   const configuration = {
     iceServers: [
       { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-      { urls: 'stun:stun.cloudflare.com:3478' }
+      { urls: 'stun:stun.cloudflare.com:3478' },
+      { urls: 'stun:global.stun.twilio.com:3478' }
     ],
-    iceCandidatePoolSize: 4
+    // Thu sẵn nhiều ứng viên đường truyền hơn ngay khi mở kết nối, và dồn mọi
+    // luồng vào một cổng: bắt tay xong sớm hơn nên hình lên nhanh hơn.
+    iceCandidatePoolSize: 8,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require'
   };
 
   try {
@@ -804,6 +858,7 @@ function initPeerConnection() {
     localStream.getTracks().forEach(track => {
       peerConnection.addTrack(track, localStream);
     });
+    tuneVideoSender();
   }
 
   // Handle incoming remote media stream
@@ -812,9 +867,14 @@ function initPeerConnection() {
     const remoteVideo = document.getElementById('remote-video');
     const remotePlaceholder = document.getElementById('remote-placeholder');
 
+    // Bỏ bộ đệm phát lại: khung hình hiện gần thời gian thực, đỡ cảm giác trễ.
+    try { if (event.receiver) event.receiver.playoutDelayHint = 0; } catch (e) {}
+
     if (remoteVideo) {
       remoteVideo.srcObject = event.streams[0];
+      remoteVideo.playsInline = true;
       remoteVideo.classList.remove('hidden');
+      remoteVideo.play().catch(() => {});
     }
     if (remotePlaceholder) {
       remotePlaceholder.classList.add('hidden');
@@ -823,14 +883,47 @@ function initPeerConnection() {
     updateConnectionBadge(true, 'Đang kết nối với bác sĩ');
   };
 
-  // ICE Candidates
+  // Ứng viên ICE được gom lô rồi gửi một lượt (xem sendIceCandidate).
   peerConnection.onicecandidate = (event) => {
-    if (event.candidate) {
-      sendSignal('ice', event.candidate);
-    }
+    if (event.candidate) queueIceCandidate(event.candidate.toJSON ? event.candidate.toJSON() : event.candidate);
+    else flushIceQueue();
   };
 
   return true;
+}
+
+/**
+ * Ép bộ mã hoá ưu tiên giữ số khung hình khi băng thông tụt (mạng 3G/4G vùng cao),
+ * thay vì mặc định hạ khung hình làm hình giật từng nấc.
+ */
+function tuneVideoSender() {
+  if (!peerConnection) return;
+  const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+  if (!sender || !sender.getParameters) return;
+  try {
+    const params = sender.getParameters();
+    params.degradationPreference = 'maintain-framerate';
+    if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+    params.encodings[0].maxBitrate = 1500000;
+    params.encodings[0].maxFramerate = 30;
+    sender.setParameters(params).catch(() => {});
+  } catch (err) {
+    console.warn('Không đặt được thông số luồng hình:', err);
+  }
+}
+
+/* Gom ứng viên ICE trong 40ms rồi gửi một lô: mỗi bản tin signaling là một chặng
+   HTTP, gom lại giúp rút ngắn thời gian bắt tay xuống rõ rệt. */
+function queueIceCandidate(candidate) {
+  iceQueue.push(candidate);
+  if (iceQueueTimer) return;
+  iceQueueTimer = setTimeout(flushIceQueue, 40);
+}
+
+function flushIceQueue() {
+  if (iceQueueTimer) { clearTimeout(iceQueueTimer); iceQueueTimer = null; }
+  if (!iceQueue.length) return;
+  sendSignal('ice', iceQueue.splice(0));
 }
 
 async function createWebRTCOffer() {
@@ -871,18 +964,32 @@ async function handleWebRTCAnswer(answer) {
 
 async function handleWebRTCIceCandidate(candidate) {
   if (!candidate || !peerConnection) return;
-  const ice = new RTCIceCandidate(candidate);
 
-  // Ứng viên ICE đến trước khi có remote description thì phải xếp hàng, nếu không sẽ mất.
-  if (!peerConnection.remoteDescription || !peerConnection.remoteDescription.type) {
-    pendingCandidates.push(ice);
-    return;
-  }
+  // Chấp nhận cả bản tin cũ (một ứng viên) lẫn bản tin gom lô (mảng ứng viên),
+  // để máy đã mở sẵn trang cũ vẫn bắt tay được với máy đã nạp bản mới.
+  const items = Array.isArray(candidate) ? candidate : [candidate];
+  const ready = peerConnection.remoteDescription && peerConnection.remoteDescription.type;
 
-  try {
-    await peerConnection.addIceCandidate(ice);
-  } catch (err) {
-    console.warn('Error adding ICE candidate:', err.message);
+  for (const item of items) {
+    if (!item) continue;
+    let ice;
+    try {
+      ice = new RTCIceCandidate(item);
+    } catch (err) {
+      continue;
+    }
+
+    // Ứng viên ICE đến trước khi có remote description thì phải xếp hàng, nếu không sẽ mất.
+    if (!ready) {
+      pendingCandidates.push(ice);
+      continue;
+    }
+
+    try {
+      await peerConnection.addIceCandidate(ice);
+    } catch (err) {
+      console.warn('Error adding ICE candidate:', err.message);
+    }
   }
 }
 
@@ -908,9 +1015,18 @@ async function initLocalCamera(deviceId = null) {
   }
 
   try {
+    // Xin đúng một cấu hình ngay từ đầu (kèm trần độ phân giải + số khung hình)
+    // để trình duyệt không phải khởi động camera lần hai - đây là khâu chiếm
+    // nhiều thời gian nhất khi bắt đầu cuộc gọi.
     const constraints = {
-      audio: true,
-      video: deviceId ? { deviceId: { exact: deviceId } } : { width: { ideal: 1280 }, height: { ideal: 720 } }
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: deviceId
+        ? { deviceId: { exact: deviceId }, frameRate: { ideal: 30, min: 15 } }
+        : {
+            width: { ideal: 1280, max: 1280 },
+            height: { ideal: 720, max: 720 },
+            frameRate: { ideal: 30, min: 15 }
+          }
     };
 
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -925,9 +1041,17 @@ async function initLocalCamera(deviceId = null) {
   }
 
   if (localStream) {
+    // Báo cho bộ mã hoá biết đây là hình chuyển động và tiếng nói, để nó chọn
+    // đúng thuật toán nén thay vì đoán mò.
+    localStream.getVideoTracks().forEach(t => { try { t.contentHint = 'motion'; } catch (e) {} });
+    localStream.getAudioTracks().forEach(t => { try { t.contentHint = 'speech'; } catch (e) {} });
+
     const localVideo = document.getElementById('local-video');
     if (localVideo) {
       localVideo.srcObject = localStream;
+      localVideo.playsInline = true;
+      localVideo.muted = true;
+      localVideo.play().catch(() => {});
     }
 
     try {
@@ -944,7 +1068,7 @@ async function initLocalCamera(deviceId = null) {
       const videoTrack = localStream.getVideoTracks()[0];
       const audioTrack = localStream.getAudioTracks()[0];
       const senders = peerConnection.getSenders();
-      
+
       const videoSender = senders.find(s => s.track && s.track.kind === 'video');
       if (videoSender && videoTrack) {
         videoSender.replaceTrack(videoTrack);
@@ -953,6 +1077,7 @@ async function initLocalCamera(deviceId = null) {
       if (audioSender && audioTrack) {
         audioSender.replaceTrack(audioTrack);
       }
+      tuneVideoSender();
     }
   }
 }
@@ -1530,8 +1655,13 @@ function renderReportModal(ctx) {
 
   // Thông tin bệnh nhân & cán bộ (các ô cho phép sửa trực tiếp trước khi in)
   setVal('rpt-edit-patient-name', ctx.patientName);
-  const ageGender = [ctx.patientAge ? `${ctx.patientAge} tuổi` : '', ctx.patientGender].filter(Boolean).join(' - ');
-  setVal('rpt-edit-age-gender', ageGender);
+  // Mẫu số 01 - Thông tư 52/2017/TT-BYT tách riêng tuổi và giới tính, thêm ngày
+  // sinh, cân nặng, địa chỉ; phần nào chưa có dữ liệu thì để cán bộ điền tay.
+  setVal('rpt-edit-age-gender', ctx.patientAge ? `${ctx.patientAge} tuổi` : '');
+  const genderEl = document.getElementById('rpt-edit-gender');
+  if (genderEl && ctx.patientGender) genderEl.value = ctx.patientGender;
+  if (ctx.patientDob) setVal('rpt-edit-dob', ctx.patientDob);
+  if (ctx.patientAddress) setVal('rpt-edit-address', ctx.patientAddress);
   setVal('rpt-edit-operator', operatorName);
   setText('rpt-sig-operator-name', operatorName);
 
@@ -1545,6 +1675,8 @@ function renderReportModal(ctx) {
   setText('rpt-val-spo2', `${v.spo2}%`);
   setText('rpt-val-temp', `${v.temperature}°C`);
   setText('rpt-val-weight', `${v.weight || 60} kg`);
+  const rptWeight = document.getElementById('rpt-edit-weight');
+  if (rptWeight && !rptWeight.value.trim()) rptWeight.value = String(v.weight || 60);
 
   // Chẩn đoán, hướng xử trí, đơn thuốc, lời dặn
   setVal('rpt-edit-diagnosis', ctx.diagnosisText);
