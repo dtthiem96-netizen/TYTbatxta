@@ -994,7 +994,7 @@
                                 </p>
                                 <div class="flex gap-2">
                                     <a href="tel:0382103002" class="btn-call-station flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
-                                        <i class="fas fa-phone-alt"></i> Gọi Trạm: 0382 103 002
+                                        <i class="fas fa-phone-alt"></i> Gọi Trạm:  02143909011
                                     </a>
                                     <a href="https://zalo.me/0382103002" target="_blank" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
                                         <i class="fas fa-comment-sms"></i> Nhắn Zalo trạm
@@ -1607,10 +1607,10 @@
                     <label class="block text-slate-300 font-bold mb-1" for="input-station-code">Điểm trạm y tế khu vực</label>
                     <select id="input-station-code" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold focus:outline-none focus:border-blue-500">
                         <option value="TYT-BATXAT-01">TYT-BATXAT-01 — Trạm Y tế Bát Xát (Trung tâm)</option>
-                        <option value="TYT-AMLUONG-02">TYT-AMLUONG-02 — Điểm trạm Ẩm Lương</option>
-                        <option value="TYT-YTY-03">TYT-YTY-03 — Điểm trạm Y Tý</option>
-                        <option value="TYT-BANXEO-04">TYT-BANXEO-04 — Điểm trạm Bản Xèo</option>
-                        <option value="TYT-LUNGFIN-05">TYT-LUNGFIN-05 — Điểm trạm Lũng Pô Fin</option>
+                        <option value="TYT-BATXAT-BQ-02">TYT-BATXAT-BQ-02 — Điểm trạm Bản Qua</option>
+                        <option value="TYT-BATXAT-BV-03">TYT-BATXAT-BV-03 — Điểm trạm Bản Vược</option>
+                        <option value="TYT-BATXAT-QK-04">TYT-BATXAT-QK-04 — Điểm trạm Quang Kim</option>
+                        <option value="TYT-BATXAT-PN-05">TYT-BATXAT-PN-05 — Điểm trạm Phìn Ngan Fin</option>
                     </select>
                     <p class="text-[10px] text-slate-500 mt-1 italic">Chọn đúng điểm trạm đang trực để Bác sĩ tuyến trên và Trợ lý AI định tuyến cuộc gọi về nơi cần hỗ trợ.</p>
                 </div>
@@ -1672,11 +1672,11 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <select id="station-switcher" onchange="window.switchStation(this.value)" title="Chuyển điểm trạm khu vực" class="bg-slate-800 border border-blue-800/70 text-blue-200 text-[11px] font-bold font-mono px-2.5 py-1.5 rounded-xl focus:outline-none focus:border-blue-500">
-                        <option value="TYT-BATXAT-01">TYT-BATXAT-01 · Bát Xát</option>
-                        <option value="TYT-AMLUONG-02">TYT-AMLUONG-02 · Ẩm Lương</option>
-                        <option value="TYT-YTY-03">TYT-YTY-03 · Y Tý</option>
-                        <option value="TYT-BANXEO-04">TYT-BANXEO-04 · Bản Xèo</option>
-                        <option value="TYT-LUNGFIN-05">TYT-LUNGFIN-05 · Lũng Pô Fin</option>
+                        <option value="TYT-BATXAT-01">TYT-BATXAT-01 — Trạm Y tế Bát Xát (Trung tâm)</option>
+                        <option value="TYT-BATXAT-BQ-02">TYT-BATXAT-BQ-02 — Điểm trạm Bản Qua</option>
+                        <option value="TYT-BATXAT-BV-03">TYT-BATXAT-BV-03 — Điểm trạm Bản Vược</option>
+                        <option value="TYT-BATXAT-QK-04">TYT-BATXAT-QK-04 — Điểm trạm Quang Kim</option>
+                        <option value="TYT-BATXAT-PN-05">TYT-BATXAT-PN-05 — Điểm trạm Phìn Ngan Fin</option>
                     </select>
                     <span id="station-auth-user" class="hidden items-center gap-1.5 bg-emerald-950 border border-emerald-800 text-emerald-300 text-[10px] font-bold px-2.5 py-1.5 rounded-xl" title="Tài khoản đang đăng nhập vào Bảng điều khiển">
                         <i class="fas fa-user-shield"></i> <span id="station-auth-user-name">—</span>
@@ -2101,7 +2101,7 @@
                         <p id="rpt-sig-operator-name" class="font-bold text-gray-900 pt-8">Y sĩ Nguyễn Văn A</p>
                     </div>
                     <div class="space-y-1">
-                        <p class="font-bold text-purple-900 uppercase">BÁC SĨ THÂM KHÁM &amp; KÊ ĐƠN</p>
+                        <p class="font-bold text-purple-900 uppercase">BÁC SĨ THĂM KHÁM &amp; KÊ ĐƠN</p>
                         <p class="text-[10px] text-gray-500 italic">(Ký số từ xa qua hệ thống)</p>
                         <div class="h-16 flex items-center justify-center py-1">
                             <img id="rpt-signer-sig-img" src="" alt="Chữ ký số" class="hidden max-h-14 max-w-full object-contain">
@@ -2749,11 +2749,11 @@
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-stationcode">Điểm trạm trực thuộc <span class="text-rose-500">*</span></label>
                                     <select id="cfg-user-stationcode" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
-                                        <option value="TYT-BATXAT-01">TYT-BATXAT-01 — Trạm Y tế Bát Xát (Trung tâm)</option>
-                                        <option value="TYT-AMLUONG-02">TYT-AMLUONG-02 — Điểm trạm Ẩm Lương</option>
-                                        <option value="TYT-YTY-03">TYT-YTY-03 — Điểm trạm Y Tý</option>
-                                        <option value="TYT-BANXEO-04">TYT-BANXEO-04 — Điểm trạm Bản Xèo</option>
-                                        <option value="TYT-LUNGFIN-05">TYT-LUNGFIN-05 — Điểm trạm Lũng Pô Fin</option>
+                                         <option value="TYT-BATXAT-01">TYT-BATXAT-01 — Trạm Y tế Bát Xát (Trung tâm)</option>
+                                         <option value="TYT-BATXAT-BQ-02">TYT-BATXAT-BQ-02 — Điểm trạm Bản Qua</option>
+                                         <option value="TYT-BATXAT-BV-03">TYT-BATXAT-BV-03 — Điểm trạm Bản Vược</option>
+                                         <option value="TYT-BATXAT-QK-04">TYT-BATXAT-QK-04 — Điểm trạm Quang Kim</option>
+                                         <option value="TYT-BATXAT-PN-05">TYT-BATXAT-PN-05 — Điểm trạm Phìn Ngan Fin</option>
                                     </select>
                                 </div>
                                 <div>
@@ -6762,7 +6762,7 @@
         window.handleBookingSubmit = function(e) {
             e.preventDefault();
             const deptSelect = document.getElementById('booking-dept');
-            const dept = serviceManagers.find(s => s.id === (deptSelect ? deptSelect.value : '')) || { name: 'Khoa Khám Bệnh', person: 'BS. Trạm Trưởng', zalo: '0382103002' };
+            const dept = serviceManagers.find(s => s.id === (deptSelect ? deptSelect.value : '')) || { name: 'Khoa Khám Bệnh', person: 'Y sĩ/Bacsi', zalo: '0382103002' };
             
             const name = document.getElementById('booking-name').value;
             const phone = document.getElementById('booking-phone').value;
