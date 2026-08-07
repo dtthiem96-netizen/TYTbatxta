@@ -155,8 +155,10 @@ function startStationPanel() {
   // Tải dữ liệu tài khoản và bác sĩ từ CMS
   loadCmsData();
 
-  // Bắt đầu quét danh sách cuộc gọi chờ từ người dân
-  startQueuePolling();
+  // Hàng đợi cuộc gọi CỐ Ý không được quét ở đây. Người dân mở trang chủ không
+  // phải là cán bộ trực, nên trình duyệt của họ không được tự động gọi sang
+  // kênh tiếp nhận của điểm trạm. Vòng quét chỉ chạy khi Bảng điều khiển được
+  // mở sau khi đăng nhập (window.openStationPanel gọi startQueuePolling).
 
   // Camera, micro và phòng khám từ xa CỐ Ý không được khởi động ở đây: chúng chỉ
   // mở khi cán bộ trực bấm "Bắt đầu cuộc gọi" hoặc "Tiếp nhận" một cuộc gọi chờ.
@@ -451,16 +453,96 @@ function stopQueuePolling() {
   queuePollInterval = null;
 }
 
+/** Hàng đợi lần quét gần nhất - nút "Tiếp nhận nhanh" đọc lại từ đây. */
+let pendingCallQueue = [];
+
+/** Bọc chuỗi để nhúng an toàn vào thuộc tính onclick trong chuỗi HTML. */
+function queueAttr(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, '\\&#39;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/** Bọc chuỗi để hiển thị trong nội dung HTML. */
+function queueText(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/** Thời gian người dân đã chờ máy, hiển thị dạng "2 phút 05 giây". */
+function queueWaitedLabel(since) {
+  const started = Number(since);
+  if (!started) return '';
+  const secs = Math.max(0, Math.floor((Date.now() - started) / 1000));
+  const mm = Math.floor(secs / 60);
+  const ss = String(secs % 60).padStart(2, '0');
+  return mm > 0 ? `${mm} phút ${ss} giây` : `${ss} giây`;
+}
+
+/**
+ * Cập nhật nút "Tiếp nhận cuộc gọi" đặt ngay dưới khung hàng đợi.
+ *
+ * Nút bấm được là khi có ít nhất một cuộc gọi chưa ai tiếp nhận; ưu tiên cuộc
+ * gọi đổ chuông đúng vào điểm trạm cán bộ đang trực, sau đó tới cuộc chờ lâu nhất.
+ */
+function updateQueueAcceptButton() {
+  const btn = document.getElementById('station-queue-accept-btn');
+  const label = document.getElementById('station-queue-accept-label');
+  const next = nextPendingCall();
+
+  if (btn) btn.disabled = !next;
+  if (!label) return;
+
+  if (!next) {
+    label.textContent = 'Chưa có cuộc gọi chờ';
+    return;
+  }
+  const pName = next.patientName || 'Bệnh nhân';
+  label.textContent = next.roomId === roomId && callActive
+    ? `Đang kết nối với ${pName}`
+    : `Tiếp nhận cuộc gọi - ${pName}`;
+}
+
+/** Cuộc gọi sẽ được nhận khi bấm nút tiếp nhận nhanh. */
+function nextPendingCall() {
+  const waiting = pendingCallQueue.filter(r => !r.hasDoctor);
+  if (!waiting.length) return null;
+  const mine = waiting.filter(r => {
+    const target = stationFromRoomId(r.roomId);
+    return target && target.code === stationCode;
+  });
+  const pool = mine.length ? mine : waiting;
+  return pool.slice().sort((a, b) => Number(a.since || 0) - Number(b.since || 0))[0];
+}
+
+/** Nút "Tiếp nhận cuộc gọi" của khung "Cuộc gọi chờ từ Người dân". */
+function acceptNextPatientCall() {
+  const next = nextPendingCall();
+  if (!next) {
+    showAlertBanner('Hiện chưa có cuộc gọi nào của người dân đang chờ tiếp nhận.');
+    return;
+  }
+  acceptPatientCall(next.roomId, next.patientName || 'Bệnh nhân', next.symptoms || '');
+}
+
 async function refreshIncomingCallsQueue() {
   try {
     const res = await fetch('/api/signal?action=rooms');
     if (!res.ok) return;
     const data = await res.json();
     const rooms = (data.rooms || []).filter(r => r.roomId !== '__lobby__');
+    pendingCallQueue = rooms;
 
     const countEl = document.getElementById('station-queue-count');
     const listEl = document.getElementById('station-queue-list');
     if (countEl) countEl.textContent = `${rooms.length} cuộc gọi`;
+
+    updateQueueAcceptButton();
 
     if (!listEl) return;
     if (rooms.length === 0) {
@@ -470,27 +552,38 @@ async function refreshIncomingCallsQueue() {
 
     listEl.innerHTML = rooms.map(r => {
       const pName = r.patientName || 'Bệnh nhân';
-      const isCurrent = r.roomId === roomId;
+      const isCurrent = r.roomId === roomId && callActive;
       // Người dân đã chọn điểm phòng khám nào thì hiện đúng tên điểm đó, và tô
       // đậm khi cuộc gọi đang đổ chuông vào chính điểm trạm cán bộ đang trực.
       const target = stationFromRoomId(r.roomId);
       const forMe = target && target.code === stationCode;
       const targetBadge = target
-        ? `<span class="ml-1 text-[9px] px-1.5 py-0.5 rounded font-bold ${forMe ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-700 text-slate-300'}">
-             <i class="fa-solid fa-location-dot"></i> ${target.name}
+        ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${forMe ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-700 text-slate-300'}">
+             <i class="fa-solid fa-location-dot"></i> ${queueText(target.name)}
            </span>`
         : '';
+      const waited = queueWaitedLabel(r.since);
+      // Thẻ xếp dọc: tên bệnh nhân, triệu chứng rồi tới nút tiếp nhận chiếm trọn
+      // bề ngang. Cách xếp ngang trước đây làm nút bị đẩy khuất khỏi cột hẹp của
+      // Bảng điều khiển khi tên bệnh nhân hoặc tên điểm trạm dài.
       return `
-        <div class="flex items-center justify-between gap-3 bg-slate-900 border ${isCurrent ? 'border-emerald-500' : (forMe ? 'border-emerald-700' : 'border-slate-700')} p-2 rounded-xl text-xs whitespace-nowrap shadow">
-          <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-user text-blue-400"></i>
-            <div>
-              <div class="font-bold text-white text-[12px]">${pName}${targetBadge}</div>
-              <div class="text-[10px] text-slate-400">${r.symptoms || 'Khám sức khỏe tổng quát'}</div>
+        <div class="bg-slate-900 border ${isCurrent ? 'border-emerald-500' : (forMe ? 'border-emerald-700' : 'border-slate-700')} p-2.5 rounded-xl text-xs shadow space-y-2">
+          <div class="flex items-start gap-2">
+            <i class="fa-solid fa-user text-blue-400 mt-0.5"></i>
+            <div class="min-w-0 flex-1">
+              <div class="font-bold text-white text-[12px] break-words">${queueText(pName)}</div>
+              <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                ${targetBadge}
+                ${waited ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-900/70 text-amber-200"><i class="fa-regular fa-clock"></i> Chờ ${waited}</span>` : ''}
+                ${r.hasDoctor ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-700 text-slate-300">Đã có cán bộ</span>' : ''}
+              </div>
+              <div class="text-[10px] text-slate-400 mt-1 break-words">${queueText(r.symptoms || 'Khám sức khỏe tổng quát')}</div>
             </div>
           </div>
-          <button onclick="acceptPatientCall('${r.roomId}', '${pName.replace(/'/g, "\\'")}', '${(r.symptoms||'').replace(/'/g, "\\'")}')"
-            class="${isCurrent ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'} text-white font-bold px-3 py-1.5 rounded-lg text-[11px] transition flex items-center gap-1.5">
+          <button type="button"
+            onclick="acceptPatientCall('${queueAttr(r.roomId)}', '${queueAttr(pName)}', '${queueAttr(r.symptoms || '')}')"
+            title="Tiếp nhận cuộc gọi của ${queueText(pName)} - lúc này mới mở camera và micro của điểm trạm"
+            class="${isCurrent ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'} w-full text-white font-bold px-3 py-2 rounded-lg text-[11px] transition flex items-center justify-center gap-1.5">
             <i class="fa-solid fa-headset"></i> ${isCurrent ? 'Đang kết nối' : 'Tiếp nhận cuộc gọi'}
           </button>
         </div>
@@ -535,6 +628,8 @@ function acceptPatientCall(targetRoomId, patientName, symptoms) {
     startTeleconsultation(targetRoomId);
   }
   showAlertBanner(`Đã tiếp nhận và kết nối với bệnh nhân: ${patientName}`);
+  // Nhãn nút tiếp nhận phải đổi ngay, không đợi tới nhịp quét hàng đợi kế tiếp.
+  updateQueueAcceptButton();
 }
 
 // Đồng bộ danh sách Bác sĩ tư vấn & được cấp quyền nhận cuộc gọi Video + Ký số
@@ -1973,6 +2068,7 @@ window.startQueuePolling = startQueuePolling;
 window.stopQueuePolling = stopQueuePolling;
 window.refreshIncomingCallsQueue = refreshIncomingCallsQueue;
 window.acceptPatientCall = acceptPatientCall;
+window.acceptNextPatientCall = acceptNextPatientCall;
 window.joinRoom = joinRoom;
 window.startTeleconsultation = startTeleconsultation;
 window.endTeleconsultation = endTeleconsultation;

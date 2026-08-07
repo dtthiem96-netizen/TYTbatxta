@@ -66,6 +66,7 @@ function buildWindow(html, route, calls) {
       win.fetch = (url, opts) => {
         const u = String(url);
         if (u.includes('/api/signal')) {
+          calls.signal++;
           const method = String((opts && opts.method) || 'GET').toUpperCase();
           if (method === 'POST') {
             let body = {};
@@ -132,7 +133,7 @@ async function checkPage(page) {
     (_m, body) => `<script>(async () => {\n${body}\n})().catch(e => { window.__moduleError = e; });</script>`
   );
 
-  const calls = { getUserMedia: 0, enumerateDevices: 0, join: 0, poll: 0, leave: 0, trackStop: 0 };
+  const calls = { getUserMedia: 0, enumerateDevices: 0, join: 0, poll: 0, leave: 0, trackStop: 0, signal: 0 };
   const win = buildWindow(html, page.route, calls).window;
 
   await Promise.race([
@@ -156,6 +157,10 @@ async function checkPage(page) {
   if (calls.enumerateDevices) problems.push('Trang tự liệt kê thiết bị thu hình khi vừa nạp.');
   if (calls.join) problems.push(`Trang tự vào phòng khám từ xa khi vừa nạp (${calls.join} lần).`);
   if (calls.poll) problems.push('Trang tự mở vòng long-poll signaling khi chưa gọi.');
+  // Không chỉ camera: mở trang chủ cũng không được tự gọi sang kênh tiếp nhận
+  // của điểm trạm (hàng đợi cuộc gọi, số cán bộ đang trực). Người dân phải chủ
+  // động bấm nút gọi, cán bộ phải đăng nhập mở Bảng điều khiển.
+  if (calls.signal) problems.push(`Trang tự gọi /api/signal khi vừa nạp (${calls.signal} lần) - chế độ tự gọi chưa được tắt.`);
 
   const $ = (id) => win.document.getElementById(id);
   if ($('local-media-idle') && $('local-media-idle').classList.contains('hidden')) {
