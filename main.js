@@ -273,13 +273,18 @@ const WINDOW_BUILTINS = new Set([
 
 // --- 6. Trạng thái cấp phát Netlify Database -------------------------------
 // Bước lõi "Netlify Database setup" của @netlify/build chỉ chạy khi package.json
-// có "@netlify/database" trong dependencies hoặc devDependencies. Bước đó gọi
-// API createSiteDatabase và KHÔNG bắt lỗi: nếu cơ sở dữ liệu của site đang bị
-// tắt, API trả 423 "database is disabled" và toàn bộ bản dựng thất bại - kể cả
-// phần web tĩnh không liên quan gì tới cơ sở dữ liệu.
+// có "@netlify/database" trong dependencies hoặc devDependencies. Bước đó cấp
+// chuỗi kết nối NETLIFY_DB_URL và áp dụng các bản di trú trong
+// netlify/database/migrations lên nhánh cơ sở dữ liệu đang triển khai.
 //
-// Không có khoá nào trong netlify.toml để tắt bước này (mục [database] chỉ nhận
-// migrations.path), nên cách duy nhất từ phía repo là không khai báo gói đó.
+// Có một giai đoạn cơ sở dữ liệu của site bị tắt, khi đó gói này bị gỡ khỏi
+// package.json vì bước cấp phát không bắt lỗi: API trả 423 "database is
+// disabled" và làm hỏng cả bản dựng, kể cả phần web tĩnh. Cơ sở dữ liệu nay đã
+// bật trở lại và gói đã được khai báo lại - thiếu nó thì trình đóng gói không
+// giải quyết được "@neondatabase/serverless" mà driver drizzle-orm/netlify-db
+// cần, và MỌI hàm dùng cơ sở dữ liệu (đăng nhập CMS, Bảng điều khiển điểm trạm)
+// đều hỏng lúc chạy.
+//
 // Nhóm kiểm tra này ghi lại trạng thái vào log để không ai phải đoán vì sao mã
 // truy vấn vẫn còn nguyên mà chuỗi kết nối lại không được cấp.
 {
