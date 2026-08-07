@@ -88,7 +88,10 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 - **Tên đăng nhập**: `tytbatxat@laocai.gov.vn`
 - **Mật khẩu mặc định**: mật khẩu khởi tạo do đơn vị quy định (`Admin123@`), đã được
   nạp sẵn dưới dạng **băm bcrypt** trong bản di trú
-  `netlify/database/migrations/20260806035628_set_default_admin_account`.
+  `netlify/database/migrations/20260806035628_set_default_admin_account` và được
+  **đặt lại** trong bản di trú
+  `netlify/database/migrations/20260807120000_reset_default_admin_credentials`
+  (xem [Đặt lại tài khoản Quản trị](#đặt-lại-tài-khoản-quản-trị-khi-mất-quyền-truy-cập)).
 - **Quyền**: Quản trị viên (Admin) - vào được CMS Quản trị (`/admin`), Module Bảng
   điều khiển điểm trạm và nhận cuộc gọi Telehealth.
 
@@ -102,11 +105,44 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 - **Tên đăng nhập**: `admin-tytbatxat`
 - **Mật khẩu khởi tạo**: `Admin123@`, nạp sẵn dưới dạng **băm bcrypt (cost factor 10)**
   trong bản di trú `netlify/database/migrations/20260807010000_add_cms_admin_account`
+  và được **đặt lại** trong bản di trú
+  `netlify/database/migrations/20260807120000_reset_default_admin_credentials`
   (bản sao đọc được: `db/sql/create-admin-account.sql`).
 - **Vai trò**: `admin` - dùng cho các tuyến `/api/auth/*` và `/api/cms/*` của
   [Mô-đun Xác thực](#6-mô-đun-xác-thực-authentication-module).
 
 > Đây cũng là mật khẩu khởi tạo, **bắt buộc đổi ngay sau lần đăng nhập đầu tiên**.
+
+### Đặt lại tài khoản Quản trị khi mất quyền truy cập
+
+Bản di trú chỉ chạy **một lần trên mỗi nhánh** cơ sở dữ liệu. Vì vậy khi mật khẩu
+Quản trị bị đổi rồi quên, tài khoản bị khoá (`status = DISABLED`), bị thu hồi quyền
+hoặc bị xoá, hai bản di trú khởi tạo ở trên **không tự chạy lại** để sửa - và không
+được phép sửa hay xoá chúng, vì nhánh nào đã áp dụng thì bắt buộc tệp phải còn
+nguyên trên đĩa.
+
+Cách xử lý an toàn duy nhất là **tiến về phía trước bằng một bản di trú mới**:
+
+| | |
+|---|---|
+| Bản di trú | `netlify/database/migrations/20260807120000_reset_default_admin_credentials` |
+| Tác dụng | Đặt lại **cả hai** tài khoản Quản trị về mật khẩu mặc định `Admin123@`, mở khoá (`ACTIVE`), trả lại quyền Quản trị + quyền vào Bảng điều khiển điểm trạm; tạo lại tài khoản nếu đã bị xoá |
+| Phạm vi | Chạy đúng một lần trên **mọi nhánh** (xem trước và chính thức) ở lần triển khai kế tiếp |
+| Chạy tay | Trên PostgreSQL ngoài Netlify: `psql "$DATABASE_URL" -f db/sql/reset-admin-credentials.sql` |
+
+Sau khi đặt lại, cả hai tài khoản mang cờ `must_change_password = 'true'`: giao diện
+hiện lời nhắc đổi mật khẩu riêng ngay sau khi đăng nhập (chỉ nhắc, không chặn đăng
+nhập). **Hãy đổi mật khẩu ngay** trong *CMS Quản trị → Quản trị hệ thống → Quản lý
+tài khoản & Phân quyền hệ thống*.
+
+Cần đặt lại lần nữa về sau thì **chép bản di trú này thành một thư mục mới** với dấu
+thời gian mới hơn (ví dụ `20260901090000_reset_default_admin_credentials`), đừng sửa
+thư mục cũ.
+
+> **Tên đăng nhập không phân biệt hoa/thường.** Mọi cổng đăng nhập đều cắt khoảng
+> trắng thừa và so khớp tên đăng nhập viết thường, nên `TytBatXat@Laocai.Gov.VN` và
+> `tytbatxat@laocai.gov.vn` vào được cùng một tài khoản. Mật khẩu thì ngược lại -
+> vẫn phân biệt hoa/thường tuyệt đối.
 
 ### Các tài khoản mẫu khác
 

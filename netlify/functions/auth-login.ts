@@ -18,7 +18,7 @@
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
-import { isActive, publicUser, scopesFor, signToken, verifyPassword } from "../lib/auth.js";
+import { isActive, publicUser, scopesFor, signToken, verifyPassword, findUserByUsername } from "../lib/auth.js";
 
 const headers = {
   "Content-Type": "application/json",
@@ -69,13 +69,11 @@ export default async (req: Request) => {
       }, 400);
     }
 
-    // Bước 2: tra cứu tài khoản trong bảng users.
-    const found = await db.select().from(users).where(eq(users.username, username));
-    if (!found.length) {
+    // Bước 2: tra cứu tài khoản trong bảng users (không phân biệt hoa/thường).
+    const user = await findUserByUsername(username);
+    if (!user) {
       return json({ success: false, code: "INVALID_CREDENTIALS", message: INVALID_CREDENTIALS }, 401);
     }
-
-    const user = found[0];
 
     // Bước 3: đối chiếu mật khẩu với chuỗi băm bcrypt (bcrypt.compare).
     const passwordMatches = await verifyPassword(password, user.passwordHash);

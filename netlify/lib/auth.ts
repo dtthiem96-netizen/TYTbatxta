@@ -17,7 +17,7 @@
 import bcrypt from "bcryptjs";
 import { db } from "../../db/index.js";
 import { users, siteConfigs } from "../../db/schema.js";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 /** Số vòng bcrypt. 10 là mức cân bằng giữa an toàn và thời gian chạy hàm. */
 const BCRYPT_ROUNDS = 10;
@@ -29,11 +29,13 @@ export const DEFAULT_ADMIN_USERNAME = "tytbatxat@laocai.gov.vn";
  * Chuỗi băm bcrypt của mật khẩu Quản trị mặc định.
  *
  * Hệ thống chỉ giữ chuỗi băm, không bao giờ giữ mật khẩu dạng rõ - kể cả trong
- * mã nguồn. Giá trị này khớp với bản di trú
- * netlify/database/migrations/20260806035628_set_default_admin_account, dùng cho
- * trường hợp cơ sở dữ liệu còn trống và bộ dữ liệu gieo hạt trong cms.ts phải
- * tạo lại tài khoản Quản trị. Sau khi Quản trị đổi mật khẩu, giá trị đã lưu
- * trong bảng users mới là nguồn duy nhất - hằng số này không ghi đè lên nó.
+ * mã nguồn. Giá trị này khớp với hai bản di trú
+ * netlify/database/migrations/20260806035628_set_default_admin_account và
+ * netlify/database/migrations/20260807120000_reset_default_admin_credentials
+ * (bản đặt lại khi mất quyền truy cập CMS), dùng cho trường hợp cơ sở dữ liệu
+ * còn trống và bộ dữ liệu gieo hạt trong cms.ts phải tạo lại tài khoản Quản trị.
+ * Sau khi Quản trị đổi mật khẩu, giá trị đã lưu trong bảng users mới là nguồn
+ * duy nhất - hằng số này không ghi đè lên nó.
  */
 export const DEFAULT_ADMIN_PASSWORD_HASH =
   "$2b$10$sU8HOOtV7CpoeNOjpUtEuODFWYMoFGuurqXf0/Lf2oCXuAuks1UVG";
@@ -234,6 +236,40 @@ export async function verifyToken(token: string | null | undefined): Promise<Tok
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+//  Tra cứu tài khoản
+// ---------------------------------------------------------------------------
+
+/**
+ * Tìm tài khoản theo tên đăng nhập, KHÔNG phân biệt hoa/thường và bỏ qua khoảng
+ * trắng thừa ở hai đầu.
+ *
+ * Trước đây mọi cổng đăng nhập đều so khớp chính xác cột username. Cách đó biến
+ * một khác biệt vô hại - bàn phím điện thoại tự viết hoa chữ đầu, một dấu cách
+ * dính theo khi cán bộ dán tên đăng nhập, hay một bản ghi cũ lưu lệch hoa/thường
+ * - thành thông báo "Tên đăng nhập hoặc mật khẩu không đúng", dù mật khẩu gõ
+ * hoàn toàn đúng. Tên đăng nhập là định danh, không phải bí mật, nên chuẩn hoá ở
+ * đây không làm giảm độ an toàn: mật khẩu vẫn phải qua bcrypt như cũ.
+ *
+ * Bản di trú 20260807120000_reset_default_admin_credentials đã chuẩn hoá tên hai
+ * tài khoản Quản trị về dạng viết thường, và /api/admin-users luôn lưu tên mới ở
+ * dạng viết thường - nên trong thực tế chỉ có tối đa một bản ghi khớp. Nếu vẫn
+ * có nhiều bản ghi (dữ liệu cũ), ưu tiên bản trùng khớp từng ký tự để kết quả
+ * luôn xác định, không phụ thuộc thứ tự trả về của cơ sở dữ liệu.
+ */
+export async function findUserByUsername(username: string): Promise<UserRow | null> {
+  const needle = String(username || "").trim().toLowerCase();
+  if (!needle) return null;
+
+  const found = await db
+    .select()
+    .from(users)
+    .where(sql`lower(btrim(${users.username})) = ${needle}`);
+  if (!found.length) return null;
+
+  return found.find((u) => u.username === needle) || found[0];
 }
 
 // ---------------------------------------------------------------------------

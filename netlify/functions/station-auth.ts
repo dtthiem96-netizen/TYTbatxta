@@ -28,7 +28,8 @@ import {
   validatePasswordStrength,
   verifyPassword,
   verifyToken,
-  hashPassword
+  hashPassword,
+  findUserByUsername
 } from "../lib/auth.js";
 
 const headers = {
@@ -75,13 +76,13 @@ async function handleLogin(body: Record<string, any>) {
     return json({ success: false, error: "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu." }, 400);
   }
 
-  const found = await db.select().from(users).where(eq(users.username, username));
-  if (!found.length) {
+  const found = await findUserByUsername(username);
+  if (!found) {
     // Không tiết lộ tài khoản có tồn tại hay không.
     return json({ success: false, error: "Tên đăng nhập hoặc mật khẩu không đúng." }, 401);
   }
 
-  const user = found[0];
+  const user = found;
 
   let passwordOk = false;
   let usedBootstrap = false;
@@ -147,10 +148,10 @@ async function handleChangePassword(body: Record<string, any>) {
   const weak = validatePasswordStrength(newPassword);
   if (weak) return json({ success: false, error: weak }, 400);
 
-  const found = await db.select().from(users).where(eq(users.username, username));
-  if (!found.length) return json({ success: false, error: "Tên đăng nhập hoặc mật khẩu không đúng." }, 401);
+  const found = await findUserByUsername(username);
+  if (!found) return json({ success: false, error: "Tên đăng nhập hoặc mật khẩu không đúng." }, 401);
 
-  const user = found[0];
+  const user = found;
   const ok = user.passwordHash
     ? await verifyPassword(currentPassword, user.passwordHash)
     : currentPassword === bootstrapPassword();
