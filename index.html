@@ -930,6 +930,15 @@
                 <form onsubmit="window.startQuickTelehealthCall(event)">
                     <div class="space-y-3.5">
                         <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-station">Chọn điểm phòng khám nghe cuộc gọi <span class="text-red-500">*</span></label>
+                            <select id="quick-call-station" required onchange="window.onQuickCallStationChange(this.value)" class="w-full border-2 border-blue-200 bg-blue-50/60 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-bold text-gray-900">
+                                <!-- Danh sách điểm phòng khám được nạp động từ window.TELEHEALTH_STATIONS -->
+                            </select>
+                            <p id="quick-call-station-hint" class="text-[11px] text-gray-500 mt-1 font-medium">
+                                <i class="fas fa-location-dot mr-1 text-blue-500"></i> Cuộc gọi sẽ đổ chuông tại đúng điểm phòng khám bạn chọn.
+                            </p>
+                        </div>
+                        <div>
                             <label class="block text-sm font-bold text-gray-700 mb-1">Họ và tên người bệnh <span class="text-red-500">*</span></label>
                             <input type="text" id="quick-call-name" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: Nguyễn Văn A">
                         </div>
@@ -966,9 +975,10 @@
                 <div class="flex items-center gap-3">
                     <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
                     <div>
-                        <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                        <h3 class="font-bold text-lg text-white flex items-center gap-2 flex-wrap">
                             PHÒNG KHÁM VIDEO TỪ XA TELEHEALTH
                             <span class="text-xs bg-blue-600 px-2 py-0.5 rounded font-mono" id="patient-room-code">ROOM-01</span>
+                            <span class="hidden text-[10px] bg-emerald-700 px-2 py-0.5 rounded font-bold" id="patient-room-station">Điểm phòng khám</span>
                         </h3>
                         <p class="text-xs text-slate-400" id="patient-room-status">Đang kết nối Bác sĩ tư vấn...</p>
                     </div>
@@ -1606,11 +1616,7 @@
                 <div>
                     <label class="block text-slate-300 font-bold mb-1" for="input-station-code">Điểm trạm y tế khu vực</label>
                     <select id="input-station-code" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold focus:outline-none focus:border-blue-500">
-                        <option value="TYT-BATXAT-01">TYT-BATXAT-01 — Trạm Y tế Bát Xát (Trung tâm)</option>
-                        <option value="TYT-BATXAT-BQ-02">TYT-BATXAT-BQ-02 — Điểm trạm Bản Qua</option>
-                        <option value="TYT-BATXAT-BV-03">TYT-BATXAT-BV-03 — Điểm trạm Bản Vược</option>
-                        <option value="TYT-BATXAT-QK-04">TYT-BATXAT-QK-04 — Điểm trạm Quang Kim</option>
-                        <option value="TYT-BATXAT-PN-05">TYT-BATXAT-PN-05 — Điểm trạm Phìn Ngan Fin</option>
+                        <!-- Danh sách điểm phòng khám được nạp động từ window.TELEHEALTH_STATIONS -->
                     </select>
                     <p class="text-[10px] text-slate-500 mt-1 italic">Chọn đúng điểm trạm đang trực để Bác sĩ và Trợ lý AI định tuyến cuộc gọi về nơi cần hỗ trợ.</p>
                 </div>
@@ -1672,12 +1678,11 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <select id="station-switcher" onchange="window.switchStation(this.value)" title="Chuyển điểm trạm khu vực" class="bg-slate-800 border border-blue-800/70 text-blue-200 text-[11px] font-bold font-mono px-2.5 py-1.5 rounded-xl focus:outline-none focus:border-blue-500">
-                        <option value="TYT-BATXAT-01">TYT-BATXAT-01 — Trạm Y tế Bát Xát (Trung tâm)</option>
-                        <option value="TYT-BATXAT-BQ-02">TYT-BATXAT-BQ-02 — Điểm trạm Bản Qua</option>
-                        <option value="TYT-BATXAT-BV-03">TYT-BATXAT-BV-03 — Điểm trạm Bản Vược</option>
-                        <option value="TYT-BATXAT-QK-04">TYT-BATXAT-QK-04 — Điểm trạm Quang Kim</option>
-                        <option value="TYT-BATXAT-PN-05">TYT-BATXAT-PN-05 — Điểm trạm Phìn Ngan Fin</option>n>
+                        <!-- Danh sách điểm phòng khám được nạp động từ window.TELEHEALTH_STATIONS -->
                     </select>
+                    <button onclick="window.endTeleconsultation()" id="btn-end-call-header" title="Kết thúc cuộc gọi khám từ xa và tắt camera/micro của điểm trạm" class="hidden bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition items-center gap-1.5 border border-rose-400/50 shadow">
+                        <i class="fas fa-phone-slash"></i> Kết thúc cuộc gọi
+                    </button>
                     <span id="station-auth-user" class="hidden items-center gap-1.5 bg-emerald-950 border border-emerald-800 text-emerald-300 text-[10px] font-bold px-2.5 py-1.5 rounded-xl" title="Tài khoản đang đăng nhập vào Bảng điều khiển">
                         <i class="fas fa-user-shield"></i> <span id="station-auth-user-name">—</span>
                     </span>
@@ -2011,29 +2016,65 @@
                     <p class="text-[10px] italic text-gray-500">Mẫu chuẩn liên thông điểm trạm - Khổ giấy A5</p>
                 </div>
 
-                <!-- Bảng Thông tin bệnh nhân & Cán bộ (Cho phép sửa trực tiếp) -->
+                <!-- Bảng Thông tin bệnh nhân & Cán bộ (Cho phép sửa trực tiếp)
+                     Các mục dưới đây bám theo Mẫu số 01 - Đơn thuốc, Thông tư
+                     52/2017/TT-BYT: họ tên, ngày sinh (hoặc tuổi), giới tính,
+                     cân nặng, địa chỉ, số thẻ BHYT; trẻ dưới 72 tháng bắt buộc
+                     ghi số tháng tuổi và tên bố/mẹ hoặc người giám hộ. -->
                 <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5">Họ tên Bệnh nhân:</label>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-patient-name">1. Họ tên Bệnh nhân:</label>
                             <input type="text" id="rpt-edit-patient-name" value="Nguyễn Văn B" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5">Số thẻ BHYT / CCCD:</label>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-idcard">6. Số thẻ BHYT / CCCD:</label>
                             <input type="text" id="rpt-edit-idcard" value="HS4010112345678" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-gray-900 focus:outline-none focus:border-blue-500">
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5">Tuổi &amp; Giới tính:</label>
-                            <input type="text" id="rpt-edit-age-gender" value="45 tuổi - Nam" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-dob">2. Ngày sinh:</label>
+                            <input type="text" id="rpt-edit-dob" placeholder="dd/mm/yyyy" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5">Cán bộ điểm trạm:</label>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-age-gender">Tuổi (hoặc số tháng):</label>
+                            <input type="text" id="rpt-edit-age-gender" value="45 tuổi" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-gender">3. Giới tính:</label>
+                            <select id="rpt-edit-gender" class="w-full bg-white border border-gray-300 rounded-lg px-2 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                                <option value="Khác">Khác</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-weight">4. Cân nặng (kg):</label>
+                            <input type="text" id="rpt-edit-weight" placeholder="Bắt buộc với trẻ em" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-address">5. Địa chỉ (số nhà, thôn/tổ, xã/phường, huyện, tỉnh):</label>
+                        <input type="text" id="rpt-edit-address" placeholder="Thôn ..., Xã Bát Xát, tỉnh Lào Cai" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-guardian">Bố/Mẹ hoặc người giám hộ (trẻ dưới 72 tháng):</label>
+                            <input type="text" id="rpt-edit-guardian" placeholder="Chỉ ghi khi người bệnh là trẻ dưới 72 tháng" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-phone">Số điện thoại liên hệ khi cần:</label>
+                            <input type="text" id="rpt-edit-phone" value="0214.3909.011" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-operator">Cán bộ điểm trạm:</label>
                             <input type="text" id="rpt-edit-operator" value="Y sĩ Nguyễn Văn A" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-purple-700 mb-0.5">Bác sĩ kê đơn (Ký số):</label>
+                            <label class="block text-[10px] font-bold text-purple-700 mb-0.5" for="rpt-edit-signer-select">Người kê đơn (Ký số):</label>
                             <select id="rpt-edit-signer-select" onchange="window.onReportSignerChange(this.value)" class="w-full bg-white border border-purple-300 rounded-lg px-2 py-1 text-xs font-bold text-purple-900 focus:outline-none focus:border-purple-600">
                                 <option value="">-- Chọn Bác sĩ kê đơn --</option>
                             </select>
@@ -2092,10 +2133,14 @@
 
                 <!-- Thuốc kê đơn (Cho phép sửa trực tiếp) -->
                 <div>
-                    <label class="block font-bold text-xs uppercase text-emerald-800 mb-1 flex items-center gap-1.5">
-                        <i class="fas fa-pills text-emerald-600"></i> Danh mục Thuốc kê đơn (Chi tiết liều dùng &amp; số lượng):
+                    <label class="block font-bold text-xs uppercase text-emerald-800 mb-1 flex items-center gap-1.5" for="rpt-edit-prescription">
+                        <i class="fas fa-pills text-emerald-600"></i> Thuốc điều trị (mỗi thuốc một dòng):
                     </label>
-                    <textarea id="rpt-edit-prescription" rows="4" class="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 font-mono font-medium text-xs text-emerald-950 focus:outline-none focus:border-emerald-500 leading-relaxed" placeholder="1. Paracetamol 500mg - uống 1 viên x 3 lần/ngày sau ăn&#10;2. Amoxicillin 500mg - uống 1 viên x 2 lần/ngày"></textarea>
+                    <textarea id="rpt-edit-prescription" rows="4" class="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 font-mono font-medium text-xs text-emerald-950 focus:outline-none focus:border-emerald-500 leading-relaxed" placeholder="Paracetamol 500mg | 15 viên | Uống 1 viên x 3 lần/ngày, sau ăn&#10;Amoxicillin 500mg | 14 viên | Uống 1 viên x 2 lần/ngày"></textarea>
+                    <p class="text-[10px] text-gray-500 mt-1 font-medium">
+                        <i class="fas fa-circle-info text-blue-500 mr-1"></i>
+                        Gõ theo cú pháp <b>Tên thuốc, hàm lượng | Số lượng | Liều dùng, cách dùng</b> để bản in A5 tách đúng 4 cột theo Mẫu số 01 - Thông tư 52/2017/TT-BYT. Gõ tự do vẫn in được, nhưng cột Số lượng sẽ để trống.
+                    </p>
                 </div>
 
                 <!-- Lời dặn của Bác sĩ -->
@@ -2126,7 +2171,7 @@
 
             <!-- Thanh công cụ Export / In / Tải về -->
             <div class="bg-slate-100 px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-t">
-                <p class="text-[11px] text-slate-600 italic"><i class="fas fa-info-circle text-blue-600"></i> Định dạng xuất chuẩn A5 cho máy in đơn thuốc.</p>
+                <p class="text-[11px] text-slate-600 italic"><i class="fas fa-info-circle text-blue-600"></i> Bản in theo Mẫu số 01 - Đơn thuốc (Thông tư 52/2017/TT-BYT), khổ giấy A5 dọc.</p>
                 <div class="flex flex-wrap items-center gap-2">
                     <button onclick="window.closeReportModal()" class="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition">Đóng</button>
                     <button onclick="window.downloadReportWord()" class="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition shadow flex items-center gap-1.5">
@@ -2495,6 +2540,29 @@
                             <div id="cms-incoming-calls" class="space-y-2 text-sm">
                                 <div class="text-gray-400 font-medium text-xs italic">Hiện chưa có điểm trạm nào đang gọi.</div>
                             </div>
+                        </div>
+
+                        <!-- NHIỀU CUỘC GỌI CÙNG LÚC: mỗi cuộc gọi đã tiếp nhận giữ một kết nối riêng.
+                             Cuộc gọi được đưa lên màn hình chính là cuộc gọi đang khám; các cuộc gọi
+                             còn lại vẫn kết nối và chờ máy, không bị ngắt. -->
+                        <div id="cms-multicall-wrap" class="hidden bg-white border border-emerald-200 rounded-2xl p-5 mb-6 shadow-sm">
+                            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                                <h3 class="font-bold text-base text-gray-900 flex items-center gap-2">
+                                    <i class="fas fa-users-rectangle text-emerald-600"></i> Cuộc gọi đang tiếp nhận đồng thời
+                                    <span id="cms-multicall-count" class="bg-emerald-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span>
+                                </h3>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] text-gray-500 font-medium hidden md:inline">Tối đa <b id="cms-multicall-max">4</b> cuộc gọi cùng lúc</span>
+                                    <button onclick="window.endAllCmsCalls()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow flex items-center gap-1.5">
+                                        <i class="fas fa-phone-slash"></i> Kết thúc tất cả
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="cms-multicall-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"></div>
+                            <p class="text-[11px] text-gray-500 mt-3 font-medium">
+                                <i class="fas fa-circle-info text-blue-500 mr-1"></i>
+                                Cuộc gọi đang khám nhận micro của bạn; các cuộc gọi giữ máy vẫn thấy hình bạn nhưng không nghe tiếng, tránh lẫn lời thoại giữa các bệnh nhân.
+                            </p>
                         </div>
 
                         <!-- KHU VỰC MÀN HÌNH KHÁM VIDEO TRỰC TIẾP TRONG CMS -->
@@ -2957,6 +3025,59 @@
 
     <!-- ================= JAVASCRIPT ENGINE (LOGIC & PORTAL) ================= -->
     <script type="module">
+        /* =====================================================================
+           DANH MỤC ĐIỂM PHÒNG KHÁM DÙNG CHUNG
+           Một nguồn duy nhất cho: ô "Chọn điểm phòng khám nghe cuộc gọi" của
+           người dân, ô chuyển điểm trạm trong Bảng điều khiển trạm, ô chọn điểm
+           trạm khi đăng nhập, và app.js. Mã điểm trạm được nhúng vào mã phòng
+           khám (roomId) nên mọi màn hình đều biết cuộc gọi đang gọi về đâu mà
+           không cần thêm cột trong cơ sở dữ liệu.
+           ===================================================================== */
+        window.TELEHEALTH_STATIONS = [
+            { code: 'TYT-BATXAT-01',    name: 'Trạm Y tế Bát Xát (Trung tâm)', note: 'Trực 24/7 - Phòng khám đa khoa' },
+            { code: 'TYT-BATXAT-BQ-02', name: 'Điểm phòng khám Bản Qua',       note: 'Khám thường - giờ hành chính' },
+            { code: 'TYT-BATXAT-BV-03', name: 'Điểm phòng khám Bản Vược',      note: 'Khám thường - giờ hành chính' },
+            { code: 'TYT-BATXAT-QK-04', name: 'Điểm phòng khám Quang Kim',     note: 'Khám thường - giờ hành chính' },
+            { code: 'TYT-BATXAT-PN-05', name: 'Điểm phòng khám Phìn Ngan',     note: 'Khám thường - giờ hành chính' }
+        ];
+
+        /** Mã điểm trạm -> phần định danh dùng được trong roomId. */
+        window.teleStationSlug = function(code) {
+            return String(code || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        };
+
+        /** Sinh mã phòng khám mang theo mã điểm trạm đích: room-<slug>-<thời điểm>. */
+        window.teleRoomIdForStation = function(code) {
+            const slug = window.teleStationSlug(code);
+            return 'room-' + (slug ? slug + '-' : '') + Date.now().toString(36);
+        };
+
+        /** Đọc ngược điểm phòng khám đích từ mã phòng khám. */
+        window.teleStationFromRoomId = function(roomId) {
+            const id = String(roomId || '').toLowerCase();
+            let best = null;
+            for (const st of window.TELEHEALTH_STATIONS) {
+                const slug = window.teleStationSlug(st.code);
+                if (id === 'room-' + slug || id.startsWith('room-' + slug + '-')) {
+                    // Chọn mã dài nhất khớp được, tránh nhầm giữa các mã lồng nhau.
+                    if (!best || slug.length > window.teleStationSlug(best.code).length) best = st;
+                }
+            }
+            return best;
+        };
+
+        /** Đổ danh mục điểm phòng khám vào một thẻ <select>. */
+        window.renderStationOptions = function(selectId, selectedCode, withNote) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            const current = selectedCode || sel.value || window.TELEHEALTH_STATIONS[0].code;
+            sel.innerHTML = window.TELEHEALTH_STATIONS.map(st =>
+                `<option value="${st.code}">${withNote ? `${st.name} — ${st.note}` : `${st.code} — ${st.name}`}</option>`
+            ).join('');
+            sel.value = current;
+            if (!sel.value) sel.value = window.TELEHEALTH_STATIONS[0].code;
+        };
+
         // 1. CƠ SỞ DỮ LIỆU LOCAL/FALLBACK
         let serviceManagers = [
             { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'BS. Trạm Trưởng', zalo: '0382103002' },
@@ -5116,7 +5237,7 @@
                 }
             }, 500);
         };
-        window.logoutAdmin = function() { window.stopCmsIncomingWatcher(); teleStop(true); window.clearCmsAdminSession(); document.getElementById('admin-dashboard').classList.add('hidden'); document.getElementById('main-website').classList.remove('hidden'); window.scrollTo(0,0); };
+        window.logoutAdmin = function() { window.stopCmsIncomingWatcher(); window.endAllCmsCalls(true); teleStop(true); window.clearCmsAdminSession(); document.getElementById('admin-dashboard').classList.add('hidden'); document.getElementById('main-website').classList.remove('hidden'); window.scrollTo(0,0); };
 
         // 7. TELEHEALTH VIDEO CALL ENGINE & FORM HANDLERS
         let activeRoomId = null;
@@ -5200,9 +5321,30 @@
 
         window.openTelehealthQuickCall = function() {
             window.openModal('modal-telehealth-quick');
+            // Danh mục điểm phòng khám luôn được dựng lại để giữ đúng lựa chọn gần nhất.
+            try {
+                window.renderStationOptions('quick-call-station', quickCallStationCode, true);
+                window.onQuickCallStationChange(document.getElementById('quick-call-station')?.value);
+            } catch (e) { console.warn('Không nạp được danh mục điểm phòng khám:', e); }
             const nameInput = document.getElementById('quick-call-name');
             if (nameInput) setTimeout(() => nameInput.focus(), 150);
             window.refreshPublicDutyStatus();
+        };
+
+        /* Điểm phòng khám người dân chọn để nghe cuộc gọi (ghi nhớ cho lần gọi sau). */
+        let quickCallStationCode = (function() {
+            try { return localStorage.getItem('tyt_quick_call_station') || ''; } catch (e) { return ''; }
+        })();
+
+        window.onQuickCallStationChange = function(code) {
+            if (!code) return;
+            quickCallStationCode = code;
+            try { localStorage.setItem('tyt_quick_call_station', code); } catch (e) {}
+            const station = window.TELEHEALTH_STATIONS.find(s => s.code === code);
+            const hint = document.getElementById('quick-call-station-hint');
+            if (hint && station) {
+                hint.innerHTML = `<i class="fas fa-location-dot mr-1 text-blue-500"></i> Cuộc gọi sẽ đổ chuông tại <b>${teleEscape(station.name)}</b> <span class="font-mono">(${teleEscape(station.code)})</span> — ${teleEscape(station.note)}.`;
+            }
         };
 
         function renderDutyStatus(count) {
@@ -5260,7 +5402,16 @@
             const phone = (document.getElementById('quick-call-phone').value || '').trim();
             const idCard = (document.getElementById('quick-call-idcard').value || '').trim();
             const reason = (document.getElementById('quick-call-reason').value || '').trim();
-            const roomId = 'room-' + Date.now();
+
+            // Điểm phòng khám người dân chọn được nhúng vào mã phòng, nhờ đó cả
+            // Bảng điều khiển trạm lẫn màn hình tiếp nhận của Bác sĩ đều biết
+            // cuộc gọi đang gọi về điểm nào.
+            const stationCode = (document.getElementById('quick-call-station')?.value || '').trim()
+                || quickCallStationCode
+                || window.TELEHEALTH_STATIONS[0].code;
+            quickCallStationCode = stationCode;
+            const station = window.TELEHEALTH_STATIONS.find(s => s.code === stationCode) || null;
+            const roomId = window.teleRoomIdForStation(stationCode);
 
             // Ghi nhận lượt gọi vào lịch khám để CMS có hồ sơ, kể cả khi chưa ai tiếp nhận.
             const apptObj = {
@@ -5268,7 +5419,7 @@
                 patientName: name,
                 phone: phone || 'Chưa cung cấp',
                 idCard: idCard || '',
-                service: 'Khám từ xa Telehealth',
+                service: 'Khám từ xa Telehealth' + (station ? ' - ' + station.name : ''),
                 appointmentDate: new Date().toLocaleDateString('vi-VN'),
                 symptoms: reason,
                 isTelehealth: 'true',
@@ -5308,6 +5459,19 @@
             const roomCodeEl = document.getElementById('patient-room-code');
             if (roomCodeEl) roomCodeEl.textContent = activeRoomId;
 
+            // Điểm phòng khám đích được đọc ngược từ mã phòng để người dân thấy rõ
+            // cuộc gọi của mình đang đổ chuông ở đâu.
+            const station = window.teleStationFromRoomId(activeRoomId);
+            const stationBadge = document.getElementById('patient-room-station');
+            if (stationBadge) {
+                if (station) {
+                    stationBadge.innerHTML = `<i class="fas fa-location-dot mr-1"></i> ${teleEscape(station.name)}`;
+                    stationBadge.classList.remove('hidden');
+                } else {
+                    stationBadge.classList.add('hidden');
+                }
+            }
+
             teleStart({
                 roomId: activeRoomId,
                 role: 'station',
@@ -5329,11 +5493,7 @@
                 return;
             }
 
-            activeRoomId = roomId || ('room-' + Date.now());
-            isCmsCall = true;
-
-            const activeBadge = document.getElementById('cms-active-patient-badge');
-            if (activeBadge) activeBadge.textContent = `Bệnh nhân: ${patientName} (${activeRoomId})`;
+            const targetRoom = roomId || ('room-' + Date.now());
 
             const placeholder = document.getElementById('cms-video-placeholder');
             if (placeholder) placeholder.classList.add('hidden');
@@ -5348,26 +5508,14 @@
             const room = document.getElementById('cms-video-consultation-room');
             if (room) room.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-            teleStart({
-                roomId: activeRoomId,
-                role: 'doctor',
-                name: (currentCmsUser && currentCmsUser.name) || 'Bác sĩ trực CMS',
-                patientName: patientName || 'Bệnh nhân',
-                symptoms: symptoms || '',
-                patientId: patientId || (appt && appt.idCard) || '',
-                appointmentId: appt ? appt.id : appointmentId
-            });
-        };
-
-        window.endCmsVideoCall = function() {
-            const placeholder = document.getElementById('cms-video-placeholder');
-            if (placeholder) placeholder.classList.remove('hidden');
-
-            const activeBadge = document.getElementById('cms-active-patient-badge');
-            if (activeBadge) activeBadge.textContent = 'Chờ kết nối';
-
-            teleStop(true);
-            window.showToast("Đã ngắt cuộc gọi video.");
+            // Tiếp nhận thêm một phiên độc lập: cuộc gọi đang khám không bị cắt.
+            cmsAcceptSession(
+                targetRoom,
+                patientName || 'Bệnh nhân',
+                symptoms || '',
+                appt ? appt.id : appointmentId,
+                patientId || (appt && appt.idCard) || ''
+            );
         };
 
         window.completeAppointment = function(apptId) {
@@ -5392,7 +5540,20 @@
                 { urls: ['stun:stun.cloudflare.com:3478'] },
                 { urls: ['stun:global.stun.twilio.com:3478'] }
             ],
-            iceCandidatePoolSize: 4
+            // Gom sẵn ứng viên đường truyền trước khi cần dùng: bắt tay nhanh hơn
+            // vì không phải chờ dò cổng ngay lúc tạo offer.
+            iceCandidatePoolSize: 8,
+            // Dồn video + âm thanh vào một luồng truyền duy nhất: ít cổng phải mở,
+            // ít vòng kiểm tra kết nối, hình lên nhanh hơn rõ rệt trên mạng 3G/4G.
+            bundlePolicy: 'max-bundle',
+            rtcpMuxPolicy: 'require'
+        };
+
+        /* Thông số luồng hình gửi đi: ưu tiên giữ số khung hình để hình ảnh mượt,
+           chấp nhận giảm độ nét khi đường truyền yếu (thay vì giật cục). */
+        const TELE_VIDEO_SEND = {
+            maxBitrate: 1_500_000,
+            maxFramerate: 30
         };
 
         const TELE = {
@@ -5412,6 +5573,8 @@
             pollToken: 0,
             isOfferer: false,
             pendingCandidates: [],
+            iceQueue: [],
+            iceQueueTimer: null,
             videoDevices: [],
             deviceIndex: 0,
             micOn: true,
@@ -5522,29 +5685,60 @@
             return teleApiPost({ action: 'signal', type, payload }).catch(err => console.warn('signal', type, err));
         }
 
+        /* Gom ứng viên ICE trong 40ms rồi gửi một lô. Trình duyệt sinh ra hàng chục
+           ứng viên trong tích tắc; gửi từng cái là từng chặng HTTP, làm chậm bắt tay. */
+        function teleQueueIceCandidate(cand) {
+            TELE.iceQueue.push(cand);
+            if (TELE.iceQueueTimer) return;
+            TELE.iceQueueTimer = setTimeout(teleFlushIceQueue, 40);
+        }
+
+        function teleFlushIceQueue() {
+            if (TELE.iceQueueTimer) { clearTimeout(TELE.iceQueueTimer); TELE.iceQueueTimer = null; }
+            if (!TELE.iceQueue.length) return;
+            const batch = TELE.iceQueue.splice(0);
+            teleSendSignal('ice', batch);
+        }
+
         async function teleAcquireMedia() {
             const audioConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+            // Xin đúng một cấu hình khung hình ngay từ đầu (kèm trần độ phân giải và
+            // số khung hình) để trình duyệt không phải khởi động lại camera lần hai -
+            // đây là phần chiếm nhiều thời gian nhất khi bắt đầu cuộc gọi.
+            const videoConstraints = {
+                width: { ideal: 1280, max: 1280 },
+                height: { ideal: 720, max: 720 },
+                frameRate: { ideal: 30, min: 15 }
+            };
             try {
                 TELE.localStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                    video: videoConstraints,
                     audio: audioConstraints
                 });
             } catch (err) {
-                console.warn('Không mở được camera, thử chế độ chỉ âm thanh:', err);
+                console.warn('Không mở được camera ở cấu hình mong muốn, hạ cấu hình:', err);
                 try {
-                    TELE.localStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-                    window.showToast("Không truy cập được camera - cuộc gọi chuyển sang chế độ chỉ âm thanh.");
-                } catch (err2) {
-                    console.warn('Không mở được micro:', err2);
-                    window.showToast("Thiết bị chưa cho phép Camera/Micro. Cuộc gọi chỉ nhận hình ảnh từ đầu bên kia.");
-                    TELE.localStream = null;
+                    TELE.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: audioConstraints });
+                } catch (err1) {
+                    console.warn('Không mở được camera, thử chế độ chỉ âm thanh:', err1);
+                    try {
+                        TELE.localStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+                        window.showToast("Không truy cập được camera - cuộc gọi chuyển sang chế độ chỉ âm thanh.");
+                    } catch (err2) {
+                        console.warn('Không mở được micro:', err2);
+                        window.showToast("Thiết bị chưa cho phép Camera/Micro. Cuộc gọi chỉ nhận hình ảnh từ đầu bên kia.");
+                        TELE.localStream = null;
+                    }
                 }
             }
+
+            teleTuneLocalTracks(TELE.localStream);
 
             const localEl = document.getElementById(teleEls().local);
             if (localEl) {
                 localEl.srcObject = TELE.localStream;
                 localEl.muted = true;
+                localEl.playsInline = true;
                 if (TELE.localStream) localEl.play().catch(() => {});
             }
 
@@ -5560,6 +5754,33 @@
                 teleUpdateCameraLabel();
             } catch (err) {
                 TELE.videoDevices = [];
+            }
+        }
+
+        /**
+         * Gợi ý nội dung cho từng luồng: luồng hình khám bệnh là hình chuyển động
+         * (ưu tiên độ mượt), luồng tiếng là lời thoại (ưu tiên rõ tiếng nói).
+         */
+        function teleTuneLocalTracks(stream) {
+            if (!stream) return;
+            stream.getVideoTracks().forEach(t => { try { t.contentHint = 'motion'; } catch (e) {} });
+            stream.getAudioTracks().forEach(t => { try { t.contentHint = 'speech'; } catch (e) {} });
+        }
+
+        /** Ép bộ mã hoá giữ số khung hình khi băng thông tụt, cho hình đỡ giật. */
+        async function teleTuneVideoSender(pc) {
+            if (!pc) return;
+            const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (!sender || !sender.getParameters) return;
+            try {
+                const params = sender.getParameters();
+                params.degradationPreference = 'maintain-framerate';
+                if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+                params.encodings[0].maxBitrate = TELE_VIDEO_SEND.maxBitrate;
+                params.encodings[0].maxFramerate = TELE_VIDEO_SEND.maxFramerate;
+                await sender.setParameters(params);
+            } catch (err) {
+                console.warn('Không đặt được thông số luồng hình:', err);
             }
         }
 
@@ -5583,24 +5804,32 @@
 
             if (TELE.localStream) {
                 TELE.localStream.getTracks().forEach(track => pc.addTrack(track, TELE.localStream));
+                teleTuneVideoSender(pc);
             } else {
                 // Vẫn mở kênh nhận để nghe/xem được đầu bên kia khi thiết bị không có camera/mic.
                 pc.addTransceiver('video', { direction: 'recvonly' });
                 pc.addTransceiver('audio', { direction: 'recvonly' });
             }
 
+            // Ứng viên đường truyền được gom thành lô rồi gửi một lượt: mỗi bản tin
+            // signaling là một chặng HTTP, gom lại giúp bắt tay nhanh hơn nhiều so
+            // với việc bắn từng ứng viên một.
             pc.onicecandidate = (ev) => {
-                if (ev.candidate) teleSendSignal('ice', ev.candidate.toJSON());
+                if (ev.candidate) teleQueueIceCandidate(ev.candidate.toJSON());
+                else teleFlushIceQueue();
             };
 
             pc.ontrack = (ev) => {
                 const stream = (ev.streams && ev.streams[0]) ? ev.streams[0] : TELE.remoteStream;
                 if (stream === TELE.remoteStream) TELE.remoteStream.addTrack(ev.track);
+                // Rút ngắn bộ đệm phát lại: hình về gần thời gian thực thay vì trễ ~200ms.
+                try { if (ev.receiver) ev.receiver.playoutDelayHint = 0; } catch (e) {}
                 const remoteEl = document.getElementById(teleEls().remote);
                 if (remoteEl && remoteEl.srcObject !== stream) {
                     remoteEl.srcObject = stream;
                     remoteEl.muted = false;
                     remoteEl.volume = 1;
+                    remoteEl.playsInline = true;
                     remoteEl.play().catch(() => window.showToast("Nhấn vào màn hình video để bật loa ngoài."));
                 }
                 teleShowRemotePlaceholder(false);
@@ -5702,11 +5931,18 @@
             }
 
             if (msg.type === 'ice') {
-                const cand = new RTCIceCandidate(msg.payload);
-                if (TELE.pc.remoteDescription && TELE.pc.remoteDescription.type) {
-                    try { await TELE.pc.addIceCandidate(cand); } catch (err) { console.warn('ICE', err); }
-                } else {
-                    TELE.pendingCandidates.push(cand);
+                // Chấp nhận cả bản tin cũ (một ứng viên) lẫn bản tin gom lô (mảng ứng viên).
+                const raw = Array.isArray(msg.payload) ? msg.payload : [msg.payload];
+                const ready = TELE.pc.remoteDescription && TELE.pc.remoteDescription.type;
+                for (const item of raw) {
+                    if (!item) continue;
+                    let cand;
+                    try { cand = new RTCIceCandidate(item); } catch (err) { continue; }
+                    if (ready) {
+                        try { await TELE.pc.addIceCandidate(cand); } catch (err) { console.warn('ICE', err); }
+                    } else {
+                        TELE.pendingCandidates.push(cand);
+                    }
                 }
                 return;
             }
@@ -5824,18 +6060,25 @@
             teleStatus('Đang kết nối phòng khám...');
             teleStartWaitTicker();
 
-            await teleAcquireMedia();
+            // Xin quyền camera/micro và đăng ký vào phòng chạy song song: hai việc này
+            // không phụ thuộc nhau, làm cùng lúc rút ngắn đáng kể thời gian lên hình.
+            const mediaPromise = teleAcquireMedia();
+            const joinPromise = teleApiPost({
+                action: 'join',
+                role: opts.role,
+                name: opts.name,
+                patientName: TELE.patientName,
+                symptoms: TELE.symptoms
+            }).then(res => ({ ok: true, res }), err => ({ ok: false, err }));
+
+            await mediaPromise;
             teleCreatePeer();
             teleBindVitalInputs();
 
             try {
-                const joined = await teleApiPost({
-                    action: 'join',
-                    role: opts.role,
-                    name: opts.name,
-                    patientName: TELE.patientName,
-                    symptoms: TELE.symptoms
-                });
+                const outcome = await joinPromise;
+                if (!outcome.ok) throw outcome.err;
+                const joined = outcome.res;
                 TELE.cursor = joined.cursor || 0;
                 if (joined.room && joined.room.vitals) {
                     TELE.vitals = joined.room.vitals;
@@ -5876,7 +6119,7 @@
             TELE.connected = false;
             teleStopWaitTicker();
 
-            if (sendLeave && TELE.roomId && TELE.peerId) {
+            if (sendLeave && TELE.roomId && TELE.peerId && !CMS_CALLS.has(TELE.roomId)) {
                 try {
                     const payload = JSON.stringify({ action: 'leave', roomId: TELE.roomId, peerId: TELE.peerId });
                     fetch('/api/signal', {
@@ -5889,15 +6132,23 @@
             }
 
             if (TELE.pc) {
-                try { TELE.pc.ontrack = null; TELE.pc.onicecandidate = null; TELE.pc.close(); } catch (err) {}
+                // Cuộc gọi CMS do CMS_CALLS quản lý: teleStop chỉ được nhả tham
+                // chiếu, không được đóng kết nối/tắt camera đang dùng chung.
+                if (!cmsOwnsPc(TELE.pc)) {
+                    try { TELE.pc.ontrack = null; TELE.pc.onicecandidate = null; TELE.pc.close(); } catch (err) {}
+                }
                 TELE.pc = null;
             }
             if (TELE.localStream) {
-                TELE.localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+                if (TELE.localStream !== cmsSharedStream) {
+                    TELE.localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+                }
                 TELE.localStream = null;
             }
             TELE.remoteStream = null;
             TELE.pendingCandidates = [];
+            TELE.iceQueue = [];
+            if (TELE.iceQueueTimer) { clearTimeout(TELE.iceQueueTimer); TELE.iceQueueTimer = null; }
 
             ['patient-local-video', 'patient-remote-video', 'cms-local-video', 'cms-remote-video'].forEach(id => {
                 const el = document.getElementById(id);
@@ -5928,6 +6179,7 @@
                 const newStream = await navigator.mediaDevices.getUserMedia(constraints);
                 const newTrack = newStream.getVideoTracks()[0];
                 if (!newTrack) return;
+                try { newTrack.contentHint = 'motion'; } catch (e) {}
 
                 const sender = TELE.pc.getSenders().find(s => s.track && s.track.kind === 'video');
                 if (sender) {
@@ -5935,6 +6187,17 @@
                 } else {
                     TELE.pc.addTrack(newTrack, TELE.localStream || newStream);
                 }
+                // Đặt lại trần băng thông/khung hình cho luồng hình vừa thay.
+                teleTuneVideoSender(TELE.pc);
+
+                // Đang tiếp nhận nhiều cuộc gọi: đổi camera cho tất cả các phiên,
+                // không chỉ phiên đang hiện trên khung lớn.
+                CMS_CALLS.forEach(s => {
+                    if (!s.pc || s.pc === TELE.pc) return;
+                    const other = s.pc.getSenders().find(x => x.track && x.track.kind === 'video');
+                    if (other) other.replaceTrack(newTrack).catch(() => {});
+                    teleTuneVideoSender(s.pc);
+                });
 
                 if (TELE.localStream) {
                     TELE.localStream.getVideoTracks().forEach(t => { TELE.localStream.removeTrack(t); try { t.stop(); } catch (e) {} });
@@ -6407,6 +6670,24 @@
             const rptOpSig = document.getElementById('rpt-sig-operator-name');
             if (rptOpSig) rptOpSig.textContent = TELE.name || 'Y sĩ Nguyễn Văn A';
 
+            // Các mục hành chính bắt buộc của Mẫu số 01 - Thông tư 52/2017/TT-BYT.
+            // Lấy sẵn từ hồ sơ lượt khám nếu có; phần còn thiếu để cán bộ điền tay
+            // ngay trên cửa sổ trước khi in.
+            const appt = appointmentsData.find(a => a.id === TELE.appointmentId
+                || a.roomId === TELE.roomId
+                || (a.idCard && a.idCard === patientId)) || null;
+            const setIfEmpty = (id, value) => {
+                const el = document.getElementById(id);
+                if (el && !String(el.value || '').trim() && value) el.value = value;
+            };
+            setIfEmpty('rpt-edit-dob', appt && appt.dob);
+            setIfEmpty('rpt-edit-address', (appt && appt.address) || 'Xã Bát Xát, tỉnh Lào Cai');
+            setIfEmpty('rpt-edit-phone', (appt && appt.phone) || '0214.3909.011');
+            const genderEl = document.getElementById('rpt-edit-gender');
+            if (genderEl && appt && appt.gender) genderEl.value = appt.gender;
+            const rptWeight = document.getElementById('rpt-edit-weight');
+            if (rptWeight && !rptWeight.value.trim() && v.weight) rptWeight.value = String(v.weight);
+
             // Vitals
             const bpEl = document.getElementById('rpt-val-bp');
             if (bpEl) bpEl.textContent = v.bp ? `${v.bp} mmHg` : '120/80 mmHg';
@@ -6447,45 +6728,259 @@
             window.showToast("Đã kết xuất Đơn thuốc A5. Bạn có thể chỉnh sửa trực tiếp và chọn in / tải về Word/PDF.");
         };
 
+        /* =====================================================================
+           ĐƠN THUỐC CHUẨN BỘ Y TẾ - IN TRÊN KHỔ GIẤY A5
+
+           Bản in bám theo Mẫu số 01 (Đơn thuốc) ban hành kèm Thông tư
+           52/2017/TT-BYT: tên cơ sở khám chữa bệnh, tiêu đề "ĐƠN THUỐC", 6 mục
+           hành chính đánh số (họ tên - ngày sinh - giới tính - cân nặng - địa
+           chỉ - số thẻ BHYT), chẩn đoán, bảng thuốc có số lượng và liều dùng,
+           dòng "Cộng khoản", lời dặn, ngày tháng năm và chữ ký người kê đơn,
+           kèm dòng "Khám lại xin mang theo đơn này" cùng số điện thoại liên hệ.
+
+           Trang in được dựng riêng bằng Times New Roman trên khổ A5 dọc thay vì
+           chụp lại giao diện Tailwind, để bản giấy đúng mẫu và đọc được rõ.
+           ===================================================================== */
+
+        const RX_UNIT_WORDS = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+
+        /** Đọc số khoản thuốc thành chữ (đơn thuốc chỉ cần tới hàng chục). */
+        function rxNumberToWords(n) {
+            const num = Number(n) || 0;
+            if (num < 10) return RX_UNIT_WORDS[num];
+            if (num > 99) return String(num);
+            const chuc = Math.floor(num / 10);
+            const donvi = num % 10;
+            let out = (chuc === 1 ? 'mười' : RX_UNIT_WORDS[chuc] + ' mươi');
+            if (donvi === 0) return out;
+            if (donvi === 1 && chuc > 1) return out + ' mốt';
+            if (donvi === 5 && chuc >= 1) return out + ' lăm';
+            return out + ' ' + RX_UNIT_WORDS[donvi];
+        }
+
+        /**
+         * Tách nội dung ô "Danh mục thuốc kê đơn" thành từng dòng của bảng.
+         *
+         * Chấp nhận hai cách gõ:
+         *   - Có gạch đứng:  Tên thuốc hàm lượng | số lượng | liều dùng, cách dùng
+         *   - Gõ tự do:      1. Paracetamol 500mg - uống 1 viên x 3 lần/ngày
+         * Cách gõ tự do vẫn tách được tên thuốc và liều dùng; ô số lượng để trống
+         * cho cán bộ ghi tay nếu chưa nhập.
+         */
+        function rxParsePrescription(text) {
+            return String(text || '')
+                .split(/\r?\n/)
+                .map(line => line.trim())
+                .filter(Boolean)
+                .map(line => {
+                    // Bỏ số thứ tự người dùng tự đánh (1. / 1) / - / •)
+                    const clean = line.replace(/^\s*(?:\d+\s*[.)\-]|[-•*])\s*/, '').trim();
+                    if (clean.includes('|')) {
+                        const parts = clean.split('|').map(p => p.trim());
+                        return { name: parts[0] || '', qty: parts[1] || '', dose: parts.slice(2).join(' - ') || '' };
+                    }
+                    const split = clean.split(/\s+[-–—]\s+/);
+                    const name = (split.shift() || '').trim();
+                    const dose = split.join(' - ').trim();
+                    // Cố gắng nhặt số lượng dạng "SL 20 viên" hoặc "x 20 viên"
+                    const qtyMatch = clean.match(/(?:SL|Số lượng|SL:)\s*[:=]?\s*([\d.,]+\s*\S+)/i);
+                    return { name, qty: qtyMatch ? qtyMatch[1].trim() : '', dose };
+                });
+        }
+
+        /** Gom toàn bộ dữ liệu đang hiển thị trong cửa sổ Phiếu khám & Đơn thuốc. */
+        function rxCollectData() {
+            const val = (id) => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+            const txt = (id) => { const el = document.getElementById(id); return el ? String(el.textContent || '').trim() : ''; };
+            const sel = (id) => {
+                const el = document.getElementById(id);
+                if (!el || el.selectedIndex < 0) return '';
+                return (el.options[el.selectedIndex] && el.options[el.selectedIndex].text) || el.value || '';
+            };
+            const sigImg = document.getElementById('rpt-signer-sig-img');
+            const now = new Date();
+
+            return {
+                code: txt('rpt-code'),
+                station: txt('rpt-station'),
+                patientName: val('rpt-edit-patient-name'),
+                dob: val('rpt-edit-dob'),
+                age: val('rpt-edit-age-gender'),
+                gender: sel('rpt-edit-gender'),
+                weight: val('rpt-edit-weight') || (txt('rpt-val-weight') || '').replace(/\s*kg\s*$/i, ''),
+                address: val('rpt-edit-address'),
+                idCard: val('rpt-edit-idcard'),
+                guardian: val('rpt-edit-guardian'),
+                phone: val('rpt-edit-phone'),
+                symptoms: val('rpt-edit-symptoms'),
+                clinicalNotes: val('rpt-edit-clinical-notes'),
+                diagnosis: val('rpt-edit-diagnosis'),
+                treatment: val('rpt-edit-treatment'),
+                drugs: rxParsePrescription(val('rpt-edit-prescription')),
+                advice: val('rpt-edit-advice'),
+                operator: val('rpt-edit-operator'),
+                doctorName: txt('rpt-sig-doctor-name'),
+                doctorLicense: txt('rpt-sig-doctor-license'),
+                signatureSrc: (sigImg && !sigImg.classList.contains('hidden')) ? sigImg.getAttribute('src') : '',
+                vitals: {
+                    bp: txt('rpt-val-bp'),
+                    hr: txt('rpt-val-hr'),
+                    spo2: txt('rpt-val-spo2'),
+                    temp: txt('rpt-val-temp'),
+                    weight: txt('rpt-val-weight')
+                },
+                day: now.getDate(),
+                month: now.getMonth() + 1,
+                year: now.getFullYear()
+            };
+        }
+
+        /** Phần thân đơn thuốc (dùng chung cho bản in A5 và bản tải về Word). */
+        function rxBuildBodyHtml(d) {
+            const esc = teleEscape;
+            const dots = (v, min) => v ? esc(v) : '.'.repeat(min || 30);
+            const rows = d.drugs.length
+                ? d.drugs.map((it, i) => `<tr>
+                        <td class="c">${i + 1}</td>
+                        <td>${esc(it.name)}</td>
+                        <td class="c">${esc(it.qty)}</td>
+                        <td>${esc(it.dose)}</td>
+                    </tr>`).join('')
+                : `<tr><td class="c">1</td><td>&nbsp;</td><td class="c">&nbsp;</td><td>&nbsp;</td></tr>`;
+            // Mẫu số 01 yêu cầu ghi rõ số khoản đã kê để chống sửa chữa, thêm bớt.
+            const khoan = d.drugs.length;
+            const vitalLine = [d.vitals.bp, d.vitals.hr, d.vitals.spo2, d.vitals.temp, d.vitals.weight]
+                .filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+            return `
+                <div class="hdr">
+                    <div class="hdr-left">
+                        <div class="org">SỞ Y TẾ TỈNH LÀO CAI</div>
+                        <div class="unit">TRẠM Y TẾ BÁT XÁT</div>
+                        <div class="sub">${dots(d.station, 20)}</div>
+                    </div>
+                    <div class="hdr-right">
+                        <div class="code">${dots(d.code, 10)}</div>
+                        <div class="sub">Khám chữa bệnh từ xa</div>
+                    </div>
+                </div>
+
+                <h1>ĐƠN THUỐC</h1>
+
+                <div class="admin">
+                    <p>1. Họ tên: <b>${dots(d.patientName, 40)}</b></p>
+                    <p>2. Ngày sinh: <b>${dots(d.dob, 14)}</b> &nbsp; Tuổi: <b>${dots(d.age, 10)}</b></p>
+                    <p>3. Giới tính: <b>${dots(d.gender, 8)}</b> &nbsp; 4. Cân nặng: <b>${dots(d.weight, 6)}</b> kg</p>
+                    <p>5. Địa chỉ: <b>${dots(d.address, 46)}</b></p>
+                    <p>6. Số thẻ BHYT/CCCD: <b>${dots(d.idCard, 26)}</b></p>
+                    ${d.guardian ? `<p>Bố/mẹ hoặc người giám hộ: <b>${esc(d.guardian)}</b></p>` : ''}
+                </div>
+
+                ${d.symptoms || vitalLine ? `<div class="note">
+                    ${d.symptoms ? `<p>Triệu chứng: ${esc(d.symptoms)}</p>` : ''}
+                    ${vitalLine ? `<p>Sinh hiệu: ${vitalLine}</p>` : ''}
+                </div>` : ''}
+
+                <p class="dx">Chẩn đoán: <b>${dots(d.diagnosis, 40)}</b></p>
+                ${d.treatment ? `<p class="dx">Hướng xử trí: ${esc(d.treatment)}</p>` : ''}
+
+                <p class="lbl">Thuốc điều trị:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:8%">TT</th>
+                            <th style="width:38%">Tên thuốc, nồng độ/hàm lượng</th>
+                            <th style="width:16%">Số lượng</th>
+                            <th style="width:38%">Liều dùng, cách dùng</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <p class="khoan">Cộng khoản: <b>${khoan}</b> (${esc(rxNumberToWords(khoan))}) khoản.</p>
+
+                <p class="advice">Lời dặn: ${d.advice ? esc(d.advice) : '.'.repeat(50)}</p>
+                ${d.clinicalNotes ? `<p class="advice">Diễn biến lâm sàng: ${esc(d.clinicalNotes)}</p>` : ''}
+
+                <div class="sig">
+                    <div class="sig-col">
+                        <p class="role">CÁN BỘ ĐIỂM TRẠM</p>
+                        <p class="hint">(Ký, ghi rõ họ tên)</p>
+                        <div class="sig-space"></div>
+                        <p class="name">${esc(d.operator)}</p>
+                    </div>
+                    <div class="sig-col">
+                        <p class="date">Ngày ${d.day} tháng ${d.month} năm ${d.year}</p>
+                        <p class="role">NGƯỜI KÊ ĐƠN</p>
+                        <p class="hint">(Ký, ghi rõ họ tên)</p>
+                        <div class="sig-space">${d.signatureSrc ? `<img src="${esc(d.signatureSrc)}" alt="Chữ ký số">` : ''}</div>
+                        <p class="name">${esc(d.doctorName)}</p>
+                        <p class="hint">${esc(d.doctorLicense)}</p>
+                    </div>
+                </div>
+
+                <div class="foot">
+                    <p><b>Khám lại xin mang theo đơn này.</b></p>
+                    <p>Số điện thoại liên hệ khi cần: <b>${dots(d.phone, 14)}</b></p>
+                    <p class="tiny">Đơn thuốc theo Mẫu số 01 - Thông tư 52/2017/TT-BYT. Đơn có giá trị mua, lĩnh thuốc trong thời hạn tối đa 05 ngày kể từ ngày kê đơn.</p>
+                </div>
+            `;
+        }
+
+        /** Bộ định dạng khổ A5 dọc cho bản in giấy. */
+        function rxPrintStyles() {
+            return `
+                @page { size: A5 portrait; margin: 10mm 10mm 8mm 12mm; }
+                * { box-sizing: border-box; }
+                body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.35; color: #000; margin: 0; }
+                p { margin: 0 0 2pt; }
+                .hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #000; padding-bottom: 3pt; }
+                .hdr-left { text-align: left; }
+                .hdr-right { text-align: right; }
+                .org { font-size: 9.5pt; text-transform: uppercase; }
+                .unit { font-size: 10.5pt; font-weight: bold; text-transform: uppercase; }
+                .code { font-size: 10pt; font-weight: bold; }
+                .sub { font-size: 8.5pt; font-style: italic; }
+                h1 { font-size: 15pt; font-weight: bold; text-align: center; text-transform: uppercase; letter-spacing: 1pt; margin: 6pt 0 5pt; }
+                .admin p { margin-bottom: 2.5pt; }
+                .note { font-size: 9.5pt; font-style: italic; margin: 3pt 0; }
+                .dx { margin: 3pt 0; }
+                .lbl { font-weight: bold; margin: 4pt 0 2pt; }
+                table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+                th, td { border: 1px solid #000; padding: 3pt 4pt; vertical-align: top; }
+                th { font-weight: bold; text-align: center; }
+                td.c, th.c { text-align: center; }
+                .khoan { margin-top: 3pt; font-style: italic; }
+                .advice { margin-top: 4pt; }
+                .sig { display: flex; justify-content: space-between; margin-top: 8pt; text-align: center; font-size: 10pt; }
+                .sig-col { width: 48%; }
+                .date { font-style: italic; font-size: 9.5pt; margin-bottom: 2pt; }
+                .role { font-weight: bold; text-transform: uppercase; font-size: 9.5pt; }
+                .hint { font-style: italic; font-size: 8.5pt; }
+                .sig-space { height: 46pt; display: flex; align-items: center; justify-content: center; }
+                .sig-space img { max-height: 44pt; max-width: 100%; }
+                .name { font-weight: bold; }
+                .foot { margin-top: 8pt; border-top: 1px dashed #000; padding-top: 3pt; font-size: 9.5pt; }
+                .tiny { font-size: 8pt; font-style: italic; margin-top: 2pt; }
+            `;
+        }
+
         window.printReportA5 = function() {
-            const area = document.getElementById('report-print-area');
-            if (!area) return;
             const printWin = window.open('', '_blank');
             if (!printWin) {
                 window.showToast("Trình duyệt đã chặn pop-up. Vui lòng cho phép pop-up để in đơn thuốc A5.");
                 return;
             }
 
-            const clone = area.cloneNode(true);
-            clone.querySelectorAll('input, textarea, select').forEach(el => {
-                const val = el.value || (el.options ? el.options[el.selectedIndex]?.text : '') || '';
-                const span = document.createElement('span');
-                span.style.fontWeight = 'bold';
-                span.textContent = val;
-                if (el.parentNode) el.parentNode.replaceChild(span, el);
-            });
-
-            printWin.document.write(`
-                <!DOCTYPE html>
-                <html lang="vi">
-                <head>
-                    <meta charset="utf-8">
-                    <title>In Đơn Thuốc Khổ A5</title>
-                    <style>
-                        @page { size: A5 portrait; margin: 8mm; }
-                        * { box-sizing: border-box; }
-                        body { font-family: "Times New Roman", serif; font-size: 10pt; line-height: 1.3; color: #000; margin: 0; padding: 0; }
-                        .no-print { display: none !important; }
-                        table { width: 100%; border-collapse: collapse; }
-                        td, th { border: 1px solid #666; padding: 4px; }
-                        img { max-height: 50px; }
-                    </style>
-                </head>
-                <body>
-                    ${clone.innerHTML}
-                </body>
-                </html>
-            `);
+            const data = rxCollectData();
+            printWin.document.write(`<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <title>Đơn thuốc - ${teleEscape(data.patientName)}</title>
+    <style>${rxPrintStyles()}</style>
+</head>
+<body>${rxBuildBodyHtml(data)}</body>
+</html>`);
             printWin.document.close();
 
             // In sau khi ảnh chữ ký số đã tải xong, tránh mất chữ ký trên bản in A5.
@@ -6523,39 +7018,692 @@
         }
 
         window.downloadReportWord = function() {
-            const area = document.getElementById('report-print-area');
-            if (!area) return;
-            const clone = area.cloneNode(true);
-            clone.querySelectorAll('input, textarea, select').forEach(el => {
-                const val = el.value || (el.options ? el.options[el.selectedIndex]?.text : '') || '';
-                const span = document.createElement('span');
-                span.style.fontWeight = 'bold';
-                span.textContent = val;
-                if (el.parentNode) el.parentNode.replaceChild(span, el);
-            });
+            const data = rxCollectData();
+            // Word đọc HTML nhưng không hỗ trợ flexbox: đổi hai khu vực dàn ngang
+            // (đầu trang và khối chữ ký) sang bảng để bản .doc không bị vỡ khung.
+            const body = rxBuildBodyHtml(data)
+                .replace('<div class="hdr">', '<table class="lay"><tr><td width="60%">')
+                .replace('<div class="hdr-right">', '</td><td width="40%" align="right"><div class="hdr-right">')
+                .replace('<h1>', '</td></tr></table><h1>')
+                .replace('<div class="sig">', '<table class="lay"><tr><td width="50%" align="center">')
+                .replace('<div class="sig-col">\n                        <p class="date">', '</td><td width="50%" align="center"><div class="sig-col"><p class="date">')
+                .replace('<div class="foot">', '</td></tr></table><div class="foot">');
 
-            const header = "<html xmlns:o='urn:schemas-microsoft-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Đơn thuốc A5</title><style>body{font-family:'Times New Roman',serif;font-size:11pt;line-height:1.3;} table{width:100%;border-collapse:collapse;} td,th{border:1px solid #999;padding:4px;}</style></head><body>";
-            const footer = "</body></html>";
-            const source = '\ufeff' + header + clone.innerHTML + footer;
+            const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset='utf-8'><title>Đơn thuốc A5</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
+<style>
+@page Section1 { size: 14.8cm 21.0cm; margin: 1.0cm 1.0cm 0.8cm 1.2cm; }
+div.Section1 { page: Section1; }
+${rxPrintStyles().replace(/@page[^}]*\}/, '')}
+table.lay { border-collapse: collapse; width: 100%; }
+table.lay td { border: none; padding: 0; vertical-align: top; }
+.hdr, .sig { display: block; }
+</style></head><body><div class="Section1">`;
+            const source = '﻿' + header + body + '</div></body></html>';
 
             const blob = new Blob([source], { type: 'application/msword' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Don_Thuoc_A5_${Date.now()}.doc`;
+            a.download = `Don_thuoc_A5_${(data.patientName || 'benh-nhan').replace(/\s+/g, '_')}_${data.day}-${data.month}-${data.year}.doc`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            window.showToast("Đã tải xuống Đơn thuốc định dạng Word (.doc)");
+            window.showToast("Đã tải xuống Đơn thuốc chuẩn Bộ Y tế, khổ A5, định dạng Word (.doc)");
         };
-
         window.downloadReportPDF = function() {
             window.printReportA5();
         };
 
         /* Hàng đợi cuộc gọi: cán bộ CMS thấy và nghe ngay điểm trạm nào đang gọi tới,
            kể cả khi đang làm việc ở tab khác của CMS. */
+        /* =====================================================================
+           TIẾP NHẬN NHIỀU CUỘC GỌI CÙNG MỘT LÚC
+
+           Cán bộ trực có thể bắt nhiều cuộc gọi song song. Mỗi cuộc gọi là một
+           phiên độc lập: phòng riêng, mã thành viên riêng, kết nối ngang hàng
+           riêng và vòng quét bản tin riêng, nên cuộc này không làm rớt cuộc kia.
+
+           - Cuộc gọi ĐANG KHÁM ("focus") chiếm khung hình lớn và toàn bộ nghiệp
+             vụ sẵn có (sinh hiệu, đơn thuốc, chat, trợ lý AI, biên bản) thông qua
+             việc trỏ đối tượng TELE vào đúng phiên đó.
+           - Các cuộc còn lại ở chế độ GIỮ MÁY: vẫn thấy hình cán bộ và vẫn giữ
+             kết nối, nhưng bị tắt tiếng một chiều để lời thoại không lẫn sang
+             bệnh nhân khác. Người bệnh giữ máy hiện trong ô nhỏ, bấm một cái là
+             đổi sang khám.
+           ===================================================================== */
+
+        const CMS_MAX_CALLS = 4;
+        const CMS_CALLS = new Map();       // roomId -> phiên gọi
+        let cmsFocusedRoomId = null;
+        let cmsSharedStream = null;        // camera/micro dùng chung cho mọi phiên
+        let cmsSharedStreamPromise = null;
+
+        /** Camera/micro chỉ mở đúng một lần rồi chia cho tất cả cuộc gọi. */
+        function cmsEnsureSharedMedia() {
+            if (cmsSharedStream) return Promise.resolve(cmsSharedStream);
+            if (cmsSharedStreamPromise) return cmsSharedStreamPromise;
+            const audioConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+            const videoConstraints = {
+                width: { ideal: 1280, max: 1280 },
+                height: { ideal: 720, max: 720 },
+                frameRate: { ideal: 30, min: 15 }
+            };
+            cmsSharedStreamPromise = navigator.mediaDevices
+                .getUserMedia({ video: videoConstraints, audio: audioConstraints })
+                .catch(() => navigator.mediaDevices.getUserMedia({ video: true, audio: true }))
+                .catch(() => navigator.mediaDevices.getUserMedia({ audio: true }))
+                .catch(() => null)
+                .then(stream => {
+                    cmsSharedStream = stream;
+                    cmsSharedStreamPromise = null;
+                    teleTuneLocalTracks(stream);
+                    if (!stream) window.showToast("Không mở được camera/micro - cuộc gọi sẽ chỉ nhận hình từ bệnh nhân.");
+                    return stream;
+                });
+            return cmsSharedStreamPromise;
+        }
+
+        function cmsReleaseSharedMedia() {
+            if (cmsSharedStream) {
+                cmsSharedStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+                cmsSharedStream = null;
+            }
+        }
+
+        function cmsPost(session, body) {
+            return fetch('/api/signal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.assign({ roomId: session.roomId, peerId: session.peerId }, body))
+            }).then(res => {
+                if (!res.ok) throw new Error('Signaling lỗi ' + res.status);
+                return res.json();
+            });
+        }
+
+        function cmsSignal(session, type, payload) {
+            if (!session.roomId || !session.peerId) return Promise.resolve();
+            return cmsPost(session, { action: 'signal', type, payload }).catch(err => console.warn('signal', type, err));
+        }
+
+        function cmsQueueIce(session, cand) {
+            session.iceQueue.push(cand);
+            if (session.iceQueueTimer) return;
+            session.iceQueueTimer = setTimeout(() => cmsFlushIce(session), 40);
+        }
+
+        function cmsFlushIce(session) {
+            if (session.iceQueueTimer) { clearTimeout(session.iceQueueTimer); session.iceQueueTimer = null; }
+            if (!session.iceQueue.length) return;
+            cmsSignal(session, 'ice', session.iceQueue.splice(0));
+        }
+
+        function cmsCreatePeer(session) {
+            const pc = new RTCPeerConnection(TELE_ICE);
+            session.pc = pc;
+            session.remoteStream = new MediaStream();
+
+            if (cmsSharedStream) {
+                cmsSharedStream.getTracks().forEach(track => pc.addTrack(track, cmsSharedStream));
+                session.audioSender = pc.getSenders().find(s => s.track && s.track.kind === 'audio') || null;
+                teleTuneVideoSender(pc);
+            } else {
+                pc.addTransceiver('video', { direction: 'recvonly' });
+                pc.addTransceiver('audio', { direction: 'recvonly' });
+            }
+
+            pc.onicecandidate = (ev) => {
+                if (ev.candidate) cmsQueueIce(session, ev.candidate.toJSON());
+                else cmsFlushIce(session);
+            };
+
+            pc.ontrack = (ev) => {
+                const stream = (ev.streams && ev.streams[0]) ? ev.streams[0] : session.remoteStream;
+                if (stream === session.remoteStream) session.remoteStream.addTrack(ev.track);
+                try { if (ev.receiver) ev.receiver.playoutDelayHint = 0; } catch (e) {}
+                session.remoteStream = stream;
+                cmsAttachSessionVideo(session);
+            };
+
+            pc.onconnectionstatechange = () => {
+                const state = pc.connectionState;
+                session.connected = (state === 'connected');
+                if (state === 'failed' || state === 'disconnected') session.connected = false;
+                if (session.roomId === cmsFocusedRoomId) {
+                    TELE.connected = session.connected;
+                    if (session.connected) teleStatus(`Đang khám: ${session.patientName}`);
+                }
+                cmsRenderCallTiles();
+            };
+
+            return pc;
+        }
+
+        /** Gắn hình của phiên vào ô nhỏ, và vào khung lớn nếu phiên đang được khám. */
+        function cmsAttachSessionVideo(session) {
+            const tileVideo = document.getElementById('cms-tile-video-' + cmsDomKey(session.roomId));
+            if (tileVideo && tileVideo.srcObject !== session.remoteStream) {
+                tileVideo.srcObject = session.remoteStream;
+                tileVideo.muted = true;          // tiếng chỉ phát ở khung lớn
+                tileVideo.playsInline = true;
+                tileVideo.play().catch(() => {});
+            }
+            if (session.roomId === cmsFocusedRoomId) {
+                TELE.remoteStream = session.remoteStream;
+                const remoteEl = document.getElementById('cms-remote-video');
+                if (remoteEl && remoteEl.srcObject !== session.remoteStream) {
+                    remoteEl.srcObject = session.remoteStream;
+                    remoteEl.muted = false;
+                    remoteEl.volume = 1;
+                    remoteEl.playsInline = true;
+                    remoteEl.play().catch(() => window.showToast("Nhấn vào khung hình để bật loa ngoài."));
+                }
+                teleShowRemotePlaceholder(false);
+            }
+        }
+
+        function cmsDomKey(roomId) {
+            return String(roomId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        }
+
+        async function cmsMakeOffer(session) {
+            if (!session.pc) return;
+            try {
+                const offer = await session.pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+                await session.pc.setLocalDescription(offer);
+                await cmsSignal(session, 'offer', { sdp: session.pc.localDescription.sdp, type: session.pc.localDescription.type });
+            } catch (err) {
+                console.warn('Lỗi tạo offer cho phòng', session.roomId, err);
+            }
+        }
+
+        async function cmsFlushCandidates(session) {
+            const list = session.pendingCandidates.splice(0);
+            for (const cand of list) {
+                try { await session.pc.addIceCandidate(cand); } catch (err) { console.warn('ICE', err); }
+            }
+        }
+
+        async function cmsHandleMessage(session, msg) {
+            if (!session.pc) return;
+
+            if (msg.type === 'peer-joined') {
+                session.remotePeerName = (msg.payload && msg.payload.name) || 'Bệnh nhân';
+                if (session.roomId === cmsFocusedRoomId) {
+                    TELE.remotePeerName = session.remotePeerName;
+                    teleStatus(`${session.remotePeerName} đã vào phòng - đang bắt tay kết nối...`);
+                } else {
+                    window.showToast(`${session.remotePeerName} đã vào phòng giữ máy.`);
+                }
+                if (session.notes) cmsSignal(session, 'notes', { notes: session.notes, dx: session.dx, signerId: session.signerId });
+                cmsRenderCallTiles();
+                return;
+            }
+
+            if (msg.type === 'offer') {
+                try {
+                    if (session.pc.signalingState !== 'stable') {
+                        await Promise.all([
+                            session.pc.setLocalDescription({ type: 'rollback' }).catch(() => {}),
+                            session.pc.setRemoteDescription(msg.payload)
+                        ]);
+                    } else {
+                        await session.pc.setRemoteDescription(msg.payload);
+                    }
+                    const answer = await session.pc.createAnswer();
+                    await session.pc.setLocalDescription(answer);
+                    await cmsSignal(session, 'answer', { sdp: session.pc.localDescription.sdp, type: session.pc.localDescription.type });
+                    await cmsFlushCandidates(session);
+                } catch (err) {
+                    console.warn('Lỗi xử lý offer:', err);
+                }
+                return;
+            }
+
+            if (msg.type === 'answer') {
+                try {
+                    if (session.pc.signalingState === 'have-local-offer') {
+                        await session.pc.setRemoteDescription(msg.payload);
+                        await cmsFlushCandidates(session);
+                    }
+                } catch (err) {
+                    console.warn('Lỗi xử lý answer:', err);
+                }
+                return;
+            }
+
+            if (msg.type === 'ice') {
+                const raw = Array.isArray(msg.payload) ? msg.payload : [msg.payload];
+                const ready = session.pc.remoteDescription && session.pc.remoteDescription.type;
+                for (const item of raw) {
+                    if (!item) continue;
+                    let cand;
+                    try { cand = new RTCIceCandidate(item); } catch (err) { continue; }
+                    if (ready) {
+                        try { await session.pc.addIceCandidate(cand); } catch (err) { console.warn('ICE', err); }
+                    } else {
+                        session.pendingCandidates.push(cand);
+                    }
+                }
+                return;
+            }
+
+            if (msg.type === 'vitals') {
+                session.vitals = msg.payload || {};
+                if (session.roomId === cmsFocusedRoomId) teleRenderVitals(session.vitals);
+                else window.showToast(`Đã nhận sinh hiệu mới của ${session.patientName} (đang giữ máy).`);
+                cmsRenderCallTiles();
+                return;
+            }
+
+            if (msg.type === 'chat') {
+                const sender = (msg.payload && msg.payload.sender) || 'Bệnh nhân';
+                const text = (msg.payload && msg.payload.text) || '';
+                session.chatLog.push({ sender, text, at: new Date().toLocaleTimeString('vi-VN') });
+                if (session.roomId === cmsFocusedRoomId) {
+                    teleAppendChat(sender, text);
+                } else {
+                    session.unread = (session.unread || 0) + 1;
+                    cmsRenderCallTiles();
+                }
+                return;
+            }
+
+            if (msg.type === 'patient-info') {
+                if (msg.payload && msg.payload.patientId) session.patientId = msg.payload.patientId;
+                if (msg.payload && msg.payload.patientName) session.patientName = msg.payload.patientName;
+                if (session.roomId === cmsFocusedRoomId) {
+                    TELE.patientId = session.patientId;
+                    TELE.patientName = session.patientName;
+                    teleRenderPatientIdentity();
+                }
+                cmsRenderCallTiles();
+                return;
+            }
+
+            if (msg.type === 'peer-left') {
+                session.connected = false;
+                window.showToast(`${session.patientName} đã rời phòng khám.`);
+                cmsRenderCallTiles();
+                return;
+            }
+        }
+
+        async function cmsPollLoop(session, token) {
+            while (session.polling && session.pollToken === token) {
+                try {
+                    const url = `/api/signal?roomId=${encodeURIComponent(session.roomId)}&peerId=${encodeURIComponent(session.peerId)}&cursor=${session.cursor}`;
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error('poll ' + res.status);
+                    const data = await res.json();
+                    if (!session.polling || session.pollToken !== token) return;
+                    if (typeof data.cursor === 'number') session.cursor = data.cursor;
+                    for (const msg of (data.messages || [])) {
+                        await cmsHandleMessage(session, msg);
+                    }
+                    if (data.room && data.room.vitals) {
+                        session.vitals = data.room.vitals;
+                        if (session.roomId === cmsFocusedRoomId) teleRenderVitals(session.vitals);
+                    }
+                } catch (err) {
+                    console.warn('Mất tín hiệu phòng', session.roomId, err);
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+            }
+        }
+
+        /**
+         * Bật/tắt micro gửi sang một phiên. Chỉ cuộc gọi đang khám mới nhận tiếng
+         * của cán bộ; các cuộc giữ máy vẫn thấy hình nhưng không nghe, tránh lẫn
+         * lời thoại giữa các bệnh nhân.
+         */
+        function cmsSetSessionAudio(session, on) {
+            if (!session.pc) return;
+            if (!session.audioSender) {
+                session.audioSender = session.pc.getSenders().find(s => s.track && s.track.kind === 'audio') || null;
+            }
+            if (!session.audioSender || !session.audioSender.replaceTrack) return;
+            const audioTrack = cmsSharedStream ? cmsSharedStream.getAudioTracks()[0] : null;
+            session.audioSender.replaceTrack(on ? (audioTrack || null) : null)
+                .catch(() => { /* trình duyệt cũ: bỏ qua, chỉ mất tính năng tắt tiếng một chiều */ });
+            session.muted = !on;
+        }
+
+        /** Lưu lại phần cán bộ vừa gõ cho phiên đang khám, trước khi đổi bệnh nhân. */
+        function cmsCaptureFocusedState() {
+            const session = CMS_CALLS.get(cmsFocusedRoomId);
+            if (!session) return;
+            const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+            session.dx = {
+                diagnosis: val('cms-dx-diagnosis'),
+                plan: val('cms-dx-plan'),
+                drugs: val('cms-dx-drugs')
+            };
+            session.advice = val('cms-doctor-advice');
+            session.patientId = (val('cms-patient-idcard') || '').trim() || session.patientId;
+            session.signerId = TELE.signerId || session.signerId;
+            session.vitals = TELE.vitals || session.vitals;
+            session.chatLog = TELE.chatLog || session.chatLog;
+        }
+
+        /** Đưa một cuộc gọi lên khung hình lớn và trỏ toàn bộ nghiệp vụ vào nó. */
+        window.cmsFocusCall = function(roomId) {
+            const session = CMS_CALLS.get(roomId);
+            if (!session) return;
+            if (cmsFocusedRoomId === roomId) return;
+
+            if (cmsFocusedRoomId && CMS_CALLS.has(cmsFocusedRoomId)) {
+                cmsCaptureFocusedState();
+                cmsSetSessionAudio(CMS_CALLS.get(cmsFocusedRoomId), false);
+            }
+            cmsFocusedRoomId = roomId;
+            activeRoomId = roomId;
+            isCmsCall = true;
+            cmsSetSessionAudio(session, true);
+            session.unread = 0;
+
+            // TELE trở thành "cửa sổ" nhìn vào phiên đang khám: mọi chức năng cũ
+            // (sinh hiệu, đơn thuốc, chat, trợ lý AI, biên bản) chạy nguyên như trước.
+            TELE.role = 'doctor';
+            TELE.roomId = session.roomId;
+            TELE.peerId = session.peerId;
+            TELE.pc = session.pc;
+            TELE.localStream = cmsSharedStream;
+            TELE.remoteStream = session.remoteStream;
+            TELE.patientName = session.patientName;
+            TELE.patientId = session.patientId;
+            TELE.symptoms = session.symptoms;
+            TELE.appointmentId = session.appointmentId;
+            TELE.name = (currentCmsUser && currentCmsUser.name) || 'Bác sĩ trực CMS';
+            TELE.remotePeerName = session.remotePeerName;
+            TELE.connected = session.connected;
+            TELE.vitals = session.vitals || {};
+            TELE.chatLog = session.chatLog || [];
+            TELE.doctorAdvice = session.advice || '';
+            TELE.dx = session.dx || { diagnosis: '', plan: '', drugs: '' };
+            TELE.signerId = session.signerId || '';
+            TELE.polling = false;   // mỗi phiên tự quét bản tin riêng
+
+            const localEl = document.getElementById('cms-local-video');
+            if (localEl && localEl.srcObject !== cmsSharedStream) {
+                localEl.srcObject = cmsSharedStream;
+                localEl.muted = true;
+                localEl.playsInline = true;
+                if (cmsSharedStream) localEl.play().catch(() => {});
+            }
+
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+            setVal('cms-dx-diagnosis', TELE.dx.diagnosis);
+            setVal('cms-dx-plan', TELE.dx.plan);
+            setVal('cms-dx-drugs', TELE.dx.drugs);
+            setVal('cms-doctor-advice', TELE.doctorAdvice);
+            teleApplyClinicalNotes(TELE.dx, false);
+            teleRenderPatientIdentity();
+            teleRenderVitals(TELE.vitals);
+
+            const chatBox = document.getElementById('cms-chat-box');
+            if (chatBox) {
+                chatBox.innerHTML = '';
+                (TELE.chatLog || []).forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-slate-800 p-2 rounded-lg text-xs';
+                    div.innerHTML = `<span class="font-bold text-blue-400">${teleEscape(m.sender)}:</span> <span class="text-slate-200">${teleEscape(m.text)}</span>`;
+                    chatBox.appendChild(div);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            const badge = document.getElementById('cms-active-patient-badge');
+            if (badge) badge.textContent = `Bệnh nhân: ${session.patientName} (${session.roomId})`;
+            cmsAttachSessionVideo(session);
+            teleShowRemotePlaceholder(!session.remoteStream || session.remoteStream.getTracks().length === 0);
+            cmsRenderCallTiles();
+        };
+
+        /** Ô nhỏ cho từng cuộc gọi đang tiếp nhận. */
+        function cmsRenderCallTiles() {
+            const wrap = document.getElementById('cms-multicall-wrap');
+            const grid = document.getElementById('cms-multicall-grid');
+            const countEl = document.getElementById('cms-multicall-count');
+            const maxEl = document.getElementById('cms-multicall-max');
+            if (maxEl) maxEl.textContent = String(CMS_MAX_CALLS);
+            if (countEl) countEl.textContent = String(CMS_CALLS.size);
+            if (!wrap || !grid) return;
+
+            if (CMS_CALLS.size === 0) {
+                wrap.classList.add('hidden');
+                grid.innerHTML = '';
+                return;
+            }
+            wrap.classList.remove('hidden');
+
+            grid.innerHTML = Array.from(CMS_CALLS.values()).map(s => {
+                const focused = s.roomId === cmsFocusedRoomId;
+                const key = cmsDomKey(s.roomId);
+                const v = s.vitals || {};
+                const vitalLine = [
+                    v.bp ? `HA ${v.bp}` : '',
+                    v.hr ? `Nhịp ${v.hr}` : '',
+                    v.spo2 ? `SpO2 ${v.spo2}%` : ''
+                ].filter(Boolean).join(' • ');
+                return `<div class="rounded-xl overflow-hidden border-2 ${focused ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-gray-200'} bg-slate-900">
+                    <div class="relative aspect-video bg-black">
+                        <video id="cms-tile-video-${key}" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                        <span class="absolute top-1.5 left-1.5 text-[10px] font-black px-1.5 py-0.5 rounded ${focused ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}">
+                            ${focused ? 'ĐANG KHÁM' : 'GIỮ MÁY'}
+                        </span>
+                        ${s.unread ? `<span class="absolute top-1.5 right-1.5 text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white"><i class="fas fa-comment-dots"></i> ${s.unread}</span>` : ''}
+                        <span class="absolute bottom-1.5 left-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/60 text-white">
+                            <i class="fas fa-circle ${s.connected ? 'text-emerald-400' : 'text-amber-400'} mr-1 text-[7px]"></i>${s.connected ? 'Đã kết nối' : 'Đang kết nối...'}
+                        </span>
+                    </div>
+                    <div class="p-2 bg-white">
+                        <div class="text-xs font-bold text-gray-900 truncate" title="${teleEscape(s.patientName)}">${teleEscape(s.patientName)}</div>
+                        <div class="text-[10px] text-gray-500 truncate">${teleEscape(s.stationName || s.symptoms || 'Khám từ xa')}</div>
+                        ${vitalLine ? `<div class="text-[10px] text-blue-600 font-bold truncate">${teleEscape(vitalLine)}</div>` : ''}
+                        <div class="flex gap-1.5 mt-1.5">
+                            <button onclick="window.cmsFocusCall('${teleEscape(s.roomId)}')" ${focused ? 'disabled' : ''}
+                                class="flex-1 text-[10px] font-bold px-2 py-1 rounded-lg transition ${focused ? 'bg-emerald-100 text-emerald-700 cursor-default' : 'bg-blue-600 hover:bg-blue-700 text-white'}">
+                                <i class="fas fa-headset"></i> ${focused ? 'Đang khám' : 'Chuyển sang khám'}
+                            </button>
+                            <button onclick="window.cmsEndCall('${teleEscape(s.roomId)}')" title="Kết thúc cuộc gọi này"
+                                class="text-[10px] font-bold px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition">
+                                <i class="fas fa-phone-slash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Video vừa được vẽ lại nên phải gắn lại luồng hình cho từng ô.
+            CMS_CALLS.forEach(s => cmsAttachSessionVideo(s));
+        }
+
+        /** Tiếp nhận thêm một cuộc gọi mà không cắt cuộc đang khám. */
+        async function cmsAcceptSession(roomId, patientName, symptoms, appointmentId, patientId) {
+            if (CMS_CALLS.has(roomId)) {
+                window.cmsFocusCall(roomId);
+                window.showToast("Cuộc gọi này đã được tiếp nhận - đã chuyển sang khám.");
+                return;
+            }
+            if (CMS_CALLS.size >= CMS_MAX_CALLS) {
+                window.showToast(`Đang tiếp nhận tối đa ${CMS_MAX_CALLS} cuộc gọi. Hãy kết thúc bớt một cuộc trước.`);
+                return;
+            }
+
+            const station = window.teleStationFromRoomId(roomId);
+            const session = {
+                roomId,
+                patientName: patientName || 'Bệnh nhân',
+                symptoms: symptoms || '',
+                appointmentId: appointmentId || null,
+                patientId: patientId || '',
+                stationName: station ? station.name : '',
+                peerId: `doctor-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`,
+                pc: null,
+                remoteStream: null,
+                cursor: 0,
+                polling: false,
+                pollToken: 0,
+                pendingCandidates: [],
+                iceQueue: [],
+                iceQueueTimer: null,
+                connected: false,
+                remotePeerName: null,
+                vitals: {},
+                chatLog: [],
+                dx: { diagnosis: '', plan: '', drugs: '' },
+                advice: '',
+                notes: '',
+                signerId: '',
+                unread: 0,
+                startedAt: Date.now()
+            };
+            CMS_CALLS.set(roomId, session);
+            cmsRenderCallTiles();
+
+            // Mở thiết bị và đăng ký vào phòng song song cho nhanh lên hình.
+            const mediaPromise = cmsEnsureSharedMedia();
+            const joinPromise = cmsPost(session, {
+                action: 'join',
+                role: 'doctor',
+                name: (currentCmsUser && currentCmsUser.name) || 'Bác sĩ trực CMS',
+                patientName: session.patientName,
+                symptoms: session.symptoms
+            }).then(res => ({ ok: true, res }), err => ({ ok: false, err }));
+
+            await mediaPromise;
+            cmsCreatePeer(session);
+
+            const outcome = await joinPromise;
+            if (!outcome.ok) {
+                console.error('Không vào được phòng khám:', outcome.err);
+                window.showToast("Không kết nối được máy chủ phòng khám!");
+                window.cmsEndCall(roomId, true);
+                return;
+            }
+            const joined = outcome.res;
+            session.cursor = joined.cursor || 0;
+            if (joined.room && joined.room.vitals) session.vitals = joined.room.vitals;
+            if (joined.room && joined.room.notes) {
+                session.notes = joined.room.notes;
+                const parsed = teleParseClinicalNotes(joined.room.notes);
+                session.dx = { diagnosis: parsed.diagnosis, plan: parsed.plan, drugs: parsed.drugs };
+                session.signerId = parsed.signerId || '';
+            }
+
+            session.polling = true;
+            session.pollToken += 1;
+            cmsPollLoop(session, session.pollToken);
+
+            // Cuộc đầu tiên tự lên khung lớn; cuộc sau vào chế độ giữ máy.
+            if (!cmsFocusedRoomId) {
+                window.cmsFocusCall(roomId);
+            } else {
+                cmsSetSessionAudio(session, false);
+                window.showToast(`Đã tiếp nhận thêm ${session.patientName} - đang giữ máy.`);
+            }
+
+            if (joined.peers && joined.peers.length) {
+                session.remotePeerName = joined.peers[0].name;
+                await cmsMakeOffer(session);
+            }
+            cmsRenderCallTiles();
+        }
+
+        /** Kết thúc một cuộc gọi cụ thể; các cuộc còn lại vẫn giữ nguyên. */
+        window.cmsEndCall = function(roomId, silent) {
+            const session = CMS_CALLS.get(roomId);
+            if (!session) return;
+
+            if (roomId === cmsFocusedRoomId) cmsCaptureFocusedState();
+
+            session.polling = false;
+            session.pollToken += 1;
+            if (session.iceQueueTimer) { clearTimeout(session.iceQueueTimer); session.iceQueueTimer = null; }
+            if (session.peerId) {
+                try {
+                    fetch('/api/signal', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'leave', roomId: session.roomId, peerId: session.peerId }),
+                        keepalive: true
+                    }).catch(() => {});
+                } catch (err) {}
+            }
+            if (session.pc) {
+                try { session.pc.ontrack = null; session.pc.onicecandidate = null; session.pc.onconnectionstatechange = null; session.pc.close(); } catch (err) {}
+                session.pc = null;
+            }
+            CMS_CALLS.delete(roomId);
+
+            if (cmsFocusedRoomId === roomId) {
+                cmsFocusedRoomId = null;
+                TELE.roomId = null;
+                TELE.peerId = null;
+                TELE.pc = null;
+                TELE.remoteStream = null;
+                TELE.connected = false;
+                const remoteEl = document.getElementById('cms-remote-video');
+                if (remoteEl) remoteEl.srcObject = null;
+                const next = CMS_CALLS.keys().next();
+                if (!next.done) {
+                    window.cmsFocusCall(next.value);
+                } else {
+                    const badge = document.getElementById('cms-active-patient-badge');
+                    if (badge) badge.textContent = 'Chờ kết nối';
+                    teleShowRemotePlaceholder(true);
+                }
+            }
+
+            if (CMS_CALLS.size === 0) {
+                // Không còn cuộc nào: trả camera/micro về cho hệ điều hành.
+                cmsReleaseSharedMedia();
+                TELE.localStream = null;
+                const localEl = document.getElementById('cms-local-video');
+                if (localEl) localEl.srcObject = null;
+                activeRoomId = null;
+                isCmsCall = false;
+            }
+
+            cmsRenderCallTiles();
+            if (!silent) window.showToast(`Đã kết thúc cuộc gọi với ${session.patientName}.`);
+        };
+
+        window.endAllCmsCalls = function(silent) {
+            const ids = Array.from(CMS_CALLS.keys());
+            if (!ids.length) {
+                if (!silent) window.showToast("Hiện không có cuộc gọi nào đang tiếp nhận.");
+                return;
+            }
+            ids.forEach(id => window.cmsEndCall(id, true));
+            if (!silent) window.showToast(`Đã kết thúc ${ids.length} cuộc gọi và tắt camera/micro.`);
+        };
+
+        /** Kết thúc cuộc gọi đang hiển thị trên khung hình lớn. */
+        window.endCmsVideoCall = function() {
+            if (cmsFocusedRoomId) {
+                window.cmsEndCall(cmsFocusedRoomId);
+                return;
+            }
+            const placeholder = document.getElementById('cms-video-placeholder');
+            if (placeholder) placeholder.classList.remove('hidden');
+            const activeBadge = document.getElementById('cms-active-patient-badge');
+            if (activeBadge) activeBadge.textContent = 'Chờ kết nối';
+            teleStop(true);
+            window.showToast("Đã ngắt cuộc gọi video.");
+        };
+
+        /** Kết nối/ngắt của cuộc gọi CMS không được đụng vào tài nguyên dùng chung. */
+        function cmsOwnsPc(pc) {
+            if (!pc) return false;
+            for (const s of CMS_CALLS.values()) if (s.pc === pc) return true;
+            return false;
+        }
+
         let cmsIncomingTimer = null;
         let cmsStandbyPeerId = null;
         let cmsRingSoundOn = true;
@@ -6656,20 +7804,33 @@
                 v.temp ? `${v.temp}°C` : ''
             ].filter(Boolean).join(' • ');
             const names = (r.waiting || []).map(w => w.name).join(', ');
+            const mine = CMS_CALLS.has(r.roomId);
+            const focused = r.roomId === cmsFocusedRoomId;
             const joined = r.hasDoctor;
-            return `<div class="flex flex-wrap items-center justify-between gap-3 border ${joined ? 'border-gray-200 bg-gray-50' : 'border-blue-300 bg-blue-50'} rounded-xl p-3">
+            // Người dân đã chọn điểm phòng khám nào thì hiện đúng tên điểm đó.
+            const station = window.teleStationFromRoomId(r.roomId);
+            const stationBadge = station
+                ? `<span class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-bold"><i class="fas fa-location-dot"></i> ${teleEscape(station.name)}</span>`
+                : '';
+            const label = mine ? (focused ? 'Đang khám' : 'Chuyển sang khám') : (joined ? 'Vào lại phòng' : 'Tiếp nhận cuộc gọi');
+            const btnColor = mine
+                ? (focused ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600')
+                : (joined ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700');
+            return `<div class="flex flex-wrap items-center justify-between gap-3 border ${mine ? 'border-emerald-300 bg-emerald-50' : (joined ? 'border-gray-200 bg-gray-50' : 'border-blue-300 bg-blue-50')} rounded-xl p-3">
                 <div class="text-xs">
-                    <div class="font-bold text-gray-900 flex items-center gap-2">
-                        <i class="fas ${joined ? 'fa-headset text-gray-500' : 'fa-phone-volume text-blue-600 animate-pulse'}"></i>
+                    <div class="font-bold text-gray-900 flex items-center gap-2 flex-wrap">
+                        <i class="fas ${mine ? 'fa-headset text-emerald-600' : (joined ? 'fa-headset text-gray-500' : 'fa-phone-volume text-blue-600 animate-pulse')}"></i>
                         ${teleEscape(r.patientName || 'Bệnh nhân chưa rõ tên')}
                         <span class="font-mono text-[10px] bg-white border border-gray-200 px-1.5 py-0.5 rounded">${teleEscape(r.roomId)}</span>
+                        ${stationBadge}
+                        ${mine && !focused ? '<span class="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">GIỮ MÁY</span>' : ''}
                     </div>
                     <div class="text-gray-500 mt-0.5">Đang chờ: ${teleEscape(names)}${vitalLine ? ' — ' + teleEscape(vitalLine) : ''}</div>
                     ${r.symptoms && !compact ? `<div class="text-gray-500 italic mt-0.5">${teleEscape(r.symptoms)}</div>` : ''}
                 </div>
-                <button type="button" class="cms-accept-call ${joined ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold px-3 py-2 rounded-lg text-xs transition flex items-center gap-1.5"
+                <button type="button" class="cms-accept-call ${btnColor} text-white font-bold px-3 py-2 rounded-lg text-xs transition flex items-center gap-1.5"
                         data-room="${teleEscape(r.roomId)}" data-patient="${teleEscape(r.patientName || 'Bệnh nhân')}" data-symptoms="${teleEscape(r.symptoms || '')}">
-                    <i class="fas fa-video"></i> ${joined ? 'Vào lại phòng' : 'Tiếp nhận cuộc gọi'}
+                    <i class="fas fa-video"></i> ${label}
                 </button>
             </div>`;
         }
@@ -6694,7 +7855,8 @@
             const banner = document.getElementById('cms-ring-banner');
             const list = document.getElementById('cms-ring-list');
             const badge = document.getElementById('cms-live-call-badge');
-            const pending = (rooms || []).filter(r => !r.hasDoctor && !cmsRingDismissed.includes(r.roomId) && r.roomId !== TELE.roomId);
+            // Cuộc gọi nào đã được tiếp nhận (kể cả đang giữ máy) thì không đổ chuông nữa.
+            const pending = (rooms || []).filter(r => !r.hasDoctor && !cmsRingDismissed.includes(r.roomId) && !CMS_CALLS.has(r.roomId));
 
             if (badge) {
                 const waitingCount = (rooms || []).filter(r => !r.hasDoctor).length;
@@ -6768,7 +7930,7 @@
             }
         };
 
-        window.addEventListener('beforeunload', () => { teleStop(true); window.stopCmsIncomingWatcher(); });
+        window.addEventListener('beforeunload', () => { window.endAllCmsCalls(true); teleStop(true); window.stopCmsIncomingWatcher(); });
 
         window.handleBookingSubmit = function(e) {
             e.preventDefault();
@@ -7313,6 +8475,13 @@
             }
             window.renderAll();
             window.applyStationClinicName();
+
+            // Đổ danh mục điểm phòng khám dùng chung vào mọi ô chọn liên quan.
+            try {
+                window.renderStationOptions('quick-call-station', null, true);
+                window.renderStationOptions('station-switcher', null, false);
+                window.renderStationOptions('input-station-code', null, false);
+            } catch (e) { console.warn('Không nạp được danh mục điểm phòng khám:', e); }
 
             // Theo dõi số cán bộ đang trực để người dân biết gọi có ai nghe hay không.
             try { window.startPublicDutyWatcher(); } catch (e) { console.warn('Không bật được theo dõi cán bộ trực:', e); }

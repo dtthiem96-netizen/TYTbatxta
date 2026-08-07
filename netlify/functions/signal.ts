@@ -18,7 +18,10 @@ const PEER_TTL_MS = 45_000;
 const SIGNAL_TTL_MS = 180_000;
 // Giữ dưới ngưỡng timeout 10s của Netlify Functions.
 const POLL_WINDOW_MS = 7_000;
-const POLL_INTERVAL_MS = 700;
+// Nhịp quét bản tin trong một lượt long-poll. Nhịp càng ngắn thì offer/answer/ICE
+// càng sớm tới đầu bên kia, tức là hình lên nhanh hơn; 250ms là mức cân bằng giữa
+// độ trễ bắt tay và số lần truy vấn cơ sở dữ liệu trong mỗi lượt chờ.
+const POLL_INTERVAL_MS = 250;
 
 const headers = {
   "Content-Type": "application/json",
