@@ -1719,9 +1719,16 @@
                             </h4>
                             <span id="station-queue-count" class="text-[10px] bg-blue-900/80 text-blue-300 px-2 py-0.5 rounded-full font-bold">0 cuộc gọi</span>
                         </div>
-                        <div id="station-queue-list" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        <div id="station-queue-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
                             <div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>
                         </div>
+                        <!-- Nút tiếp nhận nhanh: nhận ngay cuộc gọi chờ lâu nhất đang đổ chuông
+                             về điểm trạm này, không phải tìm đúng dòng trong danh sách. -->
+                        <button type="button" id="station-queue-accept-btn" onclick="window.acceptNextPatientCall()" disabled
+                            title="Tiếp nhận cuộc gọi đang chờ lâu nhất từ người dân - lúc này mới mở camera và micro của điểm trạm"
+                            class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
+                            <i class="fas fa-phone-volume"></i> <span id="station-queue-accept-label">Chưa có cuộc gọi chờ</span>
+                        </button>
                     </div>
 
                     <!-- Nhập nhanh chỉ số sinh hiệu -->
@@ -3417,10 +3424,18 @@
                 }
             });
 
-        window.closeModal = function() { 
-            document.getElementById('modal-overlay').classList.add('hidden'); 
+        window.closeModal = function() {
+            const stationPanel = document.getElementById('modal-station-panel');
+            const stationPanelWasOpen = !!stationPanel && !stationPanel.classList.contains('hidden');
+
+            document.getElementById('modal-overlay').classList.add('hidden');
             document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
             document.body.style.overflow = 'auto';
+
+            // Đóng cửa sổ là ngừng luôn mọi vòng quét nền của nó: không có cửa sổ nào
+            // đang mở thì trình duyệt không được tự gọi sang kênh tiếp nhận của trạm.
+            if (stationPanelWasOpen && typeof window.stopQueuePolling === 'function') window.stopQueuePolling();
+            if (typeof window.stopPublicDutyWatcher === 'function') window.stopPublicDutyWatcher();
         };
 
         window.showToast = function(msg) {
@@ -5328,7 +5343,8 @@
             } catch (e) { console.warn('Không nạp được danh mục điểm phòng khám:', e); }
             const nameInput = document.getElementById('quick-call-name');
             if (nameInput) setTimeout(() => nameInput.focus(), 150);
-            window.refreshPublicDutyStatus();
+            // Chỉ từ lúc này mới hỏi máy chủ xem có cán bộ nào đang trực.
+            window.startPublicDutyWatcher();
         };
 
         /* Điểm phòng khám người dân chọn để nghe cuộc gọi (ghi nhớ cho lần gọi sau). */
@@ -5395,6 +5411,31 @@
             publicDutyTimer = setInterval(window.refreshPublicDutyStatus, 20000);
         };
 
+        /* Ngừng theo dõi khi người dân đóng cửa sổ gọi: trang chủ không được tự
+           gọi sang kênh tiếp nhận của điểm trạm khi không có ai định gọi. */
+        window.stopPublicDutyWatcher = function() {
+            if (publicDutyTimer) { clearInterval(publicDutyTimer); publicDutyTimer = null; }
+        };
+
+        /* Trạng thái lúc mới vào website: KHÔNG hỏi máy chủ, KHÔNG mở kênh gọi.
+           Chỉ hiển thị lời mời bấm nút - việc kết nối là do người dân chủ động. */
+        window.renderDutyIdleState = function() {
+            const navDot = document.getElementById('nav-on-duty-dot');
+            if (navDot) {
+                navDot.className = 'w-2 h-2 rounded-full bg-blue-200';
+                navDot.title = 'Bấm "Gọi khám từ xa" để kết nối cán bộ y tế đang trực';
+            }
+            const fabDot = document.getElementById('fab-on-duty-dot');
+            if (fabDot) fabDot.className = 'w-3 h-3 rounded-full bg-blue-200';
+            const fabText = document.getElementById('fab-on-duty-text');
+            if (fabText) fabText.textContent = 'Bấm để gọi cán bộ trực';
+
+            const hero = document.getElementById('hero-on-duty');
+            if (hero) {
+                hero.innerHTML = '<span class="text-gray-600"><i class="fas fa-circle-info mr-1"></i> Bấm "Gọi khám từ xa ngay" để kiểm tra cán bộ đang trực và bắt đầu cuộc gọi.</span>';
+            }
+        };
+
         window.startQuickTelehealthCall = function(e) {
             e.preventDefault();
             const name = (document.getElementById('quick-call-name').value || '').trim();
@@ -5446,6 +5487,10 @@
         window.openPatientTelehealthModal = function(roomId, patientName, symptoms, patientId) {
             activeRoomId = roomId || ('room-' + Date.now());
             isCmsCall = false;
+
+            // Vào phòng khám rồi thì màn hình chờ tự báo số cán bộ trực; vòng quét
+            // của cửa sổ "Gọi khám từ xa" không cần chạy song song nữa.
+            if (typeof window.stopPublicDutyWatcher === 'function') window.stopPublicDutyWatcher();
 
             const overlay = document.getElementById('modal-overlay');
             const modal = document.getElementById('modal-telehealth-call');
@@ -8483,8 +8528,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 window.renderStationOptions('input-station-code', null, false);
             } catch (e) { console.warn('Không nạp được danh mục điểm phòng khám:', e); }
 
-            // Theo dõi số cán bộ đang trực để người dân biết gọi có ai nghe hay không.
-            try { window.startPublicDutyWatcher(); } catch (e) { console.warn('Không bật được theo dõi cán bộ trực:', e); }
+            // Theo dõi cán bộ trực CỐ Ý không chạy lúc mới vào website: chỉ hiển thị
+            // lời mời bấm nút. Kênh gọi sang điểm trạm chỉ mở khi người dân chủ động
+            // mở cửa sổ "Gọi khám từ xa".
+            try { window.renderDutyIdleState(); } catch (e) { console.warn('Không dựng được trạng thái chờ gọi:', e); }
 
             // Tự động tìm kiếm và làm nổi bật tin tức được chia sẻ
             try {
