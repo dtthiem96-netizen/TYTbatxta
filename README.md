@@ -144,3 +144,82 @@ và Xoá. Tài khoản bị khoá không đăng nhập được vào bất kỳ 
 Ghi tài khoản qua tuyến công khai `/api/cms` đã bị chặn (403): mọi thao tác tài khoản
 phải đi qua `/api/admin-users` với phiếu phiên có quyền Quản trị.
 
+
+---
+
+## 6. Kết Nối API Google Cloud (Gemini / Vertex AI)
+
+Trợ lý AI của trang (`POST /api/ai`) gọi mô hình Gemini của Google. Toàn bộ việc
+chọn giấy tờ xác thực nằm trong `netlify/lib/google-ai.ts`, nên đổi cách kết nối
+chỉ là đổi biến môi trường, không phải sửa mã.
+
+### Ba đường kết nối, xét theo đúng thứ tự ưu tiên
+
+| # | Nguồn | Biến môi trường cần đặt | Dùng khi nào |
+| --- | --- | --- | --- |
+| 1 | **Vertex AI + ADC** | `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT`, (tuỳ chọn `GOOGLE_CLOUD_LOCATION`) | Đơn vị đã có dự án Google Cloud và muốn hoá đơn, hạn mức, nhật ký nằm trong dự án đó |
+| 2 | **Khoá API riêng** | `GOOGLE_API_KEY` | Có khoá từ Google AI Studio hoặc Generative Language API, muốn gọi thẳng Google |
+| 3 | **Netlify AI Gateway** | *(không cần đặt gì)* | **Mặc định hiện tại.** Netlify tự tiêm khoá lúc chạy hàm, tính phí vào tín dụng Netlify |
+
+Netlify không bao giờ ghi đè biến do đơn vị tự đặt, nên chỉ cần khai báo biến của
+đường 1 hoặc 2 là hệ thống tự chuyển sang dùng đường đó.
+
+### Về kịch bản `setup_adc.sh` của Google
+
+```bash
+bash <(curl -sSL https://storage.googleapis.com/cloud-samples-data/adc/setup_adc.sh)
+```
+
+Kịch bản này cài `gcloud`, hỏi mã dự án, chạy `gcloud auth application-default login`
+rồi lưu Application Default Credentials vào `$HOME/.config/gcloud/application_default_credentials.json`.
+
+**Nó chỉ có tác dụng trên máy cá nhân của người phát triển.** Hai lý do:
+
+- Kịch bản cần thao tác tương tác (gõ mã dự án, đăng nhập Google bằng trình duyệt),
+  không chạy được trong tiến trình dựng tự động.
+- Tệp ADC nằm trong thư mục người dùng của máy đó. Netlify Functions chạy trên máy
+  chủ serverless riêng, không hề nhìn thấy thư mục ấy - dù kịch bản chạy xong,
+  bản triển khai vẫn không có giấy tờ nào.
+
+Chạy nó khi muốn thử Vertex AI tại chỗ bằng `node server.js`; muốn Vertex AI hoạt
+động trên bản triển khai thì dùng khoá tài khoản dịch vụ như bên dưới.
+
+### Bật Vertex AI cho bản triển khai Netlify
+
+1. Trong Google Cloud, bật dịch vụ `aiplatform.googleapis.com` cho dự án.
+2. Tạo một **tài khoản dịch vụ** với vai trò *Vertex AI User*, tải khoá dạng JSON.
+3. Vào **Netlify → Project configuration → Environment variables**, đặt:
+   - `GOOGLE_GENAI_USE_VERTEXAI` = `true`
+   - `GOOGLE_CLOUD_PROJECT` = mã dự án (Project ID, không phải tên hiển thị)
+   - `GOOGLE_CLOUD_LOCATION` = `global` hoặc vùng mong muốn, ví dụ `asia-southeast1`
+   - `GOOGLE_APPLICATION_CREDENTIALS_JSON` = dán **toàn bộ nội dung** tệp khoá JSON
+4. Triển khai lại. Lúc chạy, hàm ghi nội dung khoá ra `/tmp/google-adc.json` (quyền
+   `600`, mất theo phiên bản hàm) để thư viện xác thực của Google đọc được.
+
+> Khoá tài khoản dịch vụ là bí mật: chỉ đặt qua giao diện biến môi trường của
+> Netlify, tuyệt đối không đưa vào mã nguồn hay commit lên kho.
+
+### Kiểm tra kết nối
+
+```bash
+# Xem đường kết nối nào đang có hiệu lực (không cần đăng nhập, không lộ khoá)
+curl https://<tên-trang>.netlify.app/api/ai-status
+
+# Gọi thử mô hình để xác nhận giấy tờ còn dùng được (cần phiếu phiên điểm trạm)
+curl -H "Authorization: Bearer <token>" \
+     "https://<tên-trang>.netlify.app/api/ai-status?ping=1"
+```
+
+`/api/ai-status` trả về nguồn kết nối, mô hình mặc định, danh sách mô hình được
+phép và - với `?ping=1` - độ trễ cùng câu trả lời thử. Endpoint chỉ báo **tên biến
+môi trường đã được đặt hay chưa**, không bao giờ trả về giá trị khoá. Phần gọi thử
+bắt buộc đăng nhập vì mỗi lượt ping là một lần gọi mô hình có tính phí.
+
+### Khi trợ lý AI báo lỗi
+
+| Thông báo | Nguyên nhân thường gặp |
+| --- | --- |
+| *Chưa kết nối được dịch vụ AI* | Không có đường nào cấu hình xong. Với AI Gateway: trang phải có ít nhất một bản triển khai chính thức thì biến mới được tiêm |
+| *Giấy tờ xác thực bị từ chối* | Khoá API sai, hết hạn, hoặc khoá tài khoản dịch vụ dán thiếu ký tự |
+| *Không đủ quyền gọi mô hình* | Chưa bật `aiplatform.googleapis.com`, hoặc tài khoản dịch vụ thiếu vai trò *Vertex AI User* |
+| *Quá tải hoặc hết hạn mức* | Chạm giới hạn số token mỗi phút; chờ ít phút hoặc đổi sang mô hình nhẹ hơn |
