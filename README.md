@@ -29,19 +29,23 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
    - Bảng nhập nhanh Sinh hiệu Bệnh nhân (Vitals): Huyết áp (mmHg), Nhịp tim (bpm), SpO2 (%), Nhiệt độ (°C), Cân nặng (kg). Đồng bộ tức thì lên màn hình khám tuyến trên.
 
 2. **Màn hình Video Call Khám Đa Chiều (Tele-Consultation Room)**
+   - **Chỉ mở khi được bấm nút**: bảng điều khiển KHÔNG tự vào phòng khám và KHÔNG xin quyền camera/micro lúc mở trang. Thiết bị chỉ bật khi cán bộ trực bấm **"Bắt đầu cuộc gọi"** hoặc **"Tiếp nhận"** một cuộc gọi đang chờ; bấm **"Kết thúc cuộc gọi"** sẽ rời phòng và tắt hẳn camera/micro (đèn camera của máy tắt theo).
    - **Luồng Video chính**: Hiển thị Bác sĩ tư vấn tuyến trên / Bác sĩ chuyên khoa tiếp nhận cuộc gọi.
    - **Luồng Video cận cảnh**: Cán bộ trạm chủ động chuyển đổi giữa Camera 1 (Toàn cảnh phòng khám) và Camera 2 (Cận cảnh soi tổn thương/họng/da của bệnh nhân).
    - **Luồng Âm thanh kép (Dual Audio)**: Cán bộ y tế và bệnh nhân cùng nghe được Bác sĩ qua loa ngoài; Micro thu âm rõ ràng lời thoại.
 
 3. **Trợ lý Lâm sàng AI (Clinical Co-Pilot)**
-   - Khung "Ghi chép lâm sàng" hỗ trợ công nghệ Speech-to-Text (chuyển lời nói Y sĩ/ Bác sĩ thành văn bản).
+   - Khung "Ghi chép lâm sàng" hỗ trợ công nghệ Speech-to-Text (chuyển lời nói Y sĩ/ Bác sĩ thành văn bản, chỉ thu âm khi đang trong cuộc gọi).
    - Khung "Gợi ý chẩn đoán & Đơn thuốc tham khảo": AI tự động phân tích chỉ số sinh hiệu & triệu chứng để đưa ra cảnh báo cờ đỏ (Red Flags), mã ICD-10 và hướng xử trí tham khảo.
 
 4. **Thanh Điều Khiển Cuộc Gọi**
+   - Nút "Bắt đầu cuộc gọi" / "Kết thúc cuộc gọi" - lối vào và lối ra duy nhất của camera, micro và phòng khám từ xa.
    - Nút Chuyển đổi Camera (Góc rộng / Cận cảnh tổn thương).
    - Nút Bật/Tắt Mic điểm trạm.
    - Nút "Gửi chỉ số sinh hiệu" tới bác sĩ tuyến trên.
    - Nút "Hoàn thành & Xuất Phiếu khám".
+
+   > Các nút camera/micro bị khoá mờ khi chưa có cuộc gọi, kèm tấm che trên khung hình tại chỗ để không ai tưởng camera đang chạy.
 
 ---
 

@@ -1663,9 +1663,9 @@
                         <p class="text-xs text-slate-400 flex items-center gap-2">
                             <span>Cán bộ trực: <strong id="display-operator-name" class="text-emerald-400">Y sĩ Nguyễn Văn A</strong></span>
                             <span>•</span>
-                            <span id="connection-badge" class="inline-flex items-center space-x-1 bg-emerald-950 border border-emerald-800 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                                <span id="connection-status-text">Sẵn sàng</span>
+                            <span id="connection-badge" class="inline-flex items-center space-x-1 bg-slate-800 border border-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                <span id="connection-status-text">Chưa kết nối - bấm "Bắt đầu cuộc gọi"</span>
                             </span>
                         </p>
                     </div>
@@ -1806,7 +1806,7 @@
                         <div id="remote-placeholder" class="flex flex-col items-center justify-center text-slate-400 p-6 text-center">
                             <i class="fas fa-user-md text-6xl text-blue-500 mb-3 animate-pulse"></i>
                             <h4 class="font-bold text-base text-white mb-1">Bác sĩ tuyến trên / Trợ lý AI</h4>
-                            <p class="text-xs text-slate-400">Chờ Bác sĩ tuyến trên / AI kết nối tư vấn...</p>
+                            <p class="text-xs text-slate-400">Bấm "Bắt đầu cuộc gọi" để mở camera/micro và kết nối tuyến trên.</p>
                             <span id="call-timer" class="text-xs font-mono text-emerald-400 mt-2 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">00:00</span>
                         </div>
 
@@ -1828,20 +1828,31 @@
                         <div class="absolute bottom-3 right-3">
                             <video id="local-video" autoplay playsinline muted class="w-32 h-24 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl object-cover"></video>
                             <span id="pip-label" class="absolute bottom-1 left-1 bg-slate-950/85 text-[9px] font-bold text-blue-200 px-1.5 py-0.5 rounded border border-slate-700">Cam Toàn Cảnh</span>
+                            <!-- Tấm che khi chưa gọi: camera/micro chỉ được mở sau khi bấm nút gọi. -->
+                            <div id="local-media-idle" class="absolute inset-0 rounded-xl bg-slate-950/95 border-2 border-slate-700 flex flex-col items-center justify-center text-center px-1.5">
+                                <i class="fas fa-video-slash text-slate-500 text-lg mb-1"></i>
+                                <span class="text-[8px] font-bold text-slate-400 leading-tight">Camera &amp; micro đang tắt</span>
+                            </div>
                         </div>
                     </div>
 
-                    <p id="camera-status-text" class="text-[11px] text-slate-400 text-center font-medium">Camera: Góc Rộng Phòng Khám</p>
+                    <p id="camera-status-text" class="text-[11px] text-slate-400 text-center font-medium">Camera &amp; micro đang TẮT - chỉ bật khi bắt đầu cuộc gọi khám từ xa.</p>
 
                     <!-- Thanh điều khiển cuộc gọi -->
                     <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-900 p-3 rounded-2xl border border-slate-800">
-                        <button onclick="window.toggleCameraDevice()" id="btn-toggle-camera" title="Chuyển đổi Camera (Góc rộng / Cận cảnh)" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow border border-slate-700">
+                        <button onclick="window.startTeleconsultation()" id="btn-start-call" title="Bắt đầu cuộc gọi khám từ xa - lúc này mới mở camera và micro của điểm trạm" class="px-3 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
+                            <i class="fas fa-video"></i> Bắt đầu cuộc gọi
+                        </button>
+                        <button onclick="window.endTeleconsultation()" id="btn-end-call" title="Kết thúc cuộc gọi và tắt camera/micro" class="hidden px-3 h-10 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
+                            <i class="fas fa-phone-slash"></i> Kết thúc cuộc gọi
+                        </button>
+                        <button onclick="window.toggleCameraDevice()" id="btn-toggle-camera" title="Chuyển đổi Camera (Góc rộng / Cận cảnh)" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow border border-slate-700 opacity-40 cursor-not-allowed" disabled>
                             <i class="fas fa-camera-rotate"></i> <span id="cam-label">Góc rộng</span>
                         </button>
-                        <button onclick="window.toggleMic()" id="btn-toggle-mic" title="Bật/Tắt Micro điểm trạm" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700">
+                        <button onclick="window.toggleMic()" id="btn-toggle-mic" title="Bật/Tắt Micro điểm trạm" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700 opacity-40 cursor-not-allowed" disabled>
                             <i id="icon-mic" class="fa-solid fa-microphone text-emerald-400 text-sm"></i>
                         </button>
-                        <button onclick="window.toggleVideo()" id="btn-toggle-video" title="Bật/Tắt Camera" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700">
+                        <button onclick="window.toggleVideo()" id="btn-toggle-video" title="Bật/Tắt Camera" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700 opacity-40 cursor-not-allowed" disabled>
                             <i id="icon-video" class="fa-solid fa-video text-blue-400 text-sm"></i>
                         </button>
                         <button onclick="window.sendVitalsToDoctor()" title="Gửi chỉ số sinh hiệu" class="px-3 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
@@ -7585,12 +7596,15 @@
             /* app.js gọi khi API trả 401/403: đóng module, xoá phiếu và bắt đăng nhập lại. */
             window.handleStationAuthFailure = function(message) {
                 window.clearStationSession();
+                if (typeof window.endTeleconsultation === 'function') window.endTeleconsultation({ silent: true });
                 if (typeof window.stopQueuePolling === 'function') window.stopQueuePolling();
                 window.openStationLoginModal(message || 'Phiên làm việc không còn hiệu lực. Vui lòng đăng nhập lại.');
             };
 
             window.logoutStationPanel = function() {
                 window.clearStationSession();
+                // Đăng xuất phải trả camera/micro về cho máy, không để đèn camera sáng tiếp.
+                if (typeof window.endTeleconsultation === 'function') window.endTeleconsultation({ silent: true });
                 if (typeof window.stopQueuePolling === 'function') window.stopQueuePolling();
                 window.closeModal();
                 window.showToast('Đã đăng xuất khỏi Bảng điều khiển trạm.');

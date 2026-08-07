@@ -10,6 +10,7 @@
     "build": "node main.js",
     "verify": "node main.js",
     "test:vitals": "node tools/vitals-parity.mjs",
+    "test:media": "node tools/media-consent-check.mjs",
     "test:smoke": "node tools/smoke-test.mjs"
   },
   "dependencies": {
