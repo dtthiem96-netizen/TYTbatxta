@@ -18,6 +18,7 @@
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "beta",
     "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3",
     "ws": "^8.17.0"
   },
   "devDependencies": {

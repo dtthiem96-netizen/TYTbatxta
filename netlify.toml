@@ -78,6 +78,15 @@
   status = 404
   force = true
 
+# Mã nguồn Mô-đun Xác thực: chỉ chạy phía máy chủ Express, trang không bao giờ
+# nạp tới. Phải chặn vì auth/userStore.js có chứa chuỗi băm mật khẩu Quản trị -
+# để tải về được là biếu không cho kẻ tấn công đem về dò ngoại tuyến.
+[[redirects]]
+  from = "/auth/*"
+  to = "/"
+  status = 404
+  force = true
+
 [[redirects]]
   from = "/netlify/*"
   to = "/"

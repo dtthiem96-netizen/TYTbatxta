@@ -5,6 +5,9 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'fs';
+// Mô-đun Xác thực (Authentication Module): đăng nhập, phiếu phiên JWT 8 giờ và
+// rào chắn tuyến đường. Xem auth/index.js để biết cấu trúc mô-đun.
+import { mountAuthModule } from './auth/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -128,6 +131,12 @@ function evaluateVitals(vitals) {
 }
 
 // API Routes
+
+// Mô-đun Xác thực - đăng ký trước các tuyến nghiệp vụ:
+//   POST /api/auth/login      đăng nhập, trả phiếu phiên JWT thời hạn 8 giờ
+//   GET  /api/auth/session    kiểm tra phiếu phiên hiện tại
+//   GET  /api/cms/dashboard   ví dụ tuyến CMS được authMiddleware bảo vệ
+mountAuthModule(app);
 
 // 0. CMS API
 app.get('/api/cms', (req, res) => {
