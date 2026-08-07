@@ -74,6 +74,17 @@ let localStream = null;
 let videoDevices = [];
 let currentCamIndex = 0;
 
+/**
+ * Phiên khám từ xa chỉ mở khi cán bộ trực bấm nút ("Bắt đầu cuộc gọi" trên thanh
+ * điều khiển, hoặc "Tiếp nhận" một cuộc gọi đang chờ trong hàng đợi).
+ *
+ * Trước thời điểm đó bảng điều khiển KHÔNG vào phòng signaling và KHÔNG xin
+ * quyền camera/micro: mở bảng điều khiển để nhập sinh hiệu hay in phiếu khám
+ * không phải là lý do để đèn camera của máy trạm sáng lên, và cũng không nên
+ * làm điểm trạm hiện ra trong hàng đợi của tuyến trên như đang chờ hội chẩn.
+ */
+let callActive = false;
+
 let isMicMuted = false;
 let isVideoMuted = false;
 let isListeningSTT = false;
@@ -118,11 +129,10 @@ function startStationPanel() {
   // Bắt đầu quét danh sách cuộc gọi chờ từ người dân
   startQueuePolling();
 
-  // Initialize Media Devices & Camera
-  initLocalCamera();
-
-  // Vào phòng khám qua kênh signaling HTTP
-  joinRoom();
+  // Camera, micro và phòng khám từ xa CỐ Ý không được khởi động ở đây: chúng chỉ
+  // mở khi cán bộ trực bấm "Bắt đầu cuộc gọi" hoặc "Tiếp nhận" một cuộc gọi chờ.
+  updateCallControlsUI();
+  updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
 
   // Initialize Speech-to-Text Engine
   initSpeechRecognition();
@@ -130,9 +140,6 @@ function startStationPanel() {
   // Đẩy ghi chép lâm sàng gõ tay sang tuyến trên theo nhịp
   const notesEl = document.getElementById('clinical-notes');
   if (notesEl) notesEl.addEventListener('input', scheduleNotesSync);
-
-  // Start Call Timer
-  startCallTimer();
 }
 
 // app.js được nạp với thuộc tính defer nên thường chạy trước DOMContentLoaded,
@@ -186,7 +193,146 @@ function switchStation(code) {
   }
 
   appendChatMessage('Hệ thống', `Đã chuyển sang ${stationName(code)} [${code}].`);
-  joinRoom();
+
+  // Chỉ vào phòng của điểm trạm mới khi đang thực sự có cuộc gọi. Đổi điểm trạm
+  // lúc chưa gọi chỉ là chọn nơi trực, không phải lệnh mở cuộc gọi.
+  if (callActive) {
+    joinRoom();
+  } else {
+    updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
+  }
+}
+
+/* ===========================================================================
+   PHIÊN GỌI KHÁM TỪ XA - MỞ VÀ ĐÓNG BẰNG THAO TÁC CỦA CÁN BỘ TRỰC
+   =========================================================================== */
+
+/**
+ * Mở phiên khám từ xa: xin quyền camera/micro rồi mới vào phòng signaling.
+ * Đây là lối vào DUY NHẤT bật thiết bị thu hình/thu tiếng của điểm trạm.
+ */
+async function startTeleconsultation(targetRoomId) {
+  if (callActive) {
+    appendChatMessage('Hệ thống', 'Cuộc gọi đang diễn ra.');
+    return;
+  }
+
+  if (targetRoomId) roomId = targetRoomId;
+  if (!roomId) roomId = defaultRoomForStation(stationCode);
+
+  callActive = true;
+  updateCallControlsUI();
+  updateConnectionBadge(false, 'Đang mở camera và micro...');
+  appendChatMessage('Hệ thống', 'Đang xin quyền camera và micro của thiết bị...');
+
+  await initLocalCamera();
+
+  // Cán bộ trực có thể đã bấm "Kết thúc cuộc gọi" trong lúc trình duyệt còn đang
+  // hỏi quyền truy cập - khi đó phải trả lại thiết bị chứ không vào phòng khám.
+  if (!callActive) {
+    releaseLocalMedia();
+    return;
+  }
+
+  startCallTimer();
+  await joinRoom();
+}
+
+/**
+ * Đóng phiên khám: rời phòng signaling, đóng kết nối ngang hàng và TẮT HẲN
+ * camera/micro (gọi track.stop() nên đèn báo camera của máy cũng tắt theo).
+ */
+function endTeleconsultation(options) {
+  const silent = options && options.silent;
+  const wasActive = callActive;
+  callActive = false;
+
+  stopPolling();
+  if (rejoinTimer) {
+    clearTimeout(rejoinTimer);
+    rejoinTimer = null;
+  }
+  rejoinAttempts = 0;
+
+  if (roomId && peerId) {
+    fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'leave', roomId, peerId }),
+      keepalive: true
+    }).catch(() => {});
+  }
+  peerId = null;
+
+  if (peerConnection) {
+    try {
+      peerConnection.ontrack = null;
+      peerConnection.onicecandidate = null;
+      peerConnection.close();
+    } catch (err) {}
+    peerConnection = null;
+  }
+
+  releaseLocalMedia();
+  stopCallTimer();
+  stopSpeechToText();
+
+  isConnected = false;
+  remotePeerName = null;
+  pendingCandidates = [];
+  showRemotePlaceholder();
+  updateCallControlsUI();
+  updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
+
+  if (wasActive && !silent) {
+    appendChatMessage('Hệ thống', 'Đã kết thúc cuộc gọi. Camera và micro của điểm trạm đã tắt.');
+  }
+}
+
+/** Trả camera/micro về cho hệ điều hành và xoá hình xem trước tại chỗ. */
+function releaseLocalMedia() {
+  if (localStream) {
+    localStream.getTracks().forEach(track => {
+      try { track.stop(); } catch (err) {}
+    });
+    localStream = null;
+  }
+  videoDevices = [];
+  currentCamIndex = 0;
+  isMicMuted = false;
+  isVideoMuted = false;
+
+  const localVideo = document.getElementById('local-video');
+  if (localVideo) localVideo.srcObject = null;
+}
+
+/**
+ * Đồng bộ thanh điều khiển với trạng thái phiên gọi: lúc chưa gọi thì hiện nút
+ * "Bắt đầu cuộc gọi", khoá các nút camera/micro và bật tấm che khung hình tại
+ * chỗ để không ai tưởng camera đang chạy.
+ */
+function updateCallControlsUI() {
+  const startBtn = document.getElementById('btn-start-call');
+  if (startBtn) startBtn.classList.toggle('hidden', callActive);
+
+  const endBtn = document.getElementById('btn-end-call');
+  if (endBtn) endBtn.classList.toggle('hidden', !callActive);
+
+  ['btn-toggle-camera', 'btn-toggle-mic', 'btn-toggle-video'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = !callActive;
+    btn.classList.toggle('opacity-40', !callActive);
+    btn.classList.toggle('cursor-not-allowed', !callActive);
+  });
+
+  const idleCover = document.getElementById('local-media-idle');
+  if (idleCover) idleCover.classList.toggle('hidden', callActive);
+
+  const camStatus = document.getElementById('camera-status-text');
+  if (camStatus && !callActive) {
+    camStatus.textContent = 'Camera & micro đang TẮT - chỉ bật khi bắt đầu cuộc gọi khám từ xa.';
+  }
 }
 
 // Load CMS Users & Prescription Signers
@@ -333,7 +479,12 @@ function acceptPatientCall(targetRoomId, patientName, symptoms) {
     }).catch(() => {});
   }
 
-  joinRoom();
+  // Bấm "Tiếp nhận" chính là thao tác vào cuộc gọi: đến đây mới mở camera/micro.
+  if (callActive) {
+    joinRoom();
+  } else {
+    startTeleconsultation(targetRoomId);
+  }
   showAlertBanner(`Đã tiếp nhận và kết nối với bệnh nhân: ${patientName}`);
 }
 
@@ -370,6 +521,15 @@ function sendSignal(type, payload, to) {
 }
 
 async function joinRoom() {
+  // Rào chắn cuối cùng: không bao giờ đăng ký điểm trạm vào phòng signaling khi
+  // cán bộ trực chưa bấm nút gọi. Mọi lối gọi tới đây (đổi điểm trạm, đăng nhập,
+  // thử kết nối lại, gọi tay từ console) đều bị chặn nếu chưa có phiên gọi.
+  if (!callActive) {
+    console.warn('Bỏ qua joinRoom(): chưa bắt đầu cuộc gọi khám từ xa.');
+    updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
+    return;
+  }
+
   stopPolling();
   if (rejoinTimer) {
     clearTimeout(rejoinTimer);
@@ -428,6 +588,9 @@ async function joinRoom() {
  */
 function scheduleRejoin() {
   if (rejoinTimer) clearTimeout(rejoinTimer);
+  // Không tự vào lại phòng khi cuộc gọi đã kết thúc - nếu không thì nút "Kết
+  // thúc cuộc gọi" sẽ bị một hẹn giờ cũ kéo ngược vào phòng khám.
+  if (!callActive) return;
   const delay = Math.min(3000 * Math.pow(2, rejoinAttempts), 30000);
   rejoinAttempts += 1;
   updateConnectionBadge(false, `Mất kết nối - thử lại sau ${Math.round(delay / 1000)}s...`);
@@ -737,6 +900,13 @@ async function drainPendingCandidates() {
 
 // 3. Local Camera & Dual-Camera Switcher Logic
 async function initLocalCamera(deviceId = null) {
+  // Chỉ mở thiết bị khi đang trong phiên gọi. Đây là nơi duy nhất gọi
+  // getUserMedia trong bảng điều khiển, nên rào ở đây là rào được tất cả.
+  if (!callActive) {
+    console.warn('Bỏ qua initLocalCamera(): chưa bắt đầu cuộc gọi khám từ xa.');
+    return;
+  }
+
   try {
     const constraints = {
       audio: true,
@@ -789,6 +959,11 @@ async function initLocalCamera(deviceId = null) {
 
 // Switch between Wide Angle Camera and Close-Up Lesion/Dermatoscope Camera
 async function toggleCameraDevice() {
+  if (!callActive) {
+    appendChatMessage('Hệ thống', 'Chưa có cuộc gọi nào đang diễn ra - bấm "Bắt đầu cuộc gọi" để bật camera.');
+    return;
+  }
+
   if (videoDevices.length <= 1) {
     // Simulated toggle if only 1 device is physically available on client hardware
     currentCamIndex = currentCamIndex === 0 ? 1 : 0;
@@ -834,7 +1009,10 @@ async function toggleCameraDevice() {
 
 // Toggle Microphone
 function toggleMic() {
-  if (!localStream) return;
+  if (!callActive || !localStream) {
+    appendChatMessage('Hệ thống', 'Micro chỉ hoạt động trong cuộc gọi - bấm "Bắt đầu cuộc gọi" trước.');
+    return;
+  }
   const audioTrack = localStream.getAudioTracks()[0];
   if (audioTrack) {
     isMicMuted = !isMicMuted;
@@ -857,7 +1035,10 @@ function toggleMic() {
 
 // Toggle Video Stream
 function toggleVideo() {
-  if (!localStream) return;
+  if (!callActive || !localStream) {
+    appendChatMessage('Hệ thống', 'Camera chỉ hoạt động trong cuộc gọi - bấm "Bắt đầu cuộc gọi" trước.');
+    return;
+  }
   const videoTrack = localStream.getVideoTracks()[0];
   if (videoTrack) {
     isVideoMuted = !isVideoMuted;
@@ -940,6 +1121,12 @@ function toggleSpeechToText() {
   if (isListeningSTT) {
     stopSpeechToText();
   } else {
+    // Chuyển lời nói thành văn bản cũng là một đường mở micro, nên áp cùng một
+    // quy tắc: chỉ thu âm khi cán bộ trực đã vào cuộc gọi khám từ xa.
+    if (!callActive) {
+      appendChatMessage('Hệ thống', 'Chức năng thu âm chỉ bật trong cuộc gọi - bấm "Bắt đầu cuộc gọi" trước.');
+      return;
+    }
     startSpeechToText();
   }
 }
@@ -1318,9 +1505,11 @@ async function finishAndExportReport() {
     return;
   }
 
-  // Đánh dấu buổi khám đã hoàn tất.
-  signalPost({ action: 'complete' })
-    .catch(err => console.warn('Không cập nhật được trạng thái phòng khám:', err.message));
+  // Đánh dấu buổi khám đã hoàn tất (chỉ khi đang thực sự ở trong một phòng khám).
+  if (callActive && peerId) {
+    signalPost({ action: 'complete' })
+      .catch(err => console.warn('Không cập nhật được trạng thái phòng khám:', err.message));
+  }
 }
 
 /** Đổ toàn bộ dữ liệu buổi khám vào cửa sổ Phiếu khám & Đơn thuốc khổ A5. */
@@ -1537,7 +1726,15 @@ async function submitLogin() {
     }).catch(() => {});
   }
 
-  joinRoom();
+  // Đăng nhập chỉ mở bảng điều khiển. Vào phòng khám và bật camera/micro là một
+  // thao tác riêng, do cán bộ trực chủ động bấm khi thật sự bắt đầu khám.
+  if (callActive && stationChanged) {
+    joinRoom();
+  } else {
+    updateCallControlsUI();
+    updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
+    appendChatMessage('Hệ thống', 'Đã mở Bảng điều khiển. Bấm "Bắt đầu cuộc gọi" khi cần hội chẩn với tuyến trên.');
+  }
 }
 
 // 9. Chat Helpers
@@ -1597,6 +1794,9 @@ function closeAlertBanner() {
 }
 
 function startCallTimer() {
+  // Đồng hồ chỉ chạy trong cuộc gọi, và không bao giờ có hai bộ đếm cùng chạy.
+  stopCallTimer();
+  callTimerSeconds = 0;
   callTimerInterval = setInterval(() => {
     callTimerSeconds++;
     const mins = String(Math.floor(callTimerSeconds / 60)).padStart(2, '0');
@@ -1604,6 +1804,16 @@ function startCallTimer() {
     const timerEl = document.getElementById('call-timer');
     if (timerEl) timerEl.textContent = `${mins}:${secs}`;
   }, 1000);
+}
+
+function stopCallTimer() {
+  if (callTimerInterval) {
+    clearInterval(callTimerInterval);
+    callTimerInterval = null;
+  }
+  callTimerSeconds = 0;
+  const timerEl = document.getElementById('call-timer');
+  if (timerEl) timerEl.textContent = '00:00';
 }
 
 function playBeepTone(freq = 800, duration = 100) {
@@ -1632,6 +1842,8 @@ window.stopQueuePolling = stopQueuePolling;
 window.refreshIncomingCallsQueue = refreshIncomingCallsQueue;
 window.acceptPatientCall = acceptPatientCall;
 window.joinRoom = joinRoom;
+window.startTeleconsultation = startTeleconsultation;
+window.endTeleconsultation = endTeleconsultation;
 window.switchStation = switchStation;
 window.stationList = STATIONS;
 window.toggleCameraDevice = toggleCameraDevice;
