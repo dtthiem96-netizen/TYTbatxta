@@ -99,7 +99,7 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 
 ### Tài khoản Quản trị viên CMS (Mô-đun Xác thực)
 
-- **Tên đăng nhập**: `admin-tytbatxat`
+- **Tên đăng nhập**: `tytbatxat@laocai.gov.vn`
 - **Mật khẩu khởi tạo**: `Admin123@`, nạp sẵn dưới dạng **băm bcrypt (cost factor 10)**
   trong bản di trú `netlify/database/migrations/20260807010000_add_cms_admin_account`
   (bản sao đọc được: `db/sql/create-admin-account.sql`).
@@ -210,7 +210,7 @@ nào có thật), và `403 ACCOUNT_DISABLED` khi tài khoản bị khoá.
 # 1. Đăng nhập, lấy phiếu phiên
 TOKEN=$(curl -s -X POST http://localhost:8889/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin-tytbatxat","password":"Admin123@"}' | jq -r .token)
+  -d '{"username":"tytbatxat@laocai.gov.vn","password":"Admin123@"}' | jq -r .token)
 
 # 2. Gọi tuyến được bảo vệ
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8889/api/cms/dashboard
