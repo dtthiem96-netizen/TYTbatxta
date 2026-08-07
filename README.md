@@ -13,6 +13,7 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 - **`public/app.js` & `app.js`**: Logic xử lý chuyển đổi camera cận cảnh/toàn cảnh, bật/tắt mic, thu âm chuyển giọng nói thành văn bản (Speech-to-Text), đồng bộ chỉ số sinh hiệu và báo động cảnh báo cấp cứu thời gian thực.
 - **`admin/index.html` & `public/admin/index.html`**: Bảng điều khiển Quản trị nội bộ dành cho Cán bộ Y tế (Quản lý bài viết tin tức, cập nhật lịch tiêm chủng, tiếp nhận lịch đăng ký khám).
 - **`netlify/functions/`**: Bộ serverless functions triển khai trên Netlify (`vitals.ts`, `signal.ts`, `clinical-ai.ts`, `cms.ts`, `examination-report.ts`, `station-auth.ts`, `admin-users.ts`, `video.ts`, `ai.ts`).
+- **`auth/`**: Mô-đun Xác thực dùng cho CMS (Express + bcryptjs + jsonwebtoken) - đăng nhập, phiếu phiên JWT hạn 8 giờ, `authMiddleware` bảo vệ tuyến đường. Xem mục 6.
 - **`netlify/lib/auth.ts`**: Lớp xác thực dùng chung - băm mật khẩu bcrypt, ký/kiểm tra phiếu phiên JWT và middleware phân quyền `requireScope()`.
 - **`db/`**: Schema và kết nối cơ sở dữ liệu Netlify Database (PostgreSQL / Drizzle ORM).
 
@@ -96,6 +97,17 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 > Mật khẩu mặc định chỉ dùng để mở khoá hệ thống lần đầu; mật khẩu mới ghi đè giá
 > trị cũ và bản di trú không bao giờ khôi phục lại mật khẩu mặc định.
 
+### Tài khoản Quản trị viên CMS (Mô-đun Xác thực)
+
+- **Tên đăng nhập**: `admin-tytbatxat`
+- **Mật khẩu khởi tạo**: `Admin123@`, nạp sẵn dưới dạng **băm bcrypt (cost factor 10)**
+  trong bản di trú `netlify/database/migrations/20260807010000_add_cms_admin_account`
+  (bản sao đọc được: `db/sql/create-admin-account.sql`).
+- **Vai trò**: `admin` - dùng cho các tuyến `/api/auth/*` và `/api/cms/*` của
+  [Mô-đun Xác thực](#6-mô-đun-xác-thực-authentication-module).
+
+> Đây cũng là mật khẩu khởi tạo, **bắt buộc đổi ngay sau lần đăng nhập đầu tiên**.
+
 ### Các tài khoản mẫu khác
 
 - **Bác sĩ Tư vấn Telehealth**: `bacsituvan@laocai.gov.vn` (mặc định KHÔNG có quyền vào Bảng điều khiển trạm)
@@ -147,7 +159,89 @@ phải đi qua `/api/admin-users` với phiếu phiên có quyền Quản trị.
 
 ---
 
-## 6. Kết Nối API Google Cloud (Gemini / Vertex AI)
+## 6. Mô-đun Xác Thực (Authentication Module)
+
+Mô-đun độc lập trong thư mục `auth/`, dựng trên **Node.js + Express.js + bcryptjs +
+jsonwebtoken**. Đây là nền xác thực dùng cho CMS: đăng nhập bằng mật khẩu băm bcrypt,
+cấp phiếu phiên JWT hạn 8 giờ, và rào chắn các tuyến đường cần đăng nhập.
+
+### Cấu trúc
+
+| Tệp | Vai trò |
+| --- | --- |
+| `auth/authConfig.js` | Hằng số bảo mật: cost factor 10, thời hạn phiếu `8h`, thuật toán `HS256`, cách lấy bí mật ký |
+| `auth/userStore.js` | Tra cứu tài khoản. Mặc định dùng bản gieo hạt khớp với bản di trú; đấu nối kho thật bằng `setUserProvider()` |
+| `auth/authService.js` | `hashPassword`, `comparePassword` (bcrypt), `signAccessToken`, `verifyAccessToken` (JWT), `extractBearerToken` |
+| `auth/authMiddleware.js` | Rào chắn tuyến đường + `requireRole()` phân quyền theo vai trò |
+| `auth/authRoutes.js` | `POST /api/auth/login`, `GET /api/auth/session` |
+| `auth/cmsRoutes.js` | Ví dụ tích hợp: `GET /api/cms/dashboard` |
+| `auth/index.js` | `mountAuthModule(app)` - gắn toàn bộ tuyến đường vào ứng dụng Express |
+| `auth/tools/generate-hash.mjs` | Sinh chuỗi băm bcrypt + câu lệnh SQL khi cần đổi mật khẩu |
+
+Gắn vào một ứng dụng Express bất kỳ:
+
+```js
+import express from 'express';
+import { mountAuthModule } from './auth/index.js';
+
+const app = express();
+app.use(express.json());
+mountAuthModule(app);          // đăng ký /api/auth/* và /api/cms/*
+```
+
+`server.js` đã gọi sẵn `mountAuthModule(app)`, nên chạy `npm start` là dùng được ngay.
+
+### Quy ước mã lỗi của `authMiddleware`
+
+| Mã | Khi nào | Mã lỗi trả về |
+| --- | --- | --- |
+| **401** | Thiếu header `Authorization`, hoặc header không theo lược đồ `Bearer` | `MISSING_TOKEN` |
+| **403** | Phiếu đã quá 8 giờ | `TOKEN_EXPIRED` |
+| **403** | Chữ ký sai, nội dung bị sửa, sai `iss`/`aud`, không phải JWT | `INVALID_TOKEN` |
+| **403** | Phiếu hợp lệ nhưng vai trò không nằm trong `requireRole(...)` | `FORBIDDEN` |
+
+Đăng nhập trả về `400 MISSING_CREDENTIALS` khi thiếu trường, `401 INVALID_CREDENTIALS`
+khi sai tên đăng nhập **hoặc** sai mật khẩu (cùng một thông báo, để không lộ tài khoản
+nào có thật), và `403 ACCOUNT_DISABLED` khi tài khoản bị khoá.
+
+### Thử nhanh
+
+```bash
+# 1. Đăng nhập, lấy phiếu phiên
+TOKEN=$(curl -s -X POST http://localhost:8889/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin-tytbatxat","password":"Admin123@"}' | jq -r .token)
+
+# 2. Gọi tuyến được bảo vệ
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8889/api/cms/dashboard
+
+# 3. Gọi mà không có phiếu -> 401
+curl -i http://localhost:8889/api/cms/dashboard
+```
+
+### Bí mật ký phiếu
+
+Đặt `STATION_JWT_SECRET` (hoặc `JWT_SECRET`) trước khi chạy thật - đúng hai biến mà
+`netlify/lib/auth.ts` dùng, nên cả hai tầng ký bằng một khoá duy nhất. Nếu chưa đặt,
+mô-đun sinh bí mật ngẫu nhiên theo tiến trình và ghi cảnh báo trong log; khi đó mọi
+phiên sẽ mất hiệu lực sau mỗi lần khởi động lại máy chủ.
+
+### Bản chạy thật trên Netlify
+
+`server.js` chỉ chạy khi phát triển tại máy. Bản triển khai Netlify là tĩnh +
+Functions, nên hai tuyến trên có thêm bản serverless tương ứng:
+
+- `netlify/functions/auth-login.ts` → `POST /api/auth/login`
+- `netlify/functions/cms-dashboard.ts` → `GET /api/cms/dashboard`
+
+Hai tệp này đọc tài khoản thẳng từ bảng `users` trên Netlify Database và dùng
+`netlify/lib/auth.ts` để ký/kiểm phiếu, nhờ đó phiếu phiên dùng chung được với
+`/api/station-auth` và toàn bộ CMS hiện có. Quy tắc nghiệp vụ - đối chiếu bcrypt, hạn
+8 giờ, mã lỗi 400/401/403 - giữ nguyên như bản Express.
+
+---
+
+## 7. Kết Nối API Google Cloud (Gemini / Vertex AI)
 
 Trợ lý AI của trang (`POST /api/ai`) gọi mô hình Gemini của Google. Toàn bộ việc
 chọn giấy tờ xác thực nằm trong `netlify/lib/google-ai.ts`, nên đổi cách kết nối
