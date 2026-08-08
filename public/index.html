@@ -1030,6 +1030,29 @@
                             <i class="fas fa-phone-slash"></i>
                         </button>
                     </div>
+
+                    <!-- Chỉnh nhanh âm thanh cho người dân: máy điện thoại để loa
+                         ngoài cạnh mic là nguồn vang/hú thường gặp nhất, nên hai
+                         núm này để ngay trên thanh điều khiển thay vì giấu trong
+                         một bảng cài đặt. -->
+                    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-slate-900/70 px-3 py-2 rounded-2xl border border-slate-800 text-[11px] text-slate-300">
+                        <label class="flex items-center gap-2" for="patient-speaker-range">
+                            <i class="fas fa-volume-high text-blue-400"></i>
+                            <span class="whitespace-nowrap">Âm lượng loa</span>
+                            <input type="range" id="patient-speaker-range" min="0" max="100" value="100" oninput="window.setPatientSpeakerVolume(this.value)" class="w-28 accent-blue-500 align-middle">
+                            <span id="patient-speaker-value" class="font-bold text-blue-300 w-9 text-right">100%</span>
+                        </label>
+                        <label class="flex items-center gap-2" for="patient-noise-select">
+                            <i class="fas fa-wave-square text-blue-400"></i>
+                            <span class="whitespace-nowrap">Lọc tạp âm</span>
+                            <select id="patient-noise-select" onchange="window.setPatientNoiseProfile(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-blue-500">
+                                <option value="off">Tắt</option>
+                                <option value="medium" selected>Vừa</option>
+                                <option value="strong">Mạnh</option>
+                            </select>
+                        </label>
+                        <span id="patient-audio-hint" class="text-[10px] text-slate-500">Nếu nghe vang hoặc hú: hạ âm lượng loa hoặc dùng tai nghe.</span>
+                    </div>
                 </div>
 
                 <!-- Bảng Sinh hiệu & Chat -->
@@ -1867,12 +1890,89 @@
                         <button onclick="window.toggleVideo()" id="btn-toggle-video" title="Bật/Tắt Camera" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700 opacity-40 cursor-not-allowed" disabled>
                             <i id="icon-video" class="fa-solid fa-video text-blue-400 text-sm"></i>
                         </button>
+                        <button onclick="window.toggleAudioSettings()" id="btn-audio-settings" title="Chỉnh âm thanh: chống vang, chống hú, lọc tạp âm phòng khám" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow border border-slate-700">
+                            <i class="fas fa-sliders"></i> Âm thanh
+                        </button>
                         <button onclick="window.sendVitalsToDoctor()" title="Gửi chỉ số sinh hiệu" class="px-3 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
                             <i class="fas fa-paper-plane"></i> Gửi sinh hiệu
                         </button>
                         <button onclick="window.finishAndExportReport()" title="Hoàn thành & Xuất Phiếu khám" class="px-3 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
                             <i class="fas fa-file-invoice"></i> Xuất phiếu khám
                         </button>
+                    </div>
+
+                    <!-- =========================================================
+                         Bảng chỉnh âm thanh cuộc gọi.
+                         Mặc định đã là cấu hình tốt cho phòng khám điểm trạm
+                         (lọc tạp âm mức Vừa + chống hú + né vọng), bảng này chỉ
+                         dành cho lúc cần can thiệp: phòng quá ồn, loa quá to,
+                         hoặc trạm dùng mic/loa rời cắm ngoài.
+                         ========================================================= -->
+                    <div id="audio-settings-panel" class="hidden bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                                <i class="fas fa-wave-square text-blue-400"></i> Âm thanh cuộc gọi
+                            </h4>
+                            <button onclick="window.toggleAudioSettings()" class="text-slate-400 hover:text-white text-xs px-2" aria-label="Đóng bảng âm thanh"><i class="fas fa-times"></i></button>
+                        </div>
+
+                        <!-- Vạch mức tiếng vào mic: xanh = đang truyền lời thoại,
+                             xám = đang chặn tiếng nền, đỏ = vừa chặn một cú hú. -->
+                        <div>
+                            <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                                <span>Mức tiếng thu vào micro</span>
+                                <span id="audio-status-text" class="text-slate-500">Chưa gọi - bộ lọc sẽ chạy khi bắt đầu cuộc gọi.</span>
+                            </div>
+                            <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                                <div id="audio-mic-meter" class="h-full rounded-full bg-slate-600 transition-all duration-75" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1" for="audio-profile-select">Lọc tạp âm thu từ bên ngoài</label>
+                                <select id="audio-profile-select" onchange="window.setCallNoiseProfile(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                                    <option value="off">Tắt (giữ nguyên tiếng thu)</option>
+                                    <option value="medium" selected>Vừa (khuyến nghị)</option>
+                                    <option value="strong">Mạnh (phòng khám ồn)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1" for="audio-speaker-range">Âm lượng loa ngoài <span id="audio-speaker-value" class="text-blue-300 font-bold">100%</span></label>
+                                <input type="range" id="audio-speaker-range" min="0" max="100" value="100" oninput="window.setCallSpeakerVolume(this.value)" class="w-full accent-blue-500 h-8">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-1" for="audio-mic-select">Micro thu</label>
+                                <select id="audio-mic-select" onchange="window.setCallMicDevice(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                                    <option value="">Thiết bị mặc định của máy</option>
+                                </select>
+                            </div>
+                            <div id="audio-speaker-select-wrap" class="hidden">
+                                <label class="block text-[10px] text-slate-400 mb-1" for="audio-speaker-select">Loa phát</label>
+                                <select id="audio-speaker-select" onchange="window.setCallSpeakerDevice(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                                    <option value="">Thiết bị mặc định của máy</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-1.5 pt-1 border-t border-slate-800">
+                            <label class="flex items-start gap-2 text-[11px] text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="audio-anti-howl" checked onchange="window.setCallAntiHowl(this.checked)" class="mt-0.5 accent-blue-500">
+                                <span><strong class="text-white">Chống hú tự động</strong> - phát hiện tiếng rít do loa dội vào mic và chặn ngay tần số đó.</span>
+                            </label>
+                            <label class="flex items-start gap-2 text-[11px] text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="audio-duck" checked onchange="window.setCallDuck(this.checked)" class="mt-0.5 accent-blue-500">
+                                <span><strong class="text-white">Giảm vang khi bác sĩ nói</strong> - hạ micro trong lúc loa đang phát để tiếng không dội ngược lại tuyến trên.</span>
+                            </label>
+                        </div>
+
+                        <p id="audio-howl-note" class="hidden text-[10px] text-amber-300 bg-amber-950/50 border border-amber-900 rounded-lg px-2 py-1.5"></p>
+                        <p id="audio-engine-note" class="hidden text-[10px] text-slate-400 bg-slate-800/60 border border-slate-700 rounded-lg px-2 py-1.5">
+                            Trình duyệt này không hỗ trợ xử lý âm thanh nâng cao - cuộc gọi vẫn chạy với khử vọng sẵn có của trình duyệt.
+                        </p>
+                        <p class="text-[10px] text-slate-500 leading-relaxed">
+                            Vẫn còn vang hoặc hú? Kéo loa ngoài ra xa micro, quay loa hướng về phía bệnh nhân thay vì hướng vào micro, hạ âm lượng loa xuống dưới 70%, hoặc cho cán bộ trực dùng tai nghe có mic.
+                        </p>
                     </div>
 
                     <!-- Khung nhắn tin trực tiếp (Đã mở rộng tối ưu) -->
@@ -6117,6 +6217,10 @@
             cursor: 0,
             pc: null,
             localStream: null,
+            // Luồng gửi đi: tiếng đã qua chuỗi lọc chống vang/chống hú của
+            // CallAudio, kèm nguyên track hình. localStream vẫn giữ luồng gốc để
+            // kết thúc cuộc gọi còn stop() đúng thiết bị.
+            outboundStream: null,
             remoteStream: null,
             polling: false,
             pollToken: 0,
@@ -6249,8 +6353,80 @@
             teleSendSignal('ice', batch);
         }
 
+        /**
+         * Bộ xử lý âm thanh cuộc gọi được định nghĩa trong /app.js (nạp bằng
+         * defer nên chỉ có mặt sau khi trang phân tích xong). Mọi chỗ gọi tới nó
+         * đều nằm trong hàm chạy lúc người dùng bấm nút, nên lúc đó chắc chắn đã
+         * có - nhưng vẫn trả về bản rỗng phòng khi app.js không nạp được: mất
+         * lớp chống vang thì chấp nhận, mất luôn cuộc gọi thì không.
+         */
+        const TELE_AUDIO_FALLBACK = {
+            constraints: () => ({ echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }),
+            attachLocal: (s) => s,
+            detachLocal: () => {},
+            attachRemote: () => {},
+            detachRemote: () => {},
+            setMuted: () => {},
+            release: () => {}
+        };
+        function teleAudio() {
+            return (typeof window !== 'undefined' && window.CallAudio) || TELE_AUDIO_FALLBACK;
+        }
+
+        /* --- Hai núm chỉnh nhanh trên thanh điều khiển của người dân ---------- */
+
+        window.setPatientSpeakerVolume = function(value) {
+            const engine = teleAudio();
+            if (engine.setSpeakerVolume) engine.setSpeakerVolume(Number(value) / 100);
+            const out = document.getElementById('patient-speaker-value');
+            if (out) out.textContent = `${Math.round(Number(value))}%`;
+        };
+
+        window.setPatientNoiseProfile = function(value) {
+            const engine = teleAudio();
+            if (engine.setProfile) engine.setProfile(value);
+        };
+
+        /**
+         * Đăng ký một lần: mỗi khi bộ xử lý đổi trạng thái (né vọng, chặn hú, tự
+         * hạ loa) thì hai núm và dòng gợi ý trên thanh điều khiển cập nhật theo -
+         * người dân thấy máy đang xử lý chứ không tưởng là cuộc gọi bị trục trặc.
+         */
+        let teleAudioUiBound = false;
+        function teleBindAudioUi() {
+            if (teleAudioUiBound) return;
+            const engine = teleAudio();
+            if (!engine.onUpdate) return;
+            teleAudioUiBound = true;
+            engine.onUpdate(() => {
+                // Chỉ vẽ khi đang có phiên gọi của người dân trên màn hình; bảng
+                // của điểm trạm do app.js tự lo phần hiển thị của nó.
+                if (TELE.roomId && document.getElementById('patient-speaker-range')) telePaintAudioControls();
+            });
+        }
+
+        /** Đưa hai núm về đúng giá trị đang dùng (đã nhớ từ cuộc gọi trước). */
+        function telePaintAudioControls() {
+            const engine = teleAudio();
+            if (!engine.getState) return;
+            const s = engine.getState();
+            const range = document.getElementById('patient-speaker-range');
+            const out = document.getElementById('patient-speaker-value');
+            const sel = document.getElementById('patient-noise-select');
+            const pct = Math.round(s.speakerVolume * 100);
+            if (range && document.activeElement !== range) range.value = String(pct);
+            if (out) out.textContent = `${pct}%`;
+            if (sel && sel.value !== s.profile) sel.value = s.profile;
+            const hint = document.getElementById('patient-audio-hint');
+            if (hint) {
+                if (s.howling) hint.textContent = 'Đang có tiếng hú - máy đã tự hạ loa. Hãy đưa điện thoại ra xa loa ngoài.';
+                else if (s.ducking) hint.textContent = 'Cán bộ y tế đang nói - micro tạm hạ để không dội tiếng.';
+                else hint.textContent = 'Nếu nghe vang hoặc hú: hạ âm lượng loa hoặc dùng tai nghe.';
+            }
+        }
+
         async function teleAcquireMedia() {
-            const audioConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+            const audioConstraints = teleAudio().constraints();
             // Xin đúng một cấu hình khung hình ngay từ đầu (kèm trần độ phân giải và
             // số khung hình) để trình duyệt không phải khởi động lại camera lần hai -
             // đây là phần chiếm nhiều thời gian nhất khi bắt đầu cuộc gọi.
@@ -6283,10 +6459,21 @@
 
             teleTuneLocalTracks(TELE.localStream);
 
+            // Tiếng gửi đi phải qua chuỗi lọc chống vang/chống hú trước; hình đi
+            // thẳng. TELE.localStream vẫn là luồng gốc để lúc kết thúc còn stop()
+            // đúng thiết bị và tắt đèn báo camera.
+            TELE.outboundStream = teleAudio().attachLocal(TELE.localStream) || TELE.localStream;
+            teleAudio().setMuted(!TELE.micOn);
+            teleBindAudioUi();
+            telePaintAudioControls();
+
             const localEl = document.getElementById(teleEls().local);
             if (localEl) {
                 localEl.srcObject = TELE.localStream;
+                // Ô xem trước của chính mình luôn câm: nghe lại tiếng mic của
+                // mình qua loa là tự khép vòng hú ngay trong vài giây đầu.
                 localEl.muted = true;
+                localEl.volume = 0;
                 localEl.playsInline = true;
                 if (TELE.localStream) localEl.play().catch(() => {});
             }
@@ -6352,7 +6539,8 @@
             TELE.remoteStream = new MediaStream();
 
             if (TELE.localStream) {
-                TELE.localStream.getTracks().forEach(track => pc.addTrack(track, TELE.localStream));
+                const sendStream = TELE.outboundStream || TELE.localStream;
+                sendStream.getTracks().forEach(track => pc.addTrack(track, sendStream));
                 teleTuneVideoSender(pc);
             } else {
                 // Vẫn mở kênh nhận để nghe/xem được đầu bên kia khi thiết bị không có camera/mic.
@@ -6371,16 +6559,23 @@
             pc.ontrack = (ev) => {
                 const stream = (ev.streams && ev.streams[0]) ? ev.streams[0] : TELE.remoteStream;
                 if (stream === TELE.remoteStream) TELE.remoteStream.addTrack(ev.track);
-                // Rút ngắn bộ đệm phát lại: hình về gần thời gian thực thay vì trễ ~200ms.
-                try { if (ev.receiver) ev.receiver.playoutDelayHint = 0; } catch (e) {}
+                // Rút ngắn bộ đệm phát lại CHO HÌNH: hình về gần thời gian thực
+                // thay vì trễ ~200ms. Cố ý không đụng tới luồng tiếng - ép bộ đệm
+                // chống rung của tiếng về 0 thì mỗi gói về trễ thành một tiếng
+                // lụp bụp/lạo xạo, đúng thứ tiếng kêu người dùng phản ánh.
+                try {
+                    if (ev.receiver && ev.track && ev.track.kind === 'video') ev.receiver.playoutDelayHint = 0;
+                } catch (e) {}
                 const remoteEl = document.getElementById(teleEls().remote);
                 if (remoteEl && remoteEl.srcObject !== stream) {
                     remoteEl.srcObject = stream;
                     remoteEl.muted = false;
-                    remoteEl.volume = 1;
                     remoteEl.playsInline = true;
                     remoteEl.play().catch(() => window.showToast("Nhấn vào màn hình video để bật loa ngoài."));
                 }
+                // Bộ xử lý cần nghe được tiếng ra loa thì mới biết lúc nào phải
+                // hạ mic (né vọng) và lúc nào tiếng đang quay vòng thành hú.
+                try { teleAudio().attachRemote(remoteEl, stream); } catch (e) {}
                 teleShowRemotePlaceholder(false);
             };
 
@@ -6690,10 +6885,12 @@
             }
             if (TELE.localStream) {
                 if (TELE.localStream !== cmsSharedStream) {
+                    try { teleAudio().detachLocal(); } catch (e) {}
                     TELE.localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
                 }
                 TELE.localStream = null;
             }
+            TELE.outboundStream = null;
             TELE.remoteStream = null;
             TELE.pendingCandidates = [];
             TELE.iceQueue = [];
@@ -6701,7 +6898,10 @@
 
             ['patient-local-video', 'patient-remote-video', 'cms-local-video', 'cms-remote-video'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.srcObject = null;
+                if (el) {
+                    el.srcObject = null;
+                    try { teleAudio().detachRemote(el); } catch (e) {}
+                }
             });
             if (TELE.vitalsTimer) { clearTimeout(TELE.vitalsTimer); TELE.vitalsTimer = null; }
             TELE.roomId = null;
@@ -6754,6 +6954,14 @@
                 } else {
                     TELE.localStream = newStream;
                 }
+                // Luồng gửi đi (tiếng đã lọc + hình) cũng phải đổi sang camera mới,
+                // nếu không thì cuộc gọi kế tiếp trong phiên sẽ gửi track đã tắt.
+                if (TELE.outboundStream && TELE.outboundStream !== TELE.localStream) {
+                    TELE.outboundStream.getVideoTracks().forEach(t => {
+                        try { TELE.outboundStream.removeTrack(t); } catch (e) {}
+                    });
+                    try { TELE.outboundStream.addTrack(newTrack); } catch (e) {}
+                }
 
                 const localEl = document.getElementById(teleEls().local);
                 if (localEl) localEl.srcObject = TELE.localStream;
@@ -6792,6 +7000,9 @@
             const on = teleToggleTrack('audio');
             if (on === null) return;
             TELE.micOn = on;
+            // Chặn luôn ở cuối chuỗi lọc: tắt track thô rồi nhưng đuôi tiếng còn
+            // đọng trong bộ nén vẫn kịp thoát ra thêm một nhịp.
+            try { teleAudio().setMuted(!on); } catch (e) {}
             teleRenderToggleBtn(btnId, on, 'fa-microphone', 'fa-microphone-slash');
             window.showToast(on ? "Đã bật micro điểm trạm." : "Đã tắt micro (chế độ im lặng).");
         }
@@ -7643,12 +7854,13 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
         let cmsFocusedRoomId = null;
         let cmsSharedStream = null;        // camera/micro dùng chung cho mọi phiên
         let cmsSharedStreamPromise = null;
+        let cmsOutboundStream = null;      // bản đã lọc chống vang của luồng trên
 
         /** Camera/micro chỉ mở đúng một lần rồi chia cho tất cả cuộc gọi. */
         function cmsEnsureSharedMedia() {
             if (cmsSharedStream) return Promise.resolve(cmsSharedStream);
             if (cmsSharedStreamPromise) return cmsSharedStreamPromise;
-            const audioConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+            const audioConstraints = teleAudio().constraints();
             const videoConstraints = {
                 width: { ideal: 1280, max: 1280 },
                 height: { ideal: 720, max: 720 },
@@ -7663,6 +7875,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                     cmsSharedStream = stream;
                     cmsSharedStreamPromise = null;
                     teleTuneLocalTracks(stream);
+                    // Một luồng lọc dùng chung cho cả bốn cuộc gọi song song:
+                    // dựng chuỗi lọc cho từng phiên vừa tốn CPU vừa khiến mỗi
+                    // bệnh nhân nghe một mức tiếng khác nhau.
+                    cmsOutboundStream = stream ? (teleAudio().attachLocal(stream) || stream) : null;
                     if (!stream) window.showToast("Không mở được camera/micro - cuộc gọi sẽ chỉ nhận hình từ bệnh nhân.");
                     return stream;
                 });
@@ -7671,8 +7887,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
 
         function cmsReleaseSharedMedia() {
             if (cmsSharedStream) {
+                try { teleAudio().detachLocal(); } catch (e) {}
                 cmsSharedStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
                 cmsSharedStream = null;
+                cmsOutboundStream = null;
             }
         }
 
@@ -7710,7 +7928,8 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             session.remoteStream = new MediaStream();
 
             if (cmsSharedStream) {
-                cmsSharedStream.getTracks().forEach(track => pc.addTrack(track, cmsSharedStream));
+                const sendStream = cmsOutboundStream || cmsSharedStream;
+                sendStream.getTracks().forEach(track => pc.addTrack(track, sendStream));
                 session.audioSender = pc.getSenders().find(s => s.track && s.track.kind === 'audio') || null;
                 teleTuneVideoSender(pc);
             } else {
@@ -7726,7 +7945,11 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             pc.ontrack = (ev) => {
                 const stream = (ev.streams && ev.streams[0]) ? ev.streams[0] : session.remoteStream;
                 if (stream === session.remoteStream) session.remoteStream.addTrack(ev.track);
-                try { if (ev.receiver) ev.receiver.playoutDelayHint = 0; } catch (e) {}
+                // Chỉ rút bộ đệm của HÌNH; bộ đệm chống rung của TIẾNG phải giữ,
+                // nếu không tiếng bệnh nhân về sẽ lạo xạo mỗi khi mạng gợn.
+                try {
+                    if (ev.receiver && ev.track && ev.track.kind === 'video') ev.receiver.playoutDelayHint = 0;
+                } catch (e) {}
                 session.remoteStream = stream;
                 cmsAttachSessionVideo(session);
             };
@@ -7760,10 +7983,12 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 if (remoteEl && remoteEl.srcObject !== session.remoteStream) {
                     remoteEl.srcObject = session.remoteStream;
                     remoteEl.muted = false;
-                    remoteEl.volume = 1;
                     remoteEl.playsInline = true;
                     remoteEl.play().catch(() => window.showToast("Nhấn vào khung hình để bật loa ngoài."));
                 }
+                // Chỉ phiên đang khám mới phát ra loa, nên cũng chỉ phiên đó được
+                // đưa vào bộ đo né vọng/chống hú.
+                try { teleAudio().attachRemote(remoteEl, session.remoteStream); } catch (e) {}
                 teleShowRemotePlaceholder(false);
             }
         }
@@ -7929,7 +8154,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 session.audioSender = session.pc.getSenders().find(s => s.track && s.track.kind === 'audio') || null;
             }
             if (!session.audioSender || !session.audioSender.replaceTrack) return;
-            const audioTrack = cmsSharedStream ? cmsSharedStream.getAudioTracks()[0] : null;
+            // Phải lấy lại track TIẾNG ĐÃ LỌC: gắn nhầm mic thô vào đây là phiên
+            // vừa bỏ giữ máy sẽ chạy thẳng, không qua lớp chống vang/chống hú.
+            const outbound = cmsOutboundStream || cmsSharedStream;
+            const audioTrack = outbound ? outbound.getAudioTracks()[0] : null;
             session.audioSender.replaceTrack(on ? (audioTrack || null) : null)
                 .catch(() => { /* trình duyệt cũ: bỏ qua, chỉ mất tính năng tắt tiếng một chiều */ });
             session.muted = !on;
@@ -7975,6 +8203,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             TELE.peerId = session.peerId;
             TELE.pc = session.pc;
             TELE.localStream = cmsSharedStream;
+            TELE.outboundStream = cmsOutboundStream;
             TELE.remoteStream = session.remoteStream;
             TELE.patientName = session.patientName;
             TELE.patientId = session.patientId;
@@ -8234,6 +8463,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 // Không còn cuộc nào: trả camera/micro về cho hệ điều hành.
                 cmsReleaseSharedMedia();
                 TELE.localStream = null;
+                TELE.outboundStream = null;
                 const localEl = document.getElementById('cms-local-video');
                 if (localEl) localEl.srcObject = null;
                 activeRoomId = null;

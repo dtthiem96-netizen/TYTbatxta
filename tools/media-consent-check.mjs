@@ -108,10 +108,41 @@ function buildWindow(html, route, calls) {
       win.RTCSessionDescription = (d) => d;
       win.RTCIceCandidate = (c) => c;
 
+      // jsdom chưa có MediaStream. Bản tối giản này đủ để app.js dựng luồng gửi
+      // đi (tiếng đã lọc + track hình) và để bộ kiểm tra đi đúng nhánh chính.
+      win.MediaStream = class {
+        constructor(tracks) { this._tracks = Array.isArray(tracks) ? tracks.slice() : []; }
+        getTracks() { return this._tracks.slice(); }
+        getAudioTracks() { return this._tracks.filter((t) => t.kind === 'audio'); }
+        getVideoTracks() { return this._tracks.filter((t) => t.kind !== 'audio'); }
+        addTrack(t) { if (t && !this._tracks.includes(t)) this._tracks.push(t); }
+        removeTrack(t) { this._tracks = this._tracks.filter((x) => x !== t); }
+      };
+
+      // Bản giả của Web Audio, đủ để chuỗi lọc chống vang/chống hú trong app.js
+      // dựng lên và chạy thật trong jsdom. Thiếu một hàm nào ở đây thì engine sẽ
+      // rơi về nhánh dự phòng và bộ kiểm tra không còn soi được đường chính.
+      const audioParam = () => ({ value: 0, setValueAtTime() {}, setTargetAtTime() {} });
+      const audioNode = () => ({
+        connect() {}, disconnect() {},
+        gain: audioParam(), frequency: audioParam(), Q: audioParam(), detune: audioParam(),
+        threshold: audioParam(), knee: audioParam(), ratio: audioParam(),
+        attack: audioParam(), release: audioParam(),
+        type: '', fftSize: 2048, frequencyBinCount: 1024, smoothingTimeConstant: 0,
+        getFloatTimeDomainData() {}, getFloatFrequencyData() {}
+      });
       win.AudioContext = win.webkitAudioContext = class {
-        constructor() { this.currentTime = 0; this.destination = {}; }
+        constructor() { this.currentTime = 0; this.destination = {}; this.sampleRate = 48000; this.state = 'running'; }
+        resume() { return Promise.resolve(); }
         createOscillator() { return { type: '', frequency: { value: 0 }, connect() {}, start() {}, stop() {} }; }
-        createGain() { return { gain: { setValueAtTime() {} }, connect() {} }; }
+        createGain() { return Object.assign(audioNode(), { gain: { value: 1, setValueAtTime() {}, setTargetAtTime() {} } }); }
+        createBiquadFilter() { return audioNode(); }
+        createDynamicsCompressor() { return audioNode(); }
+        createAnalyser() { return audioNode(); }
+        createMediaStreamSource() { return audioNode(); }
+        createMediaStreamDestination() {
+          return { stream: new win.MediaStream([{ kind: 'audio', enabled: true, stop() { calls.trackStop++; } }]) };
+        }
       };
 
       win.HTMLMediaElement.prototype.play = () => Promise.resolve();
