@@ -1990,6 +1990,26 @@
             </div>
         </div>
 
+        <!-- CHI TIẾT MỘT LƯỢT CUỘC GỌI: ĐƠN THUỐC ĐÃ KÊ & NỘI DUNG TRÒ CHUYỆN -->
+        <div id="call-log-modal" class="modal-content hidden bg-white rounded-3xl w-full max-w-3xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all text-gray-800 border border-gray-200">
+            <div class="bg-gradient-to-r from-indigo-700 to-blue-800 px-6 py-4 flex justify-between items-center text-white">
+                <div>
+                    <h3 class="font-bold text-lg flex items-center gap-2">
+                        <i class="fas fa-clock-rotate-left"></i> CHI TIẾT LƯỢT CUỘC GỌI KHÁM TỪ XA
+                    </h3>
+                    <p id="call-log-modal-sub" class="text-xs text-indigo-200 mt-0.5">Nhật ký đầy đủ của một lượt tiếp nhận cuộc gọi</p>
+                </div>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ chi tiết cuộc gọi">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="call-log-modal-body" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-sm"></div>
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-2 justify-end">
+                <button type="button" onclick="window.printCallLog()" class="bg-white border border-gray-300 text-gray-700 font-bold px-4 py-2 rounded-lg hover:bg-gray-100 transition text-sm"><i class="fas fa-print mr-1"></i> In biên bản cuộc gọi</button>
+                <button type="button" onclick="window.closeModal()" class="bg-gray-800 text-white font-bold px-5 py-2 rounded-lg hover:bg-black transition text-sm">Đóng</button>
+            </div>
+        </div>
+
         <!-- PHIẾU KHÁM & ĐƠN THUỐC BẢN IN KHỔ A5 (REPORT MODAL) -->
         <div id="report-modal" class="modal-content hidden bg-white rounded-3xl w-full max-w-3xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all text-gray-800 border border-gray-200">
             <div class="bg-gradient-to-r from-emerald-700 to-teal-800 px-6 py-4 flex justify-between items-center text-white">
@@ -2778,6 +2798,66 @@
                                         </tr>
                                     </thead>
                                     <tbody id="admin-appointments-list" class="divide-y divide-gray-100 text-gray-900 text-xs font-medium"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- ============ LỊCH SỬ CUỘC GỌI KHÁM TỪ XA ============ -->
+                        <div class="mt-8 pt-6 border-t border-gray-200">
+                            <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+                                <div>
+                                    <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
+                                        <i class="fas fa-clock-rotate-left text-indigo-600"></i> Lịch sử cuộc gọi khám từ xa
+                                    </h3>
+                                    <p class="text-sm text-gray-500 mt-1">Nhật ký từng lượt tiếp nhận cuộc gọi: thời gian &amp; ngày gọi, điểm tiếp nhận, cán bộ nhận cuộc gọi, đơn thuốc đã kê và toàn bộ nội dung trò chuyện trong buổi khám.</p>
+                                </div>
+                                <button type="button" onclick="window.refreshCallLogs(true)" class="bg-white border border-gray-300 text-gray-700 font-bold px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm whitespace-nowrap"><i class="fas fa-rotate mr-1"></i> Tải lại lịch sử</button>
+                            </div>
+
+                            <!-- Cảnh báo khi phiên chưa được máy chủ xác thực -->
+                            <div id="call-log-auth-warning" class="hidden mb-4 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl px-4 py-3 text-sm font-bold">
+                                <i class="fas fa-triangle-exclamation mr-1"></i>
+                                <span id="call-log-auth-warning-text">Phiên đăng nhập chưa được máy chủ xác thực. Đăng nhập lại CMS để xem lịch sử cuộc gọi.</span>
+                            </div>
+
+                            <!-- Bộ lọc nhật ký -->
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="call-log-search">Tìm theo bệnh nhân / cán bộ / mã phòng</label>
+                                    <input type="search" id="call-log-search" oninput="window.renderCallLogs()" placeholder="VD: Nguyễn Văn A, BS. Mai, room-tyt-batxat-01..." class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="call-log-station">Điểm tiếp nhận cuộc gọi</label>
+                                    <select id="call-log-station" onchange="window.renderCallLogs()" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
+                                        <option value="">-- Tất cả điểm trạm --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1" for="call-log-date">Ngày gọi</label>
+                                    <input type="date" id="call-log-date" onchange="window.renderCallLogs()" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900">
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 mb-3">
+                                <span id="call-log-summary" class="text-xs font-bold text-gray-500">Chưa tải lịch sử cuộc gọi.</span>
+                                <button type="button" onclick="window.exportCallLogsCsv()" class="ml-auto bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition text-xs"><i class="fas fa-file-csv mr-1"></i> Xuất bảng kê (CSV)</button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden">
+                                    <thead class="bg-gray-100 text-gray-600 text-xs uppercase">
+                                        <tr>
+                                            <th class="p-3 font-bold">Thời gian / Ngày</th>
+                                            <th class="p-3 font-bold">Điểm tiếp nhận cuộc gọi</th>
+                                            <th class="p-3 font-bold">Cán bộ nhận cuộc gọi</th>
+                                            <th class="p-3 font-bold">Bệnh nhân</th>
+                                            <th class="p-3 font-bold text-center">Thời lượng</th>
+                                            <th class="p-3 font-bold">Lịch sử đơn thuốc</th>
+                                            <th class="p-3 font-bold text-center">Nội dung trò chuyện</th>
+                                            <th class="p-3 font-bold text-center">Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-call-logs-list" class="divide-y divide-gray-100 text-gray-900 text-xs font-medium"></tbody>
                                 </table>
                             </div>
                         </div>
@@ -3978,6 +4058,7 @@
                                 <div class="flex items-center justify-center gap-2">
                                     ${isTele ? `<button type="button" class="cms-accept-call bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-lg text-xs transition flex items-center gap-1 shadow-sm" data-room="${teleEscape(a.roomId || 'room-' + a.id)}" data-patient="${teleEscape(a.patientName || 'Bệnh nhân')}" data-symptoms="${teleEscape(a.symptoms || '')}" data-idcard="${teleEscape(a.idCard || '')}" data-appointment="${teleEscape(a.id)}"><i class="fas fa-video"></i> Gọi ngay</button>` : ''}
                                     <button onclick="window.completeAppointment('${a.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-lg text-xs transition" title="Đánh dấu hoàn thành"><i class="fas fa-check"></i></button>
+                                    <button onclick="window.showCallLogsForPatient('${teleEscape(a.patientName || '')}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2 py-1 rounded-lg text-xs transition" title="Xem lịch sử cuộc gọi của bệnh nhân này"><i class="fas fa-clock-rotate-left"></i></button>
                                     <button onclick="window.deleteItem('appointments', '${a.id}')" class="text-red-500 hover:text-red-700 p-1" title="Xóa"><i class="fas fa-trash-alt"></i></button>
                                 </div>
                             </td>
@@ -5133,6 +5214,8 @@
 
             if (tabName === 'telehealth') {
                 window.checkCmsVideoPermission();
+                // Mở tab là nạp lại nhật ký cuộc gọi cho khối "Lịch sử cuộc gọi".
+                window.refreshCallLogs();
             }
             if (tabName === 'signature') {
                 window.initSignaturePad();
@@ -5571,6 +5654,427 @@
                 window.renderUI();
                 window.showToast("Đã hoàn thành lượt khám!");
             }
+        };
+
+        /* =====================================================================
+           LỊCH SỬ CUỘC GỌI KHÁM TỪ XA (CMS QUẢN TRỊ)
+
+           Mỗi lần cán bộ bấm "Tiếp nhận cuộc gọi", một bản ghi nhật ký được mở
+           trên máy chủ và được chốt lại khi cuộc gọi kết thúc. Bản ghi giữ đủ
+           năm nhóm thông tin nghiệp vụ: thời gian, ngày, điểm tiếp nhận cuộc
+           gọi, cán bộ nhận cuộc gọi, đơn thuốc đã kê và toàn bộ nội dung trò
+           chuyện của buổi khám.
+
+           Dữ liệu chứa bệnh sử và lời thoại của bệnh nhân nên tuyến /api/call-logs
+           luôn yêu cầu phiếu phiên; không có phiếu thì bảng chỉ hiện cảnh báo
+           thay vì gọi hỏng.
+           ===================================================================== */
+
+        let callLogsData = [];
+        let callLogDetailId = null;
+
+        /** Gọi tuyến lịch sử cuộc gọi kèm phiếu phiên đang đăng nhập. */
+        window.callLogRequest = async function(payload, method, query) {
+            const session = window.getCmsAdminSession();
+            if (!session) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại CMS.');
+
+            const options = {
+                method: method || 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + session.token
+                }
+            };
+            if (options.method !== 'GET') options.body = JSON.stringify(payload || {});
+
+            const res = await fetch('/api/call-logs' + (query || ''), options);
+            const data = await res.json().catch(() => null);
+            if (res.status === 401) {
+                window.clearCmsAdminSession();
+                throw new Error((data && data.error) || 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại CMS.');
+            }
+            if (!res.ok || !data || data.success !== true) {
+                throw new Error((data && data.error) || 'Máy chủ từ chối thao tác trên lịch sử cuộc gọi.');
+            }
+            return data;
+        };
+
+        /** Ghi nhật ký "âm thầm": lỗi mạng không được làm gián đoạn buổi khám. */
+        function callLogSilent(payload) {
+            return window.callLogRequest(payload).catch(err => {
+                console.warn('Không ghi được lịch sử cuộc gọi:', err && err.message);
+                return null;
+            });
+        }
+
+        function callLogPad(n) { return String(n).padStart(2, '0'); }
+
+        function callLogDateKey(log) {
+            const at = Number(log && (log.startedAt || log.ts)) || 0;
+            if (!at) return '';
+            const d = new Date(at);
+            return `${d.getFullYear()}-${callLogPad(d.getMonth() + 1)}-${callLogPad(d.getDate())}`;
+        }
+
+        function callLogDuration(log) {
+            const secs = Number(log && log.durationSec) || 0;
+            if (secs <= 0) return log && log.status === 'IN_CALL' ? 'Đang gọi' : '—';
+            const m = Math.floor(secs / 60);
+            const s = secs % 60;
+            return m ? `${m} phút ${callLogPad(s)} giây` : `${s} giây`;
+        }
+
+        function callLogTranscript(log) {
+            if (!log || !log.chatTranscript) return [];
+            try {
+                const parsed = JSON.parse(log.chatTranscript);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (err) {
+                return [];
+            }
+        }
+
+        /** Gom 4 mục đơn thuốc thành các dòng để hiển thị/in. */
+        function callLogPrescriptionLines(log) {
+            return [
+                { label: 'Chẩn đoán', value: log.diagnosis },
+                { label: 'Hướng xử trí', value: log.treatmentPlan },
+                { label: 'Thuốc kê đơn', value: log.prescription },
+                { label: 'Lời dặn của bác sỹ', value: log.doctorAdvice },
+                { label: 'Người ký đơn', value: log.signerName }
+            ].filter(item => String(item.value || '').trim());
+        }
+
+        /** Bảng lọc điểm tiếp nhận lấy đúng danh mục điểm trạm của hệ thống. */
+        function renderCallLogStationFilter() {
+            const sel = document.getElementById('call-log-station');
+            if (!sel || sel.dataset.filled === 'true') return;
+            const options = (window.TELEHEALTH_STATIONS || [])
+                .map(st => `<option value="${teleEscape(st.code)}">${teleEscape(st.name)}</option>`)
+                .join('');
+            sel.innerHTML = `<option value="">-- Tất cả điểm trạm --</option>` + options;
+            sel.dataset.filled = 'true';
+        }
+
+        window.renderCallLogs = function() {
+            renderCallLogStationFilter();
+            const tbody = document.getElementById('admin-call-logs-list');
+            const summary = document.getElementById('call-log-summary');
+            if (!tbody) return;
+
+            const q = (document.getElementById('call-log-search')?.value || '').trim().toLowerCase();
+            const station = document.getElementById('call-log-station')?.value || '';
+            const day = document.getElementById('call-log-date')?.value || '';
+
+            const rows = callLogsData.filter(log => {
+                if (station && log.stationCode !== station) return false;
+                if (day && callLogDateKey(log) !== day) return false;
+                if (!q) return true;
+                return [log.patientName, log.operatorName, log.roomId, log.stationName, log.diagnosis]
+                    .some(v => String(v || '').toLowerCase().includes(q));
+            });
+
+            if (summary) {
+                const totalChat = rows.reduce((sum, l) => sum + (Number(l.chatCount) || 0), 0);
+                const withRx = rows.filter(l => callLogPrescriptionLines(l).length).length;
+                summary.textContent = `Hiển thị ${rows.length}/${callLogsData.length} lượt cuộc gọi — ${withRx} lượt có đơn thuốc, ${totalChat} dòng hội thoại đã lưu.`;
+            }
+
+            if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-400 font-medium"><i class="fas fa-phone-slash text-3xl mb-2 block"></i>${callLogsData.length ? 'Không có lượt cuộc gọi nào khớp bộ lọc.' : 'Chưa có lượt cuộc gọi nào được ghi nhận.'}</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = rows.map(log => {
+                const at = Number(log.startedAt || log.ts) || 0;
+                const d = at ? new Date(at) : null;
+                const time = log.callTime || (d ? d.toLocaleTimeString('vi-VN') : '—');
+                const date = log.callDate || (d ? d.toLocaleDateString('vi-VN') : '—');
+                const rxLines = callLogPrescriptionLines(log);
+                const chatCount = Number(log.chatCount) || callLogTranscript(log).length;
+                const inCall = log.status === 'IN_CALL';
+
+                const rxCell = rxLines.length
+                    ? `<span class="px-2 py-0.5 bg-cyan-100 text-cyan-800 border border-cyan-300 rounded-full text-[11px] font-bold"><i class="fas fa-prescription-bottle-medical mr-1"></i>${rxLines.length} mục</span>
+                       <span class="block text-[11px] text-gray-500 mt-1 line-clamp-2">${teleEscape(log.diagnosis || log.prescription || '')}</span>`
+                    : `<span class="text-[11px] text-gray-400 italic">Chưa kê đơn</span>`;
+
+                const chatCell = chatCount
+                    ? `<button type="button" onclick="window.openCallLogDetail('${teleEscape(log.id)}')" class="px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-300 rounded-full text-[11px] font-bold hover:bg-blue-200 transition"><i class="fas fa-comments mr-1"></i>${chatCount} tin nhắn</button>`
+                    : `<span class="text-[11px] text-gray-400 italic">Không có</span>`;
+
+                return `<tr class="hover:bg-gray-50 align-top">
+                    <td class="p-3">
+                        <span class="font-black text-gray-900 text-sm">${teleEscape(time)}</span>
+                        <span class="block text-[11px] text-gray-500 font-semibold"><i class="far fa-calendar mr-1"></i>${teleEscape(date)}</span>
+                        ${inCall ? '<span class="inline-block mt-1 px-2 py-0.5 bg-blue-600 text-white rounded-full text-[10px] font-bold animate-pulse">Đang gọi</span>' : '<span class="inline-block mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-[10px] font-bold">Đã kết thúc</span>'}
+                    </td>
+                    <td class="p-3">
+                        <span class="font-bold text-gray-800">${teleEscape(log.stationName || 'Không xác định')}</span>
+                        <span class="block text-[10px] text-gray-400 font-mono mt-0.5">${teleEscape(log.stationCode || log.roomId || '')}</span>
+                    </td>
+                    <td class="p-3">
+                        <span class="font-bold text-gray-800"><i class="fas fa-user-doctor text-indigo-500 mr-1"></i>${teleEscape(log.operatorName || 'Không rõ')}</span>
+                        <span class="block text-[11px] text-gray-500 mt-0.5">${teleEscape(log.operatorRole || '')}</span>
+                    </td>
+                    <td class="p-3">
+                        <span class="font-bold text-gray-900">${teleEscape(log.patientName || 'Chưa rõ tên')}</span>
+                        <span class="block text-[11px] text-gray-500 mt-0.5"><i class="fas fa-id-card mr-1"></i>${teleEscape(log.patientId || 'Chưa có BHYT/CCCD')}</span>
+                    </td>
+                    <td class="p-3 text-center font-bold text-gray-700 whitespace-nowrap">${teleEscape(callLogDuration(log))}</td>
+                    <td class="p-3">${rxCell}</td>
+                    <td class="p-3 text-center">${chatCell}</td>
+                    <td class="p-3 text-center whitespace-nowrap">
+                        <button type="button" onclick="window.openCallLogDetail('${teleEscape(log.id)}')" class="text-indigo-600 hover:text-indigo-800 p-1.5" title="Xem chi tiết cuộc gọi"><i class="fas fa-eye"></i></button>
+                        <button type="button" onclick="window.deleteCallLog('${teleEscape(log.id)}')" class="text-red-500 hover:text-red-700 p-1.5" title="Xóa bản ghi (Quản trị viên)"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                </tr>`;
+            }).join('');
+        };
+
+        window.refreshCallLogs = async function(notify) {
+            const warning = document.getElementById('call-log-auth-warning');
+            const warningText = document.getElementById('call-log-auth-warning-text');
+            const tbody = document.getElementById('admin-call-logs-list');
+            if (!tbody) return;
+
+            if (!window.getCmsAdminSession()) {
+                if (warning) warning.classList.remove('hidden');
+                if (warningText) warningText.textContent = 'Phiên đăng nhập chưa được máy chủ xác thực. Đăng nhập lại CMS để xem lịch sử cuộc gọi.';
+                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-400 font-medium">Cần đăng nhập lại để xem lịch sử cuộc gọi.</td></tr>`;
+                return;
+            }
+
+            try {
+                const data = await window.callLogRequest(null, 'GET', '?limit=300');
+                callLogsData = Array.isArray(data.callLogs) ? data.callLogs : [];
+                if (warning) warning.classList.add('hidden');
+                window.renderCallLogs();
+                if (notify) window.showToast(`Đã tải ${callLogsData.length} lượt cuộc gọi trong nhật ký.`);
+            } catch (err) {
+                if (warning) warning.classList.remove('hidden');
+                if (warningText) warningText.textContent = err.message || 'Không tải được lịch sử cuộc gọi.';
+                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-400 font-medium">Không tải được lịch sử cuộc gọi.</td></tr>`;
+            }
+        };
+
+        window.openCallLogDetail = function(id) {
+            const log = callLogsData.find(l => l.id === id);
+            if (!log) return window.showToast('Không tìm thấy bản ghi cuộc gọi này.');
+            callLogDetailId = id;
+
+            const sub = document.getElementById('call-log-modal-sub');
+            const body = document.getElementById('call-log-modal-body');
+            if (sub) sub.textContent = `${log.patientName || 'Bệnh nhân'} • ${log.callDate || ''} ${log.callTime || ''}`.trim();
+            if (!body) return;
+
+            const rxLines = callLogPrescriptionLines(log);
+            const chat = callLogTranscript(log);
+            let vitals = {};
+            try { vitals = log.vitalsJson ? JSON.parse(log.vitalsJson) : {}; } catch (err) { vitals = {}; }
+            const vitalText = [
+                vitals.bp ? `Huyết áp ${vitals.bp} mmHg` : '',
+                vitals.hr ? `Nhịp tim ${vitals.hr} bpm` : '',
+                vitals.spo2 ? `SpO2 ${vitals.spo2}%` : '',
+                vitals.temp ? `Nhiệt độ ${vitals.temp}°C` : '',
+                vitals.weight ? `Cân nặng ${vitals.weight} kg` : ''
+            ].filter(Boolean).join(' • ');
+
+            const infoCard = (icon, label, value) => `
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                    <span class="block text-[10px] font-black text-gray-400 uppercase tracking-wider"><i class="fas ${icon} mr-1"></i>${label}</span>
+                    <span class="block font-bold text-gray-900 mt-0.5">${teleEscape(value || '—')}</span>
+                </div>`;
+
+            body.innerHTML = `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    ${infoCard('fa-clock', 'Thời gian gọi', log.callTime)}
+                    ${infoCard('fa-calendar-day', 'Ngày gọi', log.callDate)}
+                    ${infoCard('fa-location-dot', 'Điểm tiếp nhận cuộc gọi', log.stationName || log.stationCode)}
+                    ${infoCard('fa-user-doctor', 'Cán bộ nhận cuộc gọi', log.operatorName)}
+                    ${infoCard('fa-user-injured', 'Bệnh nhân', log.patientName)}
+                    ${infoCard('fa-hourglass-half', 'Thời lượng cuộc gọi', callLogDuration(log))}
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <span class="block text-[10px] font-black text-blue-500 uppercase tracking-wider mb-1"><i class="fas fa-heart-pulse mr-1"></i>Sinh hiệu ghi nhận</span>
+                    <span class="font-bold text-blue-900">${teleEscape(vitalText || 'Không có chỉ số sinh hiệu trong lượt khám này.')}</span>
+                </div>
+
+                <div>
+                    <h4 class="font-black text-gray-900 text-sm uppercase tracking-wide mb-2"><i class="fas fa-prescription-bottle-medical text-cyan-600 mr-1"></i>Lịch sử đơn thuốc</h4>
+                    ${rxLines.length ? `<div class="space-y-2">${rxLines.map(item => `
+                        <div class="border border-gray-200 rounded-xl p-3">
+                            <span class="block text-[10px] font-black text-cyan-600 uppercase tracking-wider">${teleEscape(item.label)}</span>
+                            <p class="text-gray-800 font-medium whitespace-pre-line mt-1">${teleEscape(item.value)}</p>
+                        </div>`).join('')}</div>`
+                        : `<p class="text-gray-400 italic text-sm">Lượt khám này chưa kê đơn thuốc.</p>`}
+                </div>
+
+                <div>
+                    <h4 class="font-black text-gray-900 text-sm uppercase tracking-wide mb-2"><i class="fas fa-comments text-blue-600 mr-1"></i>Nội dung trò chuyện (${chat.length} tin nhắn)</h4>
+                    ${chat.length ? `<div class="space-y-2 bg-slate-50 border border-gray-200 rounded-xl p-3 max-h-72 overflow-y-auto">${chat.map(m => `
+                        <div class="bg-white border border-gray-200 rounded-lg px-3 py-2">
+                            <span class="text-[11px] font-black text-blue-700">${teleEscape(m.sender)}</span>
+                            <span class="text-[10px] text-gray-400 ml-1">${teleEscape(m.at)}</span>
+                            <p class="text-gray-800 mt-0.5 whitespace-pre-line">${teleEscape(m.text)}</p>
+                        </div>`).join('')}</div>`
+                        : `<p class="text-gray-400 italic text-sm">Không có tin nhắn nào được trao đổi trong cuộc gọi này.</p>`}
+                </div>`;
+
+            window.openModal('call-log-modal');
+        };
+
+        /** Bản in biên bản một lượt cuộc gọi (khổ A4, dùng để lưu hồ sơ giấy). */
+        window.printCallLog = function() {
+            const log = callLogsData.find(l => l.id === callLogDetailId);
+            if (!log) return window.showToast('Chưa chọn lượt cuộc gọi để in.');
+            const rxLines = callLogPrescriptionLines(log);
+            const chat = callLogTranscript(log);
+
+            const win = window.open('', '_blank');
+            if (!win) return window.showToast('Trình duyệt đã chặn cửa sổ in.');
+            win.document.write(`<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Biên bản cuộc gọi ${teleEscape(log.roomId || '')}</title>
+                <style>
+                    @page { size: A4; margin: 15mm; }
+                    body { font-family: "Times New Roman", serif; font-size: 13pt; color: #000; }
+                    h1 { font-size: 15pt; text-align: center; text-transform: uppercase; margin-bottom: 4px; }
+                    .sub { text-align: center; font-style: italic; font-size: 11pt; margin-bottom: 14px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+                    td, th { border: 1px solid #000; padding: 5px 8px; vertical-align: top; }
+                    th { width: 32%; text-align: left; background: #f0f0f0; }
+                    h2 { font-size: 13pt; text-transform: uppercase; margin: 14px 0 6px; }
+                    .msg { margin-bottom: 6px; }
+                    .who { font-weight: bold; }
+                    .when { font-size: 10pt; color: #444; }
+                </style></head><body>
+                <h1>Biên bản lượt cuộc gọi khám từ xa</h1>
+                <div class="sub">Trạm Y tế Bát Xát — Mã phòng khám: ${teleEscape(log.roomId || '')}</div>
+                <table>
+                    <tr><th>Thời gian gọi</th><td>${teleEscape(log.callTime || '—')}</td></tr>
+                    <tr><th>Ngày gọi</th><td>${teleEscape(log.callDate || '—')}</td></tr>
+                    <tr><th>Điểm tiếp nhận cuộc gọi</th><td>${teleEscape(log.stationName || log.stationCode || '—')}</td></tr>
+                    <tr><th>Cán bộ nhận cuộc gọi</th><td>${teleEscape(log.operatorName || '—')} ${teleEscape(log.operatorRole ? '(' + log.operatorRole + ')' : '')}</td></tr>
+                    <tr><th>Bệnh nhân</th><td>${teleEscape(log.patientName || '—')} — ${teleEscape(log.patientId || 'Chưa có BHYT/CCCD')}</td></tr>
+                    <tr><th>Thời lượng cuộc gọi</th><td>${teleEscape(callLogDuration(log))}</td></tr>
+                </table>
+                <h2>Lịch sử đơn thuốc</h2>
+                ${rxLines.length ? `<table>${rxLines.map(i => `<tr><th>${teleEscape(i.label)}</th><td>${teleEscape(i.value).replace(/\n/g, '<br>')}</td></tr>`).join('')}</table>`
+                    : '<p><i>Lượt khám này chưa kê đơn thuốc.</i></p>'}
+                <h2>Nội dung trò chuyện</h2>
+                ${chat.length ? chat.map(m => `<div class="msg"><span class="who">${teleEscape(m.sender)}</span> <span class="when">${teleEscape(m.at)}</span><br>${teleEscape(m.text)}</div>`).join('')
+                    : '<p><i>Không có tin nhắn nào được trao đổi.</i></p>'}
+                </body></html>`);
+            win.document.close();
+            win.focus();
+            setTimeout(() => { try { win.print(); } catch (err) {} }, 350);
+        };
+
+        window.exportCallLogsCsv = function() {
+            if (!callLogsData.length) return window.showToast('Chưa có lịch sử cuộc gọi để xuất.');
+            const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""').replace(/\r?\n/g, ' ') + '"';
+            const head = ['Thời gian', 'Ngày', 'Điểm tiếp nhận', 'Cán bộ nhận cuộc gọi', 'Bệnh nhân', 'Số BHYT/CCCD', 'Thời lượng', 'Chẩn đoán', 'Thuốc kê đơn', 'Lời dặn', 'Số tin nhắn', 'Mã phòng'];
+            const lines = [head.map(cell).join(',')];
+            callLogsData.forEach(log => {
+                lines.push([
+                    log.callTime, log.callDate, log.stationName || log.stationCode, log.operatorName,
+                    log.patientName, log.patientId, callLogDuration(log), log.diagnosis, log.prescription,
+                    log.doctorAdvice, log.chatCount || 0, log.roomId
+                ].map(cell).join(','));
+            });
+            // BOM để Excel đọc đúng tiếng Việt có dấu.
+            const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lich-su-cuoc-goi-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            window.showToast('Đã xuất bảng kê lịch sử cuộc gọi.');
+        };
+
+        /** Từ một dòng đăng ký khám, nhảy thẳng xuống lịch sử cuộc gọi của bệnh nhân đó. */
+        window.showCallLogsForPatient = async function(patientName) {
+            const search = document.getElementById('call-log-search');
+            if (search) search.value = patientName || '';
+            const station = document.getElementById('call-log-station');
+            if (station) station.value = '';
+            const day = document.getElementById('call-log-date');
+            if (day) day.value = '';
+            if (!callLogsData.length) await window.refreshCallLogs();
+            else window.renderCallLogs();
+            const tbody = document.getElementById('admin-call-logs-list');
+            if (tbody) tbody.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+
+        window.deleteCallLog = async function(id) {
+            if (!confirm('Xóa vĩnh viễn bản ghi lịch sử cuộc gọi này? Nội dung trò chuyện và đơn thuốc đã lưu sẽ mất.')) return;
+            try {
+                await window.callLogRequest({ action: 'delete', id });
+                callLogsData = callLogsData.filter(l => l.id !== id);
+                window.renderCallLogs();
+                window.showToast('Đã xóa bản ghi lịch sử cuộc gọi.');
+            } catch (err) {
+                window.showToast(err.message || 'Không xóa được bản ghi lịch sử cuộc gọi.');
+            }
+        };
+
+        /** Ảnh chụp một phiên gọi để gửi lên nhật ký. */
+        function callLogPayload(session, action) {
+            const dx = session.dx || {};
+            const signer = Array.isArray(prescriptionSignersData)
+                ? prescriptionSignersData.find(s => s.id === session.signerId)
+                : null;
+            return {
+                action: action,
+                id: session.logId,
+                roomId: session.roomId,
+                appointmentId: session.appointmentId || '',
+                patientName: session.patientName || '',
+                patientId: session.patientId || '',
+                stationCode: session.stationCode || '',
+                stationName: session.stationName || '',
+                callDate: session.callDate || '',
+                callTime: session.callTime || '',
+                startedAt: session.startedAt || null,
+                endedAt: action === 'finish' ? Date.now() : null,
+                diagnosis: dx.diagnosis || '',
+                treatmentPlan: dx.plan || '',
+                prescription: dx.drugs || '',
+                doctorAdvice: session.advice || '',
+                signerName: signer ? `${signer.title || ''} ${signer.name || ''}`.trim() : '',
+                vitals: session.vitals || {},
+                chatTranscript: session.chatLog || []
+            };
+        }
+
+        /** Mở bản ghi nhật ký ngay khi cán bộ tiếp nhận cuộc gọi. */
+        window.callLogStartSession = function(session) {
+            const now = new Date();
+            session.logId = 'CL-' + now.getTime().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+            session.startedAt = session.startedAt || now.getTime();
+            session.callDate = now.toLocaleDateString('vi-VN');
+            session.callTime = now.toLocaleTimeString('vi-VN');
+            const station = window.teleStationFromRoomId(session.roomId);
+            session.stationCode = station ? station.code : '';
+            session.stationName = station ? station.name : 'Không xác định điểm trạm';
+            return callLogSilent(callLogPayload(session, 'start'));
+        };
+
+        /** Cập nhật đơn thuốc / hội thoại đang diễn ra vào nhật ký. */
+        window.callLogUpdateSession = function(session) {
+            if (!session || !session.logId) return Promise.resolve(null);
+            return callLogSilent(callLogPayload(session, 'update'));
+        };
+
+        /** Chốt bản ghi khi cuộc gọi kết thúc rồi làm mới bảng lịch sử. */
+        window.callLogFinishSession = function(session) {
+            if (!session || !session.logId) return Promise.resolve(null);
+            return callLogSilent(callLogPayload(session, 'finish')).then(res => {
+                const section = document.getElementById('admin-telehealth-section');
+                if (section && section.classList.contains('active')) window.refreshCallLogs();
+                return res;
+            });
         };
 
         /* =====================================================================
@@ -6665,6 +7169,20 @@
             TELE.doctorAdvice = advice;
             TELE.patientId = teleReadPatientId();
             teleApplyClinicalNotes(dx, false);
+
+            /* Ghi ngay đơn thuốc vừa kê vào nhật ký cuộc gọi: mục "Lịch sử đơn
+               thuốc" phản ánh đúng cả khi cán bộ đóng trình duyệt đột ngột. */
+            if (cmsFocusedRoomId && CMS_CALLS.has(cmsFocusedRoomId)) {
+                const session = CMS_CALLS.get(cmsFocusedRoomId);
+                session.dx = dx;
+                session.advice = advice;
+                session.signerId = TELE.signerId || session.signerId;
+                session.patientId = TELE.patientId || session.patientId;
+                session.vitals = TELE.vitals || session.vitals;
+                session.chatLog = TELE.chatLog || session.chatLog;
+                window.callLogUpdateSession(session);
+            }
+
             if (!TELE.roomId) {
                 window.showToast("Đã lưu ghi chú tạm thời (chưa có cuộc gọi đang diễn ra).");
                 return;
@@ -7610,6 +8128,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             CMS_CALLS.set(roomId, session);
             cmsRenderCallTiles();
 
+            // Mở ngay bản ghi nhật ký cuộc gọi (thời gian, ngày, điểm tiếp nhận,
+            // cán bộ nhận cuộc gọi) để lịch sử vẫn còn nếu cuộc gọi rớt giữa chừng.
+            window.callLogStartSession(session);
+
             // Mở thiết bị và đăng ký vào phòng song song cho nhanh lên hình.
             const mediaPromise = cmsEnsureSharedMedia();
             const joinPromise = cmsPost(session, {
@@ -7665,6 +8187,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             if (!session) return;
 
             if (roomId === cmsFocusedRoomId) cmsCaptureFocusedState();
+
+            /* Chốt nhật ký trước khi dọn phiên: đơn thuốc và toàn bộ nội dung
+               trò chuyện của lượt khám được lưu lại để tra cứu về sau. */
+            window.callLogFinishSession(session);
 
             session.polling = false;
             session.pollToken += 1;

@@ -181,6 +181,54 @@ export const stationVitals = pgTable(
   (table) => [index("station_vitals_room_ts_idx").on(table.roomId, table.ts)]
 );
 
+/* Lịch sử cuộc gọi khám từ xa hiển thị trong CMS Quản trị, ngay dưới
+   "Danh sách Đăng ký Khám bệnh & Khám Từ xa".
+
+   Mỗi bản ghi là một lượt cán bộ tiếp nhận cuộc gọi: mở lúc bấm "Tiếp nhận"
+   và chốt lại khi kết thúc cuộc gọi. Bản ghi giữ đủ 5 nhóm thông tin nghiệp vụ
+   yêu cầu: thời gian/ngày gọi, điểm tiếp nhận, cán bộ nhận cuộc gọi, đơn thuốc
+   đã kê trong lượt khám và toàn bộ nội dung trò chuyện. */
+export const callLogs = pgTable(
+  "call_logs",
+  {
+    id: text("id").primaryKey(),
+    roomId: text("room_id").notNull(),
+    appointmentId: text("appointment_id"),
+    patientName: text("patient_name"),
+    patientId: text("patient_id"),
+    // Điểm tiếp nhận cuộc gọi (đọc ngược từ mã phòng khám).
+    stationCode: text("station_code"),
+    stationName: text("station_name"),
+    // Cán bộ nhận cuộc gọi.
+    operatorName: text("operator_name"),
+    operatorUsername: text("operator_username"),
+    operatorRole: text("operator_role"),
+    // Ngày + giờ tiếp nhận, lưu sẵn dạng hiển thị tiếng Việt để in báo cáo.
+    callDate: text("call_date"),
+    callTime: text("call_time"),
+    startedAt: bigint("started_at", { mode: "number" }),
+    endedAt: bigint("ended_at", { mode: "number" }),
+    durationSec: integer("duration_sec").default(0),
+    // Lịch sử đơn thuốc của lượt khám.
+    diagnosis: text("diagnosis"),
+    treatmentPlan: text("treatment_plan"),
+    prescription: text("prescription"),
+    doctorAdvice: text("doctor_advice"),
+    signerName: text("signer_name"),
+    vitalsJson: text("vitals_json"),
+    // Toàn bộ nội dung trò chuyện, JSON: [{ sender, text, at }]
+    chatTranscript: text("chat_transcript"),
+    chatCount: integer("chat_count").default(0),
+    // IN_CALL | COMPLETED
+    status: text("status").default("IN_CALL"),
+    ts: bigint("ts", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("call_logs_ts_idx").on(table.ts),
+    index("call_logs_room_idx").on(table.roomId),
+  ]
+);
+
 // Phiếu khám từ xa xuất ra khi kết thúc buổi khám
 export const examinationReports = pgTable(
   "examination_reports",
