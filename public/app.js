@@ -100,6 +100,13 @@ let rejoinAttempts = 0;
 
 let peerConnection = null;
 let localStream = null;
+/**
+ * Luồng THỰC SỰ gửi đi: tiếng đã qua chuỗi lọc chống vang/chống hú của
+ * CallAudio, kèm nguyên các track hình. Tách khỏi `localStream` vì `localStream`
+ * phải luôn là luồng gốc của thiết bị - chỉ stop() đúng luồng đó thì đèn báo
+ * camera/micro của máy mới tắt khi kết thúc cuộc gọi.
+ */
+let outboundStream = null;
 let videoDevices = [];
 let currentCamIndex = 0;
 
@@ -324,12 +331,14 @@ function endTeleconsultation(options) {
 
 /** Trả camera/micro về cho hệ điều hành và xoá hình xem trước tại chỗ. */
 function releaseLocalMedia() {
+  try { CallAudio.release(); } catch (err) {}
   if (localStream) {
     localStream.getTracks().forEach(track => {
       try { track.stop(); } catch (err) {}
     });
     localStream = null;
   }
+  outboundStream = null;
   videoDevices = [];
   currentCamIndex = 0;
   isMicMuted = false;
@@ -337,6 +346,11 @@ function releaseLocalMedia() {
 
   const localVideo = document.getElementById('local-video');
   if (localVideo) localVideo.srcObject = null;
+  const remoteVideo = document.getElementById('remote-video');
+  if (remoteVideo) {
+    try { CallAudio.detachRemote(remoteVideo); } catch (err) {}
+  }
+  renderAudioPanel();
 }
 
 /**
@@ -909,6 +923,906 @@ function warnWebRTCUnavailable() {
   );
 }
 
+/* ===========================================================================
+   BỘ XỬ LÝ ÂM THANH CUỘC GỌI (window.CallAudio)
+   ---------------------------------------------------------------------------
+   Phòng khám của điểm trạm là môi trường tệ nhất cho âm thanh hội thoại: mic và
+   loa ngoài đặt cạnh nhau (cán bộ và bệnh nhân cùng nghe chung một loa), tường
+   gạch trần phẳng gây vang, cộng thêm tiếng quạt, tiếng máy nén khí, tiếng
+   người chờ khám ngoài hành lang. Ba hiện tượng người dùng phản ánh:
+
+     1. Độ vang  - tiếng loa dội lại vào mic rồi truyền ngược sang đầu kia, đầu
+                   kia nghe thấy chính mình chậm vài trăm ms.
+     2. Tiếng hú - vòng lặp loa -> mic -> loa đạt hệ số khuếch đại >= 1 ở một
+                   tần số nào đó và tự dao động, thành tiếng rít chói.
+     3. Tạp âm   - mic thu cả tiếng nền phòng khám lẫn hành lang, lời thoại bị
+                   lẫn trong nền ồn.
+
+   Bốn lớp xử lý dưới đây giải quyết lần lượt:
+
+     Lớp 1 - Ràng buộc thu: xin trình duyệt bật khử vọng (AEC), khử ồn (NS),
+             tự cân mức (AGC) và tách giọng nói (voiceIsolation) ngay tại tầng
+             thu của hệ điều hành. Đây là lớp mạnh nhất nhưng không đủ.
+     Lớp 2 - Chuỗi lọc Web Audio trên đường TIẾNG ĐI: cắt trầm (quạt, rung bàn),
+             cắt cao (rít, xì), nén động (kéo lời bệnh nhân ngồi xa lên ngang
+             lời cán bộ ngồi gần mic), rồi cổng tạp âm (noise gate) đóng lại khi
+             chỉ còn tiếng nền.
+     Lớp 3 - Chống hú chủ động: theo dõi phổ tần của mic; khi phát hiện một đỉnh
+             hẹp bám lì ở một tần số (dấu hiệu kinh điển của vòng hú), lập tức
+             cắm bộ lọc chuông (notch) đúng tần số đó và ghìm mic trong chốc lát
+             để bẻ gãy vòng lặp trước khi tai người kịp nghe thấy tiếng rít.
+     Lớp 4 - Né vọng (ducking): khi đầu bên kia đang nói, hạ nhẹ mic của mình.
+             Vòng loa -> mic không bao giờ khép kín được nữa nên hết vang.
+
+   Toàn bộ chạy trong try/catch: trình duyệt cũ hoặc môi trường không có Web
+   Audio sẽ dùng thẳng luồng mic gốc, cuộc gọi vẫn hoạt động bình thường.
+   =========================================================================== */
+
+/** Ba mức lọc tạp âm. Số liệu chọn theo dải tiếng nói 300-3400 Hz của điện thoại. */
+const CALL_AUDIO_PROFILES = {
+  off: {
+    label: 'Tắt (giữ nguyên tiếng thu)',
+    highpass: 20, lowpass: 20000,
+    gate: false, gateMargin: 0, gateFloorDb: -120, gateFloorGain: 1, gateHoldMs: 0,
+    compress: false, makeup: 1
+  },
+  medium: {
+    label: 'Vừa (khuyến nghị)',
+    highpass: 100, lowpass: 9000,
+    gate: true, gateMargin: 9, gateFloorDb: -58, gateFloorGain: 0.18, gateHoldMs: 280,
+    compress: true, makeup: 1.25
+  },
+  strong: {
+    label: 'Mạnh (phòng khám ồn)',
+    highpass: 145, lowpass: 7200,
+    gate: true, gateMargin: 6, gateFloorDb: -50, gateFloorGain: 0.05, gateHoldMs: 220,
+    compress: true, makeup: 1.5
+  }
+};
+
+const CallAudio = (function createCallAudioEngine() {
+  const STORAGE_KEY = 'tyt_call_audio_v1';
+
+  const settings = {
+    profile: 'medium',
+    antiHowl: true,
+    duck: true,
+    speakerVolume: 1,
+    micDeviceId: '',
+    speakerDeviceId: ''
+  };
+
+  const metrics = {
+    micLevel: 0,        // 0..1, mức tiếng vào mic sau khi lọc
+    remoteLevel: 0,     // 0..1, mức tiếng ra loa
+    noiseFloorDb: -70,  // ước lượng nền ồn phòng khám
+    gateOpen: false,
+    ducking: false,
+    howling: false,
+    howlHz: 0,
+    howlCount: 0,
+    active: false,
+    processing: false   // true khi tiếng đi thực sự chạy qua chuỗi lọc
+  };
+
+  let ctx = null;
+  let chain = null;          // chuỗi xử lý tiếng đi
+  let rawStream = null;      // luồng gốc từ thiết bị (giữ để stop() đúng nguồn)
+  let monitor = null;        // bộ đo tiếng về từ đầu bên kia
+  let ticker = null;
+  let notifyTimer = null;
+  let muted = false;
+  const remoteElements = new Set();
+  const listeners = new Set();
+
+  /* ---------------------------------------------------------------- tiện ích */
+
+  function profile() {
+    return CALL_AUDIO_PROFILES[settings.profile] || CALL_AUDIO_PROFILES.medium;
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object') {
+        if (CALL_AUDIO_PROFILES[saved.profile]) settings.profile = saved.profile;
+        if (typeof saved.antiHowl === 'boolean') settings.antiHowl = saved.antiHowl;
+        if (typeof saved.duck === 'boolean') settings.duck = saved.duck;
+        if (typeof saved.speakerVolume === 'number') {
+          settings.speakerVolume = Math.min(1, Math.max(0, saved.speakerVolume));
+        }
+        if (typeof saved.micDeviceId === 'string') settings.micDeviceId = saved.micDeviceId;
+        if (typeof saved.speakerDeviceId === 'string') settings.speakerDeviceId = saved.speakerDeviceId;
+      }
+    } catch (err) {
+      // localStorage bị chặn (chế độ riêng tư) - dùng giá trị mặc định.
+    }
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch (err) {}
+  }
+
+  /** Báo cho giao diện biết trạng thái mới (tối đa ~7 lần/giây, đủ mượt cho mắt). */
+  function notify(force) {
+    if (!force && notifyTimer) return;
+    if (!force) {
+      notifyTimer = setTimeout(() => { notifyTimer = null; emit(); }, 140);
+      return;
+    }
+    emit();
+  }
+
+  function emit() {
+    listeners.forEach(fn => {
+      try { fn(getState()); } catch (err) {}
+    });
+  }
+
+  function getState() {
+    return Object.assign({}, settings, metrics, { profileLabel: profile().label });
+  }
+
+  function ensureContext() {
+    if (ctx) return ctx;
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (typeof Ctor !== 'function') return null;
+    try {
+      // 48 kHz là tần số lấy mẫu gốc của Opus/WebRTC: khớp sẵn thì không phải
+      // đổi tần số lấy mẫu giữa chừng, tránh méo tiếng và tốn CPU vô ích.
+      ctx = new Ctor({ latencyHint: 'interactive', sampleRate: 48000 });
+    } catch (err) {
+      try { ctx = new Ctor(); } catch (err2) { ctx = null; }
+    }
+    return ctx;
+  }
+
+  function resumeContext() {
+    if (ctx && ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+      ctx.resume().catch(() => {});
+    }
+  }
+
+  /* ------------------------------------------------- Lớp 1: ràng buộc khi thu */
+
+  /**
+   * Ràng buộc micro gửi cho getUserMedia.
+   *
+   * Các khoá không phải chuẩn W3C (voiceIsolation, googX) được đặt trong
+   * `advanced`: trình duyệt hỗ trợ thì áp dụng, không hỗ trợ thì bỏ qua trong im
+   * lặng. Nếu đặt ở tầng ngoài, một trình duyệt không biết khoá đó sẽ ném
+   * OverconstrainedError và cuộc gọi mất luôn tiếng - cái giá quá đắt cho một
+   * tuỳ chọn chỉ mang tính tối ưu.
+   */
+  function constraints() {
+    const base = {
+      echoCancellation: true,
+      noiseSuppression: settings.profile !== 'off',
+      autoGainControl: true,
+      // Mic một kênh: bộ khử vọng của trình duyệt so sánh tín hiệu thu với tín
+      // hiệu phát ra loa, luồng stereo làm phép so sánh đó lệch pha và khử hụt.
+      channelCount: 1,
+      sampleRate: 48000,
+      sampleSize: 16
+    };
+    if (settings.micDeviceId) base.deviceId = { exact: settings.micDeviceId };
+    base.advanced = [
+      { echoCancellation: { exact: true } },
+      { voiceIsolation: true },
+      { noiseSuppression: { exact: settings.profile !== 'off' } },
+      { latency: { ideal: 0.01 } }
+    ];
+    return base;
+  }
+
+  /* ------------------------------------------- Lớp 2+3: chuỗi lọc tiếng đi ra */
+
+  /**
+   * Dựng chuỗi xử lý cho luồng mic và trả về luồng ĐÃ LỌC để đưa vào WebRTC.
+   * Luồng gốc vẫn được giữ nguyên (không đụng tới track hình) để hàm kết thúc
+   * cuộc gọi vẫn stop() đúng thiết bị và tắt được đèn báo camera.
+   */
+  function attachLocal(stream) {
+    detachLocal();
+    rawStream = stream || null;
+    if (!stream) return stream;
+
+    const audioTracks = typeof stream.getAudioTracks === 'function' ? stream.getAudioTracks() : [];
+    if (!audioTracks.length) {
+      metrics.active = true;
+      startTicker();
+      return stream;
+    }
+
+    const audioCtx = ensureContext();
+    if (!audioCtx || typeof audioCtx.createMediaStreamSource !== 'function'
+        || typeof audioCtx.createMediaStreamDestination !== 'function') {
+      // Không có Web Audio: vẫn gọi được, chỉ là mất lớp lọc bổ sung.
+      metrics.active = true;
+      metrics.processing = false;
+      startTicker();
+      notify(true);
+      return stream;
+    }
+
+    try {
+      const p = profile();
+      const micOnly = new MediaStream(audioTracks);
+      const source = audioCtx.createMediaStreamSource(micOnly);
+
+      // Cắt trầm: tiếng quạt, tiếng điều hoà, rung mặt bàn khi đặt máy đo.
+      const highpass = audioCtx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.value = p.highpass;
+      highpass.Q.value = 0.7;
+
+      // Bộ lọc chuông dự phòng cho lớp chống hú: mặc định 0 dB (không đụng gì
+      // vào tiếng), chỉ hạ sâu đúng tần số hú khi phát hiện vòng lặp.
+      const notch = audioCtx.createBiquadFilter();
+      notch.type = 'peaking';
+      notch.frequency.value = 2000;
+      notch.Q.value = 9;
+      notch.gain.value = 0;
+
+      // Cắt cao: tiếng xì nền và tiếng rít kim loại nằm trên dải lời nói.
+      const lowpass = audioCtx.createBiquadFilter();
+      lowpass.type = 'lowpass';
+      lowpass.frequency.value = p.lowpass;
+      lowpass.Q.value = 0.7;
+
+      // Nén động: cán bộ ngồi sát mic, bệnh nhân ngồi xa hơn cả mét. Không nén
+      // thì đầu kia nghe cán bộ rõ mồn một còn bệnh nhân thì lí nhí.
+      const comp = audioCtx.createDynamicsCompressor();
+      comp.threshold.value = p.compress ? -28 : 0;
+      comp.knee.value = 12;
+      comp.ratio.value = p.compress ? 3.5 : 1;
+      comp.attack.value = 0.005;
+      comp.release.value = 0.15;
+
+      // Cổng tạp âm + né vọng: một núm khuếch đại duy nhất do vòng đo điều khiển.
+      const gate = audioCtx.createGain();
+      gate.gain.value = 1;
+
+      const makeup = audioCtx.createGain();
+      makeup.gain.value = p.makeup;
+
+      // Bộ phân tích đặt SAU khi lọc: nền ồn đã được cắt bớt nên ngưỡng mở cổng
+      // bám sát tiếng nói thật, không bị tiếng quạt kéo lên.
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.5;
+
+      const dest = audioCtx.createMediaStreamDestination();
+
+      source.connect(highpass);
+      highpass.connect(notch);
+      notch.connect(lowpass);
+      lowpass.connect(analyser);
+      lowpass.connect(comp);
+      comp.connect(gate);
+      gate.connect(makeup);
+      makeup.connect(dest);
+
+      chain = {
+        source, highpass, notch, lowpass, comp, gate, makeup, analyser, dest,
+        micOnly,
+        freqData: new Float32Array(analyser.frequencyBinCount),
+        timeData: new Float32Array(analyser.fftSize),
+        binHz: audioCtx.sampleRate / analyser.fftSize,
+        noiseFloorDb: -70,
+        calibrateUntil: Date.now() + 1200,
+        openUntil: 0,
+        howlBin: -1,
+        howlStableMs: 0,
+        howlUntil: 0,
+        notchUntil: 0,
+        lastTick: 0
+      };
+
+      // Luồng gửi đi = tiếng đã lọc + nguyên các track hình của luồng gốc.
+      const outbound = new MediaStream();
+      dest.stream.getAudioTracks().forEach(t => {
+        try { t.contentHint = 'speech'; } catch (e) {}
+        outbound.addTrack(t);
+      });
+      if (typeof stream.getVideoTracks === 'function') {
+        stream.getVideoTracks().forEach(t => outbound.addTrack(t));
+      }
+
+      metrics.active = true;
+      metrics.processing = true;
+      resumeContext();
+      startTicker();
+      notify(true);
+      return outbound;
+    } catch (err) {
+      console.warn('Không dựng được chuỗi lọc âm thanh, dùng tiếng thu gốc:', err && err.message);
+      chain = null;
+      metrics.active = true;
+      metrics.processing = false;
+      startTicker();
+      notify(true);
+      return stream;
+    }
+  }
+
+  function detachLocal() {
+    stopTicker();
+    if (chain) {
+      try { chain.source.disconnect(); } catch (e) {}
+      try { chain.dest.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      chain = null;
+    }
+    rawStream = null;
+    muted = false;
+    metrics.active = false;
+    metrics.processing = false;
+    metrics.micLevel = 0;
+    metrics.remoteLevel = 0;
+    metrics.gateOpen = false;
+    metrics.ducking = false;
+    metrics.howling = false;
+    metrics.howlHz = 0;
+    notify(true);
+  }
+
+  /* ------------------------------------ Lớp 4: đo tiếng về để né vọng/chống hú */
+
+  /**
+   * Gắn luồng tiếng về vào phần tử phát, đồng thời trích một nhánh chỉ để ĐO.
+   * Nhánh đo đi qua một núm khuếch đại bằng 0 rồi mới ra loa: bắt buộc phải nối
+   * tới destination thì đồ thị mới được chạy, nhưng gain 0 nên không phát ra
+   * tiếng - nếu để gain 1 thì mỗi câu của bác sĩ sẽ nghe thành hai lần.
+   */
+  function attachRemote(element, stream) {
+    if (element) {
+      remoteElements.add(element);
+      applySpeakerToElement(element);
+    }
+    if (!stream || typeof stream.getAudioTracks !== 'function') return;
+    if (!stream.getAudioTracks().length) return;
+
+    const audioCtx = ensureContext();
+    if (!audioCtx || typeof audioCtx.createMediaStreamSource !== 'function') return;
+
+    try {
+      if (monitor) {
+        try { monitor.source.disconnect(); } catch (e) {}
+        try { monitor.mute.disconnect(); } catch (e) {}
+      }
+      const monoStream = new MediaStream(stream.getAudioTracks());
+      const source = audioCtx.createMediaStreamSource(monoStream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.6;
+      const mute = audioCtx.createGain();
+      mute.gain.value = 0;
+
+      source.connect(analyser);
+      analyser.connect(mute);
+      mute.connect(audioCtx.destination);
+
+      monitor = { source, analyser, mute, data: new Float32Array(analyser.fftSize) };
+      resumeContext();
+    } catch (err) {
+      monitor = null;
+    }
+  }
+
+  function detachRemote(element) {
+    if (element) remoteElements.delete(element);
+    if (!remoteElements.size && monitor) {
+      try { monitor.source.disconnect(); } catch (e) {}
+      try { monitor.mute.disconnect(); } catch (e) {}
+      monitor = null;
+    }
+  }
+
+  /* --------------------------------------------------------- vòng đo & điều khiển */
+
+  function startTicker() {
+    stopTicker();
+    // setInterval chứ không phải requestAnimationFrame: cán bộ trực hay chuyển
+    // tab sang tra cứu thuốc, rAF sẽ đứng hình và cổng tạp âm kẹt ở trạng thái
+    // cuối - đúng lúc cần nó làm việc nhất thì nó ngủ.
+    ticker = setInterval(tick, 45);
+  }
+
+  function stopTicker() {
+    if (ticker) { clearInterval(ticker); ticker = null; }
+  }
+
+  /** Mức hiệu dụng (RMS) của một khung mẫu, quy ra dBFS. */
+  function rmsDb(analyser, buffer) {
+    if (!analyser || typeof analyser.getFloatTimeDomainData !== 'function') return { db: -120, rms: 0 };
+    analyser.getFloatTimeDomainData(buffer);
+    let sum = 0;
+    for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
+    const rms = Math.sqrt(sum / buffer.length);
+    return { db: rms > 0 ? 20 * Math.log10(rms) : -120, rms };
+  }
+
+  function tick() {
+    if (!chain) return;
+    const now = Date.now();
+    const dt = chain.lastTick ? now - chain.lastTick : 45;
+    chain.lastTick = now;
+
+    let mic;
+    try {
+      mic = rmsDb(chain.analyser, chain.timeData);
+    } catch (err) {
+      return;
+    }
+    metrics.micLevel = Math.min(1, mic.rms * 6);
+
+    // Nền ồn: tụt nhanh theo chỗ lặng, dâng lên rất chậm. Nhờ vậy ngưỡng mở cổng
+    // tự bám theo phòng khám lúc vắng lẫn lúc đông mà không cần chỉnh tay.
+    // Riêng hơn một giây đầu là lúc "đo phòng": cho nền dâng nhanh để cổng biết
+    // ngay tiếng quạt, tiếng hành lang ồn cỡ nào. Không có đoạn này thì nền phải
+    // bò từ -70 dB lên cả hai chục giây, và suốt hai chục giây đó tạp âm phòng
+    // khám vẫn đi thẳng sang đầu bên kia.
+    const calibrating = now < (chain.calibrateUntil || 0);
+    const riseRate = calibrating ? 0.08 : 0.0015;
+    if (mic.db < chain.noiseFloorDb) chain.noiseFloorDb = chain.noiseFloorDb * 0.9 + mic.db * 0.1;
+    else chain.noiseFloorDb = chain.noiseFloorDb * (1 - riseRate) + mic.db * riseRate;
+    chain.noiseFloorDb = Math.max(-95, Math.min(-25, chain.noiseFloorDb));
+    metrics.noiseFloorDb = chain.noiseFloorDb;
+
+    let remote = { db: -120, rms: 0 };
+    if (monitor) {
+      try { remote = rmsDb(monitor.analyser, monitor.data); } catch (err) {}
+    }
+    metrics.remoteLevel = Math.min(1, remote.rms * 6);
+
+    const p = profile();
+    let target = 1;
+
+    // --- Cổng tạp âm ---------------------------------------------------------
+    if (p.gate) {
+      const openAt = Math.max(chain.noiseFloorDb + p.gateMargin, p.gateFloorDb);
+      if (mic.db > openAt) chain.openUntil = now + p.gateHoldMs;
+      metrics.gateOpen = now < chain.openUntil;
+      if (!metrics.gateOpen) target = p.gateFloorGain;
+    } else {
+      metrics.gateOpen = true;
+    }
+
+    // --- Né vọng khi đầu bên kia đang nói -----------------------------------
+    // Đây là thứ cắt đứt tiếng vang: loa đang phát thì mic chỉ còn 40%, nên
+    // tiếng loa dội lại không đủ sức quay ngược sang đầu kia.
+    metrics.ducking = false;
+    if (settings.duck && remote.db > -50) {
+      metrics.ducking = true;
+      target *= 0.4;
+    }
+
+    // --- Chống hú ------------------------------------------------------------
+    if (settings.antiHowl) target = applyHowlGuard(now, dt, mic, target);
+    else { metrics.howling = false; metrics.howlHz = 0; }
+
+    if (muted) target = 0;
+
+    try {
+      const t = ctx.currentTime;
+      // Mở nhanh (12ms) để không cụt chữ đầu, đóng chậm (140ms) để đuôi câu
+      // không bị cắt ngang nghe như máy bộ đàm.
+      chain.gate.gain.setTargetAtTime(target, t, target < 0.99 ? 0.14 : 0.012);
+    } catch (err) {}
+
+    notify(false);
+  }
+
+  /**
+   * Nhận diện vòng hú: tiếng hú là một đỉnh phổ RẤT hẹp, rất cao so với phần
+   * còn lại, và bám lì ở nguyên một tần số - khác hẳn giọng người vốn trượt
+   * liên tục qua nhiều tần số. Bắt được đúng đặc điểm đó thì can thiệp được
+   * trong khoảng 300 ms, tức là trước khi nó kịp rít lên thành tiếng.
+   */
+  function applyHowlGuard(now, dt, mic, target) {
+    let peakBin = -1;
+    let peakDb = -160;
+    let sum = 0;
+    let count = 0;
+
+    try {
+      if (typeof chain.analyser.getFloatFrequencyData !== 'function') return target;
+      chain.analyser.getFloatFrequencyData(chain.freqData);
+    } catch (err) {
+      return target;
+    }
+
+    const minBin = Math.max(1, Math.floor(300 / chain.binHz));
+    const maxBin = Math.min(chain.freqData.length - 1, Math.floor(6000 / chain.binHz));
+    for (let i = minBin; i <= maxBin; i++) {
+      const v = chain.freqData[i];
+      if (!isFinite(v)) continue;
+      sum += v; count++;
+      if (v > peakDb) { peakDb = v; peakBin = i; }
+    }
+    if (!count || peakBin < 0) return target;
+
+    const mean = sum / count;
+    const prominence = peakDb - mean;
+    const sameTone = chain.howlBin >= 0 && Math.abs(peakBin - chain.howlBin) <= 2;
+
+    // Đỉnh phải vừa cao tuyệt đối, vừa nhô hẳn lên khỏi mặt bằng phổ.
+    if (peakDb > -38 && prominence > 20) {
+      chain.howlStableMs = sameTone ? chain.howlStableMs + dt : 0;
+      chain.howlBin = peakBin;
+    } else {
+      chain.howlStableMs = 0;
+      chain.howlBin = -1;
+    }
+
+    if (chain.howlStableMs > 320) {
+      const hz = Math.round(peakBin * chain.binHz);
+      if (!metrics.howling) {
+        metrics.howlCount++;
+        console.warn(`Phát hiện hú loa ở ~${hz} Hz - đã cắm bộ lọc chuông và ghìm mic.`);
+      }
+      metrics.howling = true;
+      metrics.howlHz = hz;
+      chain.howlUntil = now + 900;
+      chain.notchUntil = now + 6000;
+      chain.howlStableMs = 0;
+      try {
+        const t = ctx.currentTime;
+        chain.notch.frequency.setTargetAtTime(hz, t, 0.01);
+        chain.notch.gain.setTargetAtTime(-30, t, 0.02);
+      } catch (err) {}
+      // Hạ luôn loa một nấc: chỉ chặn ở mic thì hú sẽ quay lại ngay khi buông.
+      setSpeakerVolume(Math.max(0.3, settings.speakerVolume * 0.85), true);
+      notify(true);
+    }
+
+    if (now < chain.howlUntil) return Math.min(target, 0.05);
+
+    if (metrics.howling && now >= chain.howlUntil) {
+      metrics.howling = false;
+      notify(true);
+    }
+    // Bộ lọc chuông được gỡ dần sau vài giây yên tĩnh, trả lại độ trong cho tiếng.
+    if (chain.notchUntil && now > chain.notchUntil) {
+      chain.notchUntil = 0;
+      metrics.howlHz = 0;
+      try { chain.notch.gain.setTargetAtTime(0, ctx.currentTime, 0.4); } catch (err) {}
+    }
+    return target;
+  }
+
+  /* --------------------------------------------------------------- điều khiển */
+
+  function setMuted(value) {
+    muted = !!value;
+    if (rawStream && typeof rawStream.getAudioTracks === 'function') {
+      rawStream.getAudioTracks().forEach(t => { t.enabled = !muted; });
+    }
+    if (chain) {
+      try { chain.gate.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.01); } catch (err) {}
+    }
+    notify(true);
+  }
+
+  function setProfile(name) {
+    if (!CALL_AUDIO_PROFILES[name]) return;
+    settings.profile = name;
+    save();
+    if (chain) {
+      const p = profile();
+      try {
+        const t = ctx.currentTime;
+        chain.highpass.frequency.setTargetAtTime(p.highpass, t, 0.05);
+        chain.lowpass.frequency.setTargetAtTime(p.lowpass, t, 0.05);
+        chain.comp.threshold.setTargetAtTime(p.compress ? -28 : 0, t, 0.05);
+        chain.comp.ratio.setTargetAtTime(p.compress ? 3.5 : 1, t, 0.05);
+        chain.makeup.gain.setTargetAtTime(p.makeup, t, 0.05);
+      } catch (err) {}
+      chain.noiseFloorDb = -70;
+      chain.calibrateUntil = Date.now() + 1200;
+    }
+    notify(true);
+  }
+
+  function setAntiHowl(value) {
+    settings.antiHowl = !!value;
+    save();
+    if (!settings.antiHowl && chain) {
+      chain.howlStableMs = 0;
+      chain.howlUntil = 0;
+      chain.notchUntil = 0;
+      try { chain.notch.gain.setTargetAtTime(0, ctx.currentTime, 0.1); } catch (err) {}
+    }
+    notify(true);
+  }
+
+  function setDuck(value) {
+    settings.duck = !!value;
+    save();
+    notify(true);
+  }
+
+  function applySpeakerToElement(el) {
+    if (!el) return;
+    try { el.volume = settings.speakerVolume; } catch (err) {}
+    if (settings.speakerDeviceId && typeof el.setSinkId === 'function') {
+      el.setSinkId(settings.speakerDeviceId).catch(() => {});
+    }
+  }
+
+  function setSpeakerVolume(value, internal) {
+    const v = Math.min(1, Math.max(0, Number(value)));
+    if (!isFinite(v)) return;
+    settings.speakerVolume = v;
+    remoteElements.forEach(applySpeakerToElement);
+    if (!internal) save();
+    notify(true);
+  }
+
+  /** Đổi loa phát (chỉ Chrome/Edge có setSinkId; nơi khác giữ loa mặc định). */
+  function setSpeakerDevice(deviceId) {
+    settings.speakerDeviceId = deviceId || '';
+    save();
+    remoteElements.forEach(applySpeakerToElement);
+    notify(true);
+  }
+
+  /**
+   * Đổi micro giữa cuộc gọi. CỐ Ý chỉ xin thiết bị khi đang có phiên xử lý chạy:
+   * ngoài cuộc gọi thì hàm này không bao giờ chạm tới getUserMedia, giữ đúng
+   * nguyên tắc "chưa bấm gọi thì không mở thiết bị" của bảng điều khiển.
+   */
+  async function setMicDevice(deviceId) {
+    settings.micDeviceId = deviceId || '';
+    save();
+    if (!metrics.active || !rawStream) { notify(true); return null; }
+
+    try {
+      const fresh = await navigator.mediaDevices.getUserMedia({ audio: constraints() });
+      const newTrack = fresh.getAudioTracks()[0];
+      if (!newTrack) return null;
+      try { newTrack.contentHint = 'speech'; } catch (e) {}
+
+      // Trả micro cũ về hệ điều hành rồi mới thay nguồn của chuỗi lọc.
+      rawStream.getAudioTracks().forEach(t => {
+        try { rawStream.removeTrack(t); } catch (e) {}
+        try { t.stop(); } catch (e) {}
+      });
+      try { rawStream.addTrack(newTrack); } catch (e) {}
+      newTrack.enabled = !muted;
+
+      if (chain && ctx) {
+        try { chain.source.disconnect(); } catch (e) {}
+        chain.micOnly = new MediaStream([newTrack]);
+        chain.source = ctx.createMediaStreamSource(chain.micOnly);
+        chain.source.connect(chain.highpass);
+        chain.noiseFloorDb = -70;
+        chain.calibrateUntil = Date.now() + 1200;
+      }
+      notify(true);
+      // Chuỗi lọc vẫn phát ra đúng track cũ nên WebRTC không cần thương lượng lại.
+      return chain ? null : newTrack;
+    } catch (err) {
+      console.warn('Không đổi được micro:', err && err.message);
+      notify(true);
+      return null;
+    }
+  }
+
+  /** Danh sách mic/loa để đổ vào ô chọn (nhãn chỉ hiện sau khi đã cấp quyền). */
+  async function listDevices() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return {
+        mics: devices.filter(d => d.kind === 'audioinput'),
+        speakers: devices.filter(d => d.kind === 'audiooutput')
+      };
+    } catch (err) {
+      return { mics: [], speakers: [] };
+    }
+  }
+
+  function release() {
+    detachLocal();
+    remoteElements.clear();
+    if (monitor) {
+      try { monitor.source.disconnect(); } catch (e) {}
+      try { monitor.mute.disconnect(); } catch (e) {}
+      monitor = null;
+    }
+    metrics.howlCount = 0;
+  }
+
+  function onUpdate(fn) {
+    if (typeof fn === 'function') listeners.add(fn);
+    return () => listeners.delete(fn);
+  }
+
+  load();
+
+  return {
+    profiles: CALL_AUDIO_PROFILES,
+    constraints,
+    attachLocal,
+    detachLocal,
+    attachRemote,
+    detachRemote,
+    setMuted,
+    setProfile,
+    setAntiHowl,
+    setDuck,
+    setSpeakerVolume,
+    setSpeakerDevice,
+    setMicDevice,
+    listDevices,
+    getState,
+    onUpdate,
+    release,
+    supportsOutputSelection: () => typeof HTMLMediaElement !== 'undefined'
+      && typeof HTMLMediaElement.prototype.setSinkId === 'function'
+  };
+})();
+
+if (typeof window !== 'undefined') window.CallAudio = CallAudio;
+
+/* ---------------------------------------------------------------------------
+   Bảng "Âm thanh cuộc gọi" trên thanh điều khiển của điểm trạm.
+   Cán bộ trực cần nhìn thấy máy đang làm gì với tiếng của mình - vạch mức mic
+   cho biết cổng tạp âm có đang cắt nhầm lời nói không, dòng trạng thái cho biết
+   vì sao mic vừa bị ghìm (né tiếng bác sĩ, hay vừa chặn một cú hú).
+   --------------------------------------------------------------------------- */
+
+let audioPanelOpen = false;
+
+function toggleAudioSettings() {
+  const panel = document.getElementById('audio-settings-panel');
+  if (!panel) return;
+  audioPanelOpen = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !audioPanelOpen);
+  const btn = document.getElementById('btn-audio-settings');
+  if (btn) {
+    btn.className = audioPanelOpen
+      ? 'px-3 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow border border-blue-500'
+      : 'px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow border border-slate-700';
+  }
+  if (audioPanelOpen) {
+    refreshAudioDeviceOptions();
+    renderAudioPanel();
+  }
+}
+
+/** Đổ danh sách mic/loa vào hai ô chọn. Nhãn thiết bị chỉ có sau khi được cấp quyền. */
+async function refreshAudioDeviceOptions() {
+  const micSel = document.getElementById('audio-mic-select');
+  const spkSel = document.getElementById('audio-speaker-select');
+  if (!micSel && !spkSel) return;
+
+  const { mics, speakers } = await CallAudio.listDevices();
+  const state = CallAudio.getState();
+
+  const fill = (sel, list, current, emptyLabel) => {
+    if (!sel) return;
+    // Dựng bằng DOM chứ không nối chuỗi HTML: nhãn thiết bị là dữ liệu do hệ
+    // điều hành/USB cung cấp, không phải nguồn đáng tin để nhét thẳng vào trang.
+    sel.textContent = '';
+    const first = document.createElement('option');
+    first.value = '';
+    first.textContent = 'Thiết bị mặc định của máy';
+    sel.appendChild(first);
+    list.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId || '';
+      opt.textContent = d.label || `${emptyLabel} ${i + 1}`;
+      sel.appendChild(opt);
+    });
+    sel.value = current || '';
+  };
+
+  fill(micSel, mics, state.micDeviceId, 'Micro');
+  fill(spkSel, speakers, state.speakerDeviceId, 'Loa');
+
+  const spkWrap = document.getElementById('audio-speaker-select-wrap');
+  if (spkWrap) {
+    // Firefox/Safari chưa cho trang tự chọn loa: ẩn ô đi còn hơn để một ô bấm
+    // vào không có tác dụng gì.
+    spkWrap.classList.toggle('hidden', !CallAudio.supportsOutputSelection() || !speakers.length);
+  }
+}
+
+/** Vẽ lại toàn bộ bảng theo trạng thái hiện tại của bộ xử lý âm thanh. */
+function renderAudioPanel(state) {
+  const s = state || CallAudio.getState();
+
+  const profileSel = document.getElementById('audio-profile-select');
+  if (profileSel && profileSel.value !== s.profile) profileSel.value = s.profile;
+
+  const howlBox = document.getElementById('audio-anti-howl');
+  if (howlBox) howlBox.checked = !!s.antiHowl;
+
+  const duckBox = document.getElementById('audio-duck');
+  if (duckBox) duckBox.checked = !!s.duck;
+
+  const range = document.getElementById('audio-speaker-range');
+  const rangeVal = document.getElementById('audio-speaker-value');
+  const pct = Math.round(s.speakerVolume * 100);
+  if (range && document.activeElement !== range) range.value = String(pct);
+  if (rangeVal) rangeVal.textContent = `${pct}%`;
+
+  const meter = document.getElementById('audio-mic-meter');
+  if (meter) {
+    meter.style.width = `${Math.round(Math.min(1, s.micLevel) * 100)}%`;
+    meter.className = s.howling
+      ? 'h-full rounded-full bg-rose-500 transition-all duration-75'
+      : (s.gateOpen
+        ? 'h-full rounded-full bg-emerald-500 transition-all duration-75'
+        : 'h-full rounded-full bg-slate-600 transition-all duration-75');
+  }
+
+  const status = document.getElementById('audio-status-text');
+  if (status) {
+    let text;
+    if (!s.active) text = 'Chưa gọi - bộ lọc sẽ chạy khi bắt đầu cuộc gọi.';
+    else if (s.howling) text = `Vừa chặn một cú hú ở ~${s.howlHz} Hz - đã hạ loa một nấc.`;
+    else if (s.ducking) text = 'Bác sĩ đang nói - mic hạ tạm để không dội tiếng ngược lại.';
+    else if (s.gateOpen) text = 'Đang truyền lời thoại.';
+    else text = `Đang chặn tiếng nền phòng khám (nền ~${Math.round(s.noiseFloorDb)} dB).`;
+    status.textContent = text;
+  }
+
+  const note = document.getElementById('audio-howl-note');
+  if (note) {
+    note.classList.toggle('hidden', !s.howlCount);
+    if (s.howlCount) {
+      note.textContent = `Đã tự chặn ${s.howlCount} lần hú trong phiên này. Nếu còn hú, hạ âm lượng loa hoặc kéo loa ra xa micro.`;
+    }
+  }
+
+  const engine = document.getElementById('audio-engine-note');
+  if (engine && s.active && !s.processing) {
+    engine.classList.remove('hidden');
+  } else if (engine) {
+    engine.classList.add('hidden');
+  }
+}
+
+function setCallNoiseProfile(value) {
+  CallAudio.setProfile(value);
+  const label = (CallAudio.profiles[value] || {}).label || value;
+  appendChatMessage('Hệ thống', `Mức lọc tạp âm micro: ${label}.`);
+}
+
+function setCallAntiHowl(checked) {
+  CallAudio.setAntiHowl(checked);
+  appendChatMessage('Hệ thống', checked
+    ? 'Đã bật chống hú/chống vang tự động.'
+    : 'Đã tắt chống hú - chỉ nên tắt khi cán bộ và bệnh nhân đều dùng tai nghe.');
+}
+
+function setCallDuck(checked) {
+  CallAudio.setDuck(checked);
+}
+
+function setCallSpeakerVolume(value) {
+  CallAudio.setSpeakerVolume(Number(value) / 100);
+}
+
+function setCallMicDevice(deviceId) {
+  CallAudio.setMicDevice(deviceId);
+}
+
+function setCallSpeakerDevice(deviceId) {
+  CallAudio.setSpeakerDevice(deviceId);
+}
+
+// Bảng chỉ vẽ lại khi đang mở, để vòng đo 45ms không phải đụng vào DOM vô ích.
+CallAudio.onUpdate((state) => {
+  if (audioPanelOpen) renderAudioPanel(state);
+});
+
 // 2. WebRTC Audio/Video Connection Setup
 /** @returns {boolean} true nếu đã tạo được kết nối ngang hàng. */
 function initPeerConnection() {
@@ -949,9 +1863,10 @@ function initPeerConnection() {
   }
 
   // Add local stream tracks to WebRTC connection
-  if (localStream) {
-    localStream.getTracks().forEach(track => {
-      peerConnection.addTrack(track, localStream);
+  const sendStream = outboundStream || localStream;
+  if (sendStream) {
+    sendStream.getTracks().forEach(track => {
+      peerConnection.addTrack(track, sendStream);
     });
     tuneVideoSender();
   }
@@ -962,14 +1877,24 @@ function initPeerConnection() {
     const remoteVideo = document.getElementById('remote-video');
     const remotePlaceholder = document.getElementById('remote-placeholder');
 
-    // Bỏ bộ đệm phát lại: khung hình hiện gần thời gian thực, đỡ cảm giác trễ.
-    try { if (event.receiver) event.receiver.playoutDelayHint = 0; } catch (e) {}
+    // Bỏ bộ đệm phát lại cho HÌNH: khung hình hiện gần thời gian thực.
+    // CỐ Ý không đụng tới track tiếng: bộ đệm chống rung (jitter buffer) của
+    // luồng tiếng mà bị ép về 0 thì mỗi gói tin về trễ sẽ thành một tiếng lụp
+    // bụp/lạo xạo - đúng thứ tiếng kêu mà cán bộ trạm phản ánh.
+    try {
+      if (event.receiver && event.track && event.track.kind === 'video') {
+        event.receiver.playoutDelayHint = 0;
+      }
+    } catch (e) {}
 
     if (remoteVideo) {
       remoteVideo.srcObject = event.streams[0];
       remoteVideo.playsInline = true;
       remoteVideo.classList.remove('hidden');
       remoteVideo.play().catch(() => {});
+      // Gắn loa vào bộ đo: mic sẽ tự né khi bác sĩ đang nói, và lớp chống hú có
+      // đủ dữ liệu để biết tiếng đang quay vòng qua loa ngoài của phòng khám.
+      try { CallAudio.attachRemote(remoteVideo, event.streams[0]); } catch (e) {}
     }
     if (remotePlaceholder) {
       remotePlaceholder.classList.add('hidden');
@@ -1109,12 +2034,66 @@ async function initLocalCamera(deviceId = null) {
     return;
   }
 
+  // Đổi camera GIỮA cuộc gọi thì chỉ xin lại track hình, giữ nguyên track tiếng.
+  //
+  // Hai lý do, cả hai đều liên quan trực tiếp tới tiếng vang:
+  //   - Bộ khử vọng của trình duyệt phải học đặc tính âm học của phòng (loa cách
+  //     mic bao xa, tường dội thế nào). Mở lại micro là xoá sạch phần đã học đó,
+  //     nên vài giây sau mỗi lần chuyển camera là đầu bên kia lại nghe vọng.
+  //   - Bản cũ mở luồng mới mà không tắt luồng cũ, nên sau mỗi lần chuyển là có
+  //     thêm một micro đang thu song song trong cùng căn phòng.
+  const keepAudio = !!(deviceId && localStream && localStream.getAudioTracks().length);
+
+  if (keepAudio) {
+    try {
+      const camOnly = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId }, frameRate: { ideal: 30, min: 15 } }
+      });
+      const newVideo = camOnly.getVideoTracks()[0];
+      localStream.getVideoTracks().forEach(t => {
+        try { localStream.removeTrack(t); } catch (e) {}
+        try { t.stop(); } catch (e) {}
+      });
+      if (newVideo) {
+        try { newVideo.contentHint = 'motion'; } catch (e) {}
+        try { localStream.addTrack(newVideo); } catch (e) {}
+        newVideo.enabled = !isVideoMuted;
+        if (outboundStream && outboundStream !== localStream) {
+          outboundStream.getVideoTracks().forEach(t => {
+            try { outboundStream.removeTrack(t); } catch (e) {}
+          });
+          try { outboundStream.addTrack(newVideo); } catch (e) {}
+        }
+        const sender = peerConnection
+          && peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) sender.replaceTrack(newVideo);
+      }
+      const previewEl = document.getElementById('local-video');
+      if (previewEl) {
+        previewEl.srcObject = localStream;
+        previewEl.play().catch(() => {});
+      }
+      tuneVideoSender();
+      return;
+    } catch (err) {
+      console.warn('Không đổi được riêng camera, mở lại toàn bộ thiết bị:', err && err.message);
+    }
+  }
+
+  // Mở lại toàn bộ thiết bị: trả luồng cũ về hệ điều hành trước đã.
+  if (localStream) {
+    localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+  }
+  CallAudio.detachLocal();
+
   try {
     // Xin đúng một cấu hình ngay từ đầu (kèm trần độ phân giải + số khung hình)
     // để trình duyệt không phải khởi động camera lần hai - đây là khâu chiếm
     // nhiều thời gian nhất khi bắt đầu cuộc gọi.
     const constraints = {
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      // Ràng buộc tiếng do CallAudio dựng: khử vọng, khử ồn, tự cân mức và tách
+      // giọng nói ngay tại tầng thu, một kênh 48 kHz cho khớp bộ khử vọng.
+      audio: CallAudio.constraints(),
       video: deviceId
         ? { deviceId: { exact: deviceId }, frameRate: { ideal: 30, min: 15 } }
         : {
@@ -1128,7 +2107,7 @@ async function initLocalCamera(deviceId = null) {
   } catch (err) {
     console.warn('⚠️ Camera access warning, attempting audio-only fallback:', err.message);
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: CallAudio.constraints() });
     } catch (err2) {
       console.warn('⚠️ Audio/Video access unavailable:', err2.message);
       localStream = null;
@@ -1141,11 +2120,19 @@ async function initLocalCamera(deviceId = null) {
     localStream.getVideoTracks().forEach(t => { try { t.contentHint = 'motion'; } catch (e) {} });
     localStream.getAudioTracks().forEach(t => { try { t.contentHint = 'speech'; } catch (e) {} });
 
+    // Tiếng đi vòng qua chuỗi lọc trước khi ra khỏi máy; hình giữ nguyên.
+    outboundStream = CallAudio.attachLocal(localStream) || localStream;
+    CallAudio.setMuted(isMicMuted);
+    refreshAudioDeviceOptions();
+
     const localVideo = document.getElementById('local-video');
     if (localVideo) {
+      // Ô xem trước tại chỗ BẮT BUỘC phải câm: phát tiếng mic của chính mình ra
+      // loa là tự tạo ra một vòng loa -> mic, hú ngay trong ba giây đầu.
       localVideo.srcObject = localStream;
       localVideo.playsInline = true;
       localVideo.muted = true;
+      localVideo.volume = 0;
       localVideo.play().catch(() => {});
     }
 
@@ -1161,7 +2148,10 @@ async function initLocalCamera(deviceId = null) {
     // Replace video/audio tracks in peer connection if already active
     if (peerConnection) {
       const videoTrack = localStream.getVideoTracks()[0];
-      const audioTrack = localStream.getAudioTracks()[0];
+      // Track tiếng gửi đi phải lấy từ luồng ĐÃ LỌC, không phải mic thô - nếu
+      // lấy nhầm mic thô thì mỗi lần đổi camera là mất sạch lớp chống vang.
+      const audioTrack = (outboundStream && outboundStream.getAudioTracks()[0])
+        || localStream.getAudioTracks()[0];
       const senders = peerConnection.getSenders();
 
       const videoSender = senders.find(s => s.track && s.track.kind === 'video');
@@ -1237,6 +2227,9 @@ function toggleMic() {
   if (audioTrack) {
     isMicMuted = !isMicMuted;
     audioTrack.enabled = !isMicMuted;
+    // Ngắt luôn ở đầu ra của chuỗi lọc: track thô tắt rồi nhưng đuôi vang còn
+    // đọng trong bộ nén/bộ lọc vẫn kịp thoát ra ngoài thêm một nhịp nữa.
+    try { CallAudio.setMuted(isMicMuted); } catch (e) {}
 
     const micBtn = document.getElementById('btn-toggle-mic') || document.getElementById('mic-btn');
     const micIcon = document.getElementById('icon-mic') || micBtn?.querySelector('i');
@@ -2077,6 +3070,14 @@ window.stationList = STATIONS;
 window.toggleCameraDevice = toggleCameraDevice;
 window.toggleMic = toggleMic;
 window.toggleVideo = toggleVideo;
+window.toggleAudioSettings = toggleAudioSettings;
+window.setCallNoiseProfile = setCallNoiseProfile;
+window.setCallAntiHowl = setCallAntiHowl;
+window.setCallDuck = setCallDuck;
+window.setCallSpeakerVolume = setCallSpeakerVolume;
+window.setCallMicDevice = setCallMicDevice;
+window.setCallSpeakerDevice = setCallSpeakerDevice;
+window.refreshAudioDeviceOptions = refreshAudioDeviceOptions;
 window.toggleSpeechToText = toggleSpeechToText;
 window.sendVitalsToDoctor = sendVitalsToDoctor;
 window.requestAIConsultation = requestAIConsultation;
