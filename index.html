@@ -264,6 +264,76 @@
             }
         }
 
+        /* =====================================================================
+           CỬA SỔ GỌI KHÁM TỪ XA: PHÓNG TO - THU NHỎ - ẨN
+
+           Cuộc gọi khám từ xa thường kéo dài, trong lúc đó cán bộ y tế vẫn cần
+           tra cứu tin tức, danh bạ hay hồ sơ trên cùng trang. Ba trạng thái dưới
+           đây tách khung gọi ra khỏi lớp phủ chặn trang (modal) để dùng song song:
+             - tw-max : phủ kín màn hình khi cần nhìn rõ tổn thương/hình ảnh khám
+             - tw-min : thu về khung nổi góc phải, phần còn lại của trang bấm được
+             - ẩn     : cửa sổ biến mất, chỉ còn thẻ nổi để mở lại (cuộc gọi vẫn chạy)
+           ===================================================================== */
+        .tw-floating {
+            position: fixed !important;
+            z-index: 70 !important;
+            margin: 0 !important;
+            pointer-events: auto;
+        }
+        .tw-max {
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+        }
+        .tw-min {
+            top: auto !important;
+            left: auto !important;
+            right: 0.75rem !important;
+            bottom: 0.75rem !important;
+            width: min(430px, calc(100vw - 1.5rem)) !important;
+            max-width: min(430px, calc(100vw - 1.5rem)) !important;
+            max-height: min(70vh, 640px) !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            border-radius: 1.25rem !important;
+            box-shadow: 0 25px 60px -12px rgba(2, 6, 23, 0.8) !important;
+        }
+        /* Khung nổi hẹp: các khối phụ trợ được gấp lại, chỉ giữ hình ảnh và
+           thanh điều khiển cuộc gọi để thao tác nhanh. */
+        .tw-min [data-tw-hide-min] { display: none !important; }
+        .tw-min .tw-grid { display: block !important; }
+        .tw-min .tw-grid > * + * { margin-top: 0.75rem; }
+        .tw-min .tw-pad, .tw-min.tw-pad { padding: 0.85rem !important; }
+        .tw-min .tw-stage { height: 12rem !important; }
+        .tw-min .tw-win-title { font-size: 0.72rem !important; }
+        .tw-min .tw-win-sub { display: none !important; }
+        /* Lớp phủ nền tối phải cho chuột đi xuyên khi mọi cửa sổ đã rời ra nổi,
+           nếu không thì trang bên dưới vẫn bị chặn dù không còn gì che. */
+        #modal-overlay.tw-passthrough {
+            background: transparent !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            pointer-events: none !important;
+        }
+        #tw-dock { z-index: 80; }
+        @media (max-width: 640px) {
+            .tw-min {
+                right: 0.5rem !important;
+                bottom: 0.5rem !important;
+                width: calc(100vw - 1rem) !important;
+                max-width: calc(100vw - 1rem) !important;
+            }
+        }
+
     </style>
 </head>
 <body class="bg-[#f4f6f9] text-gray-800 antialiased relative">
@@ -971,27 +1041,40 @@
 
         <!-- MODAL PHÒNG KHÁM TỪ XA TELEHEALTH CHO NGƯỜI DÂN / ĐIỂM TRẠM -->
         <div id="modal-telehealth-call" class="modal-content hidden bg-slate-950 rounded-3xl w-full max-w-4xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800 text-white">
-            <div class="bg-slate-900 px-6 py-4 flex justify-between items-center border-b border-slate-800">
-                <div class="flex items-center gap-3">
-                    <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
-                    <div>
-                        <h3 class="font-bold text-lg text-white flex items-center gap-2 flex-wrap">
+            <div class="bg-slate-900 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap justify-between items-center border-b border-slate-800 gap-2 sticky top-0 z-10">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0"></div>
+                    <div class="min-w-0">
+                        <h3 class="tw-win-title font-bold text-lg text-white flex items-center gap-2 flex-wrap">
                             PHÒNG KHÁM VIDEO TỪ XA TELEHEALTH
                             <span class="text-xs bg-blue-600 px-2 py-0.5 rounded font-mono" id="patient-room-code">ROOM-01</span>
                             <span class="hidden text-[10px] bg-emerald-700 px-2 py-0.5 rounded font-bold" id="patient-room-station">Điểm phòng khám</span>
                         </h3>
-                        <p class="text-xs text-slate-400" id="patient-room-status">Đang kết nối Bác sĩ tư vấn...</p>
+                        <p class="tw-win-sub text-xs text-slate-400" id="patient-room-status">Đang kết nối Bác sĩ tư vấn...</p>
                     </div>
                 </div>
-                <button onclick="window.closeTelehealthModal()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
-                    <i class="fas fa-phone-slash"></i> Kết thúc cuộc gọi
-                </button>
+                <!-- Điều khiển cửa sổ: thu nhỏ / phóng to / ẩn để dùng song song các
+                     chức năng khác của trang mà cuộc gọi vẫn không bị ngắt. -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" data-tw-btn="min" onclick="window.TeleWin.toggleMin('modal-telehealth-call')" title="Thu nhỏ thành khung nổi để dùng chức năng khác" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                        <i class="fas fa-window-minimize"></i>
+                    </button>
+                    <button type="button" data-tw-btn="max" onclick="window.TeleWin.toggleMax('modal-telehealth-call')" title="Phóng to toàn màn hình" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button type="button" onclick="window.TeleWin.set('modal-telehealth-call','hidden')" title="Ẩn giao diện gọi - cuộc gọi vẫn tiếp tục chạy nền" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                        <i class="fas fa-eye-slash"></i>
+                    </button>
+                    <button onclick="window.closeTelehealthModal()" title="Kết thúc cuộc gọi và thoát hẳn khỏi phòng khám" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                        <i class="fas fa-phone-slash"></i> <span class="tw-win-sub">Kết thúc cuộc gọi</span>
+                    </button>
+                </div>
             </div>
-            
-            <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <div class="tw-grid tw-pad p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Màn hình Video chính -->
                 <div class="lg:col-span-2 space-y-4">
-                    <div class="relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                    <div class="tw-stage relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
                         <video id="patient-remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
                         <div id="patient-video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-6 text-center">
                             <i class="fas fa-user-md text-6xl text-blue-500 mb-3 animate-bounce"></i>
@@ -1035,7 +1118,7 @@
                          ngoài cạnh mic là nguồn vang/hú thường gặp nhất, nên hai
                          núm này để ngay trên thanh điều khiển thay vì giấu trong
                          một bảng cài đặt. -->
-                    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-slate-900/70 px-3 py-2 rounded-2xl border border-slate-800 text-[11px] text-slate-300">
+                    <div data-tw-hide-min class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-slate-900/70 px-3 py-2 rounded-2xl border border-slate-800 text-[11px] text-slate-300">
                         <label class="flex items-center gap-2" for="patient-speaker-range">
                             <i class="fas fa-volume-high text-blue-400"></i>
                             <span class="whitespace-nowrap">Âm lượng loa</span>
@@ -1056,7 +1139,7 @@
                 </div>
 
                 <!-- Bảng Sinh hiệu & Chat -->
-                <div class="space-y-4 flex flex-col justify-between">
+                <div data-tw-hide-min class="space-y-4 flex flex-col justify-between">
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-2">
                             <i class="fas fa-id-card"></i> Định danh bệnh nhân (in trên đơn thuốc)
@@ -1677,19 +1760,19 @@
         <!-- BẢNG ĐIỀU KHIỂN CÁN BỘ Y TẾ ĐIỂM TRẠM -->
         <div id="modal-station-panel" class="modal-content hidden bg-slate-950 text-white rounded-3xl w-full max-w-6xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800">
             <!-- Header -->
-            <div class="bg-slate-900 px-6 py-4 flex flex-wrap justify-between items-center border-b border-slate-800 gap-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center text-lg font-bold">
+            <div class="bg-slate-900 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap justify-between items-center border-b border-slate-800 gap-3 sticky top-0 z-10">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center text-lg font-bold shrink-0">
                         <i class="fas fa-notes-medical"></i>
                     </div>
-                    <div>
-                        <h3 class="font-black text-base text-white flex items-center gap-2 flex-wrap">
+                    <div class="min-w-0">
+                        <h3 class="tw-win-title font-black text-base text-white flex items-center gap-2 flex-wrap">
                             <span>BẢNG ĐIỀU KHIỂN</span>
                             <!-- Tên phòng khám biến động: nạp từ site_configs (CMS Quản trị), không cứng trong mã. -->
                             <span id="station-clinic-name" data-cms-id="station-clinic-name" data-station-clinic-name>TRẠM Y TẾ BÁT XÁT</span>
                             <span id="display-station-code" class="text-xs bg-blue-600 px-2 py-0.5 rounded font-mono text-white">TYT-BATXAT-01</span>
                         </h3>
-                        <p class="text-xs text-slate-400 flex items-center gap-2">
+                        <p class="tw-win-sub text-xs text-slate-400 flex items-center gap-2">
                             <span>Cán bộ trực: <strong id="display-operator-name" class="text-emerald-400">Y sĩ Nguyễn Văn A</strong></span>
                             <span>•</span>
                             <span id="connection-badge" class="inline-flex items-center space-x-1 bg-slate-800 border border-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full">
@@ -1699,23 +1782,39 @@
                         </p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <select id="station-switcher" onchange="window.switchStation(this.value)" title="Chuyển điểm trạm khu vực" class="bg-slate-800 border border-blue-800/70 text-blue-200 text-[11px] font-bold font-mono px-2.5 py-1.5 rounded-xl focus:outline-none focus:border-blue-500">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <select id="station-switcher" data-tw-hide-min onchange="window.switchStation(this.value)" title="Chuyển điểm trạm khu vực" class="bg-slate-800 border border-blue-800/70 text-blue-200 text-[11px] font-bold font-mono px-2.5 py-1.5 rounded-xl focus:outline-none focus:border-blue-500">
                         <!-- Danh sách điểm phòng khám được nạp động từ window.TELEHEALTH_STATIONS -->
                     </select>
                     <button onclick="window.endTeleconsultation()" id="btn-end-call-header" title="Kết thúc cuộc gọi khám từ xa và tắt camera/micro của điểm trạm" class="hidden bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition items-center gap-1.5 border border-rose-400/50 shadow">
                         <i class="fas fa-phone-slash"></i> Kết thúc cuộc gọi
                     </button>
-                    <span id="station-auth-user" class="hidden items-center gap-1.5 bg-emerald-950 border border-emerald-800 text-emerald-300 text-[10px] font-bold px-2.5 py-1.5 rounded-xl" title="Tài khoản đang đăng nhập vào Bảng điều khiển">
+
+                    <!-- Điều khiển cửa sổ: cán bộ thu nhỏ hoặc ẩn bảng điều khiển để
+                         tra cứu tin tức, danh bạ, hồ sơ... trên cùng trang mà cuộc gọi
+                         và vòng quét hàng đợi vẫn chạy bình thường. -->
+                    <span class="flex items-center gap-1.5">
+                        <button type="button" data-tw-btn="min" onclick="window.TeleWin.toggleMin('modal-station-panel')" title="Thu nhỏ thành khung nổi để dùng chức năng khác" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                            <i class="fas fa-window-minimize"></i>
+                        </button>
+                        <button type="button" data-tw-btn="max" onclick="window.TeleWin.toggleMax('modal-station-panel')" title="Phóng to toàn màn hình" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <button type="button" onclick="window.TeleWin.set('modal-station-panel','hidden')" title="Ẩn bảng điều khiển - cuộc gọi và hàng đợi vẫn chạy nền" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                            <i class="fas fa-eye-slash"></i>
+                        </button>
+                    </span>
+
+                    <span id="station-auth-user" data-tw-hide-min class="hidden items-center gap-1.5 bg-emerald-950 border border-emerald-800 text-emerald-300 text-[10px] font-bold px-2.5 py-1.5 rounded-xl" title="Tài khoản đang đăng nhập vào Bảng điều khiển">
                         <i class="fas fa-user-shield"></i> <span id="station-auth-user-name">—</span>
                     </span>
-                    <button onclick="window.openLoginModal()" class="bg-slate-800 hover:bg-slate-700 text-blue-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700">
+                    <button onclick="window.openLoginModal()" data-tw-hide-min class="bg-slate-800 hover:bg-slate-700 text-blue-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700">
                         <i class="fas fa-user-gear"></i> Đổi tài khoản CMS
                     </button>
-                    <button onclick="window.logoutStationPanel()" class="bg-slate-800 hover:bg-rose-900 text-rose-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 hover:border-rose-700" title="Thoát khỏi Bảng điều khiển trạm">
+                    <button onclick="window.logoutStationPanel()" data-tw-hide-min class="bg-slate-800 hover:bg-rose-900 text-rose-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 hover:border-rose-700" title="Thoát khỏi Bảng điều khiển trạm">
                         <i class="fas fa-right-from-bracket"></i> Đăng xuất
                     </button>
-                    <button onclick="window.closeModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 w-8 h-8 rounded-full flex items-center justify-center transition">
+                    <button onclick="window.closeStationPanel()" title="Đóng Bảng điều khiển" class="bg-slate-800 hover:bg-slate-700 text-slate-300 w-8 h-8 rounded-full flex items-center justify-center transition">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -1731,9 +1830,9 @@
             </div>
 
             <!-- Content Grid -->
-            <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="tw-grid tw-pad p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <!-- Cột trái: Hàng đợi cuộc gọi & Sinh hiệu bệnh nhân (4 col) -->
-                <div class="lg:col-span-4 space-y-4">
+                <div data-tw-hide-min class="lg:col-span-4 space-y-4">
                     <!-- Hàng đợi cuộc gọi từ người dân -->
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
                         <div class="flex justify-between items-center">
@@ -1836,7 +1935,7 @@
 
                 <!-- Cột giữa: Màn hình Video Call Khám đa chiều & Điều khiển (5 col) -->
                 <div class="lg:col-span-5 space-y-4">
-                    <div class="relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-lg">
+                    <div class="tw-stage relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-lg">
                         <video id="remote-video" autoplay playsinline class="w-full h-full object-cover hidden"></video>
                         <div id="remote-placeholder" class="flex flex-col items-center justify-center text-slate-400 p-6 text-center">
                             <i class="fas fa-user-md text-6xl text-blue-500 mb-3 animate-pulse"></i>
@@ -2004,7 +2103,7 @@
                 </div>
 
                 <!-- Cột phải: Bảng hỗ trợ Lâm sàng, Chữ ký số & Trợ lý AI Co-Pilot (3 col) -->
-                <div class="lg:col-span-3 space-y-4">
+                <div data-tw-hide-min class="lg:col-span-3 space-y-4">
                     <!-- Tính năng Chữ ký số & Chọn Bác sĩ tư vấn khám kê đơn -->
                     <div class="bg-slate-900 p-4 rounded-2xl border border-purple-900/60 space-y-3 bg-purple-950/20">
                         <div class="flex items-center justify-between">
@@ -2321,6 +2420,12 @@
         <i class="fas fa-info-circle text-2xl text-medical-400"></i>
         <span id="toast-message" class="font-bold text-sm tracking-wide"></span>
     </div>
+
+    <!-- THANH NỔI KHÔI PHỤC CỬA SỔ ĐÃ ẨN
+         Khi cán bộ ẩn khung khám để dùng chức năng khác, cuộc gọi vẫn đang chạy.
+         Thẻ nổi này là lối quay lại duy nhất, nên luôn nằm trên cùng và không bao
+         giờ bị lớp phủ của cửa sổ khác che mất. -->
+    <div id="tw-dock" class="hidden fixed bottom-4 left-4 flex flex-col items-start gap-2"></div>
 
     <!-- ================= GIAO DIỆN HỆ THỐNG QUẢN TRỊ CMS (ADMIN) ================= -->
     <div id="admin-dashboard" class="hidden min-h-screen bg-gray-100 flex flex-col font-sans">
@@ -2693,28 +2798,39 @@
                         </div>
 
                         <!-- KHU VỰC MÀN HÌNH KHÁM VIDEO TRỰC TIẾP TRONG CMS -->
-                        <div id="cms-video-consultation-room" class="bg-slate-950 rounded-2xl p-6 text-white border border-slate-800 space-y-6 mb-8">
-                            <div class="flex justify-between items-center pb-3 border-b border-slate-800">
-                                <div class="flex items-center gap-3">
-                                    <span class="w-3 h-3 rounded-full bg-blue-500 animate-ping"></span>
-                                    <div>
-                                        <h3 class="font-bold text-base text-white flex items-center gap-2">
+                        <div id="cms-video-consultation-room" class="tw-pad bg-slate-950 rounded-2xl p-6 text-white border border-slate-800 space-y-6 mb-8">
+                            <div class="tw-pad flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-slate-800">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <span class="w-3 h-3 rounded-full bg-blue-500 animate-ping shrink-0"></span>
+                                    <div class="min-w-0">
+                                        <h3 class="tw-win-title font-bold text-base text-white flex items-center gap-2 flex-wrap">
                                             KHUNG KHÁM LÂM SÀNG TỪ XA BÁC SĨ (CMS CONSULTATION)
                                             <span id="cms-active-patient-badge" class="bg-blue-600 text-xs px-2 py-0.5 rounded font-mono">Chờ kết nối</span>
                                         </h3>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-2">
+                                <!-- Bác sĩ vừa khám vừa tra hồ sơ ở thẻ khác: khung khám thu nhỏ
+                                     thành cửa sổ nổi hoặc ẩn đi mà cuộc gọi không bị ngắt. -->
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" data-tw-btn="min" onclick="window.TeleWin.toggleMin('cms-video-consultation-room')" title="Thu nhỏ thành khung nổi để dùng chức năng khác" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                                        <i class="fas fa-window-minimize"></i>
+                                    </button>
+                                    <button type="button" data-tw-btn="max" onclick="window.TeleWin.toggleMax('cms-video-consultation-room')" title="Phóng to toàn màn hình" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                                        <i class="fas fa-expand"></i>
+                                    </button>
+                                    <button type="button" onclick="window.TeleWin.set('cms-video-consultation-room','hidden')" title="Ẩn khung khám - cuộc gọi vẫn tiếp tục chạy nền" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                                        <i class="fas fa-eye-slash"></i>
+                                    </button>
                                     <button onclick="window.endCmsVideoCall()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1">
-                                        <i class="fas fa-phone-slash"></i> Ngắt kết nối
+                                        <i class="fas fa-phone-slash"></i> <span class="tw-win-sub">Ngắt kết nối</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div class="tw-grid grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 <!-- Luồng Video -->
                                 <div class="lg:col-span-2 space-y-4">
-                                    <div class="relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                                    <div class="tw-stage relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
                                         <video id="cms-remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
                                         <div id="cms-video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-6 text-center">
                                             <i class="fas fa-hospital-user text-6xl text-slate-700 mb-3"></i>
@@ -2781,7 +2897,7 @@
                                 </div>
 
                                 <!-- Ghi chép Lâm sàng & AI Suggestions -->
-                                <div class="space-y-4 flex flex-col justify-between">
+                                <div data-tw-hide-min class="space-y-4 flex flex-col justify-between">
                                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
                                         <div class="flex items-center justify-between">
                                             <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-2">
@@ -3508,9 +3624,246 @@
             }
         };
 
+        /* =====================================================================
+           QUẢN LÝ CỬA SỔ KHÁM TỪ XA (TeleWin)
+
+           Khung gọi video trước đây là một cửa sổ chặn trang: mở lên là không
+           thao tác được gì khác cho tới khi đóng. Nhưng một buổi khám từ xa kéo
+           dài, giữa chừng cán bộ vẫn phải tra danh bạ, xem tin tức, mở hồ sơ...
+           TeleWin cho mỗi khung khám bốn trạng thái:
+
+             normal - nằm đúng chỗ cũ (trong lớp phủ, hoặc trong thẻ CMS)
+             max    - phủ kín màn hình để nhìn rõ hình ảnh thăm khám
+             min    - thu về khung nổi góc phải, phần còn lại của trang dùng bình thường
+             hidden - ẩn hẳn, chỉ còn thẻ nổi góc trái để mở lại (cuộc gọi vẫn chạy)
+
+           Điểm mấu chốt: ở trạng thái max/min/hidden, cửa sổ được CHUYỂN RA
+           ngoài <body> và ghim lại vị trí cũ bằng một nút đánh dấu. Nhờ vậy lớp
+           phủ nền tối không còn con nào để hiển thị nên tự tắt, chuột bấm xuống
+           trang bên dưới được, và khung khám của CMS không bị mất khi bác sĩ
+           chuyển sang thẻ khác (thẻ cũ bị display:none sẽ kéo theo cả con của nó).
+           ===================================================================== */
+        window.TeleWin = (function createTeleWindowManager() {
+            const REG = {};
+
+            function el(id) { return document.getElementById(id); }
+
+            function register(id, opts) {
+                if (!el(id)) return;
+                REG[id] = Object.assign({
+                    id: id,
+                    title: id,
+                    subtitle: '',
+                    icon: 'fa-video',
+                    closeOnExit: false,
+                    state: 'normal',
+                    home: null
+                }, opts || {});
+                syncButtons(id);
+            }
+
+            function stateOf(id) { return REG[id] ? REG[id].state : 'normal'; }
+
+            function isFloating(node) {
+                return !!node && node.getAttribute('data-tw-floating') === '1';
+            }
+
+            /** Ghim vị trí gốc bằng một nút đánh dấu rồi đưa cửa sổ ra <body>. */
+            function detach(node, meta) {
+                if (node.parentNode === document.body) return;
+                if (!meta.home) {
+                    meta.home = document.createComment('tw-home:' + node.id);
+                    node.parentNode.insertBefore(meta.home, node);
+                }
+                document.body.appendChild(node);
+            }
+
+            /** Trả cửa sổ về đúng chỗ cũ trong cây DOM. */
+            function attach(node, meta) {
+                if (meta.home && meta.home.parentNode) {
+                    meta.home.parentNode.insertBefore(node, meta.home);
+                    meta.home.parentNode.removeChild(meta.home);
+                }
+                meta.home = null;
+            }
+
+            function set(id, state) {
+                const meta = REG[id];
+                const node = el(id);
+                if (!meta || !node) return;
+
+                meta.state = state;
+                node.classList.remove('tw-floating', 'tw-min', 'tw-max');
+
+                if (state === 'normal') {
+                    attach(node, meta);
+                    node.removeAttribute('data-tw-floating');
+                    node.classList.remove('hidden');
+                } else if (state === 'hidden') {
+                    detach(node, meta);
+                    node.setAttribute('data-tw-floating', '1');
+                    node.classList.add('hidden');
+                } else {
+                    detach(node, meta);
+                    node.setAttribute('data-tw-floating', '1');
+                    node.classList.remove('hidden');
+                    node.classList.add('tw-floating', state === 'max' ? 'tw-max' : 'tw-min');
+                    node.scrollTop = 0;
+                }
+
+                syncButtons(id);
+                renderDock();
+                sync();
+            }
+
+            function toggleMax(id) {
+                set(id, stateOf(id) === 'max' ? 'normal' : 'max');
+            }
+
+            function toggleMin(id) {
+                set(id, stateOf(id) === 'min' ? 'normal' : 'min');
+            }
+
+            /**
+             * Kết thúc cuộc gọi là thoát hẳn khỏi chức năng gọi: cửa sổ không
+             * được phép nằm lại ở dạng nổi hay ẩn, và thẻ nổi khôi phục phải
+             * biến mất cùng lúc.
+             */
+            function exit(id) {
+                const meta = REG[id];
+                if (!meta) return;
+                set(id, 'normal');
+                if (meta.closeOnExit) {
+                    const node = el(id);
+                    if (node) node.classList.add('hidden');
+                }
+                renderDock();
+                sync();
+            }
+
+            /** Ẩn các cửa sổ trong lớp phủ, KHÔNG đụng tới cửa sổ đang nổi. */
+            function hideModals(exceptId) {
+                document.querySelectorAll('.modal-content').forEach(m => {
+                    if (exceptId && m.id === exceptId) return;
+                    if (isFloating(m)) return;
+                    m.classList.add('hidden');
+                });
+            }
+
+            /**
+             * Lớp phủ nền tối chỉ được bật khi thực sự còn cửa sổ nằm trong nó.
+             * Mọi cửa sổ đã ra nổi thì lớp phủ tự tắt để trang dùng được bình thường.
+             */
+            function sync() {
+                const overlay = el('modal-overlay');
+                if (!overlay) return;
+
+                const stillInside = Array.from(overlay.querySelectorAll('.modal-content'))
+                    .some(m => !m.classList.contains('hidden'));
+                const anyMax = Object.keys(REG).some(k => REG[k].state === 'max');
+
+                if (stillInside) {
+                    overlay.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    overlay.classList.add('hidden');
+                    document.body.style.overflow = anyMax ? 'hidden' : 'auto';
+                }
+            }
+
+            /** Đổi biểu tượng nút phóng to/thu nhỏ theo trạng thái hiện tại. */
+            function syncButtons(id) {
+                const node = el(id);
+                if (!node) return;
+                const state = stateOf(id);
+
+                const maxBtn = node.querySelector('[data-tw-btn="max"]');
+                if (maxBtn) {
+                    const icon = maxBtn.querySelector('i');
+                    if (icon) icon.className = 'fas ' + (state === 'max' ? 'fa-compress' : 'fa-expand');
+                    maxBtn.title = state === 'max' ? 'Thu về kích thước thường' : 'Phóng to toàn màn hình';
+                }
+                const minBtn = node.querySelector('[data-tw-btn="min"]');
+                if (minBtn) {
+                    const icon = minBtn.querySelector('i');
+                    if (icon) icon.className = 'fas ' + (state === 'min' ? 'fa-up-right-and-down-left-from-center' : 'fa-window-minimize');
+                    minBtn.title = state === 'min' ? 'Mở lại kích thước thường' : 'Thu nhỏ thành khung nổi để dùng chức năng khác';
+                }
+            }
+
+            /** Thẻ nổi khôi phục cho những cửa sổ đang bị ẩn. */
+            function renderDock() {
+                const dock = el('tw-dock');
+                if (!dock) return;
+
+                const hiddenIds = Object.keys(REG).filter(k => REG[k].state === 'hidden');
+                if (!hiddenIds.length) {
+                    dock.innerHTML = '';
+                    dock.classList.add('hidden');
+                    return;
+                }
+
+                dock.classList.remove('hidden');
+                dock.innerHTML = hiddenIds.map(k => {
+                    const m = REG[k];
+                    return `<div class="flex items-center gap-2 bg-slate-900/95 border border-blue-700/70 text-white rounded-2xl pl-3 pr-2 py-2 shadow-2xl backdrop-blur">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping shrink-0"></span>
+                        <span class="text-[11px] font-bold leading-tight max-w-[13rem]">
+                            <i class="fas ${m.icon} text-blue-400 mr-1"></i>${m.title}
+                            <span class="block text-[10px] font-medium text-slate-400">${m.subtitle || 'Đang chạy nền'}</span>
+                        </span>
+                        <button type="button" onclick="window.TeleWin.set('${k}','min')" title="Mở lại dạng khung nổi nhỏ" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs transition flex items-center justify-center">
+                            <i class="fas fa-window-restore"></i>
+                        </button>
+                        <button type="button" onclick="window.TeleWin.set('${k}','normal')" title="Mở lại toàn bộ giao diện" class="h-8 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition flex items-center gap-1.5">
+                            <i class="fas fa-eye"></i> Mở lại
+                        </button>
+                    </div>`;
+                }).join('');
+            }
+
+            return {
+                register: register,
+                set: set,
+                toggleMax: toggleMax,
+                toggleMin: toggleMin,
+                exit: exit,
+                state: stateOf,
+                isFloating: isFloating,
+                hideModals: hideModals,
+                sync: sync,
+                renderDock: renderDock
+            };
+        })();
+
+        // Đăng ký ba khung khám từ xa của hệ thống.
+        window.TeleWin.register('modal-telehealth-call', {
+            title: 'Phòng khám video từ xa',
+            subtitle: 'Cuộc gọi với Y sĩ/ Bác sĩ đang diễn ra',
+            icon: 'fa-video',
+            // Người dân kết thúc cuộc gọi là rời hẳn phòng khám, không giữ cửa sổ lại.
+            closeOnExit: true
+        });
+        window.TeleWin.register('modal-station-panel', {
+            title: 'Bảng điều khiển Điểm trạm',
+            subtitle: 'Đang trực tiếp nhận cuộc gọi',
+            icon: 'fa-notes-medical',
+            closeOnExit: false
+        });
+        window.TeleWin.register('cms-video-consultation-room', {
+            title: 'Khung khám lâm sàng từ xa',
+            subtitle: 'Cuộc gọi với điểm trạm đang diễn ra',
+            icon: 'fa-user-md',
+            closeOnExit: false
+        });
+
         window.openModal = function(id) {
+            // Cửa sổ đang ở dạng nổi/ẩn thì phải kéo về lớp phủ trước, nếu không
+            // thao tác mở sẽ "thành công" mà người dùng không thấy gì.
+            if (window.TeleWin.state(id) !== 'normal') window.TeleWin.set(id, 'normal');
+
             document.getElementById('modal-overlay').classList.remove('hidden');
-            document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
+            window.TeleWin.hideModals(id);
             document.getElementById(id).classList.remove('hidden');
             document.body.style.overflow = 'hidden';
 
@@ -3606,11 +3959,14 @@
 
         window.closeModal = function() {
             const stationPanel = document.getElementById('modal-station-panel');
-            const stationPanelWasOpen = !!stationPanel && !stationPanel.classList.contains('hidden');
+            // Bảng điều khiển đang thu nhỏ/ẩn thì nó vẫn "đang mở", chỉ là không
+            // nằm trong lớp phủ; đóng cửa sổ khác không được coi là đóng nó.
+            const stationPanelWasOpen = !!stationPanel
+                && !stationPanel.classList.contains('hidden')
+                && !window.TeleWin.isFloating(stationPanel);
 
-            document.getElementById('modal-overlay').classList.add('hidden');
-            document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
-            document.body.style.overflow = 'auto';
+            window.TeleWin.hideModals();
+            window.TeleWin.sync();
 
             // Đóng cửa sổ là ngừng luôn mọi vòng quét nền của nó: không có cửa sổ nào
             // đang mở thì trình duyệt không được tự gọi sang kênh tiếp nhận của trạm.
@@ -5679,9 +6035,13 @@
             const modal = document.getElementById('modal-telehealth-call');
 
             if (overlay && modal) {
+                // Mở cuộc gọi mới luôn bắt đầu ở kích thước thường, kể cả khi lần
+                // trước người dùng để cửa sổ ở dạng thu nhỏ.
+                window.TeleWin.set('modal-telehealth-call', 'normal');
                 overlay.classList.remove('hidden');
-                document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
+                window.TeleWin.hideModals('modal-telehealth-call');
                 modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
             }
 
             const roomCodeEl = document.getElementById('patient-room-code');
@@ -5710,9 +6070,57 @@
             });
         };
 
+        /**
+         * Dọn sạch dấu vết của phiên khám vừa kết thúc trên cửa sổ của người dân,
+         * để lần gọi sau bắt đầu từ màn hình trắng chứ không kế thừa hội thoại,
+         * chẩn đoán hay đồng hồ chờ của người bệnh trước.
+         */
+        function teleResetPatientRoomUI() {
+            teleStopWaitTicker();
+            teleShowRemotePlaceholder(true);
+
+            const status = document.getElementById('patient-room-status');
+            if (status) status.textContent = 'Cuộc gọi đã kết thúc.';
+
+            const waitDuty = document.getElementById('patient-wait-duty');
+            if (waitDuty) waitDuty.textContent = 'Đang kiểm tra cán bộ trực...';
+            const waitTimer = document.getElementById('patient-wait-timer');
+            if (waitTimer) waitTimer.textContent = 'Thời gian chờ: 00:00';
+            const waitFallback = document.getElementById('patient-wait-fallback');
+            if (waitFallback) waitFallback.classList.add('hidden');
+
+            const chatBox = document.getElementById('patient-chat-box');
+            if (chatBox) {
+                chatBox.innerHTML = '<div class="bg-slate-800/50 p-2.5 rounded-xl text-slate-400 text-[11px] italic border border-slate-700/50">'
+                    + 'Hệ thống: Cuộc gọi khám từ xa bảo mật đã khởi tạo. Bạn có thể trao đổi tin nhắn, gửi ảnh tổn thương hoặc tệp đính kèm trực tiếp cho Bác sĩ.'
+                    + '</div>';
+            }
+
+            const conclusions = {
+                'patient-doctor-diagnosis': 'Chưa có chẩn đoán. Y sĩ/ Bác sĩ sẽ gửi sau khi thăm khám.',
+                'patient-doctor-plan': 'Chưa có hướng xử trí.',
+                'patient-doctor-drugs': 'Chưa có thuốc kê đơn.',
+                'patient-doctor-advice': 'Y sĩ/ Bác sĩ chưa gửi lời dặn.'
+            };
+            Object.keys(conclusions).forEach(id => {
+                const node = document.getElementById(id);
+                if (node) node.textContent = conclusions[id];
+            });
+
+            window.clearPatientChatFile && window.clearPatientChatFile();
+        }
+
+        /**
+         * Kết thúc cuộc gọi của người dân là THOÁT HẲN khỏi chức năng gọi điện:
+         * rời phòng signaling, tắt camera/micro, gỡ cửa sổ khỏi mọi trạng thái
+         * nổi/ẩn và xoá thẻ khôi phục - không để lại thứ gì chạy nền.
+         */
         window.closeTelehealthModal = function() {
-            window.closeModal();
             teleStop(true);
+            window.TeleWin.exit('modal-telehealth-call');
+            window.closeModal();
+            teleResetPatientRoomUI();
+            window.showToast('Đã kết thúc cuộc gọi và thoát khỏi phòng khám từ xa.');
         };
 
         window.joinCmsTelehealthCall = function(roomId, patientName, symptoms, appointmentId, patientId) {
@@ -5734,6 +6142,9 @@
             }
 
             const room = document.getElementById('cms-video-consultation-room');
+            // Tiếp nhận cuộc gọi mới thì khung khám phải hiện lại nguyên vẹn, kể
+            // cả khi bác sĩ đang để nó ở dạng thu nhỏ hoặc đã ẩn đi.
+            window.TeleWin.set('cms-video-consultation-room', 'normal');
             if (room) room.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
             // Tiếp nhận thêm một phiên độc lập: cuộc gọi đang khám không bị cắt.
@@ -6738,6 +7149,13 @@
                 teleShowRemotePlaceholder(true);
                 if (TELE.role !== 'doctor' && msg.type === 'peer-left') teleStartWaitTicker();
                 window.showToast("Đối phương đã kết thúc cuộc gọi.");
+
+                /* Bác sĩ đã chốt "Hoàn thành lượt khám": buổi khám kết thúc thật
+                   sự, nên cửa sổ của người dân thoát hẳn khỏi chức năng gọi thay
+                   vì nằm lại (kể cả khi đang thu nhỏ hoặc đã ẩn ở góc màn hình). */
+                if (msg.type === 'call-ended' && TELE.role !== 'doctor') {
+                    setTimeout(() => window.closeTelehealthModal(), 1500);
+                }
                 return;
             }
         }
@@ -8468,6 +8886,9 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 if (localEl) localEl.srcObject = null;
                 activeRoomId = null;
                 isCmsCall = false;
+                // Hết cuộc gọi là thoát hẳn chức năng gọi: khung khám không được
+                // nằm lại dạng nổi hay ẩn ở góc màn hình.
+                window.TeleWin.exit('cms-video-consultation-room');
             }
 
             cmsRenderCallTiles();
@@ -8495,6 +8916,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             const activeBadge = document.getElementById('cms-active-patient-badge');
             if (activeBadge) activeBadge.textContent = 'Chờ kết nối';
             teleStop(true);
+            window.TeleWin.exit('cms-video-consultation-room');
             window.showToast("Đã ngắt cuộc gọi video.");
         };
 
@@ -9518,7 +9940,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 const modal = document.getElementById('login-modal');
                 if (!overlay || !modal) return;
 
-                document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
+                window.TeleWin.hideModals('login-modal');
                 overlay.classList.remove('hidden');
                 modal.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
@@ -9554,7 +9976,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 const overlay = document.getElementById('modal-overlay');
                 const modal = document.getElementById('modal-station-panel');
                 if (overlay && modal) {
-                    document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
+                    // Mở lại Bảng điều khiển luôn trả về kích thước thường, kể cả
+                    // khi lần trước cán bộ để nó ở dạng khung nổi hoặc đã ẩn đi.
+                    window.TeleWin.set('modal-station-panel', 'normal');
+                    window.TeleWin.hideModals('modal-station-panel');
                     overlay.classList.remove('hidden');
                     modal.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
@@ -9580,6 +10005,26 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 if (typeof window.stopQueuePolling === 'function') window.stopQueuePolling();
                 window.closeModal();
                 window.showToast('Đã đăng xuất khỏi Bảng điều khiển trạm.');
+            };
+
+            /**
+             * Nút "X" của Bảng điều khiển: đóng hẳn module.
+             *
+             * Muốn vừa gọi vừa dùng chức năng khác của trang thì đã có nút thu nhỏ
+             * và nút ẩn; nên khi cán bộ chủ động đóng bảng, cuộc gọi được kết thúc
+             * và camera/micro được trả về cho máy thay vì chạy ngầm không ai thấy.
+             */
+            window.closeStationPanel = function() {
+                const callRunning = typeof window.isStationCallActive === 'function' && window.isStationCallActive();
+                if (callRunning) {
+                    const ok = window.confirm('Đang có cuộc gọi khám từ xa. Đóng Bảng điều khiển sẽ kết thúc cuộc gọi và tắt camera/micro.\n\nNếu chỉ muốn dùng chức năng khác của trang, hãy bấm nút Thu nhỏ hoặc Ẩn giao diện.');
+                    if (!ok) return;
+                }
+                if (typeof window.endTeleconsultation === 'function') window.endTeleconsultation({ silent: true });
+                if (typeof window.stopQueuePolling === 'function') window.stopQueuePolling();
+                window.TeleWin.set('modal-station-panel', 'normal');
+                window.closeModal();
+                if (callRunning) window.showToast('Đã kết thúc cuộc gọi và thoát khỏi Bảng điều khiển.');
             };
 
             window.handleStationLoginKey = function(event) {

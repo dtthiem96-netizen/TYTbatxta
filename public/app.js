@@ -324,6 +324,11 @@ function endTeleconsultation(options) {
   updateCallControlsUI();
   updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
 
+  /* Kết thúc cuộc gọi là thoát hẳn khỏi chức năng gọi điện: bảng điều khiển
+     không được nằm lại ở dạng khung nổi hay bị ẩn sau thẻ khôi phục, vì lúc đó
+     không còn cuộc gọi nào để chạy nền nữa. */
+  if (window.TeleWin) window.TeleWin.exit('modal-station-panel');
+
   if (wasActive && !silent) {
     appendChatMessage('Hệ thống', 'Đã kết thúc cuộc gọi. Camera và micro của điểm trạm đã tắt.');
   }
@@ -612,6 +617,10 @@ async function refreshIncomingCallsQueue() {
 function acceptPatientCall(targetRoomId, patientName, symptoms) {
   if (!targetRoomId) return;
 
+  // Tiếp nhận cuộc gọi thì bảng điều khiển phải hiện lại đầy đủ, kể cả khi cán
+  // bộ đang để nó ở dạng khung nổi hoặc đã ẩn để làm việc khác.
+  if (window.TeleWin) window.TeleWin.set('modal-station-panel', 'normal');
+
   const previousPeerId = peerId;
   const previousRoomId = roomId;
 
@@ -851,12 +860,23 @@ async function handleSignalMessage(msg) {
     }
 
     case 'peer-left':
-    case 'call-ended':
       isConnected = false;
       remotePeerName = null;
       appendChatMessage('Hệ thống', 'Đầu bên kia đã rời phòng khám.');
       showRemotePlaceholder();
       updateConnectionBadge(false, 'Tuyến trên đã rời phòng khám');
+      break;
+
+    /* Tuyến trên đã chốt "Hoàn thành lượt khám": buổi khám khép lại hoàn toàn,
+       nên điểm trạm cũng thoát hẳn khỏi chức năng gọi - trả camera/micro về cho
+       máy và đưa bảng điều khiển ra khỏi trạng thái khung nổi/ẩn. */
+    case 'call-ended':
+      isConnected = false;
+      remotePeerName = null;
+      appendChatMessage('Hệ thống', 'Tuyến trên đã hoàn thành lượt khám. Đang thoát khỏi cuộc gọi...');
+      showRemotePlaceholder();
+      updateConnectionBadge(false, 'Tuyến trên đã kết thúc lượt khám');
+      setTimeout(() => endTeleconsultation(), 1200);
       break;
 
     default:
@@ -2784,12 +2804,20 @@ function renderReportModal(ctx) {
  * khám sẽ che mất Bảng điều khiển trạm. Ghi nhớ trạng thái để khi đóng phiếu
  * thì cán bộ được trả về đúng bảng điều khiển đang khám, không bị đẩy ra trang
  * chủ giữa lúc cuộc gọi vẫn đang diễn ra.
+ *
+ * Bảng điều khiển đang ở dạng khung nổi (thu nhỏ/ẩn) thì nó không bị phiếu khám
+ * che, nên cũng không cần khôi phục - cứ để nguyên trạng thái người dùng chọn.
  */
 let stationPanelWasOpen = false;
 
+function stationPanelFloating() {
+  const panel = document.getElementById('modal-station-panel');
+  return !!(panel && window.TeleWin && window.TeleWin.isFloating(panel));
+}
+
 function openReportModal() {
   const panel = document.getElementById('modal-station-panel');
-  stationPanelWasOpen = !!panel && !panel.classList.contains('hidden');
+  stationPanelWasOpen = !!panel && !panel.classList.contains('hidden') && !stationPanelFloating();
 
   if (typeof window.openModal === 'function') {
     window.openModal('report-modal');
@@ -2799,7 +2827,7 @@ function openReportModal() {
   const rptModal = document.getElementById('report-modal');
   if (overlay) overlay.classList.remove('hidden');
   if (rptModal) {
-    document.querySelectorAll('.modal-content').forEach(m => m.classList.add('hidden'));
+    if (window.TeleWin) window.TeleWin.hideModals('report-modal');
     rptModal.classList.remove('hidden');
   }
 }
@@ -2815,6 +2843,10 @@ function closeReportModal() {
     return;
   }
 
+  if (window.TeleWin) {
+    window.TeleWin.sync();
+    return;
+  }
   const overlay = document.getElementById('modal-overlay');
   if (overlay) overlay.classList.add('hidden');
   document.body.style.overflow = 'auto';
@@ -3065,6 +3097,8 @@ window.acceptNextPatientCall = acceptNextPatientCall;
 window.joinRoom = joinRoom;
 window.startTeleconsultation = startTeleconsultation;
 window.endTeleconsultation = endTeleconsultation;
+/** Bảng điều khiển hỏi trạng thái cuộc gọi trước khi cho đóng hẳn module. */
+window.isStationCallActive = function() { return callActive; };
 window.switchStation = switchStation;
 window.stationList = STATIONS;
 window.toggleCameraDevice = toggleCameraDevice;
