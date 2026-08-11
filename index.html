@@ -334,6 +334,86 @@
             }
         }
 
+        /* =====================================================================
+           NÚT CHỨC NĂNG TRONG CÁC MOD ĐIỀU KHIỂN
+           Ba khung điều khiển - bảng điểm trạm, phòng khám video của người dân
+           và bàn khám từ xa của bác sĩ - đều đặt trên nền slate rất tối. Nhãn nút
+           cỡ nhỏ dùng các sắc 300/400/500 nên bị chìm khi cán bộ nhìn máy tính
+           bảng đặt trong phòng khám nhiều ánh sáng. Nhóm luật dưới đây kéo chữ và
+           biểu tượng trên nút lên tông sáng hơn, tăng độ đậm và thêm viền bóng mờ
+           để tách khỏi nền, nhưng vẫn giữ đúng hệ màu trạng thái (xanh lá = đang
+           bật, đỏ = đang tắt mic, hổ phách = cảnh báo) để đọc trạng thái theo màu.
+           Luật bám vào chính lớp Tailwind có sẵn nên đoạn script gán lại
+           className lúc bật/tắt thiết bị không làm mất hiệu lực.
+           ===================================================================== */
+        .ctrl-mode :is(button, a[onclick], a[href^="tel:"], a[href*="zalo.me"]) {
+            font-weight: 800;
+            letter-spacing: 0.012em;
+            text-shadow: 0 1px 2px rgba(2, 6, 23, 0.65);
+        }
+        /* Chữ trắng đã đủ tương phản, chỉ cần bóng đổ ở luật trên; các sắc trung
+           tính và sắc trạng thái được nâng thêm khoảng hai bậc sáng. */
+        .ctrl-mode :is(button, a).text-slate-500,
+        .ctrl-mode :is(button, a) .text-slate-500 { color: #cbd5e1; }
+        .ctrl-mode :is(button, a).text-slate-400,
+        .ctrl-mode :is(button, a) .text-slate-400 { color: #e2e8f0; }
+        .ctrl-mode :is(button, a).text-slate-300,
+        .ctrl-mode :is(button, a) .text-slate-300 { color: #f1f5f9; }
+        .ctrl-mode :is(button, a).text-slate-200,
+        .ctrl-mode :is(button, a) .text-slate-200 { color: #f8fafc; }
+        .ctrl-mode :is(button, a).text-gray-400,
+        .ctrl-mode :is(button, a) .text-gray-400 { color: #e5e7eb; }
+        .ctrl-mode :is(button, a).text-gray-300,
+        .ctrl-mode :is(button, a) .text-gray-300 { color: #f3f4f6; }
+        .ctrl-mode :is(button, a).text-blue-500,
+        .ctrl-mode :is(button, a) .text-blue-500 { color: #93c5fd; }
+        .ctrl-mode :is(button, a).text-blue-400,
+        .ctrl-mode :is(button, a) .text-blue-400 { color: #bfdbfe; }
+        .ctrl-mode :is(button, a).text-blue-300,
+        .ctrl-mode :is(button, a) .text-blue-300 { color: #dbeafe; }
+        .ctrl-mode :is(button, a).text-blue-200,
+        .ctrl-mode :is(button, a) .text-blue-200 { color: #eff6ff; }
+        .ctrl-mode :is(button, a).text-emerald-400,
+        .ctrl-mode :is(button, a) .text-emerald-400 { color: #a7f3d0; }
+        .ctrl-mode :is(button, a).text-emerald-300,
+        .ctrl-mode :is(button, a) .text-emerald-300 { color: #d1fae5; }
+        .ctrl-mode :is(button, a).text-emerald-200,
+        .ctrl-mode :is(button, a) .text-emerald-200 { color: #ecfdf5; }
+        .ctrl-mode :is(button, a).text-rose-400,
+        .ctrl-mode :is(button, a) .text-rose-400 { color: #fecdd3; }
+        .ctrl-mode :is(button, a).text-rose-300,
+        .ctrl-mode :is(button, a) .text-rose-300 { color: #ffe4e6; }
+        .ctrl-mode :is(button, a).text-rose-200,
+        .ctrl-mode :is(button, a) .text-rose-200 { color: #fff1f2; }
+        .ctrl-mode :is(button, a).text-red-400,
+        .ctrl-mode :is(button, a) .text-red-400 { color: #fecaca; }
+        .ctrl-mode :is(button, a).text-red-300,
+        .ctrl-mode :is(button, a) .text-red-300 { color: #fee2e2; }
+        .ctrl-mode :is(button, a).text-amber-400,
+        .ctrl-mode :is(button, a) .text-amber-400 { color: #fde68a; }
+        .ctrl-mode :is(button, a).text-amber-300,
+        .ctrl-mode :is(button, a) .text-amber-300 { color: #fef3c7; }
+        .ctrl-mode :is(button, a).text-amber-200,
+        .ctrl-mode :is(button, a) .text-amber-200 { color: #fffbeb; }
+        .ctrl-mode :is(button, a).text-purple-400,
+        .ctrl-mode :is(button, a) .text-purple-400 { color: #e9d5ff; }
+        .ctrl-mode :is(button, a).text-purple-300,
+        .ctrl-mode :is(button, a) .text-purple-300 { color: #f3e8ff; }
+        .ctrl-mode :is(button, a).text-purple-200,
+        .ctrl-mode :is(button, a) .text-purple-200 { color: #faf5ff; }
+        .ctrl-mode :is(button, a).text-indigo-300,
+        .ctrl-mode :is(button, a) .text-indigo-300 { color: #e0e7ff; }
+        .ctrl-mode :is(button, a).text-indigo-200,
+        .ctrl-mode :is(button, a) .text-indigo-200 { color: #eef2ff; }
+        .ctrl-mode :is(button, a).text-cyan-400,
+        .ctrl-mode :is(button, a) .text-cyan-400 { color: #a5f3fc; }
+        /* Nút đang bị khoá (chưa vào cuộc gọi) vẫn phải nhìn ra là chưa bấm được,
+           nên giữ nguyên mức mờ và bỏ bóng đổ để không trông như đang bật. */
+        .ctrl-mode :is(button, a):disabled,
+        .ctrl-mode :is(button, a).cursor-not-allowed {
+            text-shadow: none;
+        }
+
     </style>
 </head>
 <body class="bg-[#f4f6f9] text-gray-800 antialiased relative">
@@ -1040,7 +1120,7 @@
         </div>
 
         <!-- MODAL PHÒNG KHÁM TỪ XA TELEHEALTH CHO NGƯỜI DÂN / ĐIỂM TRẠM -->
-        <div id="modal-telehealth-call" class="modal-content hidden bg-slate-950 rounded-3xl w-full max-w-4xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800 text-white">
+        <div id="modal-telehealth-call" class="ctrl-mode modal-content hidden bg-slate-950 rounded-3xl w-full max-w-4xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800 text-white">
             <div class="bg-slate-900 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap justify-between items-center border-b border-slate-800 gap-2 sticky top-0 z-10">
                 <div class="flex items-center gap-3 min-w-0">
                     <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0"></div>
@@ -1758,7 +1838,7 @@
         </div>
 
         <!-- BẢNG ĐIỀU KHIỂN CÁN BỘ Y TẾ ĐIỂM TRẠM -->
-        <div id="modal-station-panel" class="modal-content hidden bg-slate-950 text-white rounded-3xl w-full max-w-6xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800">
+        <div id="modal-station-panel" class="ctrl-mode modal-content hidden bg-slate-950 text-white rounded-3xl w-full max-w-6xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800">
             <!-- Header -->
             <div class="bg-slate-900 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap justify-between items-center border-b border-slate-800 gap-3 sticky top-0 z-10">
                 <div class="flex items-center gap-3 min-w-0">
@@ -2798,7 +2878,7 @@
                         </div>
 
                         <!-- KHU VỰC MÀN HÌNH KHÁM VIDEO TRỰC TIẾP TRONG CMS -->
-                        <div id="cms-video-consultation-room" class="tw-pad bg-slate-950 rounded-2xl p-6 text-white border border-slate-800 space-y-6 mb-8">
+                        <div id="cms-video-consultation-room" class="ctrl-mode tw-pad bg-slate-950 rounded-2xl p-6 text-white border border-slate-800 space-y-6 mb-8">
                             <div class="tw-pad flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-slate-800">
                                 <div class="flex items-center gap-3 min-w-0">
                                     <span class="w-3 h-3 rounded-full bg-blue-500 animate-ping shrink-0"></span>
