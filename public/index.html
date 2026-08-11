@@ -1075,7 +1075,7 @@
                 <!-- Màn hình Video chính -->
                 <div class="lg:col-span-2 space-y-4">
                     <div class="tw-stage relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
-                        <video id="patient-remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                        <video id="patient-remote-video" autoplay playsinline class="w-full h-full object-contain"></video>
                         <div id="patient-video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-6 text-center">
                             <i class="fas fa-user-md text-6xl text-blue-500 mb-3 animate-bounce"></i>
                             <h4 class="font-bold text-lg text-white mb-1">Đang chờ Cán bộ Y tế tiếp nhận cuộc gọi...</h4>
@@ -1095,7 +1095,7 @@
                                 </div>
                             </div>
                         </div>
-                        <video id="patient-local-video" autoplay playsinline muted class="w-32 h-24 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl absolute bottom-3 right-3 object-cover"></video>
+                        <video id="patient-local-video" autoplay playsinline muted class="w-36 h-20 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl absolute bottom-3 right-3 object-contain"></video>
                     </div>
 
                     <!-- Thanh điều khiển cuộc gọi -->
@@ -1936,7 +1936,7 @@
                 <!-- Cột giữa: Màn hình Video Call Khám đa chiều & Điều khiển (5 col) -->
                 <div class="lg:col-span-5 space-y-4">
                     <div class="tw-stage relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-lg">
-                        <video id="remote-video" autoplay playsinline class="w-full h-full object-cover hidden"></video>
+                        <video id="remote-video" autoplay playsinline class="w-full h-full object-contain hidden"></video>
                         <div id="remote-placeholder" class="flex flex-col items-center justify-center text-slate-400 p-6 text-center">
                             <i class="fas fa-user-md text-6xl text-blue-500 mb-3 animate-pulse"></i>
                             <h4 class="font-bold text-base text-white mb-1">Bác sĩ tuyến trên / Trợ lý AI</h4>
@@ -1960,7 +1960,7 @@
 
                         <!-- Luồng video cận cảnh của điểm trạm (PiP) -->
                         <div class="absolute bottom-3 right-3">
-                            <video id="local-video" autoplay playsinline muted class="w-32 h-24 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl object-cover"></video>
+                            <video id="local-video" autoplay playsinline muted class="w-36 h-20 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl object-contain"></video>
                             <span id="pip-label" class="absolute bottom-1 left-1 bg-slate-950/85 text-[9px] font-bold text-blue-200 px-1.5 py-0.5 rounded border border-slate-700">Cam Toàn Cảnh</span>
                             <!-- Tấm che khi chưa gọi: camera/micro chỉ được mở sau khi bấm nút gọi. -->
                             <div id="local-media-idle" class="absolute inset-0 rounded-xl bg-slate-950/95 border-2 border-slate-700 flex flex-col items-center justify-center text-center px-1.5">
@@ -2831,13 +2831,13 @@
                                 <!-- Luồng Video -->
                                 <div class="lg:col-span-2 space-y-4">
                                     <div class="tw-stage relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
-                                        <video id="cms-remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                                        <video id="cms-remote-video" autoplay playsinline class="w-full h-full object-contain"></video>
                                         <div id="cms-video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-6 text-center">
                                             <i class="fas fa-hospital-user text-6xl text-slate-700 mb-3"></i>
                                             <h4 class="font-bold text-base text-slate-300 mb-1">Chưa tham gia cuộc gọi nào</h4>
                                             <p class="text-xs text-slate-500">Chọn một bệnh nhân trong danh sách đăng ký bên dưới để bắt đầu khám video trực tuyến.</p>
                                         </div>
-                                        <video id="cms-local-video" autoplay playsinline muted class="w-32 h-24 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl absolute bottom-3 right-3 object-cover"></video>
+                                        <video id="cms-local-video" autoplay playsinline muted class="w-36 h-20 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl absolute bottom-3 right-3 object-contain"></video>
                                     </div>
 
                                     <!-- Controls -->
@@ -6616,6 +6616,65 @@
             maxFramerate: 30
         };
 
+        /* =====================================================================
+           GÓC THU HÌNH RỘNG - dùng chung cho MỌI camera ở MỌI phân hệ
+           ---------------------------------------------------------------------
+           Buổi khám ở điểm trạm hiếm khi chỉ có một người ngồi trước ống kính:
+           cán bộ trạm, người bệnh và người nhà đi kèm thường phải cùng lọt vào
+           khung để tuyến trên nhìn được toàn cảnh. Vì vậy mọi lần mở camera đều
+           xin khuôn hình rộng nhất mà thiết bị có:
+
+             - Khung 16:9 và độ phân giải ngang lớn: phần lớn webcam/điện thoại
+               chỉ mở hết bề ngang cảm biến ở chế độ màn ảnh rộng, còn chế độ
+               4:3 hay 640x480 là ảnh đã bị cắt hai bên (mất người ngồi rìa).
+             - resizeMode 'none': cấm trình duyệt tự cắt-phóng khuôn hình để
+               chiều theo kích thước yêu cầu; thà nhận đúng khuôn gốc của camera.
+             - Độ phân giải cao KHÔNG làm tốn thêm băng thông: trần bitrate ở
+               TELE_VIDEO_SEND vẫn giữ nguyên, bộ mã hoá tự thu nhỏ ảnh cho vừa
+               đường truyền - thu rộng rồi nén, chứ không cắt bớt người.
+           ===================================================================== */
+        const TELE_WIDE_VIDEO = {
+            width: { ideal: 1920, max: 1920 },
+            height: { ideal: 1080, max: 1080 },
+            aspectRatio: { ideal: 16 / 9 },
+            frameRate: { ideal: 30, min: 15 },
+            resizeMode: 'none'
+        };
+
+        /** Ràng buộc hình góc rộng, kèm phần chỉ định thiết bị nếu có. */
+        function teleWideVideo(extra) {
+            return Object.assign({}, TELE_WIDE_VIDEO, extra || {});
+        }
+
+        /**
+         * Nới góc nhìn NGAY TRÊN track vừa mở.
+         *
+         * Ràng buộc lúc getUserMedia mới chỉ chọn được chế độ khuôn hình; nhiều
+         * camera (nhất là camera sau điện thoại và webcam hội nghị) vẫn còn đang
+         * ở mức phóng to (zoom) của lần dùng trước, hoặc mặc định lấy khuôn hẹp.
+         * Kéo zoom về mức nhỏ nhất và ép lại bề ngang lớn nhất mà thiết bị khai
+         * báo là cách duy nhất lấy lại phần khung đã bị cắt.
+         */
+        async function teleWidenTrack(track) {
+            if (!track || typeof track.getCapabilities !== 'function' || typeof track.applyConstraints !== 'function') return;
+            let caps = {};
+            try { caps = track.getCapabilities() || {}; } catch (e) { return; }
+            const advanced = [];
+            // Zoom nhỏ nhất = góc nhìn rộng nhất.
+            if (caps.zoom && typeof caps.zoom.min === 'number') advanced.push({ zoom: caps.zoom.min });
+            if (Array.isArray(caps.resizeMode) && caps.resizeMode.includes('none')) advanced.push({ resizeMode: 'none' });
+            const wanted = {};
+            const maxW = caps.width && caps.width.max;
+            if (typeof maxW === 'number' && maxW > 0) {
+                const w = Math.min(maxW, 1920);
+                wanted.width = { ideal: w };
+                wanted.height = { ideal: Math.round(w * 9 / 16) };
+            }
+            if (advanced.length) wanted.advanced = advanced;
+            if (!Object.keys(wanted).length) return;
+            try { await track.applyConstraints(wanted); } catch (e) { /* thiết bị không cho thì giữ nguyên */ }
+        }
+
         const TELE = {
             roomId: null,
             role: null,
@@ -6838,14 +6897,10 @@
 
         async function teleAcquireMedia() {
             const audioConstraints = teleAudio().constraints();
-            // Xin đúng một cấu hình khung hình ngay từ đầu (kèm trần độ phân giải và
-            // số khung hình) để trình duyệt không phải khởi động lại camera lần hai -
-            // đây là phần chiếm nhiều thời gian nhất khi bắt đầu cuộc gọi.
-            const videoConstraints = {
-                width: { ideal: 1280, max: 1280 },
-                height: { ideal: 720, max: 720 },
-                frameRate: { ideal: 30, min: 15 }
-            };
+            // Xin đúng một cấu hình khung hình ngay từ đầu (khuôn góc rộng, kèm
+            // trần số khung hình) để trình duyệt không phải khởi động lại camera
+            // lần hai - đây là phần chiếm nhiều thời gian nhất khi bắt đầu gọi.
+            const videoConstraints = teleWideVideo();
             try {
                 TELE.localStream = await navigator.mediaDevices.getUserMedia({
                     video: videoConstraints,
@@ -6910,7 +6965,12 @@
          */
         function teleTuneLocalTracks(stream) {
             if (!stream) return;
-            stream.getVideoTracks().forEach(t => { try { t.contentHint = 'motion'; } catch (e) {} });
+            stream.getVideoTracks().forEach(t => {
+                try { t.contentHint = 'motion'; } catch (e) {}
+                // Mọi luồng hình đi qua đây, nên đây cũng là chỗ chắc chắn nhất
+                // để nới góc thu về mức rộng nhất của thiết bị.
+                teleWidenTrack(t);
+            });
             stream.getAudioTracks().forEach(t => { try { t.contentHint = 'speech'; } catch (e) {} });
         }
 
@@ -7336,17 +7396,26 @@
                 let constraints;
                 if (TELE.videoDevices.length > 1) {
                     TELE.deviceIndex = (TELE.deviceIndex + 1) % TELE.videoDevices.length;
-                    constraints = { video: { deviceId: { exact: TELE.videoDevices[TELE.deviceIndex].deviceId } }, audio: false };
+                    // Camera nào cũng phải mở ở khuôn góc rộng, không riêng camera
+                    // đầu tiên - đổi ống kính không được làm hẹp khung hình lại.
+                    constraints = { video: teleWideVideo({ deviceId: { exact: TELE.videoDevices[TELE.deviceIndex].deviceId } }), audio: false };
                 } else {
                     // Thiết bị di động chỉ khai báo 1 camera: đảo mặt trước/sau.
                     TELE.facingBack = !TELE.facingBack;
-                    constraints = { video: { facingMode: TELE.facingBack ? 'environment' : 'user' }, audio: false };
+                    constraints = { video: teleWideVideo({ facingMode: TELE.facingBack ? 'environment' : 'user' }), audio: false };
                 }
 
-                const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const newStream = await navigator.mediaDevices.getUserMedia(constraints)
+                    .catch(() => navigator.mediaDevices.getUserMedia({
+                        video: TELE.videoDevices.length > 1
+                            ? { deviceId: { exact: TELE.videoDevices[TELE.deviceIndex].deviceId } }
+                            : { facingMode: TELE.facingBack ? 'environment' : 'user' },
+                        audio: false
+                    }));
                 const newTrack = newStream.getVideoTracks()[0];
                 if (!newTrack) return;
                 try { newTrack.contentHint = 'motion'; } catch (e) {}
+                teleWidenTrack(newTrack);
 
                 const sender = TELE.pc.getSenders().find(s => s.track && s.track.kind === 'video');
                 if (sender) {
@@ -8279,11 +8348,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             if (cmsSharedStream) return Promise.resolve(cmsSharedStream);
             if (cmsSharedStreamPromise) return cmsSharedStreamPromise;
             const audioConstraints = teleAudio().constraints();
-            const videoConstraints = {
-                width: { ideal: 1280, max: 1280 },
-                height: { ideal: 720, max: 720 },
-                frameRate: { ideal: 30, min: 15 }
-            };
+            const videoConstraints = teleWideVideo();
             cmsSharedStreamPromise = navigator.mediaDevices
                 .getUserMedia({ video: videoConstraints, audio: audioConstraints })
                 .catch(() => navigator.mediaDevices.getUserMedia({ video: true, audio: true }))
@@ -8701,7 +8766,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 ].filter(Boolean).join(' • ');
                 return `<div class="rounded-xl overflow-hidden border-2 ${focused ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-gray-200'} bg-slate-900">
                     <div class="relative aspect-video bg-black">
-                        <video id="cms-tile-video-${key}" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                        <video id="cms-tile-video-${key}" autoplay playsinline muted class="w-full h-full object-contain"></video>
                         <span class="absolute top-1.5 left-1.5 text-[10px] font-black px-1.5 py-0.5 rounded ${focused ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}">
                             ${focused ? 'ĐANG KHÁM' : 'GIỮ MÁY'}
                         </span>
