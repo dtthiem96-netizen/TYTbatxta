@@ -32,6 +32,7 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
    - **Chỉ mở khi được bấm nút**: bảng điều khiển KHÔNG tự vào phòng khám và KHÔNG xin quyền camera/micro lúc mở trang. Thiết bị chỉ bật khi cán bộ trực bấm **"Bắt đầu cuộc gọi"** hoặc **"Tiếp nhận"** một cuộc gọi đang chờ; bấm **"Kết thúc cuộc gọi"** sẽ rời phòng và tắt hẳn camera/micro (đèn camera của máy tắt theo).
    - **Luồng Video chính**: Hiển thị Bác sĩ tư vấn tuyến trên / Bác sĩ chuyên khoa tiếp nhận cuộc gọi.
    - **Luồng Video cận cảnh**: Cán bộ trạm chủ động chuyển đổi giữa Camera 1 (Toàn cảnh phòng khám) và Camera 2 (Cận cảnh soi tổn thương/họng/da của bệnh nhân).
+   - **Góc thu hình rộng cho cả phòng khám**: mọi camera ở mọi phân hệ (điểm trạm, người bệnh, phòng khám tuyến trên) đều mở ở khuôn hình rộng nhất mà thiết bị hỗ trợ - khung 16:9, bề ngang lớn nhất, mức phóng (zoom) kéo về nhỏ nhất - để cán bộ trực, người bệnh và người nhà cùng lọt vào một khung. Khuôn hình hiển thị nguyên vẹn (không cắt hai bên), còn băng thông vẫn giữ nguyên trần cũ vì bộ mã hoá tự thu nhỏ ảnh cho vừa đường truyền.
    - **Luồng Âm thanh kép (Dual Audio)**: Cán bộ y tế và bệnh nhân cùng nghe được Bác sĩ qua loa ngoài; Micro thu âm rõ ràng lời thoại.
 
 3. **Trợ lý Lâm sàng AI (Clinical Co-Pilot)**

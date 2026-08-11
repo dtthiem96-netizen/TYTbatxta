@@ -1932,6 +1932,61 @@ function initPeerConnection() {
   return true;
 }
 
+/* =============================================================================
+   GÓC THU HÌNH RỘNG - áp dụng cho mọi camera của bảng điều khiển điểm trạm
+   -----------------------------------------------------------------------------
+   Một buổi khám ở trạm thường có ít nhất ba người trong phòng: cán bộ trực,
+   người bệnh và người nhà đi kèm. Nếu camera mở ở khuôn hẹp thì tuyến trên chỉ
+   thấy được một người, phải liên tục nhắc "dịch máy sang trái/phải".
+
+     - Khung 16:9 và bề ngang lớn: đa số webcam chỉ mở hết bề ngang cảm biến ở
+       chế độ màn ảnh rộng; chế độ 4:3 hay 640x480 là khuôn đã bị cắt hai bên.
+     - resizeMode 'none': không cho trình duyệt cắt-phóng để chiều theo kích
+       thước yêu cầu.
+     - Không tốn thêm băng thông: trần bitrate ở tuneVideoSender() giữ nguyên,
+       bộ mã hoá tự thu nhỏ ảnh cho vừa đường truyền - thu rộng rồi nén lại,
+       chứ không cắt bớt người ngồi ngoài rìa.
+   ========================================================================== */
+const WIDE_VIDEO_CONSTRAINTS = {
+  width: { ideal: 1920, max: 1920 },
+  height: { ideal: 1080, max: 1080 },
+  aspectRatio: { ideal: 16 / 9 },
+  frameRate: { ideal: 30, min: 15 },
+  resizeMode: 'none'
+};
+
+/** Ràng buộc hình góc rộng, kèm phần chỉ định thiết bị nếu có. */
+function wideVideoConstraints(extra) {
+  return Object.assign({}, WIDE_VIDEO_CONSTRAINTS, extra || {});
+}
+
+/**
+ * Nới góc nhìn ngay trên track vừa mở.
+ *
+ * Ràng buộc lúc getUserMedia mới chỉ chọn được chế độ khuôn hình. Nhiều camera
+ * (camera soi cận cảnh, camera sau điện thoại, webcam hội nghị) vẫn giữ mức
+ * phóng to của lần dùng trước. Kéo zoom về mức nhỏ nhất và ép lại bề ngang lớn
+ * nhất mà thiết bị khai báo là cách duy nhất lấy lại phần khung đã bị cắt.
+ */
+async function widenTrackFieldOfView(track) {
+  if (!track || typeof track.getCapabilities !== 'function' || typeof track.applyConstraints !== 'function') return;
+  let caps = {};
+  try { caps = track.getCapabilities() || {}; } catch (e) { return; }
+  const advanced = [];
+  if (caps.zoom && typeof caps.zoom.min === 'number') advanced.push({ zoom: caps.zoom.min });
+  if (Array.isArray(caps.resizeMode) && caps.resizeMode.includes('none')) advanced.push({ resizeMode: 'none' });
+  const wanted = {};
+  const maxW = caps.width && caps.width.max;
+  if (typeof maxW === 'number' && maxW > 0) {
+    const w = Math.min(maxW, 1920);
+    wanted.width = { ideal: w };
+    wanted.height = { ideal: Math.round(w * 9 / 16) };
+  }
+  if (advanced.length) wanted.advanced = advanced;
+  if (!Object.keys(wanted).length) return;
+  try { await track.applyConstraints(wanted); } catch (e) { /* thiết bị không cho thì giữ nguyên */ }
+}
+
 /**
  * Ép bộ mã hoá ưu tiên giữ số khung hình khi băng thông tụt (mạng 3G/4G vùng cao),
  * thay vì mặc định hạ khung hình làm hình giật từng nấc.
@@ -2067,8 +2122,12 @@ async function initLocalCamera(deviceId = null) {
   if (keepAudio) {
     try {
       const camOnly = await navigator.mediaDevices.getUserMedia({
+        video: wideVideoConstraints({ deviceId: { exact: deviceId } })
+      }).catch(() => navigator.mediaDevices.getUserMedia({
+        // Camera không nhận nổi khuôn rộng thì vẫn phải mở được, đừng để việc
+        // chuyển camera giữa buổi khám thất bại chỉ vì một ràng buộc phụ.
         video: { deviceId: { exact: deviceId }, frameRate: { ideal: 30, min: 15 } }
-      });
+      }));
       const newVideo = camOnly.getVideoTracks()[0];
       localStream.getVideoTracks().forEach(t => {
         try { localStream.removeTrack(t); } catch (e) {}
@@ -2076,6 +2135,7 @@ async function initLocalCamera(deviceId = null) {
       });
       if (newVideo) {
         try { newVideo.contentHint = 'motion'; } catch (e) {}
+        widenTrackFieldOfView(newVideo);
         try { localStream.addTrack(newVideo); } catch (e) {}
         newVideo.enabled = !isVideoMuted;
         if (outboundStream && outboundStream !== localStream) {
@@ -2107,7 +2167,7 @@ async function initLocalCamera(deviceId = null) {
   CallAudio.detachLocal();
 
   try {
-    // Xin đúng một cấu hình ngay từ đầu (kèm trần độ phân giải + số khung hình)
+    // Xin đúng một cấu hình ngay từ đầu (khuôn góc rộng + trần số khung hình)
     // để trình duyệt không phải khởi động camera lần hai - đây là khâu chiếm
     // nhiều thời gian nhất khi bắt đầu cuộc gọi.
     const constraints = {
@@ -2115,29 +2175,37 @@ async function initLocalCamera(deviceId = null) {
       // giọng nói ngay tại tầng thu, một kênh 48 kHz cho khớp bộ khử vọng.
       audio: CallAudio.constraints(),
       video: deviceId
-        ? { deviceId: { exact: deviceId }, frameRate: { ideal: 30, min: 15 } }
-        : {
-            width: { ideal: 1280, max: 1280 },
-            height: { ideal: 720, max: 720 },
-            frameRate: { ideal: 30, min: 15 }
-          }
+        ? wideVideoConstraints({ deviceId: { exact: deviceId } })
+        : wideVideoConstraints()
     };
 
     localStream = await navigator.mediaDevices.getUserMedia(constraints);
   } catch (err) {
     console.warn('⚠️ Camera access warning, attempting audio-only fallback:', err.message);
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: CallAudio.constraints() });
-    } catch (err2) {
-      console.warn('⚠️ Audio/Video access unavailable:', err2.message);
-      localStream = null;
+      // Trước khi bỏ hẳn hình, thử lại với ràng buộc tối thiểu: có thể camera
+      // chỉ không đáp ứng nổi khuôn rộng chứ không phải bị từ chối quyền.
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: CallAudio.constraints(),
+        video: deviceId ? { deviceId: { exact: deviceId } } : true
+      });
+    } catch (errWide) {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: CallAudio.constraints() });
+      } catch (err2) {
+        console.warn('⚠️ Audio/Video access unavailable:', err2.message);
+        localStream = null;
+      }
     }
   }
 
   if (localStream) {
     // Báo cho bộ mã hoá biết đây là hình chuyển động và tiếng nói, để nó chọn
     // đúng thuật toán nén thay vì đoán mò.
-    localStream.getVideoTracks().forEach(t => { try { t.contentHint = 'motion'; } catch (e) {} });
+    localStream.getVideoTracks().forEach(t => {
+      try { t.contentHint = 'motion'; } catch (e) {}
+      widenTrackFieldOfView(t);
+    });
     localStream.getAudioTracks().forEach(t => { try { t.contentHint = 'speech'; } catch (e) {} });
 
     // Tiếng đi vòng qua chuỗi lọc trước khi ra khỏi máy; hình giữ nguyên.
