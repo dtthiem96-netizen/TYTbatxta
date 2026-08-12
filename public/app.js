@@ -489,6 +489,15 @@ function populateCmsAccountsDropdown() {
     selectEl.value = defaultAcc.username;
     onCmsAccountSelect(defaultAcc.username);
   }
+
+  /* Chưa tài khoản nào được cấp quyền của module này: nói thẳng nguyên nhân ngay tại
+     cổng đăng nhập. Nếu không, bác sĩ chỉ thấy "Tên đăng nhập hoặc mật khẩu không
+     đúng" rồi đi đổi mật khẩu, trong khi thứ còn thiếu là ô cấp quyền bên CMS. */
+  if (stationAccounts.length === 0 && typeof setStationLoginStatus === 'function') {
+    setStationLoginStatus(IS_DOCTOR_MODULE
+      ? 'Chưa có tài khoản nào được CMS Quản trị cấp quyền "Module Bác sĩ tuyến trên". Đề nghị Quản trị mở CMS → Quản trị hệ thống → Phân quyền hệ thống để cấp quyền.'
+      : 'Chưa có tài khoản nào được CMS Quản trị cấp quyền "Mod Bảng điều khiển điểm trạm". Đề nghị Quản trị cấp quyền trước khi đăng nhập.', 'error');
+  }
 }
 
 function onCmsAccountSelect(username) {
@@ -3187,7 +3196,9 @@ async function submitLogin() {
   const submitBtn = document.getElementById('station-login-submit');
 
   if (!code) return setStationLoginStatus('Vui lòng chọn điểm trạm đang trực.', 'error');
-  if (!selectedCmsUsername) return setStationLoginStatus('Vui lòng chọn tài khoản cán bộ đã được CMS Quản trị cấp quyền.', 'error');
+  if (!selectedCmsUsername) return setStationLoginStatus(IS_DOCTOR_MODULE
+    ? 'Vui lòng chọn tài khoản Bác sĩ tuyến trên đã được CMS Quản trị cấp quyền.'
+    : 'Vui lòng chọn tài khoản cán bộ đã được CMS Quản trị cấp quyền.', 'error');
   if (!password) return setStationLoginStatus('Vui lòng nhập mật khẩu truy cập.', 'error');
 
   if (submitBtn) submitBtn.disabled = true;

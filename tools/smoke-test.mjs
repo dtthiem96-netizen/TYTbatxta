@@ -42,7 +42,9 @@ const REQUIRED_HANDLERS = [
   // Rào chắn đăng nhập & tên phòng khám biến động của Module Bảng điều khiển trạm.
   'submitLogin', 'logoutStationPanel', 'handleStationLoginKey',
   'applyStationClinicName', 'getStationSession', 'setStationSession',
-  'handleSaveClinicName', 'hasStationAccess', 'toggleUserStationPermission'
+  'handleSaveClinicName', 'hasStationAccess', 'toggleUserStationPermission',
+  // Cấp quyền vào Module Bác sĩ tuyến trên (/bacsi) - cấp tách khỏi quyền điểm trạm.
+  'hasDoctorAccess', 'toggleUserDoctorPermission'
 ];
 
 /* Dữ liệu CMS giả lập: một tài khoản ĐƯỢC cấp quyền vào Bảng điều khiển trạm và
