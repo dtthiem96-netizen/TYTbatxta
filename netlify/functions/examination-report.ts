@@ -1,7 +1,7 @@
 import { db } from "../../db/index.js";
 import { examinationReports } from "../../db/schema.js";
 import { desc, eq } from "drizzle-orm";
-import { authErrorResponse, requireScope } from "../lib/auth.js";
+import { authErrorResponse, requireAnyScope } from "../lib/auth.js";
 
 /**
  * Phiếu khám bệnh từ xa.
@@ -32,7 +32,8 @@ export default async (req: Request) => {
   }
 
   try {
-    const ctx = await requireScope(req, "station");
+    // Phiếu khám do điểm trạm hoặc bác sĩ tuyến trên chốt đều đi qua đây.
+    const ctx = await requireAnyScope(req, ["station", "doctor"]);
 
     if (req.method === "GET") {
       const roomId = new URL(req.url).searchParams.get("roomId");

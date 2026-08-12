@@ -1,7 +1,7 @@
 import { db } from "../../db/index.js";
 import { stationVitals, telehealthRooms, telehealthSignals } from "../../db/schema.js";
 import { desc, eq } from "drizzle-orm";
-import { authErrorResponse, requireScope, type AuthContext } from "../lib/auth.js";
+import { authErrorResponse, requireAnyScope, type AuthContext } from "../lib/auth.js";
 
 /**
  * Sinh hiệu bệnh nhân do Bảng điều khiển điểm trạm (public/index.html) gửi lên.
@@ -214,7 +214,8 @@ export default async (req: Request) => {
   }
 
   try {
-    const ctx = await requireScope(req, "station");
+    // Cả cán bộ điểm trạm lẫn bác sĩ tuyến trên cùng đọc/ghi sinh hiệu của một lượt khám.
+    const ctx = await requireAnyScope(req, ["station", "doctor"]);
     if (req.method === "GET") return await handleGet(new URL(req.url));
     if (req.method === "POST") return await handlePost(req, ctx);
     return json({ success: false, message: "Method not allowed" }, 405);

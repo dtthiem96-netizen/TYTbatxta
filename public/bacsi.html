@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>Module Bác sĩ tuyến trên - Phòng khám trực tuyến từ xa | Trạm Y tế Bát Xát</title>
+    <meta name="description" content="Module riêng của Bác sĩ tuyến trên: đăng nhập bằng tài khoản được cấp riêng để tham gia phòng khám trực tuyến từ xa với các điểm trạm y tế.">
+
+    <link rel="icon" href="/logo.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+
+    <!-- THƯ VIỆN GIAO DIỆN - dùng đúng bộ của trang chính để hai module nhìn giống nhau.
+         Tailwind nạp đồng bộ rồi mới tới khối cấu hình: đặt tailwind.config trước khi
+         thư viện có mặt sẽ ném lỗi và bảng màu tuỳ biến không được áp dụng. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], },
+                    colors: {
+                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Thanh cuộn mảnh cho các cột dữ liệu dài trong buồng khám. */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen">
+
+    <!-- =====================================================================
+         MODULE BÁC SĨ TUYẾN TRÊN
+
+         Đây là module ĐỘC LẬP với Mod Bảng điều khiển điểm trạm (trang chủ) và
+         với CMS Quản trị: có địa chỉ riêng (/bacsi), tài khoản và mật khẩu được
+         CMS cấp riêng qua ô "Module Bác sĩ tuyến trên" (cột doctor_access).
+         Tài khoản chỉ có quyền điểm trạm sẽ bị máy chủ từ chối ngay tại cổng
+         /api/station-auth, và ngược lại.
+
+         Nghiệp vụ bên trong dùng chung bộ máy app.js với Bảng điều khiển điểm
+         trạm, nên bác sĩ tuyến trên có ĐẦY ĐỦ chức năng như điểm trạm: hàng đợi
+         cuộc gọi của người dân, phòng khám WebRTC hai chiều, sinh hiệu, căn cước
+         công dân, trao đổi lâm sàng, chữ ký số, trợ lý AI và phiếu khám A5.
+         ===================================================================== -->
+
+    <!-- LỚP PHỦ CHUNG: cổng đăng nhập và cửa sổ Phiếu khám & Đơn thuốc A5 -->
+    <div id="modal-overlay" class="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center backdrop-blur-sm transition-opacity overflow-y-auto p-4">
+
+        <!-- CỔNG ĐĂNG NHẬP RIÊNG CỦA BÁC SĨ TUYẾN TRÊN -->
+        <div id="login-modal" class="modal-content bg-slate-900 text-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-slate-800">
+            <div class="bg-slate-950 p-5 border-b border-slate-800">
+                <h3 class="font-bold text-lg text-blue-400 flex items-center gap-2">
+                    <i class="fas fa-user-doctor"></i> Module Bác sĩ tuyến trên
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-1">Phòng khám trực tuyến từ xa - Trạm Y tế Bát Xát, Lào Cai</p>
+            </div>
+            <div class="p-6 space-y-4 text-xs">
+                <div class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-[11px] text-slate-400 leading-relaxed">
+                    <i class="fas fa-lock text-blue-400 mr-1"></i> Module này dùng
+                    <strong class="text-slate-200">tài khoản và mật khẩu riêng của Bác sĩ tuyến trên</strong>.
+                    Chỉ tài khoản được CMS Quản trị cấp ô "Module Bác sĩ tuyến trên" mới đăng nhập được.
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-station-code">Điểm trạm phụ trách hội chẩn</label>
+                    <select id="input-station-code" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono font-bold focus:outline-none focus:border-blue-500">
+                        <!-- Danh sách điểm phòng khám được nạp động từ window.TELEHEALTH_STATIONS -->
+                    </select>
+                    <p class="text-[10px] text-slate-500 mt-1 italic">Bác sĩ tuyến trên vẫn nhận được cuộc gọi của MỌI điểm trạm; điểm chọn ở đây chỉ được ưu tiên xếp trước trong hàng đợi.</p>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-cms-account">Tài khoản Bác sĩ tuyến trên</label>
+                    <select id="input-cms-account" onchange="window.onCmsAccountSelect(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
+                        <option value="">-- Chọn tài khoản Bác sĩ tuyến trên --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-operator-name">Họ tên Bác sĩ hội chẩn</label>
+                    <input type="text" id="input-operator-name" value="Bác sĩ tuyến trên" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-role">Vai trò nhiệm vụ</label>
+                    <select id="input-role" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
+                        <option value="superior_doctor">Bác sĩ tuyến trên (hội chẩn từ xa)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-station-password">Mật khẩu riêng của Bác sĩ</label>
+                    <input type="password" id="input-station-password" autocomplete="current-password" placeholder="Mật khẩu do Quản trị CMS cấp riêng" onkeydown="window.handleStationLoginKey(event)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
+                </div>
+                <p id="station-login-status" class="text-[11px] font-bold text-slate-400">
+                    <i class="fas fa-lock mr-1"></i> Thông tin đăng nhập được xác thực trên máy chủ trước khi mở buồng khám.
+                </p>
+                <div class="pt-2">
+                    <button id="station-login-submit" onclick="window.submitLogin()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg text-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-right-to-bracket"></i> Đăng nhập &amp; Vào buồng khám từ xa
+                    </button>
+                    <a href="/" class="block text-center text-[11px] text-slate-500 hover:text-slate-300 mt-3 transition">
+                        <i class="fas fa-arrow-left mr-1"></i> Quay lại Cổng thông tin Trạm Y tế
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- PHIẾU KHÁM & ĐƠN THUỐC BẢN IN KHỔ A5 (REPORT MODAL) -->
+        <div id="report-modal" class="modal-content hidden bg-white rounded-3xl w-full max-w-3xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all text-gray-800 border border-gray-200">
+            <div class="bg-gradient-to-r from-emerald-700 to-teal-800 px-6 py-4 flex justify-between items-center text-white">
+                <div>
+                    <h3 class="font-bold text-lg flex items-center gap-2">
+                        <i class="fas fa-file-medical"></i> ĐƠN THUỐC &amp; PHIẾU KHÁM TỪ XA (KHỔ A5)
+                    </h3>
+                    <p class="text-xs text-emerald-200 mt-0.5">Cho phép chỉnh sửa nội dung trực tiếp trước khi in hoặc tải về Word/PDF</p>
+                </div>
+                <button onclick="window.closeReportModal()" class="text-white hover:text-gray-200 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div id="report-print-area" class="p-6 md:p-8 space-y-4 text-xs font-sans max-h-[75vh] overflow-y-auto">
+                <div class="flex justify-between items-start border-b border-gray-300 pb-3">
+                    <div>
+                        <h2 class="text-sm md:text-base font-black text-gray-900 uppercase tracking-wide">UBND XÃ BÁT XÁT _ TRẠM Y TẾ BÁT XÁT</h2>
+                        <p class="text-[11px] text-gray-600">Thôn Bát Xát 4, Xã Bát Xát, Lào Cai</p>
+                        <p class="text-[10px] text-blue-800 font-bold">Hệ thống Khám chữa bệnh Từ xa (Telehealth)</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-mono font-black text-blue-700 text-sm" id="rpt-code">PK-20260803-01</p>
+                        <p class="text-[10px] text-gray-500" id="rpt-date">Mã phiếu khám &amp; Đơn thuốc</p>
+                        <p class="text-[10px] font-mono font-bold text-emerald-700" id="rpt-station">TYT-BATXAT-01</p>
+                    </div>
+                </div>
+
+                <div class="text-center py-1">
+                    <h1 class="text-lg md:text-xl font-black text-blue-900 uppercase tracking-wider">ĐƠN THUỐC TỪ XA</h1>
+                    <p class="text-[10px] italic text-gray-500">Mẫu chuẩn liên thông điểm trạm - Khổ giấy A5</p>
+                </div>
+
+                <!-- Bảng Thông tin bệnh nhân & Cán bộ (Cho phép sửa trực tiếp)
+                     Các mục dưới đây bám theo Mẫu số 01 - Đơn thuốc, Thông tư
+                     52/2017/TT-BYT: họ tên, ngày sinh (hoặc tuổi), giới tính,
+                     cân nặng, địa chỉ, số thẻ BHYT; trẻ dưới 72 tháng bắt buộc
+                     ghi số tháng tuổi và tên bố/mẹ hoặc người giám hộ. -->
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-patient-name">1. Họ tên Bệnh nhân:</label>
+                            <input type="text" id="rpt-edit-patient-name" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <!-- Số căn cước/BHYT do NGƯỜI DÂN tự nhập, theo cuộc gọi chuyển sang.
+                                 Không đặt sẵn số mẫu để tránh in nhầm số của người khác. -->
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-idcard">6. Số thẻ BHYT / CCCD:</label>
+                            <input type="text" id="rpt-edit-idcard" placeholder="Số người dân đã nhập khi gọi" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-dob">2. Ngày sinh:</label>
+                            <input type="text" id="rpt-edit-dob" placeholder="dd/mm/yyyy" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-age-gender">Tuổi (hoặc số tháng):</label>
+                            <input type="text" id="rpt-edit-age-gender" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-gender">3. Giới tính:</label>
+                            <select id="rpt-edit-gender" class="w-full bg-white border border-gray-300 rounded-lg px-2 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                                <option value="Khác">Khác</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-weight">4. Cân nặng (kg):</label>
+                            <input type="text" id="rpt-edit-weight" placeholder="Bắt buộc với trẻ em" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-address">5. Địa chỉ (số nhà, thôn/tổ, xã/phường, huyện, tỉnh):</label>
+                        <input type="text" id="rpt-edit-address" placeholder="Thôn ..., Xã Bát Xát, tỉnh Lào Cai" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-guardian">Bố/Mẹ hoặc người giám hộ (trẻ dưới 72 tháng):</label>
+                            <input type="text" id="rpt-edit-guardian" placeholder="Chỉ ghi khi người bệnh là trẻ dưới 72 tháng" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-phone">Số điện thoại liên hệ khi cần:</label>
+                            <input type="text" id="rpt-edit-phone" value="0214.3909.011" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-operator">Cán bộ điểm trạm:</label>
+                            <input type="text" id="rpt-edit-operator" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-purple-700 mb-0.5" for="rpt-edit-signer-select">Người kê đơn (Ký số):</label>
+                            <select id="rpt-edit-signer-select" onchange="window.onReportSignerChange(this.value)" class="w-full bg-white border border-purple-300 rounded-lg px-2 py-1 text-xs font-bold text-purple-900 focus:outline-none focus:border-purple-600">
+                                <option value="">-- Chọn Bác sĩ kê đơn --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bảng Sinh hiệu -->
+                <div>
+                    <h4 class="font-bold text-xs uppercase text-gray-800 mb-1 flex items-center gap-1.5">
+                        <i class="fas fa-heart-pulse text-rose-500"></i> Chỉ số Sinh hiệu Bệnh nhân
+                    </h4>
+                    <div class="grid grid-cols-5 gap-1.5 text-center text-xs font-bold">
+                        <div class="bg-gray-50 border p-1.5 rounded-lg">
+                            <span class="block text-[9px] text-gray-500 font-normal">Huyết áp</span>
+                            <span id="rpt-val-bp" class="text-blue-900">120/80</span>
+                        </div>
+                        <div class="bg-gray-50 border p-1.5 rounded-lg">
+                            <span class="block text-[9px] text-gray-500 font-normal">Nhịp tim</span>
+                            <span id="rpt-val-hr" class="text-rose-700">75 bpm</span>
+                        </div>
+                        <div class="bg-gray-50 border p-1.5 rounded-lg">
+                            <span class="block text-[9px] text-gray-500 font-normal">SpO2</span>
+                            <span id="rpt-val-spo2" class="text-emerald-700">98%</span>
+                        </div>
+                        <div class="bg-gray-50 border p-1.5 rounded-lg">
+                            <span class="block text-[9px] text-gray-500 font-normal">Nhiệt độ</span>
+                            <span id="rpt-val-temp" class="text-amber-700">36.8°C</span>
+                        </div>
+                        <div class="bg-gray-50 border p-1.5 rounded-lg">
+                            <span class="block text-[9px] text-gray-500 font-normal">Cân nặng</span>
+                            <span id="rpt-val-weight" class="text-gray-800">60 kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diễn biến lâm sàng & Chẩn đoán (Cho phép sửa trực tiếp) -->
+                <div>
+                    <label class="block font-bold text-xs uppercase text-gray-800 mb-1" for="rpt-edit-symptoms">Triệu chứng chính khi tới trạm:</label>
+                    <input type="text" id="rpt-edit-symptoms" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500" placeholder="Sốt nhẹ, mệt mỏi, ho khan...">
+                </div>
+                <div>
+                    <label class="block font-bold text-xs uppercase text-gray-800 mb-1" for="rpt-edit-clinical-notes">Diễn biến lâm sàng ghi nhận tại điểm trạm:</label>
+                    <textarea id="rpt-edit-clinical-notes" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-gray-900 focus:outline-none focus:border-blue-500" placeholder="Bệnh nhân tỉnh táo, tim phổi ổn định..."></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-xs uppercase text-gray-800 mb-1" for="rpt-edit-diagnosis">Chẩn đoán sơ bộ &amp; Mã ICD-10:</label>
+                        <input type="text" id="rpt-edit-diagnosis" class="w-full bg-blue-50/60 border border-blue-200 rounded-lg p-2 font-bold text-xs text-blue-950 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-xs uppercase text-gray-800 mb-1" for="rpt-edit-treatment">Hướng xử trí:</label>
+                        <input type="text" id="rpt-edit-treatment" class="w-full bg-amber-50/60 border border-amber-200 rounded-lg p-2 font-bold text-xs text-amber-950 focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <!-- Thuốc kê đơn (Cho phép sửa trực tiếp) -->
+                <div>
+                    <label class="block font-bold text-xs uppercase text-emerald-800 mb-1 flex items-center gap-1.5" for="rpt-edit-prescription">
+                        <i class="fas fa-pills text-emerald-600"></i> Thuốc điều trị (mỗi thuốc một dòng):
+                    </label>
+                    <textarea id="rpt-edit-prescription" rows="4" class="w-full bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 font-mono font-medium text-xs text-emerald-950 focus:outline-none focus:border-emerald-500 leading-relaxed" placeholder="Paracetamol 500mg | 15 viên | Uống 1 viên x 3 lần/ngày, sau ăn&#10;Amoxicillin 500mg | 14 viên | Uống 1 viên x 2 lần/ngày"></textarea>
+                    <p class="text-[10px] text-gray-500 mt-1 font-medium">
+                        <i class="fas fa-circle-info text-blue-500 mr-1"></i>
+                        Gõ theo cú pháp <b>Tên thuốc, hàm lượng | Số lượng | Liều dùng, cách dùng</b> để bản in A5 tách đúng 4 cột theo Mẫu số 01 - Thông tư 52/2017/TT-BYT. Gõ tự do vẫn in được, nhưng cột Số lượng sẽ để trống.
+                    </p>
+                </div>
+
+                <!-- Lời dặn của Bác sĩ -->
+                <div>
+                    <label class="block font-bold text-xs uppercase text-purple-900 mb-1" for="rpt-edit-advice">Lời dặn của Bác sĩ tư vấn:</label>
+                    <textarea id="rpt-edit-advice" rows="2" class="w-full bg-purple-50/60 border border-purple-200 rounded-xl p-2.5 italic text-xs text-purple-950 focus:outline-none focus:border-purple-500" placeholder="Uống nhiều nước, nghỉ ngơi, tái khám sau 3 ngày hoặc khi sốt cao không hạ."></textarea>
+                </div>
+
+                <!-- Khu vực Chữ ký & Chữ ký số liên thông -->
+                <div class="pt-4 border-t border-gray-300 grid grid-cols-2 gap-4 text-center text-xs">
+                    <div>
+                        <p class="font-bold text-gray-800 uppercase">CÁN BỘ ĐIỂM TRẠM</p>
+                        <p class="text-[10px] text-gray-500 italic mb-4">(Ký, ghi rõ họ tên)</p>
+                        <p id="rpt-sig-operator-name" class="font-bold text-gray-900 pt-8">&nbsp;</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="font-bold text-purple-900 uppercase">BÁC SĨ THĂM KHÁM &amp; KÊ ĐƠN</p>
+                        <p class="text-[10px] text-gray-500 italic">(Ký số từ xa qua hệ thống)</p>
+                        <div class="h-16 flex items-center justify-center py-1">
+                            <img id="rpt-signer-sig-img" src="" alt="Chữ ký số" class="hidden max-h-14 max-w-full object-contain">
+                            <span id="rpt-signer-sig-empty" class="text-[10px] text-slate-400 italic">Chưa đóng chữ ký số</span>
+                        </div>
+                        <p id="rpt-sig-doctor-name" class="font-bold text-purple-900">&nbsp;</p>
+                        <p id="rpt-sig-doctor-license" class="text-[10px] text-gray-500 italic">&nbsp;</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thanh công cụ Export / In / Tải về -->
+            <div class="bg-slate-100 px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-t">
+                <p class="text-[11px] text-slate-600 italic"><i class="fas fa-info-circle text-blue-600"></i> Bản in theo Mẫu số 01 - Đơn thuốc (Thông tư 52/2017/TT-BYT), khổ giấy A5 dọc.</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="window.closeReportModal()" class="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition">Đóng</button>
+                    <button onclick="window.downloadReportWord()" class="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition shadow flex items-center gap-1.5">
+                        <i class="fas fa-file-word"></i> Tải về Word (.doc)
+                    </button>
+                    <button onclick="window.downloadReportPDF()" class="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-xl transition shadow flex items-center gap-1.5">
+                        <i class="fas fa-file-pdf"></i> Tải về PDF
+                    </button>
+                    <button onclick="window.printReportA5()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow flex items-center gap-1.5">
+                        <i class="fas fa-print"></i> In Đơn Thuốc A5
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div> <!-- KẾT THÚC LỚP PHỦ -->
+
+    <!-- =====================================================================
+         BUỒNG KHÁM CỦA BÁC SĨ TUYẾN TRÊN
+         Chỉ hiện sau khi máy chủ xác nhận phiếu phiên có phạm vi "doctor".
+         ===================================================================== -->
+    <div id="doctor-console" class="hidden min-h-screen bg-slate-950">
+
+        <!-- Thanh tiêu đề -->
+        <div class="bg-slate-900 px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap justify-between items-center border-b border-slate-800 gap-3 sticky top-0 z-30">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center text-lg font-bold shrink-0">
+                    <i class="fas fa-user-doctor"></i>
+                </div>
+                <div class="min-w-0">
+                    <h3 class="font-black text-base text-white flex items-center gap-2 flex-wrap">
+                        <span>MODULE BÁC SĨ TUYẾN TRÊN</span>
+                        <span class="text-[10px] bg-purple-700 px-2 py-0.5 rounded font-bold text-white">HỘI CHẨN TỪ XA</span>
+                        <span id="display-station-code" class="text-xs bg-blue-600 px-2 py-0.5 rounded font-mono text-white">TYT-BATXAT-01</span>
+                    </h3>
+                    <p class="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
+                        <span>Bác sĩ hội chẩn: <strong id="display-operator-name" class="text-emerald-400">—</strong></span>
+                        <span>•</span>
+                        <span id="connection-badge" class="inline-flex items-center space-x-1 bg-slate-800 border border-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            <span id="connection-status-text">Chưa kết nối - bấm "Bắt đầu cuộc gọi"</span>
+                        </span>
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <select id="station-switcher" onchange="window.switchStation(this.value)" title="Điểm trạm được ưu tiên trong hàng đợi" class="bg-slate-800 border border-blue-800/70 text-blue-200 text-[11px] font-bold font-mono px-2.5 py-1.5 rounded-xl focus:outline-none focus:border-blue-500">
+                    <!-- Danh sách điểm phòng khám được nạp động từ window.TELEHEALTH_STATIONS -->
+                </select>
+                <button onclick="window.endTeleconsultation()" id="btn-end-call-header" title="Kết thúc cuộc gọi khám từ xa và tắt camera/micro" class="hidden bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition items-center gap-1.5 border border-rose-400/50 shadow">
+                    <i class="fas fa-phone-slash"></i> Kết thúc cuộc gọi
+                </button>
+                <span id="station-auth-user" class="hidden items-center gap-1.5 bg-emerald-950 border border-emerald-800 text-emerald-300 text-[10px] font-bold px-2.5 py-1.5 rounded-xl" title="Tài khoản Bác sĩ tuyến trên đang đăng nhập">
+                    <i class="fas fa-user-shield"></i> <span id="station-auth-user-name">—</span>
+                </span>
+                <button onclick="window.openLoginModal()" class="bg-slate-800 hover:bg-slate-700 text-blue-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700">
+                    <i class="fas fa-user-gear"></i> Đổi tài khoản
+                </button>
+                <button onclick="window.logoutStationPanel()" class="bg-slate-800 hover:bg-rose-900 text-rose-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 hover:border-rose-700" title="Thoát khỏi Module Bác sĩ tuyến trên">
+                    <i class="fas fa-right-from-bracket"></i> Đăng xuất
+                </button>
+            </div>
+        </div>
+
+        <!-- Biểu ngữ cảnh báo sinh hiệu nguy hiểm -->
+        <div id="alert-banner" class="hidden bg-rose-950/90 border-b border-rose-700 px-6 py-2.5 text-xs text-rose-200 flex items-center justify-between font-bold animate-pulse">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-triangle-exclamation text-rose-400 text-sm"></i>
+                <span id="alert-banner-msg">Cảnh báo sinh hiệu bất thường!</span>
+            </div>
+            <button onclick="window.closeAlertBanner()" class="text-rose-400 hover:text-white text-xs px-2"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Nội dung -->
+        <div class="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto">
+
+            <!-- Cột trái: Hàng đợi, Căn cước công dân & Sinh hiệu (4 col) -->
+            <div class="lg:col-span-4 space-y-4">
+                <!-- Hàng đợi cuộc gọi của người dân - bác sĩ tuyến trên thấy cuộc gọi
+                     của MỌI điểm trạm, cuộc gọi vào điểm mình phụ trách được tô đậm. -->
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                            <i class="fas fa-headset"></i> Cuộc gọi chờ hội chẩn
+                        </h4>
+                        <span id="station-queue-count" class="text-[10px] bg-blue-900/80 text-blue-300 px-2 py-0.5 rounded-full font-bold">0 cuộc gọi</span>
+                    </div>
+                    <div id="station-queue-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        <div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>
+                    </div>
+                    <button type="button" id="station-queue-accept-btn" onclick="window.acceptNextPatientCall()" disabled
+                        title="Tiếp nhận cuộc gọi đang chờ lâu nhất - lúc này mới mở camera và micro của bác sĩ"
+                        class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fas fa-phone-volume"></i> <span id="station-queue-accept-label">Chưa có cuộc gọi chờ</span>
+                    </button>
+                </div>
+
+                <!-- Thông tin căn cước công dân do NGƯỜI DÂN tự nhập, theo cuộc gọi
+                     chuyển từ điểm trạm sang đây. -->
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <div class="flex justify-between items-center gap-2">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                            <i class="fas fa-id-card"></i> Thông tin Căn cước công dân
+                        </h4>
+                        <span id="station-idcard-source" class="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full font-bold">Chưa có dữ liệu</span>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-0.5" for="station-patient-idcard">Số thẻ BHYT hoặc số CCCD (người dân nhập)</label>
+                        <input type="text" id="station-patient-idcard" oninput="window.onStationIdCardInput()" inputmode="numeric" maxlength="32"
+                            placeholder="Chưa nhận được số căn cước từ người dân"
+                            title="Số căn cước công dân/thẻ BHYT do người dân tự nhập khi gọi, điểm trạm chuyển sang."
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-mono font-bold text-cyan-200 tracking-wider focus:outline-none focus:border-cyan-500">
+                    </div>
+                    <p id="station-idcard-note" class="text-[10px] text-slate-400 leading-snug">
+                        Số do người dân tự nhập khi đăng ký khám, được điểm trạm đối chiếu trước khi chuyển lên. Số này in vào Đơn thuốc A5.
+                    </p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="window.copyStationIdCard()" title="Sao chép số căn cước để tra cứu trên cổng BHYT"
+                            class="bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-bold py-2 rounded-xl text-[11px] transition flex items-center justify-center gap-1.5">
+                            <i class="fas fa-copy"></i> Sao chép
+                        </button>
+                        <button type="button" onclick="window.syncStationIdCard()" title="Chuyển thông tin căn cước công dân sang màn hình điểm trạm"
+                            class="bg-cyan-700 hover:bg-cyan-600 text-white font-bold py-2 rounded-xl text-[11px] transition flex items-center justify-center gap-1.5">
+                            <i class="fas fa-share-from-square"></i> Đồng bộ điểm trạm
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sinh hiệu bệnh nhân: điểm trạm gửi lên thì các ô này tự điền,
+                     bác sĩ cũng tự nhập/hiệu chỉnh rồi gửi ngược lại được. -->
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <i class="fas fa-heartbeat"></i> Sinh hiệu Bệnh nhân
+                    </h4>
+                    <div class="space-y-2 text-xs">
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-2">
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-name">Họ và tên bệnh nhân</label>
+                                <input type="text" id="patient-name" placeholder="VD: Nguyễn Văn B" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-age">Tuổi</label>
+                                <input type="number" id="patient-age" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 font-bold text-white text-center focus:outline-none focus:border-amber-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-gender">Giới tính</label>
+                            <select id="patient-gender" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-bold text-white focus:outline-none focus:border-amber-500">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-bp-sys">Huyết áp Thu (mmHg)</label>
+                                <input type="number" id="vitals-bp-sys" value="135" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-bp-dia">Huyết áp Trương (mmHg)</label>
+                                <input type="number" id="vitals-bp-dia" value="85" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-hr">Nhịp tim (bpm)</label>
+                                <input type="number" id="vitals-hr" value="82" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-spo2">SpO2 (%)</label>
+                                <input type="number" id="vitals-spo2" value="97" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-temp">Nhiệt độ (°C)</label>
+                                <input type="text" id="vitals-temp" value="37.2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-400 mb-0.5" for="vitals-weight">Cân nặng (kg)</label>
+                                <input type="text" id="vitals-weight" value="62" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-center font-bold text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-0.5" for="patient-symptoms">Triệu chứng chính</label>
+                            <input type="text" id="patient-symptoms" placeholder="Sốt nhẹ, mệt mỏi, ho khan..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <button onclick="window.sendVitalsToDoctor()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
+                        <i class="fas fa-paper-plane"></i> Đồng bộ Sinh hiệu &amp; Lưu hồ sơ
+                    </button>
+                </div>
+
+                <!-- Thẻ hiển thị sinh hiệu thực tế (tự đổi màu theo mức nguy hiểm) -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div id="card-bp" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
+                        <div class="text-[10px] text-slate-400">Huyết áp</div>
+                        <div id="display-bp" class="font-black text-sm text-white">135/85</div>
+                    </div>
+                    <div id="card-hr" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
+                        <div class="text-[10px] text-slate-400">Nhịp tim</div>
+                        <div id="display-hr" class="font-black text-sm text-rose-400">82</div>
+                    </div>
+                    <div id="card-spo2" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
+                        <div class="text-[10px] text-slate-400">SpO2</div>
+                        <div id="display-spo2" class="font-black text-sm text-emerald-400">97%</div>
+                    </div>
+                    <div id="card-temp" class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-center">
+                        <div class="text-[10px] text-slate-400">Nhiệt độ</div>
+                        <div id="display-temp" class="font-black text-sm text-amber-400">37.2°C</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột giữa: Khung hình khám & Điều khiển (5 col) -->
+            <div class="lg:col-span-5 space-y-4">
+                <div class="relative w-full h-80 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-lg">
+                    <video id="remote-video" autoplay playsinline class="w-full h-full object-contain hidden"></video>
+                    <div id="remote-placeholder" class="flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                        <i class="fas fa-house-medical text-6xl text-blue-500 mb-3 animate-pulse"></i>
+                        <h4 class="font-bold text-base text-white mb-1">Điểm trạm / Người bệnh</h4>
+                        <p class="text-xs text-slate-400">Tiếp nhận một cuộc gọi trong hàng đợi, hoặc bấm "Bắt đầu cuộc gọi" để mở phòng khám.</p>
+                        <span id="call-timer" class="text-xs font-mono text-emerald-400 mt-2 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">00:00</span>
+                    </div>
+
+                    <!-- Thẻ HUD sinh hiệu chồng trên khung hình khám -->
+                    <div class="absolute top-3 left-3 space-y-1.5 pointer-events-none">
+                        <div class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-xl px-2.5 py-1 text-[11px] font-bold text-white shadow-lg">
+                            <i class="fa-solid fa-user text-blue-400 mr-1"></i><span id="hud-patient-name">Bệnh nhân</span>
+                        </div>
+                        <div id="hud-patient-idcard-wrap" class="hidden bg-slate-950/80 backdrop-blur border border-cyan-800 rounded-xl px-2.5 py-1 text-[10px] font-mono font-bold text-cyan-200 shadow-lg">
+                            <i class="fa-solid fa-id-card text-cyan-400 mr-1"></i><span id="hud-patient-idcard">—</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 max-w-[15rem]">
+                            <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-white shadow">HA <strong id="hud-bp" class="font-black">135/85</strong></span>
+                            <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-rose-300 shadow">Tim <strong id="hud-hr" class="font-black">82</strong></span>
+                            <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-emerald-300 shadow">SpO2 <strong id="hud-spo2" class="font-black">97%</strong></span>
+                            <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-amber-300 shadow">Nhiệt <strong id="hud-temp" class="font-black">37.2°C</strong></span>
+                        </div>
+                        <span id="active-cam-mode-badge" class="bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full font-medium text-[11px] inline-block"><i class="fa-solid fa-video"></i> Camera 1: Toàn Cảnh Phòng Khám</span>
+                    </div>
+
+                    <!-- Hình của chính bác sĩ (PiP) -->
+                    <div class="absolute bottom-3 right-3">
+                        <video id="local-video" autoplay playsinline muted class="w-36 h-20 rounded-xl bg-slate-800 border-2 border-slate-700 shadow-xl object-contain"></video>
+                        <span id="pip-label" class="absolute bottom-1 left-1 bg-slate-950/85 text-[9px] font-bold text-blue-200 px-1.5 py-0.5 rounded border border-slate-700">Cam Bác sĩ</span>
+                        <div id="local-media-idle" class="absolute inset-0 rounded-xl bg-slate-950/95 border-2 border-slate-700 flex flex-col items-center justify-center text-center px-1.5">
+                            <i class="fas fa-video-slash text-slate-500 text-lg mb-1"></i>
+                            <span class="text-[8px] font-bold text-slate-400 leading-tight">Camera &amp; micro đang tắt</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="camera-status-text" class="text-[11px] text-slate-400 text-center font-medium">Camera &amp; micro đang TẮT - chỉ bật khi bắt đầu cuộc gọi khám từ xa.</p>
+
+                <!-- Thanh điều khiển cuộc gọi -->
+                <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                    <button onclick="window.startTeleconsultation()" id="btn-start-call" title="Bắt đầu cuộc gọi khám từ xa - lúc này mới mở camera và micro" class="px-3 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
+                        <i class="fas fa-video"></i> Bắt đầu cuộc gọi
+                    </button>
+                    <button onclick="window.endTeleconsultation()" id="btn-end-call" title="Kết thúc cuộc gọi và tắt camera/micro" class="hidden px-3 h-10 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
+                        <i class="fas fa-phone-slash"></i> Kết thúc cuộc gọi
+                    </button>
+                    <button onclick="window.toggleCameraDevice()" id="btn-toggle-camera" title="Chuyển đổi Camera (Góc rộng / Cận cảnh)" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow border border-slate-700 opacity-40 cursor-not-allowed" disabled>
+                        <i class="fas fa-camera-rotate"></i> <span id="cam-label">Góc rộng</span>
+                    </button>
+                    <button onclick="window.toggleMic()" id="btn-toggle-mic" title="Bật/Tắt Micro" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700 opacity-40 cursor-not-allowed" disabled>
+                        <i id="icon-mic" class="fa-solid fa-microphone text-emerald-400 text-sm"></i>
+                    </button>
+                    <button onclick="window.toggleVideo()" id="btn-toggle-video" title="Bật/Tắt Camera" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-sm transition shadow border border-slate-700 opacity-40 cursor-not-allowed" disabled>
+                        <i id="icon-video" class="fa-solid fa-video text-blue-400 text-sm"></i>
+                    </button>
+                    <button onclick="window.toggleAudioSettings()" id="btn-audio-settings" title="Chỉnh âm thanh: chống vang, chống hú, lọc tạp âm" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow border border-slate-700">
+                        <i class="fas fa-sliders"></i> Âm thanh
+                    </button>
+                    <button onclick="window.sendVitalsToDoctor()" title="Gửi chỉ số sinh hiệu sang điểm trạm" class="px-3 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
+                        <i class="fas fa-paper-plane"></i> Gửi sinh hiệu
+                    </button>
+                    <button onclick="window.finishAndExportReport()" title="Hoàn thành & Xuất Phiếu khám" class="px-3 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
+                        <i class="fas fa-file-invoice"></i> Xuất phiếu khám
+                    </button>
+                </div>
+
+                <!-- Bảng chỉnh âm thanh cuộc gọi -->
+                <div id="audio-settings-panel" class="hidden bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                            <i class="fas fa-wave-square text-blue-400"></i> Âm thanh cuộc gọi
+                        </h4>
+                        <button onclick="window.toggleAudioSettings()" class="text-slate-400 hover:text-white text-xs px-2" aria-label="Đóng bảng âm thanh"><i class="fas fa-times"></i></button>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                            <span>Mức tiếng thu vào micro</span>
+                            <span id="audio-status-text" class="text-slate-500">Chưa gọi - bộ lọc sẽ chạy khi bắt đầu cuộc gọi.</span>
+                        </div>
+                        <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                            <div id="audio-mic-meter" class="h-full rounded-full bg-slate-600 transition-all duration-75" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1" for="audio-profile-select">Lọc tạp âm thu từ bên ngoài</label>
+                            <select id="audio-profile-select" onchange="window.setCallNoiseProfile(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                                <option value="off">Tắt (giữ nguyên tiếng thu)</option>
+                                <option value="medium" selected>Vừa (khuyến nghị)</option>
+                                <option value="strong">Mạnh (phòng làm việc ồn)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1" for="audio-speaker-range">Âm lượng loa ngoài <span id="audio-speaker-value" class="text-blue-300 font-bold">100%</span></label>
+                            <input type="range" id="audio-speaker-range" min="0" max="100" value="100" oninput="window.setCallSpeakerVolume(this.value)" class="w-full accent-blue-500 h-8">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1" for="audio-mic-select">Micro thu</label>
+                            <select id="audio-mic-select" onchange="window.setCallMicDevice(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                                <option value="">Thiết bị mặc định của máy</option>
+                            </select>
+                        </div>
+                        <div id="audio-speaker-select-wrap" class="hidden">
+                            <label class="block text-[10px] text-slate-400 mb-1" for="audio-speaker-select">Loa phát</label>
+                            <select id="audio-speaker-select" onchange="window.setCallSpeakerDevice(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                                <option value="">Thiết bị mặc định của máy</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-1.5 pt-1 border-t border-slate-800">
+                        <label class="flex items-start gap-2 text-[11px] text-slate-300 cursor-pointer">
+                            <input type="checkbox" id="audio-anti-howl" checked onchange="window.setCallAntiHowl(this.checked)" class="mt-0.5 accent-blue-500">
+                            <span><strong class="text-white">Chống hú tự động</strong> - phát hiện tiếng rít do loa dội vào mic và chặn ngay tần số đó.</span>
+                        </label>
+                        <label class="flex items-start gap-2 text-[11px] text-slate-300 cursor-pointer">
+                            <input type="checkbox" id="audio-duck" checked onchange="window.setCallDuck(this.checked)" class="mt-0.5 accent-blue-500">
+                            <span><strong class="text-white">Giảm vang khi đầu kia nói</strong> - hạ micro trong lúc loa đang phát để tiếng không dội ngược lại.</span>
+                        </label>
+                    </div>
+
+                    <p id="audio-howl-note" class="hidden text-[10px] text-amber-300 bg-amber-950/50 border border-amber-900 rounded-lg px-2 py-1.5"></p>
+                    <p id="audio-engine-note" class="hidden text-[10px] text-slate-400 bg-slate-800/60 border border-slate-700 rounded-lg px-2 py-1.5">
+                        Trình duyệt này không hỗ trợ xử lý âm thanh nâng cao - cuộc gọi vẫn chạy với khử vọng sẵn có của trình duyệt.
+                    </p>
+                    <p class="text-[10px] text-slate-500 leading-relaxed">
+                        Vẫn còn vang hoặc hú? Kéo loa ra xa micro, hạ âm lượng loa xuống dưới 70%, hoặc dùng tai nghe có mic.
+                    </p>
+                </div>
+
+                <!-- Trao đổi lâm sàng & tệp đính kèm -->
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                            <i class="fas fa-comments text-blue-400"></i> Trao đổi lâm sàng &amp; Tệp đính kèm
+                        </h4>
+                        <span class="text-[10px] text-purple-300 font-mono">Bác sĩ tuyến trên</span>
+                    </div>
+                    <div id="chat-box" class="h-64 min-h-[200px] overflow-y-auto space-y-1.5 text-xs text-slate-300 pr-1 border-t border-b border-slate-800 py-2">
+                        <div class="text-[11px] text-slate-400 italic bg-slate-800/40 p-2 rounded-lg">Kênh hội chẩn đã sẵn sàng. Trao đổi diễn biến, hình ảnh cận lâm sàng với cán bộ điểm trạm tại đây.</div>
+                    </div>
+                    <input type="file" id="station-chat-file-input" class="hidden" onchange="window.handleStationChatFile(event)">
+                    <div id="station-file-preview" class="hidden text-xs text-emerald-400 bg-emerald-950/60 border border-emerald-800 p-2 rounded-xl flex items-center justify-between">
+                        <span id="station-file-name" class="truncate font-mono text-[11px]">filename.png</span>
+                        <button onclick="window.clearStationChatFile()" class="text-rose-400 hover:text-rose-300 text-xs font-bold px-1.5"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="document.getElementById('station-chat-file-input').click()" title="Đính kèm tệp / hình ảnh" class="bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0">
+                            <i class="fas fa-paperclip"></i> <span class="hidden sm:inline">Gửi tệp</span>
+                        </button>
+                        <input type="text" id="chat-input" placeholder="Gõ tin nhắn hội chẩn..." onkeydown="window.handleChatKeyPress(event)" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                        <button onclick="window.sendChatMessage()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition shrink-0 flex items-center gap-1">
+                            <i class="fas fa-paper-plane"></i> Gửi
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột phải: Chữ ký số, Kê đơn & Trợ lý AI (3 col) -->
+            <div class="lg:col-span-3 space-y-4">
+                <div class="bg-slate-900 p-4 rounded-2xl border border-purple-900/60 space-y-3 bg-purple-950/20">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                            <i class="fas fa-file-signature text-purple-400"></i> Chữ ký số &amp; Người kê đơn
+                        </h4>
+                        <span class="text-[9px] bg-purple-900/80 text-purple-200 px-2 py-0.5 rounded-full font-bold">Liên thông</span>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-purple-300 font-bold mb-1" for="station-prescription-signer">Chọn Bác sĩ ký số đơn thuốc</label>
+                        <select id="station-prescription-signer" onchange="window.selectPrescriptionSigner(this.value, true)" class="w-full bg-slate-800 border border-purple-800/80 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-purple-500">
+                            <option value="">-- Chọn Bác sĩ kê đơn --</option>
+                        </select>
+                    </div>
+                    <div class="bg-white rounded-xl h-14 flex items-center justify-center overflow-hidden border border-slate-700">
+                        <img id="station-signer-signature-preview" src="" alt="Chữ ký số" class="hidden max-h-full max-w-full object-contain">
+                        <span id="station-signer-signature-empty" class="text-[10px] text-slate-500 italic px-2 text-center">Chữ ký số liên thông của Bác sĩ sẽ tự động hiển thị tại đây.</span>
+                    </div>
+                </div>
+
+                <!-- Ghi chép lâm sàng & Đơn thuốc đồng bộ trực tiếp sang điểm trạm -->
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                            <i class="fas fa-pen-to-square"></i> Kết luận hội chẩn &amp; Đơn thuốc
+                        </h4>
+                        <button onclick="window.toggleSpeechToText()" id="stt-btn" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/40 text-[10px] px-2 py-1 rounded flex items-center gap-1 transition">
+                            <i class="fas fa-microphone-lines"></i> <span id="stt-btn-text">Giọng nói (STT)</span>
+                        </button>
+                    </div>
+                    <div id="stt-status" class="hidden text-[10px] text-rose-300 bg-rose-950/70 border border-rose-800 rounded-lg px-2 py-1 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping"></span>
+                        Đang thu âm và chuyển lời nói thành văn bản (tiếng Việt)...
+                    </div>
+                    <textarea id="clinical-notes" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="Nhận định của bác sĩ tuyến trên, diễn biến bệnh..."></textarea>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-blue-400 mb-1" for="station-dx-diagnosis">Chẩn đoán của tuyến trên</label>
+                        <input type="text" id="station-dx-diagnosis" placeholder="VD: Viêm họng cấp (J02.9)" onchange="window.syncStationPrescriptionData()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-cyan-400 mb-1" for="station-dx-drugs">Thuốc kê đơn</label>
+                        <textarea id="station-dx-drugs" rows="3" placeholder="1. Paracetamol 500mg x 3 lần/ngày&#10;2. Amoxicillin 500mg x 2 lần/ngày" onchange="window.syncStationPrescriptionData()" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-cyan-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-amber-400 mb-1" for="station-doctor-advice">Lời dặn cho người bệnh</label>
+                        <input type="text" id="station-doctor-advice" placeholder="Uống nhiều nước, nghỉ ngơi, tái khám khi cần..." onchange="window.syncStationPrescriptionData()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button onclick="window.requestAIConsultation()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 shadow">
+                            <i class="fas fa-brain"></i> AI Co-Pilot
+                        </button>
+                        <button onclick="window.finishAndExportReport()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1 shadow">
+                            <i class="fas fa-file-invoice"></i> In Đơn A5
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Gợi ý chẩn đoán & Đơn thuốc tham khảo -->
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                            <i class="fas fa-robot"></i> Gợi ý chẩn đoán &amp; Đơn thuốc AI
+                        </h4>
+                        <span id="ai-confidence" class="text-[10px] text-emerald-400 font-mono">--</span>
+                    </div>
+                    <div id="ai-red-flags" class="text-[11px] font-bold text-rose-400 space-y-1"></div>
+                    <div>
+                        <span class="text-[10px] text-slate-400 font-bold block mb-0.5">Gợi ý chẩn đoán:</span>
+                        <div id="ai-diagnosis-list" class="text-xs text-slate-200 font-bold leading-relaxed">Đang chờ phân tích...</div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-400 font-bold block mb-0.5">Cận lâm sàng đề xuất:</span>
+                        <div id="ai-paraclinicals-list" class="text-[11px] text-slate-300">--</div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-400 font-bold block mb-0.5">Đơn thuốc tham khảo:</span>
+                        <div id="ai-prescription-list" class="text-[11px] text-slate-300">--</div>
+                    </div>
+                </div>
+
+                <p class="text-[10px] text-slate-500 leading-relaxed px-1">
+                    <i class="fas fa-shield-halved text-slate-600 mr-1"></i>
+                    Mọi thao tác trong module này đều gắn phiếu phiên của tài khoản Bác sĩ tuyến trên. Quản trị thu hồi quyền là phiên mất hiệu lực ngay ở lần gọi kế tiếp.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- doctor.js phải nạp TRƯỚC app.js: nó đặt window.STATION_MODULE_SCOPE và các
+         hàm khung (phiên đăng nhập, cửa sổ, chữ ký số, bản in A5) mà app.js gọi tới. -->
+    <script src="/doctor.js" defer></script>
+    <script src="/app.js" defer></script>
+</body>
+</html>

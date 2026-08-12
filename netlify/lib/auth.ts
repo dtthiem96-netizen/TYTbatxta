@@ -53,7 +53,7 @@ export type TokenClaims = {
   username: string;
   name: string;
   role: string;
-  /** Phạm vi được cấp trong phiếu: "station" và/hoặc "admin", "video". */
+  /** Phạm vi được cấp trong phiếu: "station", "doctor", "admin", "video". */
   scopes: string[];
   stationCode: string | null;
   iat: number;
@@ -302,10 +302,27 @@ export function isActive(user: Pick<UserRow, "status">): boolean {
   return String(user.status || "ACTIVE").toUpperCase() !== "DISABLED";
 }
 
+/**
+ * Quyền vào Module Bác sĩ tuyến trên (/bacsi).
+ *
+ * Đây là quyền RIÊNG, cấp tách khỏi quyền điểm trạm: bác sĩ tuyến trên hội chẩn
+ * từ xa bằng tài khoản/mật khẩu của chính mình và không cần - cũng không mặc
+ * nhiên có - quyền thao tác trên Bảng điều khiển của trạm. Cột doctor_access là
+ * nguồn quyết định; tài khoản tạo trước khi có cột này suy ra từ vai trò để
+ * những bác sĩ đang trực không bị khoá ngoài ngay sau khi triển khai.
+ */
+export function hasDoctorAccess(user: Pick<UserRow, "doctorAccess" | "role">): boolean {
+  const granted = String(user.doctorAccess || "").trim().toLowerCase();
+  if (granted === "true") return true;
+  if (granted === "false") return false;
+  return /bác s|bac s|doctor|tuyến trên|tuyen tren|admin|quản trị|quan tri/i.test(String(user.role || ""));
+}
+
 /** Danh sách phạm vi mà tài khoản đang thực sự được hưởng. */
 export function scopesFor(user: UserRow): string[] {
   const scopes: string[] = [];
   if (hasStationAccess(user)) scopes.push("station");
+  if (hasDoctorAccess(user)) scopes.push("doctor");
   if (isAdminRole(user.role)) scopes.push("admin");
   if (String(user.canReceiveVideo || "true") !== "false") scopes.push("video");
   return scopes;
@@ -323,6 +340,7 @@ export function publicUser(user: UserRow) {
     stationCode: user.stationCode || "",
     canReceiveVideo: user.canReceiveVideo || "true",
     stationAccess: hasStationAccess(user) ? "true" : "false",
+    doctorAccess: hasDoctorAccess(user) ? "true" : "false",
     status: String(user.status || "ACTIVE").toUpperCase(),
     hasPassword: Boolean(user.passwordHash),
     mustChangePassword: String(user.mustChangePassword || "false") === "true",
@@ -368,7 +386,28 @@ export function readBearerToken(req: Request): string | null {
  * ở đầu mọi tuyến đường thuộc Module Bảng điều khiển điểm trạm để việc gõ thẳng
  * URL cũng không đi vòng qua được rào chắn của giao diện.
  */
-export async function requireScope(req: Request, scope: "station" | "admin" | "video"): Promise<AuthContext> {
+export type AuthScope = "station" | "doctor" | "admin" | "video";
+
+/** Thông báo từ chối tương ứng với từng phạm vi. */
+const SCOPE_DENIED_MESSAGES: Record<AuthScope, string> = {
+  station: "Tài khoản chưa được CMS Quản trị cấp quyền truy cập Mod Bảng điều khiển điểm trạm.",
+  doctor: "Tài khoản chưa được CMS Quản trị cấp quyền truy cập Module Bác sĩ tuyến trên.",
+  admin: "Chỉ Quản trị viên hệ thống mới được thao tác trên chức năng này.",
+  video: "Tài khoản chưa được cấp quyền nhận cuộc gọi video."
+};
+
+export async function requireScope(req: Request, scope: AuthScope): Promise<AuthContext> {
+  return requireAnyScope(req, [scope]);
+}
+
+/**
+ * Như requireScope nhưng chấp nhận MỘT TRONG các phạm vi liệt kê.
+ *
+ * Dùng cho những tuyến đường phục vụ đồng thời hai Module - ví dụ /api/vitals và
+ * /api/examination-report được cả cán bộ điểm trạm lẫn bác sĩ tuyến trên gọi
+ * trong cùng một lượt khám.
+ */
+export async function requireAnyScope(req: Request, scopes: AuthScope[]): Promise<AuthContext> {
   const claims = await verifyToken(readBearerToken(req));
   if (!claims) {
     throw new AuthError(401, "UNAUTHENTICATED", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.");
@@ -385,13 +424,9 @@ export async function requireScope(req: Request, scope: "station" | "admin" | "v
   }
 
   // Đọc lại quyền từ cơ sở dữ liệu: thu hồi quyền có hiệu lực tức thì.
-  if (!scopesFor(user).includes(scope)) {
-    const messages: Record<string, string> = {
-      station: "Tài khoản chưa được CMS Quản trị cấp quyền truy cập Mod Bảng điều khiển điểm trạm.",
-      admin: "Chỉ Quản trị viên hệ thống mới được thao tác trên chức năng này.",
-      video: "Tài khoản chưa được cấp quyền nhận cuộc gọi video."
-    };
-    throw new AuthError(403, "FORBIDDEN", messages[scope]);
+  const granted = scopesFor(user);
+  if (!scopes.some((scope) => granted.includes(scope))) {
+    throw new AuthError(403, "FORBIDDEN", SCOPE_DENIED_MESSAGES[scopes[0]]);
   }
 
   return { user, claims };

@@ -51,6 +51,19 @@
   to = "/public/index.html"
   status = 200
 
+# Đường dẫn gọn cho Module Bác sĩ tuyến trên. Module này có cổng đăng nhập riêng
+# (tài khoản được CMS cấp quyền doctor_access) nên đường dẫn để mở công khai;
+# quyền truy cập do /api/station-auth quyết định, không phải do redirect.
+[[redirects]]
+  from = "/bacsi"
+  to = "/bacsi.html"
+  status = 200
+
+[[redirects]]
+  from = "/bacsi/*"
+  to = "/bacsi.html"
+  status = 200
+
 # Thư mục gốc được publish nguyên trạng, nên chặn các tệp chỉ dùng cho máy chủ
 # nội bộ để chúng không tải về được từ trang công khai.
 [[redirects]]
@@ -275,6 +288,19 @@
 
 [[headers]]
   for = "/public/app.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+# /doctor.js (lớp vỏ của Module Bác sĩ tuyến trên) cũng không có vân tay nội dung
+# trong tên, nên chịu đúng luật của /app.js: luôn kiểm tra lại với máy chủ để một
+# bản lỗi không nằm lại trong máy của bác sĩ.
+[[headers]]
+  for = "/doctor.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+[[headers]]
+  for = "/public/doctor.js"
   [headers.values]
     Cache-Control = "public, max-age=0, no-cache, must-revalidate"
 

@@ -1,23 +1,25 @@
 /**
- * Cổng đăng nhập của hệ thống - dùng chung cho Module Bảng điều khiển điểm trạm
- * và cho CMS Quản trị.
+ * Cổng đăng nhập của hệ thống - dùng chung cho Module Bảng điều khiển điểm trạm,
+ * Module Bác sĩ tuyến trên và CMS Quản trị.
  *
  *   POST /api/station-auth            đăng nhập, trả về phiếu phiên (JWT HS256)
- *        { username, password, scope? }   scope: "station" (mặc định) | "cms"
+ *        { username, password, scope? }   scope: "station" (mặc định) | "doctor" | "cms"
  *   GET  /api/station-auth            kiểm tra phiếu phiên hiện tại còn hiệu lực
  *        Authorization: Bearer <token>
  *   POST /api/station-auth (action=change_password)
  *        cán bộ tự đổi mật khẩu sau khi Quản trị đặt lại
  *
  * Mật khẩu được đối chiếu với chuỗi băm bcrypt của TỪNG tài khoản. Quyền vào
- * Module Bảng điều khiển do CMS Quản trị cấp qua cột station_access; tài khoản
- * bị khoá (status = DISABLED) không đăng nhập được ở bất kỳ cổng nào.
+ * Module Bảng điều khiển do CMS Quản trị cấp qua cột station_access, quyền vào
+ * Module Bác sĩ tuyến trên cấp riêng qua cột doctor_access; tài khoản bị khoá
+ * (status = DISABLED) không đăng nhập được ở bất kỳ cổng nào.
  */
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 import {
   authErrorResponse,
+  hasDoctorAccess,
   hasStationAccess,
   isActive,
   isAdminRole,
@@ -69,8 +71,10 @@ async function touchLastLogin(id: string) {
 async function handleLogin(body: Record<string, any>) {
   const username = String(body.username || "").trim();
   const password = String(body.password || "");
-  // "station" = vào Module Bảng điều khiển điểm trạm, "cms" = vào CMS Quản trị.
-  const scope = String(body.scope || "station").toLowerCase() === "cms" ? "cms" : "station";
+  // "station" = Module Bảng điều khiển điểm trạm, "doctor" = Module Bác sĩ
+  // tuyến trên, "cms" = CMS Quản trị.
+  const requested = String(body.scope || "station").toLowerCase();
+  const scope = requested === "cms" || requested === "doctor" ? requested : "station";
 
   if (!username || !password) {
     return json({ success: false, error: "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu." }, 400);
@@ -110,6 +114,14 @@ async function handleLogin(body: Record<string, any>) {
       success: false,
       code: "NO_STATION_ACCESS",
       error: "Tài khoản chưa được CMS Quản trị cấp quyền truy cập Mod Bảng điều khiển điểm trạm."
+    }, 403);
+  }
+
+  if (scope === "doctor" && !hasDoctorAccess(user)) {
+    return json({
+      success: false,
+      code: "NO_DOCTOR_ACCESS",
+      error: "Tài khoản chưa được CMS Quản trị cấp quyền truy cập Module Bác sĩ tuyến trên."
     }, 403);
   }
 
