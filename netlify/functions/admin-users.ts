@@ -104,6 +104,7 @@ async function handleCreate(body: Record<string, any>) {
     stationCode,
     canReceiveVideo: flag(body.canReceiveVideo, "true"),
     stationAccess: flag(body.stationAccess, "false"),
+    doctorAccess: flag(body.doctorAccess, "false"),
     status: VALID_STATUS.has(text(body.status).toUpperCase()) ? text(body.status).toUpperCase() : "ACTIVE",
     passwordHash: await hashPassword(password),
     mustChangePassword: flag(body.mustChangePassword, "true"),
@@ -151,6 +152,7 @@ async function handleUpdate(body: Record<string, any>) {
     stationCode,
     canReceiveVideo: flag(body.canReceiveVideo, (target.canReceiveVideo as "true" | "false") || "true"),
     stationAccess: flag(body.stationAccess, (target.stationAccess as "true" | "false") || "false"),
+    doctorAccess: flag(body.doctorAccess, (target.doctorAccess as "true" | "false") || "false"),
     status,
     updatedAt: Date.now()
   };
@@ -225,10 +227,13 @@ async function handleSetPermission(body: Record<string, any>) {
   const permission = text(body.permission);
   const granted = flag(body.granted, "false");
 
-  const columns: Record<string, "stationAccess" | "canReceiveVideo"> = {
+  const columns: Record<string, "stationAccess" | "doctorAccess" | "canReceiveVideo"> = {
     // "Quyền truy cập Mod Bảng điều khiển điểm trạm"
     station: "stationAccess",
     stationAccess: "stationAccess",
+    // "Quyền truy cập Module Bác sĩ tuyến trên" - cấp tách khỏi quyền điểm trạm.
+    doctor: "doctorAccess",
+    doctorAccess: "doctorAccess",
     video: "canReceiveVideo",
     canReceiveVideo: "canReceiveVideo"
   };
@@ -237,7 +242,12 @@ async function handleSetPermission(body: Record<string, any>) {
 
   await db.update(users).set({ [column]: granted, updatedAt: Date.now() }).where(eq(users.id, target.id));
 
-  const label = column === "stationAccess" ? "Mod Bảng điều khiển điểm trạm" : "nhận cuộc gọi Video";
+  const labels: Record<string, string> = {
+    stationAccess: "Mod Bảng điều khiển điểm trạm",
+    doctorAccess: "Module Bác sĩ tuyến trên",
+    canReceiveVideo: "nhận cuộc gọi Video"
+  };
+  const label = labels[column];
   return json({
     success: true,
     message: `Đã ${granted === "true" ? "cấp" : "thu hồi"} quyền ${label} cho ${target.name}.`,

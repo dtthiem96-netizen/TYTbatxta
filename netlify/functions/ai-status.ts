@@ -1,4 +1,4 @@
-import { authErrorResponse, requireScope } from "../lib/auth.js";
+import { authErrorResponse, requireAnyScope } from "../lib/auth.js";
 import {
   describeGoogleAiError,
   getGoogleAiClient,
@@ -75,7 +75,7 @@ export default async (req: Request) => {
   }
 
   try {
-    await requireScope(req, "station");
+    await requireAnyScope(req, ["station", "doctor"]);
   } catch (err) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;

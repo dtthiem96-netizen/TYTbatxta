@@ -121,6 +121,7 @@ async function listRooms(now: number) {
     rooms.push({
       roomId,
       patientName: room?.patientName || null,
+      patientId: room?.patientId || null,
       symptoms: room?.symptoms || null,
       status: room?.status || "WAITING",
       vitals: room?.vitals ? JSON.parse(room.vitals) : null,
@@ -206,6 +207,7 @@ async function handleGet(url: URL) {
       ? {
           status: room.status,
           patientName: room.patientName,
+          patientId: room.patientId || "",
           vitals: room.vitals ? JSON.parse(room.vitals) : null,
           notes: room.notes || ""
         }
@@ -247,6 +249,10 @@ async function handlePost(req: Request) {
     };
     if ((body as any).patientName) roomPatch.patientName = String((body as any).patientName);
     if ((body as any).symptoms) roomPatch.symptoms = String((body as any).symptoms);
+    // Số căn cước công dân do người dân tự nhập ở màn hình đăng ký: lưu theo
+    // phòng khám để điểm trạm và bác sĩ tuyến trên đọc lại được kể cả khi vào
+    // sau, không phụ thuộc vào việc bắt được đúng bản tin patient-info.
+    if ((body as any).patientId) roomPatch.patientId = String((body as any).patientId).trim().slice(0, 32);
     await touchRoom(roomId, roomPatch, now);
 
     const cursor = await currentSeq();
@@ -263,6 +269,7 @@ async function handlePost(req: Request) {
         ? {
             status: room.status,
             patientName: room.patientName,
+            patientId: room.patientId || "",
             vitals: room.vitals ? JSON.parse(room.vitals) : null,
             notes: room.notes || ""
           }
@@ -288,6 +295,16 @@ async function handlePost(req: Request) {
   if (action === "signal") {
     const type = String((body as any).type || "");
     if (!type) return json({ error: "Thiếu type" }, 400);
+    if (type === "patient-info") {
+      // Bản tin định danh bệnh nhân vừa chuyển tiếp, vừa đọng lại trong phòng.
+      const payload = ((body as any).payload || {}) as Record<string, unknown>;
+      const patch: Record<string, unknown> = {};
+      const patientId = String(payload.patientId || "").trim();
+      const patientName = String(payload.patientName || "").trim();
+      if (patientId) patch.patientId = patientId.slice(0, 32);
+      if (patientName) patch.patientName = patientName;
+      if (Object.keys(patch).length) await touchRoom(roomId, patch, now);
+    }
     await pushSignal({
       roomId,
       fromPeer: peerId,

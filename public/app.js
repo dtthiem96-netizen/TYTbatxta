@@ -49,9 +49,26 @@ function stationName(code) {
   return found ? found.name : code;
 }
 
+/**
+ * Tệp này là bộ máy dùng chung cho HAI module:
+ *
+ *   - Mod Bảng điều khiển điểm trạm (index.html): cán bộ y tế trực tại trạm.
+ *   - Module Bác sĩ tuyến trên (bacsi.html): bác sĩ tuyến trên hội chẩn từ xa,
+ *     đăng nhập bằng tài khoản riêng đã được CMS cấp quyền doctor_access.
+ *
+ * Trang nào nạp app.js thì đặt window.STATION_MODULE_SCOPE trước khi nạp; giữ
+ * chung một bộ máy để hai module không bao giờ lệch nhau về nghiệp vụ (hàng đợi,
+ * WebRTC, sinh hiệu, đơn thuốc, trợ lý AI, phiếu khám A5).
+ */
+const MODULE_SCOPE = (typeof window !== 'undefined' && window.STATION_MODULE_SCOPE === 'doctor')
+  ? 'doctor'
+  : 'station';
+const IS_DOCTOR_MODULE = MODULE_SCOPE === 'doctor';
+
 let stationCode = 'TYT-BATXAT-01';
-let operatorName = 'Y sĩ Nguyễn Văn A';
-let role = 'station_operator';
+let operatorName = IS_DOCTOR_MODULE ? 'Bác sĩ tuyến trên' : 'Y sĩ Nguyễn Văn A';
+// signalRole() quy đổi vai trò này thành 'doctor' hoặc 'station' khi vào phòng khám.
+let role = IS_DOCTOR_MODULE ? 'superior_doctor' : 'station_operator';
 let roomId = defaultRoomForStation(stationCode);
 
 /**
@@ -142,6 +159,16 @@ let cmsUsers = [];
 let cmsSigners = [];
 let loggedInCmsUser = null;
 let queuePollInterval = null;
+
+/* Số thẻ BHYT/CCCD của bệnh nhân đang khám.
+   Nguồn gốc là ô "Số thẻ BHYT hoặc số CCCD" mà CHÍNH NGƯỜI DÂN nhập ở màn hình
+   đặt lịch/gọi nhanh; số đó đi theo cuộc gọi (bản tin signaling patient-info và
+   cột telehealth_rooms.patient_id) rồi hiện lên khung "Thông tin Căn cước công
+   dân" của Bảng điều khiển. patientIdCardEdited bật khi cán bộ trạm tự sửa số -
+   từ lúc đó dữ liệu về từ máy chủ không ghi đè lên tay cán bộ nữa. */
+let patientIdCard = '';
+let patientIdCardSource = '';
+let patientIdCardEdited = false;
 
 /** Kết quả phân tích gần nhất của Trợ lý AI lâm sàng (dùng khi xuất phiếu khám). */
 let currentAIAnalysis = null;
@@ -430,18 +457,34 @@ function populateCmsAccountsDropdown() {
     return /Điểm trạm|Station|Admin|Quản trị/i.test(u.role || '');
   };
 
-  const stationAccounts = cmsUsers.filter(hasStationAccess);
+  /* Module Bác sĩ tuyến trên đọc cột doctor_access - quyền này được CMS cấp
+     RIÊNG, không đi kèm quyền điểm trạm, nên hai module không bao giờ dùng
+     nhầm danh sách tài khoản của nhau. */
+  const hasDoctorAccess = (u) => {
+    if (!u) return false;
+    if ((u.status || 'ACTIVE').toUpperCase() === 'DISABLED') return false;
+    if (u.doctorAccess === 'true') return true;
+    if (u.doctorAccess === 'false') return false;
+    return /bác s|bac s|doctor|tuyến trên|tuyen tren|admin|quản trị|quan tri/i.test(u.role || '');
+  };
+
+  const eligible = IS_DOCTOR_MODULE ? hasDoctorAccess : hasStationAccess;
+  const stationAccounts = cmsUsers.filter(eligible);
   /* Nếu chưa tài khoản nào được tích quyền thì vẫn liệt kê hết để Quản trị đăng nhập
      lần đầu mà thiết lập; máy chủ vẫn từ chối tài khoản không có quyền. */
   const accountsToRender = stationAccounts.length > 0
     ? stationAccounts
     : cmsUsers.filter(u => (u.status || 'ACTIVE').toUpperCase() !== 'DISABLED');
 
-  selectEl.innerHTML = '<option value="">-- Chọn tài khoản cán bộ trực trạm --</option>' +
+  const placeholder = IS_DOCTOR_MODULE
+    ? '-- Chọn tài khoản Bác sĩ tuyến trên --'
+    : '-- Chọn tài khoản cán bộ trực trạm --';
+  selectEl.innerHTML = `<option value="">${placeholder}</option>` +
     accountsToRender.map(u => `<option value="${u.username}">${u.name} (${u.role}) - ${u.username}</option>`).join('');
 
   // Tự động chọn tài khoản cán bộ trạm mặc định nếu có
-  const defaultAcc = accountsToRender.find(u => u.username === 'canbotram@laocai.gov.vn') || accountsToRender[0];
+  const preferredUsername = IS_DOCTOR_MODULE ? 'bstuyentren@laocai.gov.vn' : 'canbotram@laocai.gov.vn';
+  const defaultAcc = accountsToRender.find(u => u.username === preferredUsername) || accountsToRender[0];
   if (defaultAcc) {
     selectEl.value = defaultAcc.username;
     onCmsAccountSelect(defaultAcc.username);
@@ -546,7 +589,7 @@ function acceptNextPatientCall() {
     showAlertBanner('Hiện chưa có cuộc gọi nào của người dân đang chờ tiếp nhận.');
     return;
   }
-  acceptPatientCall(next.roomId, next.patientName || 'Bệnh nhân', next.symptoms || '');
+  acceptPatientCall(next.roomId, next.patientName || 'Bệnh nhân', next.symptoms || '', next.patientId || '');
 }
 
 async function refreshIncomingCallsQueue() {
@@ -597,10 +640,11 @@ async function refreshIncomingCallsQueue() {
                 ${r.hasDoctor ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-700 text-slate-300">Đã có cán bộ</span>' : ''}
               </div>
               <div class="text-[10px] text-slate-400 mt-1 break-words">${queueText(r.symptoms || 'Khám sức khỏe tổng quát')}</div>
+              ${r.patientId ? `<div class="text-[10px] text-cyan-300 font-mono mt-0.5 break-all"><i class="fa-solid fa-id-card"></i> ${queueText(r.patientId)}</div>` : ''}
             </div>
           </div>
           <button type="button"
-            onclick="acceptPatientCall('${queueAttr(r.roomId)}', '${queueAttr(pName)}', '${queueAttr(r.symptoms || '')}')"
+            onclick="acceptPatientCall('${queueAttr(r.roomId)}', '${queueAttr(pName)}', '${queueAttr(r.symptoms || '')}', '${queueAttr(r.patientId || '')}')"
             title="Tiếp nhận cuộc gọi của ${queueText(pName)} - lúc này mới mở camera và micro của điểm trạm"
             class="${isCurrent ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'} w-full text-white font-bold px-3 py-2 rounded-lg text-[11px] transition flex items-center justify-center gap-1.5">
             <i class="fa-solid fa-headset"></i> ${isCurrent ? 'Đang kết nối' : 'Tiếp nhận cuộc gọi'}
@@ -613,8 +657,122 @@ async function refreshIncomingCallsQueue() {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   THÔNG TIN CĂN CƯỚC CÔNG DÂN CHUYỂN TỪ NGƯỜI DÂN SANG
+
+   Người dân bắt buộc nhập số thẻ BHYT/CCCD khi đặt lịch (booking-idcard) hoặc
+   khi gọi nhanh (quick-call-idcard). Số đó được gửi kèm lúc vào phòng khám và
+   qua bản tin signaling `patient-info`, nên Bảng điều khiển hiển thị được ngay
+   mà cán bộ trạm không phải hỏi lại bệnh nhân. Cán bộ vẫn sửa được khi đối
+   chiếu giấy tờ thấy sai lệch - sửa tay thì dữ liệu về sau không ghi đè nữa.
+   --------------------------------------------------------------------------- */
+
+/** Chỉ giữ chữ và số: số thẻ BHYT có chữ đầu (VD HS4...), CCCD toàn chữ số. */
+function normalizeIdCard(value) {
+  return String(value || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 32);
+}
+
+/** Vẽ lại ô nhập, nhãn nguồn dữ liệu và thẻ HUD trên khung hình khám. */
+function renderPatientIdCard() {
+  const input = document.getElementById('station-patient-idcard');
+  // Không giật chữ dưới tay cán bộ khi họ đang gõ trong chính ô này.
+  if (input && document.activeElement !== input && input.value !== patientIdCard) {
+    input.value = patientIdCard;
+  }
+
+  const badge = document.getElementById('station-idcard-source');
+  if (badge) {
+    const known = Boolean(patientIdCard);
+    badge.textContent = known ? (patientIdCardSource || 'Đã tiếp nhận') : 'Chưa có dữ liệu';
+    badge.className = known
+      ? 'text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded-full font-bold'
+      : 'text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full font-bold';
+  }
+
+  const hudWrap = document.getElementById('hud-patient-idcard-wrap');
+  const hudValue = document.getElementById('hud-patient-idcard');
+  if (hudValue) hudValue.textContent = patientIdCard || '—';
+  if (hudWrap) hudWrap.classList.toggle('hidden', !patientIdCard);
+}
+
+/**
+ * Ghi nhận số căn cước nhận được từ nơi khác (hàng đợi cuộc gọi, bản tin
+ * patient-info của người dân, bản ghi phòng khám trả về khi vào phòng).
+ * Trả về true khi giá trị thực sự đổi.
+ */
+function applyPatientIdCard(value, source) {
+  const normalized = normalizeIdCard(value);
+  if (!normalized) return false;
+  // Cán bộ đã đối chiếu giấy tờ và sửa tay thì giữ nguyên số của cán bộ.
+  if (patientIdCardEdited && patientIdCard && normalized !== patientIdCard) return false;
+  if (normalized === patientIdCard) {
+    if (source) patientIdCardSource = source;
+    renderPatientIdCard();
+    return false;
+  }
+  patientIdCard = normalized;
+  patientIdCardSource = source || 'Người dân tự nhập';
+  renderPatientIdCard();
+  return true;
+}
+
+/** Xoá thông tin định danh khi chuyển sang bệnh nhân/cuộc gọi khác. */
+function resetPatientIdCard() {
+  patientIdCard = '';
+  patientIdCardSource = '';
+  patientIdCardEdited = false;
+  const input = document.getElementById('station-patient-idcard');
+  if (input) input.value = '';
+  renderPatientIdCard();
+}
+
+/** Cán bộ trạm tự gõ/sửa số căn cước trong khung Bảng điều khiển. */
+function onStationIdCardInput() {
+  const input = document.getElementById('station-patient-idcard');
+  if (!input) return;
+  const normalized = normalizeIdCard(input.value);
+  if (input.value !== normalized) input.value = normalized;
+  patientIdCard = normalized;
+  patientIdCardEdited = true;
+  patientIdCardSource = normalized ? 'Cán bộ trạm đối chiếu' : '';
+  renderPatientIdCard();
+}
+
+/** Sao chép số căn cước để tra cứu trên cổng BHYT/VNeID. */
+function copyStationIdCard() {
+  if (!patientIdCard) {
+    showAlertBanner('Chưa có số thẻ BHYT/CCCD của bệnh nhân để sao chép.');
+    return;
+  }
+  const done = () => appendChatMessage('Hệ thống', `Đã sao chép số định danh bệnh nhân: ${patientIdCard}`);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(patientIdCard).then(done).catch(() => {
+      appendChatMessage('Hệ thống', `Trình duyệt không cho sao chép tự động. Số định danh: ${patientIdCard}`);
+    });
+  } else {
+    appendChatMessage('Hệ thống', `Số định danh bệnh nhân: ${patientIdCard}`);
+  }
+}
+
+/** Chuyển thông tin căn cước sang màn hình bác sĩ tuyến trên đang trong phòng. */
+function syncStationIdCard() {
+  if (!patientIdCard) {
+    showAlertBanner('Chưa có số thẻ BHYT/CCCD để chuyển lên tuyến trên.');
+    return;
+  }
+  if (!roomId || !peerId || !callActive) {
+    appendChatMessage('Hệ thống', 'Số định danh đã lưu tại trạm; sẽ tự chuyển lên tuyến trên ngay khi vào cuộc gọi.');
+    return;
+  }
+  sendSignal('patient-info', {
+    patientId: patientIdCard,
+    patientName: document.getElementById('patient-name')?.value || ''
+  });
+  appendChatMessage('Hệ thống', `Đã chuyển thông tin căn cước công dân (${patientIdCard}) sang bác sĩ tuyến trên.`);
+}
+
 // Tiếp nhận cuộc gọi từ giao diện người dân gọi
-function acceptPatientCall(targetRoomId, patientName, symptoms) {
+function acceptPatientCall(targetRoomId, patientName, symptoms, patientIdCardValue) {
   if (!targetRoomId) return;
 
   // Tiếp nhận cuộc gọi thì bảng điều khiển phải hiện lại đầy đủ, kể cả khi cán
@@ -634,6 +792,11 @@ function acceptPatientCall(targetRoomId, patientName, symptoms) {
 
   const hudName = document.getElementById('hud-patient-name');
   if (hudName) hudName.textContent = patientName || 'Bệnh nhân';
+
+  // Cuộc gọi mới là bệnh nhân mới: xoá định danh của lượt khám trước rồi nhận
+  // lại số căn cước người dân đã nhập, kèm theo cuộc gọi này.
+  if (targetRoomId !== previousRoomId) resetPatientIdCard();
+  applyPatientIdCard(patientIdCardValue, 'Người dân tự nhập');
 
   // Rời phòng cũ nếu đang ở phòng khác
   if (previousPeerId && previousRoomId && previousRoomId !== targetRoomId) {
@@ -663,7 +826,7 @@ function syncConsultingDoctorsList() {
 
 // 1. HTTP Signaling & WebRTC Logic
 function newPeerId() {
-  return `station-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+  return `${IS_DOCTOR_MODULE ? 'doctor' : 'station'}-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
 }
 
 /** Vai trò gửi lên máy chủ chỉ có 'station' hoặc 'doctor'. */
@@ -715,7 +878,8 @@ async function joinRoom() {
       role: signalRole(),
       name: `${operatorName} (${stationCode})`,
       patientName: document.getElementById('patient-name')?.value || 'Bệnh nhân',
-      symptoms: document.getElementById('patient-symptoms')?.value || ''
+      symptoms: document.getElementById('patient-symptoms')?.value || '',
+      patientId: patientIdCard
     });
 
     rejoinAttempts = 0;
@@ -723,6 +887,7 @@ async function joinRoom() {
     updateConnectionBadge(true, 'Đã vào phòng khám - chờ tiếp nhận');
     appendChatMessage('Hệ thống', `Đã vào phòng khám [${roomId}].`);
 
+    if (joined.room && joined.room.patientId) applyPatientIdCard(joined.room.patientId, 'Người dân tự nhập');
     if (joined.room && joined.room.vitals) updateVitalsUIFromRemote(joined.room.vitals);
     if (joined.room && joined.room.notes) {
       const notesEl = document.getElementById('clinical-notes');
@@ -785,6 +950,7 @@ async function pollLoop(token) {
 
       backoff = 0;
       if (typeof data.cursor === 'number') signalCursor = data.cursor;
+      if (data.room && data.room.patientId) applyPatientIdCard(data.room.patientId, 'Người dân tự nhập');
       updateConnectionBadge(true, isConnected ? 'Đang kết nối với tuyến trên' : 'Đã vào phòng khám - chờ tiếp nhận');
 
       const messages = data.messages || [];
@@ -846,6 +1012,23 @@ async function handleSignalMessage(msg) {
       updateVitalsUIFromRemote(msg.payload);
       break;
 
+    /* Người dân (hoặc bác sĩ tuyến trên) chuyển thông tin định danh sang: số
+       thẻ BHYT/CCCD hiện ngay trên khung "Thông tin Căn cước công dân". */
+    case 'patient-info': {
+      const info = msg.payload || {};
+      if (applyPatientIdCard(info.patientId, 'Người dân tự nhập')) {
+        appendChatMessage('Hệ thống', `Đã nhận thông tin căn cước công dân của bệnh nhân: ${patientIdCard}`);
+      }
+      const remoteName = String(info.patientName || '').trim();
+      const nameInput = document.getElementById('patient-name');
+      if (remoteName && nameInput && !nameInput.value.trim()) {
+        nameInput.value = remoteName;
+        const hud = document.getElementById('hud-patient-name');
+        if (hud) hud.textContent = remoteName;
+      }
+      break;
+    }
+
     case 'notes': {
       const text = msg.payload && msg.payload.notes;
       const notesEl = document.getElementById('clinical-notes');
@@ -856,6 +1039,35 @@ async function handleSignalMessage(msg) {
     case 'advice': {
       const advice = msg.payload && msg.payload.advice;
       if (advice) appendChatMessage('Chỉ định', advice);
+      break;
+    }
+
+    /* Kết luận hội chẩn của đầu bên kia (chẩn đoán, đơn thuốc, lời dặn). Bác sĩ
+       tuyến trên chốt bên module riêng thì điểm trạm thấy ngay, và ngược lại -
+       nhờ đó phiếu khám A5 in ra ở hai đầu luôn khớp nhau. */
+    case 'doctor_dx': {
+      const dx = msg.payload || {};
+      const fill = (id, value) => {
+        const el = document.getElementById(id);
+        // Không ghi đè ô mà người dùng đang gõ dở.
+        if (el && value && document.activeElement !== el) el.value = value;
+      };
+      fill('station-dx-diagnosis', dx.diagnosis);
+      fill('station-dx-drugs', dx.drugs);
+      fill('station-doctor-advice', dx.advice);
+      if (dx.signerId && typeof window.selectPrescriptionSigner === 'function') {
+        window.selectPrescriptionSigner(dx.signerId, false);
+      }
+      if (dx.diagnosis) appendChatMessage('Kết luận hội chẩn', dx.diagnosis);
+      break;
+    }
+
+    /* Đầu bên kia đổi người ký số đơn thuốc - hai đầu phải cùng một chữ ký. */
+    case 'signer': {
+      const signerId = msg.payload && msg.payload.signerId;
+      if (typeof window.selectPrescriptionSigner === 'function') {
+        window.selectPrescriptionSigner(signerId || '', false);
+      }
       break;
     }
 
@@ -2509,13 +2721,19 @@ async function sendVitalsToDoctor() {
         spo2,
         temperature,
         weight,
-        symptoms
+        symptoms,
+        patientId: patientIdCard
       })
     });
 
     const result = await response.json();
     if (result.success) {
       appendChatMessage('Sinh hiệu', `Đã đồng bộ chỉ số: HA ${bpSys}/${bpDia} mmHg, SpO2 ${spo2}%, Tim ${heartRate} bpm.`);
+
+      // Sinh hiệu và định danh bệnh nhân luôn đi cùng nhau lên màn hình tuyến trên.
+      if (patientIdCard && callActive && peerId) {
+        sendSignal('patient-info', { patientId: patientIdCard, patientName });
+      }
 
       // Ưu tiên kết quả đánh giá của máy chủ nếu có.
       const evaluation = result.data?.evaluation;
@@ -2773,6 +2991,7 @@ async function finishAndExportReport() {
         patientAge,
         patientGender,
         vitals: currentVitals,
+        patientId: patientIdCard,
         clinicalNotes,
         diagnosis: diagnosisText,
         icd10: currentAIAnalysis?.icd10Codes?.join(', ') || 'J06.9',
@@ -2791,6 +3010,7 @@ async function finishAndExportReport() {
   renderReportModal({
     reportData,
     patientName,
+    patientIdCard,
     patientAge,
     patientGender,
     symptoms,
@@ -2831,6 +3051,9 @@ function renderReportModal(ctx) {
 
   // Thông tin bệnh nhân & cán bộ (các ô cho phép sửa trực tiếp trước khi in)
   setVal('rpt-edit-patient-name', ctx.patientName);
+  // Số thẻ BHYT/CCCD in trên đơn thuốc lấy đúng số người dân đã nhập, chỉ để
+  // trống khi thực sự chưa nhận được - không bao giờ in số mẫu sẵn có.
+  setVal('rpt-edit-idcard', ctx.patientIdCard || '');
   // Mẫu số 01 - Thông tư 52/2017/TT-BYT tách riêng tuổi và giới tính, thêm ngày
   // sinh, cân nặng, địa chỉ; phần nào chưa có dữ liệu thì để cán bộ điền tay.
   setVal('rpt-edit-age-gender', ctx.patientAge ? `${ctx.patientAge} tuổi` : '');
@@ -2975,7 +3198,7 @@ async function submitLogin() {
     const res = await fetch(STATION_AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: selectedCmsUsername, password, scope: 'station' })
+      body: JSON.stringify({ username: selectedCmsUsername, password, scope: MODULE_SCOPE })
     });
     result = await res.json().catch(() => null);
 
@@ -3003,7 +3226,9 @@ async function submitLogin() {
 
   stationCode = code;
   operatorName = authUser.name || typedName || authUser.username;
-  role = 'station_operator'; // Luôn cố định vai trò Cán bộ Y tế Điểm trạm
+  // Vai trò cố định theo module: điểm trạm là Cán bộ Y tế, module riêng của
+  // tuyến trên luôn vào phòng khám với vai trò Bác sĩ.
+  role = IS_DOCTOR_MODULE ? 'superior_doctor' : 'station_operator';
   if (stationChanged) roomId = defaultRoomForStation(stationCode);
 
   renderStationIdentity();
@@ -3029,7 +3254,9 @@ async function submitLogin() {
     setStationLoginStatus('✅ Đăng nhập thành công. Lưu ý: tài khoản đang dùng mật khẩu tạm, hãy đề nghị Quản trị đổi mật khẩu riêng.', 'success');
   }
 
-  setStationLoginStatus('✅ Xác thực thành công. Đang mở Bảng điều khiển...', 'success');
+  setStationLoginStatus(IS_DOCTOR_MODULE
+    ? '✅ Xác thực thành công. Đang mở Module Bác sĩ tuyến trên...'
+    : '✅ Xác thực thành công. Đang mở Bảng điều khiển...', 'success');
 
   const pwdInput = document.getElementById('input-station-password');
   if (pwdInput) pwdInput.value = '';
@@ -3053,7 +3280,9 @@ async function submitLogin() {
   } else {
     updateCallControlsUI();
     updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
-    appendChatMessage('Hệ thống', 'Đã mở Bảng điều khiển. Bấm "Bắt đầu cuộc gọi" khi cần hội chẩn với tuyến trên.');
+    appendChatMessage('Hệ thống', IS_DOCTOR_MODULE
+      ? 'Đã mở Module Bác sĩ tuyến trên. Tiếp nhận cuộc gọi trong hàng đợi hoặc bấm "Bắt đầu cuộc gọi" để vào phòng khám.'
+      : 'Đã mở Bảng điều khiển. Bấm "Bắt đầu cuộc gọi" khi cần hội chẩn với tuyến trên.');
   }
 }
 
@@ -3067,9 +3296,32 @@ function handleChatKeyPress(event) {
 function sendChatMessage() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
-  if (!text) return;
+
+  /* Tệp/ảnh đính kèm đang chờ gửi. Trang nào có khung đính kèm thì đặt
+     window.stationPendingAttachment = { name, data }; ở đây chỉ đọc, nên trang
+     không dùng đính kèm giữ nguyên hành vi cũ. */
+  const attachment = (typeof window !== 'undefined' && window.stationPendingAttachment) || null;
+  if (!text && !attachment) return;
 
   const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+  if (attachment && attachment.data) {
+    const isImage = /^data:image\//i.test(String(attachment.data));
+    const safeName = String(attachment.name || 'tệp đính kèm')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const html = isImage
+      ? `<img src="${attachment.data}" alt="${safeName}" class="mt-1 max-h-40 rounded-lg border border-slate-700">`
+      : `<a href="${attachment.data}" download="${safeName}" class="text-blue-300 underline">${safeName}</a>`;
+    appendChatMessage(operatorName, html, time);
+    sendSignal('chat', { sender: operatorName, text: html });
+    if (typeof window.clearStationChatFile === 'function') window.clearStationChatFile();
+  }
+
+  if (!text) {
+    input.value = '';
+    return;
+  }
+
   appendChatMessage(operatorName, text, time);
 
   sendSignal('chat', { sender: operatorName, text });
@@ -3162,12 +3414,37 @@ window.stopQueuePolling = stopQueuePolling;
 window.refreshIncomingCallsQueue = refreshIncomingCallsQueue;
 window.acceptPatientCall = acceptPatientCall;
 window.acceptNextPatientCall = acceptNextPatientCall;
+window.onStationIdCardInput = onStationIdCardInput;
+window.copyStationIdCard = copyStationIdCard;
+window.syncStationIdCard = syncStationIdCard;
+/** Số thẻ BHYT/CCCD của bệnh nhân đang khám (dùng chung với các module khác). */
+window.getStationPatientIdCard = function() { return patientIdCard; };
 window.joinRoom = joinRoom;
+/* Cửa gửi bản tin signaling cho lớp vỏ của trang (doctor.js dùng để đẩy kết luận
+   hội chẩn và người ký số sang đầu bên kia). Trả về Promise, tự bỏ qua khi chưa
+   vào phòng khám. */
+window.sendStationSignal = sendSignal;
 window.startTeleconsultation = startTeleconsultation;
 window.endTeleconsultation = endTeleconsultation;
 /** Bảng điều khiển hỏi trạng thái cuộc gọi trước khi cho đóng hẳn module. */
 window.isStationCallActive = function() { return callActive; };
 window.switchStation = switchStation;
+/**
+ * Khôi phục danh tính sau khi lớp vỏ của trang xác minh lại một phiên đã lưu.
+ *
+ * Khác switchStation(): không rời/vào phòng khám và không ghi dòng nhật ký "đã
+ * chuyển trạm" - đây chỉ là dựng lại đúng tên người trực và điểm trạm của phiên
+ * cũ, chưa phải một thao tác nghiệp vụ. Chỉ nhận mã điểm trạm có trong danh mục.
+ */
+window.restoreStationIdentity = function(identity) {
+  if (!identity) return;
+  if (identity.name) operatorName = identity.name;
+  if (identity.stationCode && STATIONS.some(s => s.code === identity.stationCode)) {
+    stationCode = identity.stationCode;
+    roomId = defaultRoomForStation(stationCode);
+  }
+  renderStationIdentity();
+};
 window.stationList = STATIONS;
 window.toggleCameraDevice = toggleCameraDevice;
 window.toggleMic = toggleMic;

@@ -911,6 +911,14 @@
                         </button>
 
                         <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ CMS</a>
+
+                        <!-- ===== MODULE BÁC SĨ TUYẾN TRÊN =====
+                             Module riêng, có trang và cổng đăng nhập riêng (/bacsi). Chỉ tài khoản
+                             được CMS Quản trị cấp ô "Module Bác sĩ tuyến trên" mới vào được; đây
+                             chỉ là lối đi, quyền do máy chủ quyết định. -->
+                        <a href="/bacsi" title="Module riêng của Bác sĩ tuyến trên tham gia phòng khám trực tuyến từ xa - yêu cầu tài khoản và mật khẩu được cấp riêng" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-purple-300 tracking-wide inline-flex items-center gap-1.5">
+                            <i class="fas fa-user-doctor text-[11px]"></i> BÁC SĨ TUYẾN TRÊN
+                        </a>
                     </div>
                 </div>
             </div>
@@ -1933,6 +1941,43 @@
                         </button>
                     </div>
 
+                    <!-- Thông tin căn cước công dân do NGƯỜI DÂN tự nhập.
+                         Người dân bắt buộc nhập số thẻ BHYT/CCCD ở màn hình đặt
+                         lịch hoặc gọi nhanh (booking-idcard / quick-call-idcard).
+                         Số đó theo cuộc gọi chuyển sang đây, cán bộ trạm không
+                         phải hỏi lại và không phải gõ lại - chỉ đối chiếu với
+                         giấy tờ bệnh nhân mang tới rồi chuyển tiếp lên tuyến trên.
+                         Số này được in vào Phiếu khám & Đơn thuốc (Mẫu số 01 -
+                         TT 52/2017/TT-BYT) và lưu vào nhật ký cuộc gọi. -->
+                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                        <div class="flex justify-between items-center gap-2">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                                <i class="fas fa-id-card"></i> Thông tin Căn cước công dân
+                            </h4>
+                            <span id="station-idcard-source" class="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full font-bold">Chưa có dữ liệu</span>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-0.5" for="station-patient-idcard">Số thẻ BHYT hoặc số CCCD (người dân nhập)</label>
+                            <input type="text" id="station-patient-idcard" oninput="window.onStationIdCardInput()" inputmode="numeric" maxlength="32"
+                                placeholder="Chưa nhận được số căn cước từ người dân"
+                                title="Số căn cước công dân/thẻ BHYT do người dân tự nhập khi gọi. Cán bộ chỉ sửa khi đối chiếu giấy tờ thấy sai lệch."
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 font-mono font-bold text-cyan-200 tracking-wider focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <p id="station-idcard-note" class="text-[10px] text-slate-400 leading-snug">
+                            Số do người dân tự nhập khi đăng ký khám. Cán bộ đối chiếu với thẻ BHYT/CCCD bệnh nhân mang tới trước khi in đơn thuốc.
+                        </p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="window.copyStationIdCard()" title="Sao chép số căn cước để tra cứu trên cổng BHYT"
+                                class="bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-bold py-2 rounded-xl text-[11px] transition flex items-center justify-center gap-1.5">
+                                <i class="fas fa-copy"></i> Sao chép
+                            </button>
+                            <button type="button" onclick="window.syncStationIdCard()" title="Chuyển thông tin căn cước công dân sang màn hình bác sĩ tuyến trên"
+                                class="bg-cyan-700 hover:bg-cyan-600 text-white font-bold py-2 rounded-xl text-[11px] transition flex items-center justify-center gap-1.5">
+                                <i class="fas fa-share-from-square"></i> Chuyển tuyến trên
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Nhập nhanh chỉ số sinh hiệu -->
                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -2028,6 +2073,11 @@
                         <div class="absolute top-3 left-3 space-y-1.5 pointer-events-none">
                             <div class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-xl px-2.5 py-1 text-[11px] font-bold text-white shadow-lg">
                                 <i class="fa-solid fa-user text-blue-400 mr-1"></i><span id="hud-patient-name">Bệnh nhân</span>
+                            </div>
+                            <!-- Số căn cước/BHYT hiện ngay trên khung hình để cán bộ đọc đối chiếu
+                                 với giấy tờ bệnh nhân đưa mà không phải rời mắt khỏi cuộc gọi. -->
+                            <div id="hud-patient-idcard-wrap" class="hidden bg-slate-950/80 backdrop-blur border border-cyan-800 rounded-xl px-2.5 py-1 text-[10px] font-mono font-bold text-cyan-200 shadow-lg">
+                                <i class="fa-solid fa-id-card text-cyan-400 mr-1"></i><span id="hud-patient-idcard">—</span>
                             </div>
                             <div class="flex flex-wrap gap-1.5 max-w-[15rem]">
                                 <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-white shadow">HA <strong id="hud-bp" class="font-black">135/85</strong></span>
@@ -7370,7 +7420,10 @@
                 role: opts.role,
                 name: opts.name,
                 patientName: TELE.patientName,
-                symptoms: TELE.symptoms
+                symptoms: TELE.symptoms,
+                // Số thẻ BHYT/CCCD người dân vừa nhập đi cùng lượt vào phòng, để
+                // Bảng điều khiển điểm trạm đọc được kể cả khi vào sau.
+                patientId: TELE.patientId || ''
             }).then(res => ({ ok: true, res }), err => ({ ok: false, err }));
 
             await mediaPromise;
@@ -8931,7 +8984,8 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 role: 'doctor',
                 name: (currentCmsUser && currentCmsUser.name) || 'Bác sĩ trực CMS',
                 patientName: session.patientName,
-                symptoms: session.symptoms
+                symptoms: session.symptoms,
+                patientId: session.patientId || ''
             }).then(res => ({ ok: true, res }), err => ({ ok: false, err }));
 
             await mediaPromise;

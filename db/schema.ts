@@ -55,6 +55,10 @@ export const users = pgTable(
     canReceiveVideo: text("can_receive_video").default("true"),
     // Quyền đăng nhập Module Bảng điều khiển trạm, do CMS Quản trị cấp/thu hồi.
     stationAccess: text("station_access").default("false"),
+    // Quyền đăng nhập Module Bác sĩ tuyến trên (/bacsi) - cấp riêng, không đi
+    // kèm quyền điểm trạm: bác sĩ tuyến trên hội chẩn từ xa nhưng không thao
+    // tác trên bảng điều khiển của trạm.
+    doctorAccess: text("doctor_access").default("false"),
     /* Mật khẩu KHÔNG bao giờ lưu dạng rõ: chỉ giữ chuỗi băm bcrypt ($2b$...).
        Tài khoản tạo trước tính năng này còn để trống, xem netlify/lib/auth.ts
        để biết luồng đặt mật khẩu lần đầu. */
@@ -93,6 +97,9 @@ export const videos = pgTable("videos", {
 export const telehealthRooms = pgTable("telehealth_rooms", {
   id: text("id").primaryKey(),
   patientName: text("patient_name"),
+  // Số căn cước công dân/thẻ BHYT do chính người dân nhập ở màn hình đăng ký,
+  // theo cuộc gọi sang Bảng điều khiển điểm trạm và Module Bác sĩ tuyến trên.
+  patientId: text("patient_id"),
   symptoms: text("symptoms"),
   vitals: text("vitals"),
   notes: text("notes"),

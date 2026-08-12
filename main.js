@@ -64,7 +64,7 @@ function checkSyntax(code, isModule) {
 
 // --- 1. Cú pháp -------------------------------------------------------------
 // Trang chính bắt buộc phải có mã nội tuyến; các trang quản trị thì không.
-const MAIN_PAGES = ['index.html', 'public/index.html'];
+const MAIN_PAGES = ['index.html', 'public/index.html', 'bacsi.html', 'public/bacsi.html'];
 const ADMIN_PAGES = ['admin/index.html', 'admin/cms.html', 'admin/decap.html', '401.html', 'public/admin/index.html', 'public/admin/cms.html', 'public/admin/decap.html'];
 
 for (const file of [...MAIN_PAGES, ...ADMIN_PAGES]) {
@@ -91,7 +91,7 @@ for (const file of [...MAIN_PAGES, ...ADMIN_PAGES]) {
   }
 }
 
-for (const file of ['app.js', 'public/app.js']) {
+for (const file of ['app.js', 'public/app.js', 'doctor.js', 'public/doctor.js']) {
   const code = read(file);
   if (code === null) {
     warn('Không tìm thấy tệp.', file);
@@ -105,7 +105,7 @@ for (const file of ['app.js', 'public/app.js']) {
 // Không chỉ index.html/app.js: mọi tài sản tĩnh dùng chung phải khớp nhau, vì
 // một tệp thiếu trong public/ sẽ bị luật bắt-tất-cả trả về trang chủ với status
 // 200 - trông như tải được nhưng thực ra là sai nội dung, khó phát hiện hơn 404.
-const SYNC_TARGETS = ['index.html', 'app.js', 'logo.png', 'admin', 'assets'];
+const SYNC_TARGETS = ['index.html', 'app.js', 'bacsi.html', 'doctor.js', 'logo.png', 'admin', 'assets'];
 
 /** Liệt kê đường dẫn tương đối của mọi tệp trong một thư mục. */
 function walk(dir, base = dir) {
@@ -151,12 +151,15 @@ for (const target of SYNC_TARGETS) {
 }
 
 // --- 3. ID phần tử DOM ------------------------------------------------------
-const markup = (read('index.html') || '') + (read('public/index.html') || '');
+// Gộp markup của cả hai module: app.js là bộ máy dùng chung, nó gọi tới ID của
+// Bảng điều khiển điểm trạm (index.html) lẫn của Module Bác sĩ tuyến trên
+// (bacsi.html), nên một ID chỉ cần có mặt ở một trong hai trang là hợp lệ.
+const markup = (read('index.html') || '') + (read('public/index.html') || '') + (read('bacsi.html') || '');
 if (markup) {
   const ids = new Set([...markup.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
   // Một số phần tử được JavaScript tạo động rồi gán id, không có trong HTML tĩnh.
   for (const m of markup.matchAll(/\.id\s*=\s*['"]([^'"]+)['"]/g)) ids.add(m[1]);
-  for (const file of ['app.js', 'index.html']) {
+  for (const file of ['app.js', 'index.html', 'doctor.js', 'bacsi.html']) {
     const code = read(file);
     if (!code) continue;
     for (const m of code.matchAll(/\.id\s*=\s*['"]([^'"]+)['"]/g)) ids.add(m[1]);
@@ -196,6 +199,26 @@ const WINDOW_BUILTINS = new Set([
   }
 }
 
+// Module Bác sĩ tuyến trên nạp doctor.js rồi tới app.js, nên bộ xử lý của nó có
+// thể nằm ở một trong hai tệp. Kiểm tra riêng để nút trên trang /bacsi không bao
+// giờ "bấm không phản hồi".
+{
+  const html = read('bacsi.html');
+  const glue = read('doctor.js');
+  const app = read('app.js');
+  if (html && glue && app) {
+    const all = html + glue + app;
+    const defined = new Set();
+    for (const m of all.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) defined.add(m[1]);
+    for (const m of all.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\(/g)) defined.add(m[1]);
+    const called = new Set([...html.matchAll(/window\.([A-Za-z_$][\w$]*)\s*\(/g)].map((m) => m[1]));
+    const missing = [...called].filter((fn) => !defined.has(fn) && !WINDOW_BUILTINS.has(fn));
+    if (missing.length) {
+      warn(`Markup gọi window.* chưa được định nghĩa: ${missing.map((f) => `${f}()`).join(', ')}`, 'bacsi.html');
+    }
+  }
+}
+
 // --- 5. Chính sách cache trong netlify.toml ---------------------------------
 // Một tệp JS/CSS không có vân tay nội dung trong tên mà bị gắn "immutable" với
 // max-age một năm là lỗi rất khó phát hiện: bản triển khai mới trông như thành
@@ -231,7 +254,7 @@ const WINDOW_BUILTINS = new Set([
 
     // Các tệp JS/CSS thực sự được publish ở thư mục gốc.
     const served = [];
-    for (const rel of ['app.js', 'public/app.js']) {
+    for (const rel of ['app.js', 'public/app.js', 'doctor.js', 'public/doctor.js']) {
       if (read(rel) !== null) served.push('/' + rel);
     }
 
