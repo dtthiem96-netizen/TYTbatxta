@@ -1,6 +1,6 @@
 import { db } from "../../db/index.js";
 import { telehealthPeers, telehealthRooms, telehealthSignals, appointments } from "../../db/schema.js";
-import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 /**
  * Signaling WebRTC không dùng WebSocket (Netlify không giữ kết nối socket lâu dài).
@@ -9,7 +9,17 @@ import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
  *   - POST /api/signal  { action: 'standby', roomId: '__lobby__', peerId, name }  (cán bộ báo đang trực + lấy hàng đợi)
  *   - GET  /api/signal?roomId=...&peerId=...&cursor=...   (long-poll ngắn, trả về bản tin mới)
  *   - GET  /api/signal?action=rooms                       (danh sách phòng đang chờ bác sĩ)
+ *   - GET  /api/signal?action=rooms&wait=1&sig=...        (long-poll hàng đợi: trả ngay khi hàng đợi đổi)
  *   - GET  /api/signal?action=on-duty                     (số cán bộ đang trực, cho màn hình người dân)
+ *
+ * PHÒNG KHÁM BA BÊN
+ * -----------------
+ * Một phòng khám chứa đồng thời ba vai: người dân gọi tới, Bảng điều khiển của
+ * điểm trạm và Bác sĩ tuyến trên. Máy chủ không ghép cặp hai người nữa mà trả về
+ * DANH SÁCH thành viên đang có trong phòng; bên vừa vào tự mở một kết nối ngang
+ * hàng riêng tới từng người đã ở trong phòng (mô hình lưới - mesh). Nhờ đó mọi
+ * bản tin offer/answer/ICE đều phải ghi rõ `to` là peerId người nhận, không còn
+ * phát tán cho cả phòng như khi chỉ có hai bên.
  */
 
 // Phòng ảo giữ danh sách cán bộ/bác sĩ đang trực (không phải phòng khám thật).
@@ -18,10 +28,22 @@ const PEER_TTL_MS = 45_000;
 const SIGNAL_TTL_MS = 180_000;
 // Giữ dưới ngưỡng timeout 10s của Netlify Functions.
 const POLL_WINDOW_MS = 7_000;
-// Nhịp quét bản tin trong một lượt long-poll. Nhịp càng ngắn thì offer/answer/ICE
-// càng sớm tới đầu bên kia, tức là hình lên nhanh hơn; 250ms là mức cân bằng giữa
-// độ trễ bắt tay và số lần truy vấn cơ sở dữ liệu trong mỗi lượt chờ.
-const POLL_INTERVAL_MS = 250;
+/*
+ * Nhịp quét bản tin trong một lượt long-poll, thay đổi theo thời điểm.
+ *
+ * Toàn bộ việc bắt tay WebRTC (offer -> answer -> ICE) diễn ra trong khoảng một
+ * giây đầu của lượt chờ; càng về sau thì kênh chỉ còn nằm im đợi sự kiện. Nên
+ * quét rất dày ở đầu lượt để hình lên nhanh, rồi giãn ra để không phải hỏi cơ sở
+ * dữ liệu vô ích - tổng số truy vấn mỗi lượt vẫn xấp xỉ mức cũ (nhịp cố định
+ * 250ms), nhưng độ trễ bắt tay giảm khoảng ba lần.
+ */
+const POLL_FAST_INTERVAL_MS = 80;
+const POLL_FAST_PHASE_MS = 1_200;
+const POLL_SLOW_INTERVAL_MS = 300;
+
+function pollInterval(elapsedMs: number) {
+  return elapsedMs < POLL_FAST_PHASE_MS ? POLL_FAST_INTERVAL_MS : POLL_SLOW_INTERVAL_MS;
+}
 
 const headers = {
   "Content-Type": "application/json",
@@ -37,8 +59,12 @@ const json = (body: unknown, status = 200) =>
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function pruneStale(now: number) {
-  await db.delete(telehealthPeers).where(lt(telehealthPeers.lastSeen, now - PEER_TTL_MS));
-  await db.delete(telehealthSignals).where(lt(telehealthSignals.ts, now - SIGNAL_TTL_MS));
+  // Hai lệnh xoá không phụ thuộc nhau: chạy song song để lượt quét hàng đợi trả
+  // về sớm hơn, cuộc gọi mới hiện lên máy cán bộ nhanh hơn tương ứng.
+  await Promise.all([
+    db.delete(telehealthPeers).where(lt(telehealthPeers.lastSeen, now - PEER_TTL_MS)),
+    db.delete(telehealthSignals).where(lt(telehealthSignals.ts, now - SIGNAL_TTL_MS))
+  ]);
 }
 
 async function currentSeq(): Promise<number> {
@@ -114,9 +140,17 @@ async function listRooms(now: number) {
     grouped.set(peer.roomId, entry);
   }
 
+  const roomIds = Array.from(grouped.keys());
+  if (!roomIds.length) return [];
+
+  // Một truy vấn cho tất cả phòng thay vì mỗi phòng một lượt hỏi. Với hàng đợi
+  // vài chục cuộc gọi, cách cũ (N+1) là phần chậm nhất của lượt quét hàng đợi.
+  const roomRows = await db.select().from(telehealthRooms).where(inArray(telehealthRooms.id, roomIds));
+  const roomById = new Map(roomRows.map((r) => [r.id, r]));
+
   const rooms = [];
   for (const [roomId, entry] of grouped.entries()) {
-    const room = await getRoom(roomId);
+    const room = roomById.get(roomId) || null;
     const waiting = entry.filter((p) => p.role !== "doctor");
     rooms.push({
       roomId,
@@ -126,11 +160,27 @@ async function listRooms(now: number) {
       status: room?.status || "WAITING",
       vitals: room?.vitals ? JSON.parse(room.vitals) : null,
       hasDoctor: entry.some((p) => p.role === "doctor"),
+      // Số bên đang có mặt trong phòng - màn hình tiếp nhận dùng để biết cuộc gọi
+      // đã đủ ba bên (người dân + điểm trạm + tuyến trên) hay còn thiếu ai.
+      participants: entry.length,
       since: waiting.length ? Math.min(...waiting.map((p) => Number(p.lastSeen))) : now,
       waiting: waiting.map((p) => ({ name: p.name, role: p.role, since: Number(p.lastSeen) }))
     });
   }
   return rooms;
+}
+
+/**
+ * Vân tay của hàng đợi: chỉ đổi khi có cuộc gọi vào/ra, đổi trạng thái, đổi số
+ * bên tham gia hoặc đổi số cán bộ đang trực. Máy tiếp nhận gửi kèm vân tay của
+ * lần quét trước; máy chủ giữ yêu cầu cho tới khi vân tay khác đi rồi mới trả
+ * lời, nên cuộc gọi mới hiện ra gần như tức thì thay vì đợi hết một chu kỳ quét.
+ */
+function queueSignature(rooms: Array<Record<string, unknown>>, doctorsOnline: number) {
+  const parts = rooms
+    .map((r) => `${r.roomId}:${r.status}:${r.hasDoctor ? 1 : 0}:${r.participants}`)
+    .sort();
+  return `${doctorsOnline}|${parts.join(",")}`;
 }
 
 async function fetchMessages(roomId: string, peerId: string, cursor: number) {
@@ -156,13 +206,39 @@ async function fetchMessages(roomId: string, peerId: string, cursor: number) {
     }));
 }
 
+/** Một ảnh chụp hàng đợi kèm vân tay để so sánh giữa hai lượt quét. */
+async function queueSnapshot(now: number) {
+  const [rooms, onDuty] = await Promise.all([listRooms(now), countOnDuty(now)]);
+  return { rooms, onDuty, sig: queueSignature(rooms, onDuty.count) };
+}
+
 async function handleGet(url: URL) {
   const now = Date.now();
 
   if (url.searchParams.get("action") === "rooms") {
     await pruneStale(now);
-    const onDuty = await countOnDuty(now);
-    return json({ ok: true, rooms: await listRooms(now), doctorsOnline: onDuty.count, doctorNames: onDuty.names });
+    let snap = await queueSnapshot(Date.now());
+
+    // Long-poll hàng đợi: máy tiếp nhận gửi vân tay của lần quét trước, máy chủ
+    // chỉ trả lời khi hàng đợi thực sự đổi (hoặc hết cửa sổ chờ). Cuộc gọi mới
+    // đổ chuông sau vài trăm mili-giây thay vì đợi hết chu kỳ quét của trình duyệt.
+    const wantWait = url.searchParams.get("wait") === "1";
+    const knownSig = url.searchParams.get("sig");
+    if (wantWait && knownSig !== null) {
+      const deadline = now + POLL_WINDOW_MS;
+      while (snap.sig === knownSig && Date.now() < deadline) {
+        await sleep(pollInterval(Date.now() - now));
+        snap = await queueSnapshot(Date.now());
+      }
+    }
+
+    return json({
+      ok: true,
+      rooms: snap.rooms,
+      sig: snap.sig,
+      doctorsOnline: snap.onDuty.count,
+      doctorNames: snap.onDuty.names
+    });
   }
 
   if (url.searchParams.get("action") === "on-duty") {
@@ -177,24 +253,30 @@ async function handleGet(url: URL) {
   }
   const cursor = Number(url.searchParams.get("cursor") || 0);
 
-  await db
-    .update(telehealthPeers)
-    .set({ lastSeen: now })
-    .where(eq(telehealthPeers.id, peerId));
+  // Báo còn sống và lấy bản tin cùng lúc: hai việc không phụ thuộc nhau, và lượt
+  // hỏi đầu tiên chính là lượt mang offer/answer nên phải trả về sớm nhất có thể.
+  const [, firstBatch] = await Promise.all([
+    db.update(telehealthPeers).set({ lastSeen: now }).where(eq(telehealthPeers.id, peerId)),
+    fetchMessages(roomId, peerId, cursor)
+  ]);
 
   // Long-poll ngắn: chờ tối đa POLL_WINDOW_MS để trả bản tin ngay khi có,
   // giúp bắt tay WebRTC nhanh gần bằng WebSocket mà vẫn chạy trên serverless.
   const deadline = now + POLL_WINDOW_MS;
-  let messages = await fetchMessages(roomId, peerId, cursor);
+  let messages = firstBatch;
   while (messages.length === 0 && Date.now() < deadline) {
-    await sleep(POLL_INTERVAL_MS);
+    await sleep(pollInterval(Date.now() - now));
     messages = await fetchMessages(roomId, peerId, cursor);
   }
 
   const pollNow = Date.now();
-  const peers = await activePeers(roomId, pollNow);
-  const room = await getRoom(roomId);
-  const onDuty = await countOnDuty(pollNow);
+  // Ba truy vấn khép lại một lượt long-poll, không cái nào cần kết quả của cái
+  // kia: gộp lại còn một lượt chờ thay vì ba lượt nối tiếp.
+  const [peers, room, onDuty] = await Promise.all([
+    activePeers(roomId, pollNow),
+    getRoom(roomId),
+    countOnDuty(pollNow)
+  ]);
   const nextCursor = messages.length ? messages[messages.length - 1].seq : cursor;
 
   return json({
@@ -212,7 +294,9 @@ async function handleGet(url: URL) {
           notes: room.notes || ""
         }
       : null,
-    peers: peers.map((p) => ({ peerId: p.id, role: p.role, name: p.name }))
+    // Toàn bộ thành viên đang có mặt (trừ chính mình): màn hình khám dùng danh
+    // sách này để biết phải giữ bao nhiêu khung hình và ai vừa rời đi.
+    peers: peers.filter((p) => p.id !== peerId).map((p) => ({ peerId: p.id, role: p.role, name: p.name }))
   });
 }
 
@@ -230,7 +314,12 @@ async function handlePost(req: Request) {
 
   if (action === "join") {
     await pruneStale(now);
-    const role = (body as any).role === "doctor" ? "doctor" : "station";
+    /* Một phòng khám trực tiếp có tối đa ba vai: người dân đang gọi, bảng điều
+       khiển của điểm trạm và bác sĩ tuyến trên. Vai chỉ dùng để hiển thị (đầu cầu
+       nào lên khung hình lớn, ai đang trực); mọi phép đếm hàng đợi vẫn chỉ phân
+       biệt "doctor" với phần còn lại nên thêm vai "patient" không đổi hành vi cũ. */
+    const rawRole = String((body as any).role || "");
+    const role = rawRole === "doctor" ? "doctor" : rawRole === "patient" ? "patient" : "station";
     const name = String((body as any).name || "Thành viên");
 
     const existing = await activePeers(roomId, now);
@@ -264,6 +353,10 @@ async function handlePost(req: Request) {
       cursor,
       // Người vào sau chịu trách nhiệm tạo offer -> luôn chỉ có duy nhất một bên gọi.
       shouldOffer: others.length > 0,
+      // Trong phòng ba bên, "một bên gọi" nghĩa là: người vừa vào mở một kết nối
+      // riêng tới TỪNG người đã có mặt. Danh sách này chính là các đích cần chào
+      // mời, còn người đang ở trong phòng chỉ việc ngồi yên chờ offer tới.
+      offerTo: others.map((p) => p.id),
       peers: others.map((p) => ({ peerId: p.id, role: p.role, name: p.name })),
       room: room
         ? {
@@ -288,8 +381,26 @@ async function handlePost(req: Request) {
         target: telehealthPeers.id,
         set: { roomId: LOBBY_ROOM, role: "doctor", name, lastSeen: now }
       });
-    const onDuty = await countOnDuty(now);
-    return json({ ok: true, rooms: await listRooms(now), doctorsOnline: onDuty.count, doctorNames: onDuty.names });
+
+    let snap = await queueSnapshot(Date.now());
+    // Giống long-poll hàng đợi ở nhánh GET: nếu máy tiếp nhận gửi kèm vân tay của
+    // lần trước thì giữ yêu cầu lại cho tới khi có thay đổi thật.
+    const knownSig = (body as any).sig;
+    if (typeof knownSig === "string") {
+      const deadline = now + POLL_WINDOW_MS;
+      while (snap.sig === knownSig && Date.now() < deadline) {
+        await sleep(pollInterval(Date.now() - now));
+        snap = await queueSnapshot(Date.now());
+      }
+    }
+
+    return json({
+      ok: true,
+      rooms: snap.rooms,
+      sig: snap.sig,
+      doctorsOnline: snap.onDuty.count,
+      doctorNames: snap.onDuty.names
+    });
   }
 
   if (action === "signal") {

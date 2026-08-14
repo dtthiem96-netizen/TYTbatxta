@@ -283,9 +283,15 @@
 
   async function loadSigners() {
     try {
-      const res = await fetch('/api/cms');
-      if (!res.ok) return;
-      const data = await res.json();
+      /* Kho dữ liệu CMS đã được nạp trước ngay từ thẻ <head> của trang (biến
+         window.cmsBootstrapPromise) và /app.js cũng dùng chung lời hứa đó. Đọc lại
+         kết quả sẵn có thay vì gọi /api/cms thêm một lượt nữa: danh sách người ký
+         hiện ngay, và cả trang chỉ tốn đúng một lượt đi - về mạng. */
+      const shared = (typeof window !== 'undefined') ? window.cmsBootstrapPromise : null;
+      const data = shared
+        ? await shared
+        : await fetch('/api/cms').then(res => res.ok ? res.json() : null);
+      if (!data) return;
       if (Array.isArray(data.prescriptionSigners)) signers = data.prescriptionSigners;
       window.renderSignerSelectors();
     } catch (err) {

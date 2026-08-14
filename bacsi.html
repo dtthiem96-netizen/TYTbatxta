@@ -22,6 +22,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
 
+    <!-- Bắn lượt đọc kho dữ liệu ngay từ thẻ <head>, song song với phông chữ và thư
+         viện giao diện. Tới lúc /app.js khởi động ở cuối trang thì danh sách tài
+         khoản và người ký số thường đã về sẵn, màn hình đăng nhập hiện tức thì thay
+         vì phải chờ thêm một lượt đi - về mạng. -->
+    <script>
+        window.cmsBootstrapPromise = fetch('/api/cms')
+            .then(res => res.ok ? res.json() : null)
+            .catch(err => {
+                console.warn('Không nạp trước được kho dữ liệu CMS:', err && err.message);
+                return null;
+            });
+    </script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -544,7 +557,12 @@
                             <span class="bg-slate-950/80 backdrop-blur border border-slate-700 rounded-lg px-2 py-0.5 text-[10px] font-mono text-amber-300 shadow">Nhiệt <strong id="hud-temp" class="font-black">37.2°C</strong></span>
                         </div>
                         <span id="active-cam-mode-badge" class="bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full font-medium text-[11px] inline-block"><i class="fa-solid fa-video"></i> Camera 1: Toàn Cảnh Phòng Khám</span>
+                        <!-- Số đầu cầu đang có mặt: người dân + điểm trạm + bác sĩ tuyến trên -->
+                        <span id="peer-count-badge" class="hidden bg-blue-950 text-blue-300 border border-blue-800 px-2.5 py-0.5 rounded-full font-bold text-[11px] inline-block"><i class="fa-solid fa-users"></i> <span></span></span>
                     </div>
+
+                    <!-- Dải ô hình của các đầu cầu còn lại; bấm một ô để đưa lên khung lớn -->
+                    <div id="peer-strip" class="hidden absolute top-3 right-3 flex flex-col gap-2 z-10"></div>
 
                     <!-- Hình của chính bác sĩ (PiP) -->
                     <div class="absolute bottom-3 right-3">

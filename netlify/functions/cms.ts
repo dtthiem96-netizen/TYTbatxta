@@ -71,80 +71,93 @@ export default async (req: Request) => {
 
   try {
     if (req.method === "GET") {
-      let newsList = await db.select().from(news);
+      /* Mười bảng lưu trữ này trước đây đọc nối tiếp nhau: mỗi truy vấn phải chờ
+         truy vấn trước trả về, nên trang chủ và Bảng điều khiển điểm trạm đứng hình
+         đúng bằng TỔNG thời gian của cả mười lượt đi - về cơ sở dữ liệu. Chúng độc
+         lập với nhau nên gom hết vào một Promise.all: cả mười cùng chạy, thời gian
+         nạp chỉ còn bằng truy vấn chậm nhất. */
+      let [
+        newsList,
+        vaccinesList,
+        docsList,
+        servicesList,
+        usersList,
+        contactsList,
+        videosList,
+        appointmentsList,
+        configsList,
+        signersList
+      ] = await Promise.all([
+        db.select().from(news),
+        db.select().from(vaccines),
+        db.select().from(documents),
+        db.select().from(services),
+        db.select().from(users),
+        db.select().from(contacts),
+        db.select().from(videos),
+        db.select().from(appointments),
+        db.select().from(siteConfigs),
+        db.select().from(prescriptionSigners)
+      ]);
+
+      /* Bảng nào còn trống thì nạp dữ liệu mẫu rồi đọc lại - cũng chạy song song và
+         chỉ đụng tới đúng những bảng thực sự trống. Lần chạy đầu tiên của một cơ sở
+         dữ liệu mới vì thế cũng không cộng dồn độ trễ. */
+      const seedJobs: Promise<void>[] = [];
       if (newsList.length === 0) {
-        await db.insert(news).values(defaultNews);
-        newsList = await db.select().from(news);
+        seedJobs.push(db.insert(news).values(defaultNews).then(async () => { newsList = await db.select().from(news); }));
       }
-
-      let vaccinesList = await db.select().from(vaccines);
       if (vaccinesList.length === 0) {
-        await db.insert(vaccines).values(defaultVaccines);
-        vaccinesList = await db.select().from(vaccines);
+        seedJobs.push(db.insert(vaccines).values(defaultVaccines).then(async () => { vaccinesList = await db.select().from(vaccines); }));
       }
-
-      let docsList = await db.select().from(documents);
       if (docsList.length === 0) {
-        await db.insert(documents).values(defaultDocuments);
-        docsList = await db.select().from(documents);
+        seedJobs.push(db.insert(documents).values(defaultDocuments).then(async () => { docsList = await db.select().from(documents); }));
       }
-
-      let servicesList = await db.select().from(services);
       if (servicesList.length === 0) {
-        await db.insert(services).values(defaultServices);
-        servicesList = await db.select().from(services);
+        seedJobs.push(db.insert(services).values(defaultServices).then(async () => { servicesList = await db.select().from(services); }));
       }
-
-      let usersList = await db.select().from(users);
       if (usersList.length === 0) {
-        await db.insert(users).values(defaultUsers);
-        usersList = await db.select().from(users);
+        seedJobs.push(db.insert(users).values(defaultUsers).then(async () => { usersList = await db.select().from(users); }));
       }
-
-      let contactsList = await db.select().from(contacts);
       if (contactsList.length === 0) {
-        await db.insert(contacts).values(defaultContacts);
-        contactsList = await db.select().from(contacts);
+        seedJobs.push(db.insert(contacts).values(defaultContacts).then(async () => { contactsList = await db.select().from(contacts); }));
       }
-
-      let videosList = await db.select().from(videos);
       if (videosList.length === 0) {
-        await db.insert(videos).values(defaultVideos);
-        videosList = await db.select().from(videos);
+        seedJobs.push(db.insert(videos).values(defaultVideos).then(async () => { videosList = await db.select().from(videos); }));
       }
+      // Danh sách người ký đơn thuốc kèm chữ ký số đã lưu sẵn
+      if (signersList.length === 0) {
+        seedJobs.push(db.insert(prescriptionSigners).values(defaultSigners).then(async () => { signersList = await db.select().from(prescriptionSigners); }));
+      }
+      if (seedJobs.length) await Promise.all(seedJobs);
 
-      let appointmentsList = await db.select().from(appointments);
-
-      let configsList = await db.select().from(siteConfigs);
       configsList = configsList.filter(c => !PRIVATE_CONFIG_IDS.has(c.id));
 
-      // Danh sách người ký đơn thuốc kèm chữ ký số đã lưu sẵn
-      let signersList = await db.select().from(prescriptionSigners);
-      if (signersList.length === 0) {
-        await db.insert(prescriptionSigners).values(defaultSigners);
-        signersList = await db.select().from(prescriptionSigners);
-      }
-
-      // Tự động đồng bộ các Bác sĩ được cấp quyền nhận cuộc gọi Video (canReceiveVideo = true) sang danh sách Người ký số
+      /* Tự động đồng bộ các Bác sĩ được cấp quyền nhận cuộc gọi Video
+         (canReceiveVideo = true) sang danh sách Người ký số. Gom các bản ghi còn
+         thiếu rồi ghi một lượt duy nhất, đồng thời nối thẳng vào kết quả trả về nên
+         bỏ được cả vòng ghi từng dòng lẫn lượt đọc lại cả bảng ở cuối. */
+      const newSigners: any[] = [];
       for (const u of usersList) {
-        if (u.canReceiveVideo === 'true') {
-          const exists = signersList.some(s => s.id === u.id || s.name.toLowerCase().includes(u.name.toLowerCase()) || u.name.toLowerCase().includes(s.name.toLowerCase()));
-          if (!exists) {
-            const newSigner = {
-              id: 'SIG_' + u.id,
-              name: u.name,
-              title: u.name.startsWith('BS.') ? 'Bác sĩ' : 'Bác sĩ/Y sĩ',
-              license: '00' + Math.floor(100000 + Math.random() * 900000) + '/LCA-CCHN',
-              workplace: 'Trạm Y tế Bát Xát',
-              signature: '',
-              isDefault: 'false',
-              ts: Date.now()
-            };
-            await db.insert(prescriptionSigners).values(newSigner);
-          }
-        }
+        if (u.canReceiveVideo !== 'true') continue;
+        const trung = (ten: string) => ten.toLowerCase().includes(u.name.toLowerCase()) || u.name.toLowerCase().includes(ten.toLowerCase());
+        const exists = signersList.some(s => s.id === u.id || trung(s.name)) || newSigners.some(s => trung(s.name));
+        if (exists) continue;
+        newSigners.push({
+          id: 'SIG_' + u.id,
+          name: u.name,
+          title: u.name.startsWith('BS.') ? 'Bác sĩ' : 'Bác sĩ/Y sĩ',
+          license: '00' + Math.floor(100000 + Math.random() * 900000) + '/LCA-CCHN',
+          workplace: 'Trạm Y tế Bát Xát',
+          signature: '',
+          isDefault: 'false',
+          ts: Date.now()
+        });
       }
-      signersList = await db.select().from(prescriptionSigners);
+      if (newSigners.length) {
+        await db.insert(prescriptionSigners).values(newSigners);
+        signersList = signersList.concat(newSigners as any);
+      }
 
       return new Response(JSON.stringify({
         news: newsList,
