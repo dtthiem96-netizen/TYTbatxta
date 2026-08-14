@@ -741,6 +741,63 @@
                     </div>
                 </div>
 
+                <!-- AI ĐIỀU PHỐI KHÁM ĐA BÊN: Bệnh nhân - Cán bộ điểm trạm - Bác sĩ tuyến trên.
+                     Bảng này KHÁC bảng "Gợi ý chẩn đoán" bên dưới: Co-Pilot phục vụ riêng người
+                     đang ngồi trước màn hình, còn bảng này dựng nội dung ĐÃ GẮN NHÃN người nhận
+                     rồi phát đúng chỗ - lời cho bệnh nhân đẩy sang khung hội thoại, bản tóm tắt
+                     SBAR chỉ hiện với hai bác sĩ. -->
+                <div class="bg-slate-900 p-4 rounded-2xl border border-sky-900/60 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-sky-300 flex items-center gap-1.5">
+                            <i class="fas fa-diagram-project text-sky-400"></i> AI Điều phối đa bên
+                        </h4>
+                        <span class="flex items-center gap-1.5">
+                            <i id="coordinator-busy" class="fas fa-circle-notch fa-spin text-sky-400 text-[10px] hidden"></i>
+                            <span id="coordinator-phase" class="text-[9px] bg-sky-900/80 text-sky-200 px-2 py-0.5 rounded-full font-black">GĐ 1/4</span>
+                        </span>
+                    </div>
+                    <p id="coordinator-phase-label" class="text-[10px] text-slate-400 -mt-1">Giai đoạn 1 - Tiếp nhận &amp; Chuẩn bị</p>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-sky-300 mb-1" for="patient-history">Tiền sử bệnh &amp; thuốc đang dùng</label>
+                        <input type="text" id="patient-history" placeholder="VD: Tăng huyết áp 3 năm, đang uống Amlodipin 5mg" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500">
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button type="button" data-coordinator-btn onclick="window.runCoordinatorIntake()" class="bg-slate-800 hover:bg-slate-700 border border-sky-700/60 text-sky-200 font-bold py-1.5 rounded-lg text-[10px] transition flex items-center justify-center gap-1">
+                            <i class="fas fa-clipboard-question"></i> Tiếp nhận
+                        </button>
+                        <button type="button" data-coordinator-btn onclick="window.runCoordinatorHandoff()" class="bg-slate-800 hover:bg-slate-700 border border-indigo-700/60 text-indigo-200 font-bold py-1.5 rounded-lg text-[10px] transition flex items-center justify-center gap-1">
+                            <i class="fas fa-share-from-square"></i> Tóm tắt SBAR
+                        </button>
+                        <button type="button" data-coordinator-btn onclick="window.runCoordinatorWrapup()" class="bg-slate-800 hover:bg-slate-700 border border-amber-700/60 text-amber-200 font-bold py-1.5 rounded-lg text-[10px] transition flex items-center justify-center gap-1">
+                            <i class="fas fa-file-prescription"></i> Dự thảo toa
+                        </button>
+                    </div>
+
+                    <div class="flex gap-1.5">
+                        <input type="text" id="coordinator-term" onkeydown="window.handleCoordinatorTermKey(event)" placeholder="Thuật ngữ cần giải thích cho bệnh nhân..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] text-white focus:outline-none focus:border-emerald-500">
+                        <button type="button" data-coordinator-btn onclick="window.explainTermForPatient()" class="bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 rounded-lg text-[10px] transition shrink-0 flex items-center gap-1">
+                            <i class="fas fa-language"></i> Giải thích
+                        </button>
+                    </div>
+
+                    <div id="coordinator-red-flags" class="hidden text-[11px] font-bold text-rose-200 bg-rose-950/70 border border-rose-800 rounded-xl px-2.5 py-2 space-y-1"></div>
+
+                    <div id="coordinator-stream" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        <p id="coordinator-empty" class="text-[11px] text-slate-500 italic leading-relaxed">Trợ lý AI tự xuất bản tóm tắt ca bệnh khi Bác sĩ tuyến trên vào phòng, giải thích thuật ngữ y khoa cho bệnh nhân trong lúc hội chẩn, và dựng toa thuốc dự thảo khi kết thúc lượt khám.</p>
+                    </div>
+
+                    <div id="coordinator-sbar" class="hidden border border-indigo-800/70 bg-indigo-950/40 rounded-xl px-2.5 py-2 space-y-1"></div>
+                    <div id="coordinator-draft" class="hidden border border-amber-800/70 bg-amber-950/30 rounded-xl px-2.5 py-2 space-y-1"></div>
+
+                    <button type="button" data-coordinator-btn onclick="window.applyCoordinatorDraft()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold py-1.5 rounded-lg text-[10px] transition flex items-center justify-center gap-1">
+                        <i class="fas fa-file-import"></i> Chèn dự thảo vào ô đơn thuốc
+                    </button>
+
+                    <p id="coordinator-source" class="text-[9px] text-slate-500 leading-relaxed">Nội dung do Trợ lý AI điều phối tổng hợp, chỉ mang tính ĐỀ XUẤT. Chẩn đoán xác định và đơn thuốc chính thức thuộc thẩm quyền của Bác sĩ.</p>
+                </div>
+
                 <!-- Gợi ý chẩn đoán & Đơn thuốc tham khảo -->
                 <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
                     <div class="flex justify-between items-center">
