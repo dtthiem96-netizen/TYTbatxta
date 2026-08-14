@@ -107,15 +107,19 @@ let peerId = null;
 let signalCursor = 0;
 let polling = false;
 let pollToken = 0;
-let pendingCandidates = [];
-let iceQueue = [];
-let iceQueueTimer = null;
 let remotePeerName = null;
 let isConnected = false;
 let rejoinTimer = null;
 let rejoinAttempts = 0;
 
-let peerConnection = null;
+/**
+ * Lưới kết nối tới các đầu cầu còn lại của phòng khám (xem window.TeleMesh).
+ * Phòng khám ba bên nghĩa là lưới này giữ hai kết nối: một tới người dân đang
+ * gọi, một tới bác sĩ tuyến trên.
+ */
+let peerMesh = null;
+/** Đầu cầu đang chiếm khung hình lớn; những đầu cầu khác nằm ở dải ô nhỏ. */
+let activePeerId = null;
 let localStream = null;
 /**
  * Luồng THỰC SỰ gửi đi: tiếng đã qua chuỗi lọc chống vang/chống hú của
@@ -159,6 +163,12 @@ let cmsUsers = [];
 let cmsSigners = [];
 let loggedInCmsUser = null;
 let queuePollInterval = null;
+/* Vòng chờ dài hàng đợi cuộc gọi: token để huỷ vòng cũ khi đăng xuất/đăng nhập
+   lại, cờ chống chạy hai vòng song song, và chữ ký hàng đợi lần trước gửi lên
+   máy chủ để nó chỉ trả lời khi có thay đổi thật. */
+let queuePollToken = 0;
+let queueLoopRunning = false;
+let queueSignature = null;
 
 /* Số thẻ BHYT/CCCD của bệnh nhân đang khám.
    Nguồn gốc là ô "Số thẻ BHYT hoặc số CCCD" mà CHÍNH NGƯỜI DÂN nhập ở màn hình
@@ -332,14 +342,8 @@ function endTeleconsultation(options) {
   }
   peerId = null;
 
-  if (peerConnection) {
-    try {
-      peerConnection.ontrack = null;
-      peerConnection.onicecandidate = null;
-      peerConnection.close();
-    } catch (err) {}
-    peerConnection = null;
-  }
+  // Đóng TẤT CẢ kết nối trong lưới: cả người dân lẫn bác sĩ tuyến trên.
+  closePeerMesh();
 
   releaseLocalMedia();
   stopCallTimer();
@@ -347,9 +351,6 @@ function endTeleconsultation(options) {
 
   isConnected = false;
   remotePeerName = null;
-  pendingCandidates = [];
-  iceQueue = [];
-  if (iceQueueTimer) { clearTimeout(iceQueueTimer); iceQueueTimer = null; }
   showRemotePlaceholder();
   updateCallControlsUI();
   updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
@@ -429,12 +430,20 @@ function updateCallControlsUI() {
 // Load CMS Users & Prescription Signers
 async function loadCmsData() {
   try {
-    const res = await fetch('/api/cms');
-    if (res.ok) {
-      const data = await res.json();
+    /* Trang chủ đã bắn sẵn lượt gọi /api/cms ngay khi trình duyệt đọc tới khối
+       kịch bản của nó, sớm hơn hẳn thời điểm bảng điều khiển khởi động. Dùng lại
+       đúng kết quả đó: dữ liệu thường đã về sẵn (hiện tức thì) và cả trang chỉ
+       tốn một lượt đi - về mạng thay vì hai. Module Bác sĩ tuyến trên (bacsi.html)
+       không có sẵn lời hứa này nên vẫn tự gọi như cũ. */
+    const shared = (typeof window !== 'undefined') ? window.cmsBootstrapPromise : null;
+    const data = shared
+      ? await shared
+      : await fetch('/api/cms').then(res => res.ok ? res.json() : null);
+
+    if (data) {
       if (data.users && Array.isArray(data.users)) cmsUsers = data.users;
       if (data.prescriptionSigners && Array.isArray(data.prescriptionSigners)) cmsSigners = data.prescriptionSigners;
-      
+
       populateCmsAccountsDropdown();
       syncConsultingDoctorsList();
     }
@@ -514,17 +523,52 @@ function onCmsAccountSelect(username) {
   }
 }
 
-// Quét hàng đợi các cuộc gọi từ người dân (User Video Calls)
+/* Quét hàng đợi các cuộc gọi từ người dân (User Video Calls).
+
+   Trước đây đây là một hẹn giờ 3,5 giây: một người dân bấm gọi xong có thể phải
+   đợi gần trọn chu kỳ đó thẻ cuộc gọi mới hiện trên bảng điều khiển. Nay vòng
+   quét tự nối tiếp và mang theo "chữ ký" của hàng đợi lần trước - máy chủ giữ
+   yêu cầu cho tới khi hàng đợi thực sự đổi rồi mới trả lời, nên thẻ cuộc gọi
+   xuất hiện gần như ngay lúc người dân bấm nút. Hẹn giờ chỉ còn là lưới an toàn. */
 function startQueuePolling() {
-  if (queuePollInterval) clearInterval(queuePollInterval);
-  refreshIncomingCallsQueue();
-  queuePollInterval = setInterval(refreshIncomingCallsQueue, 3500);
+  stopQueuePolling();
+  queuePollToken += 1;
+  queueLoop(queuePollToken);
+  // Lưới an toàn: nếu vòng chờ dài bị đứt (ngủ tab, đổi mạng) thì vẫn có nhịp quét.
+  queuePollInterval = setInterval(() => {
+    if (!queueLoopRunning) queueLoop(queuePollToken);
+  }, 8000);
 }
 
 /** Dừng quét hàng đợi khi cán bộ đăng xuất khỏi Bảng điều khiển. */
 function stopQueuePolling() {
   if (queuePollInterval) clearInterval(queuePollInterval);
   queuePollInterval = null;
+  queuePollToken += 1;
+  queueLoopRunning = false;
+}
+
+/** Vòng chờ dài: mỗi lượt trả về là hàng đợi vừa có thay đổi thật. */
+async function queueLoop(token) {
+  if (queueLoopRunning) return;
+  queueLoopRunning = true;
+  let backoff = 0;
+  try {
+    // Lượt đầu không chờ - vẽ ngay hàng đợi hiện có rồi mới bước vào chờ dài.
+    await refreshIncomingCallsQueue(false);
+    while (queuePollToken === token) {
+      try {
+        await refreshIncomingCallsQueue(true);
+        backoff = 0;
+      } catch (err) {
+        if (queuePollToken !== token) return;
+        backoff = backoff ? Math.min(backoff * 2, 15000) : 2000;
+        await new Promise(r => setTimeout(r, backoff));
+      }
+    }
+  } finally {
+    queueLoopRunning = false;
+  }
 }
 
 /** Hàng đợi lần quét gần nhất - nút "Tiếp nhận nhanh" đọc lại từ đây. */
@@ -604,27 +648,33 @@ function acceptNextPatientCall() {
   acceptPatientCall(next.roomId, next.patientName || 'Bệnh nhân', next.symptoms || '', next.patientId || '');
 }
 
-async function refreshIncomingCallsQueue() {
-  try {
-    const res = await fetch('/api/signal?action=rooms');
-    if (!res.ok) return;
-    const data = await res.json();
-    const rooms = (data.rooms || []).filter(r => r.roomId !== '__lobby__');
-    pendingCallQueue = rooms;
+async function refreshIncomingCallsQueue(wait) {
+  const params = new URLSearchParams({ action: 'rooms' });
+  // Chỉ chờ dài khi đã biết chữ ký lần trước, để lượt đầu luôn trả về tức thì.
+  if (wait && queueSignature !== null) {
+    params.set('wait', '1');
+    params.set('sig', queueSignature);
+  }
+  const res = await fetch(`/api/signal?${params.toString()}`);
+  if (!res.ok) throw new Error('rooms ' + res.status);
+  const data = await res.json();
+  if (typeof data.sig === 'string') queueSignature = data.sig;
+  const rooms = (data.rooms || []).filter(r => r.roomId !== '__lobby__');
+  pendingCallQueue = rooms;
 
-    const countEl = document.getElementById('station-queue-count');
-    const listEl = document.getElementById('station-queue-list');
-    if (countEl) countEl.textContent = `${rooms.length} cuộc gọi`;
+  const countEl = document.getElementById('station-queue-count');
+  const listEl = document.getElementById('station-queue-list');
+  if (countEl) countEl.textContent = `${rooms.length} cuộc gọi`;
 
-    updateQueueAcceptButton();
+  updateQueueAcceptButton();
 
-    if (!listEl) return;
-    if (rooms.length === 0) {
-      listEl.innerHTML = '<div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>';
-      return;
-    }
+  if (!listEl) return;
+  if (rooms.length === 0) {
+    listEl.innerHTML = '<div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>';
+    return;
+  }
 
-    listEl.innerHTML = rooms.map(r => {
+  listEl.innerHTML = rooms.map(r => {
       const pName = r.patientName || 'Bệnh nhân';
       const isCurrent = r.roomId === roomId && callActive;
       // Người dân đã chọn điểm phòng khám nào thì hiện đúng tên điểm đó, và tô
@@ -663,10 +713,7 @@ async function refreshIncomingCallsQueue() {
           </button>
         </div>
       `;
-    }).join('');
-  } catch (err) {
-    console.warn('Lỗi quét hàng đợi cuộc gọi:', err.message);
-  }
+  }).join('');
 }
 
 /* ---------------------------------------------------------------------------
@@ -879,10 +926,9 @@ async function joinRoom() {
   }
   peerId = newPeerId();
   signalCursor = 0;
-  pendingCandidates = [];
   isConnected = false;
 
-  initPeerConnection();
+  initPeerMesh();
 
   try {
     const joined = await signalPost({
@@ -911,11 +957,14 @@ async function joinRoom() {
     pollToken += 1;
     pollLoop(pollToken);
 
-    // Bên vào phòng sau chịu trách nhiệm tạo offer -> chỉ có duy nhất một bên gọi.
-    if (joined.peers && joined.peers.length) {
-      remotePeerName = joined.peers[0].name;
-      appendChatMessage('Hệ thống', `${remotePeerName} đang trong phòng - đang bắt tay kết nối...`);
-      await createWebRTCOffer();
+    // Người vào sau chào mời TẤT CẢ đầu cầu đã có trong phòng: một phòng khám
+    // ba bên cần hai kết nối trên mỗi máy, không phải một.
+    const existing = joined.peers || [];
+    if (existing.length) {
+      remotePeerName = existing[0].name;
+      const ten = existing.map(p => p.name || 'đầu cầu').join(', ');
+      appendChatMessage('Hệ thống', `${ten} đang trong phòng - đang bắt tay kết nối...`);
+      offerToExistingPeers(existing);
     } else {
       appendChatMessage('Hệ thống', 'Đang chờ Y sĩ/ Bác sĩ tiếp nhận cuộc gọi...');
     }
@@ -963,12 +1012,19 @@ async function pollLoop(token) {
       backoff = 0;
       if (typeof data.cursor === 'number') signalCursor = data.cursor;
       if (data.room && data.room.patientId) applyPatientIdCard(data.room.patientId, 'Người dân tự nhập');
-      updateConnectionBadge(true, isConnected ? 'Đang kết nối với tuyến trên' : 'Đã vào phòng khám - chờ tiếp nhận');
 
       const messages = data.messages || [];
       for (const msg of messages) {
         await handleSignalMessage(msg);
       }
+
+      /* Danh sách đầu cầu do máy chủ trả về là bản gốc đáng tin: nếu một bản tin
+         "peer-joined" bị rơi (đổi mạng, tab ngủ), đối chiếu ở đây vẫn dựng lại
+         đủ kết nối cho phòng ba bên thay vì để một ô hình trống mãi. */
+      if (peerMesh && Array.isArray(data.peers)) {
+        if (peerMesh.sync(data.peers)) renderPeerLayout();
+      }
+      updateConnectionBadge(true, isConnected ? peerConnectionSummary() : 'Đã vào phòng khám - chờ tiếp nhận');
 
       // /api/signal giữ mỗi yêu cầu tới 7 giây trước khi trả về rỗng. Nếu nó
       // trả ngay mà không có bản tin nào (hàm bị cấu hình sai, phản hồi đổi
@@ -996,7 +1052,8 @@ async function handleSignalMessage(msg) {
     case 'peer-joined': {
       remotePeerName = (msg.payload && msg.payload.name) || 'Y sĩ/ Bác sĩ';
       appendChatMessage('Hệ thống', `${remotePeerName} đã tham gia phòng khám.`);
-      // Không tạo offer ở đây: bên vừa vào phòng mới là bên gọi.
+      // Chỉ ghi nhận đầu cầu mới; bên vừa vào phòng mới là bên gửi offer.
+      registerJoinedPeer(msg);
 
       /* Giai đoạn 2 của phiên điều phối: bác sĩ tuyến trên vừa vào phòng thì bản
          tóm tắt SBAR phải có mặt ngay, không đợi cán bộ trạm nhớ ra mà bấm nút.
@@ -1010,16 +1067,13 @@ async function handleSignalMessage(msg) {
       break;
     }
 
+    // Ba loại bản tin WebRTC đều đi chung một đường: lưới tự tìm đúng kết nối
+    // theo msg.from nên phòng ba bên không còn cảnh hai máy cùng trả lời một offer.
     case 'offer':
-      await handleWebRTCOffer(msg.payload);
-      break;
-
     case 'answer':
-      await handleWebRTCAnswer(msg.payload);
-      break;
-
     case 'ice':
-      await handleWebRTCIceCandidate(msg.payload);
+      if (peerMesh) await peerMesh.handle(msg);
+      renderPeerLayout();
       break;
 
     case 'chat':
@@ -1100,13 +1154,21 @@ async function handleSignalMessage(msg) {
       break;
     }
 
-    case 'peer-left':
-      isConnected = false;
-      remotePeerName = null;
-      appendChatMessage('Hệ thống', 'Đầu bên kia đã rời phòng khám.');
-      showRemotePlaceholder();
-      updateConnectionBadge(false, 'Tuyến trên đã rời phòng khám');
+    /* Một đầu cầu rời đi KHÔNG có nghĩa là cuộc gọi kết thúc: phòng ba bên vẫn
+       còn hai người nói chuyện với nhau. Chỉ gỡ đúng kết nối của người vừa rời. */
+    case 'peer-left': {
+      const tenRoi = (msg.payload && msg.payload.name) || peerLinkName(msg.from) || 'Một đầu cầu';
+      unregisterPeer(msg.from);
+      appendChatMessage('Hệ thống', `${tenRoi} đã rời phòng khám.`);
+      if (!isConnected) {
+        remotePeerName = null;
+        showRemotePlaceholder();
+        updateConnectionBadge(false, 'Tuyến trên đã rời phòng khám');
+      } else {
+        updateConnectionBadge(true, peerConnectionSummary());
+      }
       break;
+    }
 
     /* Tuyến trên đã chốt "Hoàn thành lượt khám": buổi khám khép lại hoàn toàn,
        nên điểm trạm cũng thoát hẳn khỏi chức năng gọi - trả camera/micro về cho
@@ -1115,6 +1177,7 @@ async function handleSignalMessage(msg) {
       isConnected = false;
       remotePeerName = null;
       appendChatMessage('Hệ thống', 'Tuyến trên đã hoàn thành lượt khám. Đang thoát khỏi cuộc gọi...');
+      closePeerMesh();
       showRemotePlaceholder();
       updateConnectionBadge(false, 'Tuyến trên đã kết thúc lượt khám');
       setTimeout(() => endTeleconsultation(), 1200);
@@ -1133,6 +1196,14 @@ function showRemotePlaceholder() {
     remoteVideo.classList.add('hidden');
   }
   if (remotePlaceholder) remotePlaceholder.classList.remove('hidden');
+  // Dải ô nhỏ và số đầu cầu cũng phải sạch theo, nếu không màn hình còn treo lại
+  // ô của người đã rời phòng.
+  const strip = document.getElementById('peer-strip');
+  if (strip && typeof window.renderPeerStrip === 'function') {
+    window.renderPeerStrip(strip, [], { activeId: null });
+  }
+  const countEl = document.getElementById('peer-count-badge');
+  if (countEl) countEl.classList.add('hidden');
 }
 
 // Rời phòng gọn gàng khi đóng tab để tuyến trên không thấy trạm "treo" trong hàng đợi.
@@ -2084,94 +2155,608 @@ CallAudio.onUpdate((state) => {
   if (audioPanelOpen) renderAudioPanel(state);
 });
 
-// 2. WebRTC Audio/Video Connection Setup
-/** @returns {boolean} true nếu đã tạo được kết nối ngang hàng. */
-function initPeerConnection() {
-  if (peerConnection) {
+/* =============================================================================
+   LƯỚI KẾT NỐI BA BÊN - window.TeleMesh
+   -----------------------------------------------------------------------------
+   Một buổi khám từ xa của trạm có ba đầu cầu cùng lúc:
+
+     1. Người dân gọi tới      - camera điện thoại/máy tính của người bệnh.
+     2. Bảng điều khiển trạm   - camera toàn cảnh phòng khám và camera soi cận
+                                 cảnh do cán bộ y tế điều khiển.
+     3. Bác sĩ tuyến trên      - màn hình hội chẩn của tuyến trên.
+
+   Bản trước chỉ giữ DUY NHẤT một RTCPeerConnection cho mỗi máy, nên phòng khám
+   thực chất chỉ ghép được hai người: bên thứ ba vào phòng là bản tin offer bị
+   phát cho cả hai bên còn lại, hai bên cùng trả lời trên cùng một kết nối và
+   hình của một trong ba bên biến mất.
+
+   Mô-đun này thay bằng LƯỚI (mesh): mỗi máy giữ một kết nối ngang hàng RIÊNG tới
+   từng người còn lại trong phòng. Ba bên nghĩa là mỗi máy giữ hai kết nối, ai
+   cũng thấy và nghe được hai người kia. Quy tắc chống va chạm:
+
+     - Người VỪA VÀO phòng chào mời (offer) tới từng người ĐÃ CÓ trong phòng;
+       người đang ở trong phòng chỉ ngồi yên chờ. Vì vậy mỗi cặp chỉ có đúng một
+       bên chào mời, không có cảnh hai bên cùng gọi nhau.
+     - Trường hợp hiếm mà hai bên vẫn cùng chào mời (hai máy vào phòng đúng một
+       khoảnh khắc, hoặc thương lượng lại giữa cuộc gọi khi đổi camera), áp dụng
+       "perfect negotiation": bên có mã peerId nhỏ hơn là bên lịch sự, chịu huỷ
+       lời mời của mình để nhận lời mời của bên kia. Không bao giờ có vòng lặp
+       cùng huỷ - cùng gọi lại.
+
+   Mô-đun không đụng tới giao diện: nó báo ra ngoài qua các hàm onStream /
+   onPeersChanged / onStateChange, còn vẽ khung hình ở đâu là việc của từng màn
+   hình (bảng điều khiển trạm, màn hình người dân, màn hình bác sĩ tuyến trên).
+   ========================================================================== */
+window.TeleMesh = function createPeerMesh(config) {
+  const cfg = Object.assign({
+    selfId: '',
+    iceConfig: {},
+    getSendStream: () => null,
+    send: () => Promise.resolve(),
+    onStream: () => {},
+    onPeersChanged: () => {},
+    onStateChange: () => {},
+    iceBatchMs: 40,
+    maxBitrate: 1500000
+  }, config || {});
+
+  const links = new Map();
+
+  const supported = typeof RTCPeerConnection === 'function'
+    && typeof RTCSessionDescription === 'function'
+    && typeof RTCIceCandidate === 'function';
+
+  /* Ưu tiên giữ số khung hình khi băng thông tụt (mạng 3G/4G vùng cao) thay vì
+     mặc định hạ khung hình làm hình giật từng nấc. */
+  function tuneVideoSender(pc) {
+    if (!pc || !pc.getSenders) return;
+    const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+    if (!sender || !sender.getParameters) return;
     try {
-      peerConnection.ontrack = null;
-      peerConnection.onicecandidate = null;
-      peerConnection.close();
-    } catch (err) {}
-    peerConnection = null;
+      const params = sender.getParameters();
+      params.degradationPreference = 'maintain-framerate';
+      if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+      params.encodings[0].maxBitrate = cfg.maxBitrate;
+      params.encodings[0].maxFramerate = 30;
+      sender.setParameters(params).catch(() => {});
+    } catch (err) { /* trình duyệt cũ: giữ nguyên tham số mặc định */ }
   }
+
+  /* Gom ứng viên ICE trong vài chục mili-giây rồi gửi một lô. Mỗi bản tin
+     signaling là một chặng HTTP; với ba bên thì số chặng nhân lên theo số kết
+     nối, nên gom lô là cách rút ngắn thời gian lên hình rõ rệt nhất. */
+  function queueIce(link, cand) {
+    link.iceQueue.push(cand);
+    if (link.iceTimer) return;
+    link.iceTimer = setTimeout(() => flushIce(link), cfg.iceBatchMs);
+  }
+
+  function flushIce(link) {
+    if (link.iceTimer) { clearTimeout(link.iceTimer); link.iceTimer = null; }
+    if (!link.iceQueue.length) return;
+    cfg.send('ice', link.iceQueue.splice(0), link.peerId);
+  }
+
+  async function drainCandidates(link) {
+    const list = link.pending.splice(0);
+    for (const cand of list) {
+      try { await link.pc.addIceCandidate(cand); } catch (err) { /* ứng viên lỗi thời */ }
+    }
+  }
+
+  /** Lấy (hoặc mở mới) kết nối riêng tới một thành viên của phòng khám. */
+  function ensure(peerId, info) {
+    if (!peerId || peerId === cfg.selfId || !supported) return null;
+
+    const known = links.get(peerId);
+    if (known) {
+      if (info && info.name) known.name = info.name;
+      if (info && info.role) known.role = info.role;
+      return known;
+    }
+
+    let pc;
+    try {
+      pc = new RTCPeerConnection(cfg.iceConfig);
+    } catch (err) {
+      console.error('Không mở được kết nối ngang hàng:', err);
+      return null;
+    }
+
+    const link = {
+      peerId,
+      pc,
+      name: (info && info.name) || 'Thành viên',
+      role: (info && info.role) || 'station',
+      stream: new MediaStream(),
+      pending: [],
+      iceQueue: [],
+      iceTimer: null,
+      makingOffer: false,
+      ignoreOffer: false,
+      negotiationArmed: false,
+      connected: false,
+      // Bên có mã nhỏ hơn là bên "lịch sự": nhường khi hai lời mời gặp nhau.
+      polite: String(cfg.selfId) < String(peerId)
+    };
+    links.set(peerId, link);
+
+    const sendStream = cfg.getSendStream();
+    if (sendStream && sendStream.getTracks().length) {
+      sendStream.getTracks().forEach(track => {
+        try { pc.addTrack(track, sendStream); } catch (err) {}
+      });
+      tuneVideoSender(pc);
+    } else {
+      // Máy không có camera/micro vẫn phải XEM và NGHE được hai đầu cầu kia.
+      try {
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+      } catch (err) {}
+    }
+
+    pc.onicecandidate = (ev) => {
+      if (ev.candidate) queueIce(link, ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate);
+      else flushIce(link);
+    };
+
+    pc.ontrack = (ev) => {
+      // Bỏ bộ đệm phát lại cho HÌNH để khung hình gần thời gian thực. Cố ý không
+      // đụng tới TIẾNG: ép bộ đệm chống rung của tiếng về 0 thì mỗi gói về trễ
+      // thành một tiếng lụp bụp.
+      try {
+        if (ev.receiver && ev.track && ev.track.kind === 'video') ev.receiver.playoutDelayHint = 0;
+      } catch (err) {}
+      const incoming = (ev.streams && ev.streams[0]) ? ev.streams[0] : null;
+      if (incoming) link.stream = incoming;
+      else { try { link.stream.addTrack(ev.track); } catch (err) {} }
+      cfg.onStream(link);
+    };
+
+    pc.onnegotiationneeded = () => {
+      // Chỉ thương lượng lại SAU khi cặp này đã kết nối được một lần (ví dụ cán
+      // bộ trạm cắm thêm camera soi giữa buổi khám). Lần bắt tay đầu tiên luôn
+      // do joinRoom() chủ động gọi, nếu để sự kiện này tự chạy thì cả hai bên
+      // cùng chào mời ngay giây đầu.
+      if (!link.negotiationArmed) return;
+      offer(link, false);
+    };
+
+    pc.onconnectionstatechange = () => {
+      const state = pc.connectionState;
+      link.connected = state === 'connected';
+      if (state === 'connected') link.negotiationArmed = true;
+      cfg.onStateChange(link, state);
+      if (state === 'failed') {
+        try { pc.restartIce(); } catch (err) {}
+        if (link.negotiationArmed) offer(link, true);
+      }
+    };
+
+    cfg.onPeersChanged(list());
+    return link;
+  }
+
+  async function offer(link, iceRestart) {
+    if (!link || !link.pc) return;
+    try {
+      link.makingOffer = true;
+      const desc = await link.pc.createOffer(iceRestart ? { iceRestart: true } : undefined);
+      // setLocalDescription có thể chạy sau một lượt chờ; trong lúc đó lời mời
+      // của đầu bên kia có thể đã tới và làm đổi trạng thái.
+      if (link.pc.signalingState !== 'stable') return;
+      await link.pc.setLocalDescription(desc);
+      await cfg.send('offer', { type: link.pc.localDescription.type, sdp: link.pc.localDescription.sdp }, link.peerId);
+    } catch (err) {
+      console.warn('Không gửi được lời mời kết nối tới', link.peerId, err && err.message);
+    } finally {
+      link.makingOffer = false;
+    }
+  }
+
+  function list() {
+    return Array.from(links.values());
+  }
+
+  function remove(peerId) {
+    const link = links.get(peerId);
+    if (!link) return;
+    if (link.iceTimer) { clearTimeout(link.iceTimer); link.iceTimer = null; }
+    try {
+      link.pc.ontrack = null;
+      link.pc.onicecandidate = null;
+      link.pc.onnegotiationneeded = null;
+      link.pc.onconnectionstatechange = null;
+      link.pc.close();
+    } catch (err) {}
+    links.delete(peerId);
+    cfg.onPeersChanged(list());
+  }
+
+  const api = {
+    supported,
+
+    /** Ghi nhận một thành viên và (tuỳ chọn) chủ động chào mời kết nối tới họ. */
+    add(peerId, info, shouldOffer) {
+      const link = ensure(peerId, info);
+      if (link && shouldOffer) offer(link, false);
+      return link;
+    },
+
+    /**
+     * Đối chiếu danh sách thành viên do máy chủ trả về với lưới đang giữ: ai mới
+     * thì mở kết nối, ai đã rời phòng (hết hạn nhịp sống) thì đóng lại. Đây là
+     * lưới an toàn cho trường hợp bản tin peer-joined / peer-left bị rơi.
+     * @returns {boolean} true nếu lưới vừa thay đổi (cần vẽ lại khung hình).
+     */
+    sync(peers, shouldOfferToNew) {
+      const seen = new Set();
+      let changed = false;
+      (peers || []).forEach(p => {
+        const id = p && (p.peerId || p.id);
+        if (!id || id === cfg.selfId) return;
+        seen.add(id);
+        const isNew = !links.has(id);
+        if (isNew) changed = true;
+        this.add(id, { name: p.name, role: p.role }, isNew && shouldOfferToNew);
+      });
+      list().forEach(link => {
+        if (!seen.has(link.peerId)) { remove(link.peerId); changed = true; }
+      });
+      return changed;
+    },
+
+    /**
+     * Xử lý bản tin offer/answer/ice đến từ một thành viên cụ thể.
+     * @returns {Promise<boolean>} true nếu bản tin thuộc về lưới (đã xử lý xong).
+     */
+    async handle(msg) {
+      if (!msg || !msg.from) return false;
+      const type = msg.type;
+      if (type !== 'offer' && type !== 'answer' && type !== 'ice') return false;
+      if (!supported) return true;
+
+      // Lời mời tới từ một mã lạ (bản tin peer-joined về muộn hoặc bị rơi) vẫn
+      // phải mở kết nối, nếu không bên đó sẽ không bao giờ lên hình.
+      const link = links.get(msg.from) || (type === 'offer' ? ensure(msg.from, null) : null);
+      if (!link || !link.pc) return true;
+      const pc = link.pc;
+
+      if (type === 'offer') {
+        if (!msg.payload) return true;
+        const collision = link.makingOffer || pc.signalingState !== 'stable';
+        link.ignoreOffer = !link.polite && collision;
+        if (link.ignoreOffer) return true;
+        try {
+          if (collision) {
+            await Promise.all([
+              pc.setLocalDescription({ type: 'rollback' }).catch(() => {}),
+              pc.setRemoteDescription(msg.payload)
+            ]);
+          } else {
+            await pc.setRemoteDescription(msg.payload);
+          }
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await cfg.send('answer', { type: pc.localDescription.type, sdp: pc.localDescription.sdp }, link.peerId);
+          await drainCandidates(link);
+        } catch (err) {
+          console.warn('Lỗi xử lý lời mời kết nối:', err && err.message);
+        }
+        return true;
+      }
+
+      if (type === 'answer') {
+        try {
+          if (pc.signalingState === 'have-local-offer') {
+            await pc.setRemoteDescription(msg.payload);
+            await drainCandidates(link);
+          }
+        } catch (err) {
+          console.warn('Lỗi xử lý trả lời kết nối:', err && err.message);
+        }
+        return true;
+      }
+
+      // Chấp nhận cả bản tin cũ (một ứng viên) lẫn bản tin gom lô (mảng ứng viên).
+      const raw = Array.isArray(msg.payload) ? msg.payload : [msg.payload];
+      const ready = pc.remoteDescription && pc.remoteDescription.type;
+      for (const item of raw) {
+        if (!item) continue;
+        let cand;
+        try { cand = new RTCIceCandidate(item); } catch (err) { continue; }
+        if (ready) {
+          try { await pc.addIceCandidate(cand); } catch (err) { /* ứng viên lỗi thời */ }
+        } else {
+          // Ứng viên tới trước mô tả phiên thì phải xếp hàng, nếu không sẽ mất.
+          link.pending.push(cand);
+        }
+      }
+      return true;
+    },
+
+    /** Thay track hình đang gửi trên MỌI kết nối (đổi camera giữa buổi khám). */
+    replaceVideoTrack(track) {
+      links.forEach(link => {
+        const sender = link.pc.getSenders && link.pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender && sender.replaceTrack) sender.replaceTrack(track).catch(() => {});
+        else if (track) { try { link.pc.addTrack(track, link.stream); } catch (err) {} }
+        tuneVideoSender(link.pc);
+      });
+    },
+
+    /** Thay track tiếng đang gửi trên MỌI kết nối (đổi micro, bật lại sau khi lọc). */
+    replaceAudioTrack(track) {
+      links.forEach(link => {
+        const sender = link.pc.getSenders && link.pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+        if (sender && sender.replaceTrack) sender.replaceTrack(track).catch(() => {});
+      });
+    },
+
+    /** Đưa toàn bộ track của luồng gửi lên các kết nối chưa có track nào. */
+    attachSendStream(stream) {
+      if (!stream) return;
+      links.forEach(link => {
+        const senders = (link.pc.getSenders && link.pc.getSenders()) || [];
+        const hasTrack = senders.some(s => s.track);
+        if (hasTrack) return;
+        stream.getTracks().forEach(track => {
+          const sender = senders.find(s => !s.track && s.replaceTrack);
+          if (sender) sender.replaceTrack(track).catch(() => {});
+          else { try { link.pc.addTrack(track, stream); } catch (err) {} }
+        });
+        tuneVideoSender(link.pc);
+      });
+    },
+
+    tune() { links.forEach(link => tuneVideoSender(link.pc)); },
+
+    get(peerId) { return links.get(peerId) || null; },
+    has(peerId) { return links.has(peerId); },
+    list,
+    remove,
+    size() { return links.size; },
+    connectedCount() { return list().filter(l => l.connected).length; },
+
+    /** Thành viên nào nên chiếm khung hình lớn: ưu tiên vai trò, rồi tới ai đã kết nối. */
+    primary(preferredRole) {
+      const all = list();
+      return all.find(l => l.connected && l.role === preferredRole)
+        || all.find(l => l.connected)
+        || all.find(l => l.role === preferredRole)
+        || all[0]
+        || null;
+    },
+
+    close() {
+      list().forEach(link => remove(link.peerId));
+    }
+  };
+
+  return api;
+};
+
+/* =============================================================================
+   DẢI KHUNG HÌNH CÁC ĐẦU CẦU - window.renderPeerStrip
+   -----------------------------------------------------------------------------
+   Vẽ mỗi thành viên còn lại của phòng khám thành một ô hình nhỏ nằm dưới khung
+   hình chính. Ô đang được phóng to có viền xanh; bấm vào ô khác là đổi người
+   chiếm khung lớn.
+
+   Ô được TÁI SỬ DỤNG theo peerId chứ không vẽ lại toàn bộ dải mỗi lần: gán lại
+   srcObject cho một thẻ <video> đang phát sẽ làm hình chớp đen và mất khoảng một
+   giây để phát lại - với cuộc gọi ba bên thì mỗi lần có người vào/ra là cả dải
+   chớp theo.
+   ========================================================================== */
+window.renderPeerStrip = function renderPeerStrip(container, links, options) {
+  if (!container) return;
+  const opts = options || {};
+  const tiles = container.__peerTiles || (container.__peerTiles = new Map());
+  const alive = new Set();
+
+  const roleLabel = (link) => {
+    if (link.role === 'doctor') return 'Bác sĩ tuyến trên';
+    if (link.role === 'patient') return 'Người bệnh';
+    return 'Điểm trạm';
+  };
+
+  (links || []).forEach(link => {
+    alive.add(link.peerId);
+    let tile = tiles.get(link.peerId);
+    if (!tile) {
+      const wrap = document.createElement('button');
+      wrap.type = 'button';
+      wrap.className = 'tele-peer-tile relative w-28 h-16 rounded-lg overflow-hidden bg-slate-900 border-2 border-slate-700 shadow-lg shrink-0 transition';
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.playsInline = true;
+      video.className = 'w-full h-full object-cover';
+      const label = document.createElement('span');
+      label.className = 'absolute bottom-0 inset-x-0 bg-slate-950/85 text-[8px] font-bold text-slate-200 px-1 py-0.5 truncate text-left';
+      const dot = document.createElement('span');
+      dot.className = 'absolute top-1 right-1 w-1.5 h-1.5 rounded-full';
+      wrap.appendChild(video);
+      wrap.appendChild(label);
+      wrap.appendChild(dot);
+      wrap.addEventListener('click', () => {
+        if (typeof opts.onSelect === 'function') opts.onSelect(link.peerId);
+      });
+      container.appendChild(wrap);
+      tile = { wrap, video, label, dot };
+      tiles.set(link.peerId, tile);
+    }
+
+    if (tile.video.srcObject !== link.stream) {
+      tile.video.srcObject = link.stream;
+      tile.video.play().catch(() => {});
+    }
+    /* Ô đang chiếm khung lớn phải CÂM: khung lớn đã phát tiếng của người đó rồi,
+       để cả hai cùng phát là nghe đúp và tự tạo vòng vọng trong phòng khám. */
+    tile.video.muted = opts.muteAll === true || link.peerId === opts.activeId;
+    tile.label.textContent = `${roleLabel(link)} · ${link.name || ''}`.slice(0, 34);
+    tile.label.title = link.name || '';
+    tile.dot.className = 'absolute top-1 right-1 w-1.5 h-1.5 rounded-full '
+      + (link.connected ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse');
+    tile.wrap.className = 'tele-peer-tile relative w-28 h-16 rounded-lg overflow-hidden bg-slate-900 shadow-lg shrink-0 transition border-2 '
+      + (link.peerId === opts.activeId ? 'border-emerald-500 ring-2 ring-emerald-500/40' : 'border-slate-700 hover:border-blue-500');
+    tile.wrap.title = link.peerId === opts.activeId
+      ? `${link.name || ''} - đang hiện ở khung hình lớn`
+      : `Bấm để phóng to khung hình của ${link.name || ''}`;
+  });
+
+  tiles.forEach((tile, peerId) => {
+    if (alive.has(peerId)) return;
+    try { tile.video.srcObject = null; } catch (err) {}
+    if (tile.wrap.parentNode) tile.wrap.parentNode.removeChild(tile.wrap);
+    tiles.delete(peerId);
+  });
+
+  // Một mình trong phòng thì không có gì để xếp - ẩn hẳn dải cho gọn khung hình.
+  container.classList.toggle('hidden', tiles.size === 0);
+};
+
+// 2. WebRTC Audio/Video Connection Setup - LƯỚI BA BÊN
+/*
+ * Bảng điều khiển của điểm trạm giữ MỘT kết nối riêng tới từng đầu cầu còn lại
+ * (người dân đang gọi và bác sĩ tuyến trên). `peerMesh` là lưới đó; `activePeerId`
+ * là đầu cầu đang chiếm khung hình lớn, những đầu cầu còn lại nằm ở dải ô nhỏ
+ * bên dưới và vẫn phát tiếng bình thường.
+ */
+
+const TELE_ICE_CONFIG = {
+  iceServers: [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:global.stun.twilio.com:3478' }
+  ],
+  // Thu sẵn nhiều ứng viên đường truyền hơn ngay khi mở kết nối, và dồn mọi
+  // luồng vào một cổng: bắt tay xong sớm hơn nên hình lên nhanh hơn.
+  iceCandidatePoolSize: 8,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require'
+};
+
+/** Vai trò mà khung hình lớn của màn hình này ưu tiên hiển thị. */
+function preferredPrimaryRole() {
+  /* Cả bảng điều khiển điểm trạm lẫn module bác sĩ tuyến trên đều lấy NGƯỜI BỆNH
+     làm khung hình lớn - đó là người đang được khám. Đầu cầu còn lại nằm ở dải ô
+     nhỏ và bấm vào là đổi chỗ, nên không ai bị khuất. Khung lớn cũng giữ nguyên
+     đầu cầu đã chọn, nên người thứ ba vào phòng không làm nhảy hình đang xem. */
+  return 'patient';
+}
+
+/** @returns {boolean} true nếu đã dựng được lưới kết nối. */
+function initPeerMesh() {
+  closePeerMesh();
 
   if (!webRTCSupported()) {
     warnWebRTCUnavailable();
     return false;
   }
 
-  const configuration = {
-    iceServers: [
-      { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-      { urls: 'stun:stun.cloudflare.com:3478' },
-      { urls: 'stun:global.stun.twilio.com:3478' }
-    ],
-    // Thu sẵn nhiều ứng viên đường truyền hơn ngay khi mở kết nối, và dồn mọi
-    // luồng vào một cổng: bắt tay xong sớm hơn nên hình lên nhanh hơn.
-    iceCandidatePoolSize: 8,
-    bundlePolicy: 'max-bundle',
-    rtcpMuxPolicy: 'require'
-  };
-
-  try {
-    peerConnection = new RTCPeerConnection(configuration);
-  } catch (err) {
-    peerConnection = null;
-    console.error('Không khởi tạo được RTCPeerConnection:', err);
-    warnWebRTCUnavailable();
-    return false;
-  }
-
-  // Add local stream tracks to WebRTC connection
-  const sendStream = outboundStream || localStream;
-  if (sendStream) {
-    sendStream.getTracks().forEach(track => {
-      peerConnection.addTrack(track, sendStream);
-    });
-    tuneVideoSender();
-  }
-
-  // Handle incoming remote media stream
-  peerConnection.ontrack = (event) => {
-    console.log('🎥 Remote video track received');
-    const remoteVideo = document.getElementById('remote-video');
-    const remotePlaceholder = document.getElementById('remote-placeholder');
-
-    // Bỏ bộ đệm phát lại cho HÌNH: khung hình hiện gần thời gian thực.
-    // CỐ Ý không đụng tới track tiếng: bộ đệm chống rung (jitter buffer) của
-    // luồng tiếng mà bị ép về 0 thì mỗi gói tin về trễ sẽ thành một tiếng lụp
-    // bụp/lạo xạo - đúng thứ tiếng kêu mà cán bộ trạm phản ánh.
-    try {
-      if (event.receiver && event.track && event.track.kind === 'video') {
-        event.receiver.playoutDelayHint = 0;
+  peerMesh = window.TeleMesh({
+    selfId: peerId,
+    iceConfig: TELE_ICE_CONFIG,
+    getSendStream: () => outboundStream || localStream,
+    send: (type, payload, to) => sendSignal(type, payload, to),
+    onStream: (link) => {
+      // Đầu cầu đầu tiên có hình sẽ tự chiếm khung lớn; các đầu cầu sau xếp vào
+      // dải ô nhỏ cho tới khi cán bộ trực bấm chọn.
+      if (!activePeerId || !peerMesh.has(activePeerId)) activePeerId = link.peerId;
+      renderPeerLayout();
+    },
+    onPeersChanged: () => {
+      if (activePeerId && !peerMesh.has(activePeerId)) activePeerId = null;
+      renderPeerLayout();
+    },
+    onStateChange: (link, state) => {
+      if (state === 'connected') {
+        isConnected = true;
+        if (!activePeerId) activePeerId = link.peerId;
+        updateConnectionBadge(true, peerConnectionSummary());
+      } else if (state === 'failed' || state === 'closed') {
+        isConnected = peerMesh ? peerMesh.connectedCount() > 0 : false;
       }
-    } catch (e) {}
-
-    if (remoteVideo) {
-      remoteVideo.srcObject = event.streams[0];
-      remoteVideo.playsInline = true;
-      remoteVideo.classList.remove('hidden');
-      remoteVideo.play().catch(() => {});
-      // Gắn loa vào bộ đo: mic sẽ tự né khi bác sĩ đang nói, và lớp chống hú có
-      // đủ dữ liệu để biết tiếng đang quay vòng qua loa ngoài của phòng khám.
-      try { CallAudio.attachRemote(remoteVideo, event.streams[0]); } catch (e) {}
+      renderPeerLayout();
     }
-    if (remotePlaceholder) {
-      remotePlaceholder.classList.add('hidden');
-    }
-    isConnected = true;
-    updateConnectionBadge(true, 'Đang kết nối với bác sĩ');
-  };
+  });
 
-  // Ứng viên ICE được gom lô rồi gửi một lượt (xem sendIceCandidate).
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate) queueIceCandidate(event.candidate.toJSON ? event.candidate.toJSON() : event.candidate);
-    else flushIceQueue();
-  };
-
-  return true;
+  return peerMesh.supported;
 }
+
+function closePeerMesh() {
+  if (peerMesh) {
+    try { peerMesh.close(); } catch (err) {}
+    peerMesh = null;
+  }
+  activePeerId = null;
+}
+
+/** Dòng trạng thái tóm tắt: đang nối được với ai trong phòng khám ba bên. */
+function peerConnectionSummary() {
+  if (!peerMesh || !peerMesh.size()) return 'Đã vào phòng khám - chờ tiếp nhận';
+  const names = peerMesh.list().filter(l => l.connected).map(l => l.name);
+  if (!names.length) return 'Đang bắt tay kết nối với các đầu cầu...';
+  if (names.length === 1) return `Đang kết nối với ${names[0]}`;
+  return `Phòng khám ${names.length + 1} bên - đang kết nối đủ`;
+}
+
+/**
+ * Vẽ lại toàn bộ khung hình: đầu cầu đang chọn lên khung lớn, những đầu cầu còn
+ * lại xuống dải ô nhỏ. Được gọi mỗi khi có người vào/ra hoặc có luồng hình mới.
+ */
+function renderPeerLayout() {
+  const remoteVideo = document.getElementById('remote-video');
+  const remotePlaceholder = document.getElementById('remote-placeholder');
+  const strip = document.getElementById('peer-strip');
+  const links = peerMesh ? peerMesh.list() : [];
+
+  if (!activePeerId || !links.some(l => l.peerId === activePeerId)) {
+    const primary = peerMesh && peerMesh.primary(preferredPrimaryRole());
+    activePeerId = primary ? primary.peerId : null;
+  }
+
+  const active = activePeerId && peerMesh ? peerMesh.get(activePeerId) : null;
+
+  if (remoteVideo) {
+    if (active && active.stream && active.stream.getTracks().length) {
+      if (remoteVideo.srcObject !== active.stream) {
+        remoteVideo.srcObject = active.stream;
+        remoteVideo.playsInline = true;
+        remoteVideo.play().catch(() => {});
+        // Gắn loa vào bộ đo: mic tự né khi đầu bên kia đang nói, và lớp chống hú
+        // biết được lúc nào tiếng đang quay vòng qua loa ngoài của phòng khám.
+        try { CallAudio.attachRemote(remoteVideo, active.stream); } catch (err) {}
+      }
+      remoteVideo.classList.remove('hidden');
+      if (remotePlaceholder) remotePlaceholder.classList.add('hidden');
+    } else {
+      remoteVideo.srcObject = null;
+      remoteVideo.classList.add('hidden');
+      if (remotePlaceholder) remotePlaceholder.classList.remove('hidden');
+    }
+  }
+
+  if (strip && typeof window.renderPeerStrip === 'function') {
+    window.renderPeerStrip(strip, links, {
+      activeId: activePeerId,
+      onSelect: (id) => {
+        activePeerId = id;
+        renderPeerLayout();
+      }
+    });
+  }
+
+  const countEl = document.getElementById('peer-count-badge');
+  if (countEl) {
+    const total = links.length + 1;
+    // Ghi vào ô chữ bên trong để không xoá mất biểu tượng của thẻ.
+    const label = countEl.querySelector('span') || countEl;
+    label.textContent = `${total} bên trong phòng khám`;
+    countEl.classList.toggle('hidden', links.length === 0);
+  }
+}
+window.renderPeerLayout = renderPeerLayout;
 
 /* =============================================================================
    GÓC THU HÌNH RỘNG - áp dụng cho mọi camera của bảng điều khiển điểm trạm
@@ -2228,117 +2813,41 @@ async function widenTrackFieldOfView(track) {
   try { await track.applyConstraints(wanted); } catch (e) { /* thiết bị không cho thì giữ nguyên */ }
 }
 
-/**
- * Ép bộ mã hoá ưu tiên giữ số khung hình khi băng thông tụt (mạng 3G/4G vùng cao),
- * thay vì mặc định hạ khung hình làm hình giật từng nấc.
- */
+/** Áp thông số luồng hình cho mọi kết nối trong lưới. */
 function tuneVideoSender() {
-  if (!peerConnection) return;
-  const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-  if (!sender || !sender.getParameters) return;
-  try {
-    const params = sender.getParameters();
-    params.degradationPreference = 'maintain-framerate';
-    if (!params.encodings || !params.encodings.length) params.encodings = [{}];
-    params.encodings[0].maxBitrate = 1500000;
-    params.encodings[0].maxFramerate = 30;
-    sender.setParameters(params).catch(() => {});
-  } catch (err) {
-    console.warn('Không đặt được thông số luồng hình:', err);
-  }
+  if (peerMesh) peerMesh.tune();
 }
 
-/* Gom ứng viên ICE trong 40ms rồi gửi một lô: mỗi bản tin signaling là một chặng
-   HTTP, gom lại giúp rút ngắn thời gian bắt tay xuống rõ rệt. */
-function queueIceCandidate(candidate) {
-  iceQueue.push(candidate);
-  if (iceQueueTimer) return;
-  iceQueueTimer = setTimeout(flushIceQueue, 40);
+/** Mở lời mời kết nối tới một danh sách đầu cầu đã có sẵn trong phòng. */
+function offerToExistingPeers(peers) {
+  if (!peerMesh || !peers || !peers.length) return;
+  // Chào mời SONG SONG chứ không lần lượt: với ba bên, chờ xong cặp thứ nhất mới
+  // gọi cặp thứ hai làm khung hình của đầu cầu sau lên chậm hơn hẳn.
+  peers.forEach(p => peerMesh.add(p.peerId || p.id, { name: p.name, role: p.role }, true));
+  renderPeerLayout();
 }
 
-function flushIceQueue() {
-  if (iceQueueTimer) { clearTimeout(iceQueueTimer); iceQueueTimer = null; }
-  if (!iceQueue.length) return;
-  sendSignal('ice', iceQueue.splice(0));
+/** Ghi nhận đầu cầu vừa vào phòng - bên vào sau mới là bên chào mời. */
+function registerJoinedPeer(msg) {
+  if (!peerMesh) return;
+  const info = msg.payload || {};
+  peerMesh.add(msg.from, { name: info.name, role: info.role }, false);
+  renderPeerLayout();
 }
 
-async function createWebRTCOffer() {
-  if (!peerConnection && !initPeerConnection()) return;
-  try {
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    await sendSignal('offer', offer);
-  } catch (err) {
-    console.error('Error creating WebRTC offer:', err);
-  }
+/** Tên hiển thị của một đầu cầu trong lưới (dùng khi họ rời phòng). */
+function peerLinkName(id) {
+  if (!peerMesh) return null;
+  const link = peerMesh.get(id);
+  return link ? link.name : null;
 }
 
-async function handleWebRTCOffer(offer) {
-  if (!offer) return;
-  if (!peerConnection && !initPeerConnection()) return;
-  try {
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    await drainPendingCandidates();
-
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    await sendSignal('answer', answer);
-  } catch (err) {
-    console.error('Error handling WebRTC offer:', err);
-  }
-}
-
-async function handleWebRTCAnswer(answer) {
-  if (!answer || !peerConnection) return;
-  try {
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    await drainPendingCandidates();
-  } catch (err) {
-    console.error('Error handling WebRTC answer:', err);
-  }
-}
-
-async function handleWebRTCIceCandidate(candidate) {
-  if (!candidate || !peerConnection) return;
-
-  // Chấp nhận cả bản tin cũ (một ứng viên) lẫn bản tin gom lô (mảng ứng viên),
-  // để máy đã mở sẵn trang cũ vẫn bắt tay được với máy đã nạp bản mới.
-  const items = Array.isArray(candidate) ? candidate : [candidate];
-  const ready = peerConnection.remoteDescription && peerConnection.remoteDescription.type;
-
-  for (const item of items) {
-    if (!item) continue;
-    let ice;
-    try {
-      ice = new RTCIceCandidate(item);
-    } catch (err) {
-      continue;
-    }
-
-    // Ứng viên ICE đến trước khi có remote description thì phải xếp hàng, nếu không sẽ mất.
-    if (!ready) {
-      pendingCandidates.push(ice);
-      continue;
-    }
-
-    try {
-      await peerConnection.addIceCandidate(ice);
-    } catch (err) {
-      console.warn('Error adding ICE candidate:', err.message);
-    }
-  }
-}
-
-async function drainPendingCandidates() {
-  const queued = pendingCandidates;
-  pendingCandidates = [];
-  for (const candidate of queued) {
-    try {
-      await peerConnection.addIceCandidate(candidate);
-    } catch (err) {
-      console.warn('Error adding queued ICE candidate:', err.message);
-    }
-  }
+/** Đầu cầu rời phòng: đóng đúng kết nối của họ, hai bên còn lại giữ nguyên. */
+function unregisterPeer(peerIdLeft) {
+  if (!peerMesh) return;
+  peerMesh.remove(peerIdLeft);
+  isConnected = peerMesh.connectedCount() > 0;
+  renderPeerLayout();
 }
 
 // 3. Local Camera & Dual-Camera Switcher Logic
@@ -2385,9 +2894,9 @@ async function initLocalCamera(deviceId = null) {
           });
           try { outboundStream.addTrack(newVideo); } catch (e) {}
         }
-        const sender = peerConnection
-          && peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-        if (sender) sender.replaceTrack(newVideo);
+        // Thay hình trên MỌI kết nối trong lưới: đổi camera ở trạm thì cả người
+        // dân lẫn bác sĩ tuyến trên cùng thấy khuôn hình mới.
+        if (peerMesh) peerMesh.replaceVideoTrack(newVideo);
       }
       const previewEl = document.getElementById('local-video');
       if (previewEl) {
@@ -2474,23 +2983,19 @@ async function initLocalCamera(deviceId = null) {
       videoDevices = [];
     }
 
-    // Replace video/audio tracks in peer connection if already active
-    if (peerConnection) {
+    // Thay hình/tiếng trên toàn bộ lưới nếu cuộc gọi đang chạy.
+    if (peerMesh && peerMesh.size()) {
       const videoTrack = localStream.getVideoTracks()[0];
       // Track tiếng gửi đi phải lấy từ luồng ĐÃ LỌC, không phải mic thô - nếu
       // lấy nhầm mic thô thì mỗi lần đổi camera là mất sạch lớp chống vang.
       const audioTrack = (outboundStream && outboundStream.getAudioTracks()[0])
         || localStream.getAudioTracks()[0];
-      const senders = peerConnection.getSenders();
 
-      const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-      if (videoSender && videoTrack) {
-        videoSender.replaceTrack(videoTrack);
-      }
-      const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-      if (audioSender && audioTrack) {
-        audioSender.replaceTrack(audioTrack);
-      }
+      // Luồng gửi đi đổi thì lưới phải biết, nếu không kết nối mở SAU lúc này
+      // sẽ vẫn bám vào luồng cũ đã tắt.
+      peerMesh.attachSendStream(outboundStream || localStream);
+      if (videoTrack) peerMesh.replaceVideoTrack(videoTrack);
+      if (audioTrack) peerMesh.replaceAudioTrack(audioTrack);
       tuneVideoSender();
     }
   }
@@ -3797,7 +4302,10 @@ window.populateCmsAccountsDropdown = populateCmsAccountsDropdown;
 window.onCmsAccountSelect = onCmsAccountSelect;
 window.startQueuePolling = startQueuePolling;
 window.stopQueuePolling = stopQueuePolling;
-window.refreshIncomingCallsQueue = refreshIncomingCallsQueue;
+// Bản xuất ra window nuốt lỗi mạng: nơi gọi từ HTML không có chỗ bắt ngoại lệ.
+window.refreshIncomingCallsQueue = (wait) => refreshIncomingCallsQueue(wait).catch(err => {
+  console.warn('Lỗi quét hàng đợi cuộc gọi:', err && err.message);
+});
 window.acceptPatientCall = acceptPatientCall;
 window.acceptNextPatientCall = acceptNextPatientCall;
 window.onStationIdCardInput = onStationIdCardInput;
