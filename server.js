@@ -398,6 +398,169 @@ app.post('/api/clinical-ai', (req, res) => {
   }
 });
 
+// 4B. Multi-Party AI Medical Coordinator Endpoint
+/*
+ * Bản chạy tại chỗ của /api/ai-coordinator (bản triển khai nằm ở
+ * netlify/functions/ai-coordinator.ts). Máy chủ Express này phục vụ lúc chạy thử
+ * ở điểm trạm, nơi thường không có khoá Gemini và có khi không có cả Internet,
+ * nên ở đây CHỈ có lớp luật tất định - đúng phần mà buổi khám không được phép
+ * thiếu: cảnh báo cấp cứu, tóm tắt SBAR bàn giao, dự thảo toa thuốc.
+ *
+ * Ngưỡng sinh hiệu phải trùng với evaluateVitals() ở /api/vitals bên trên.
+ */
+app.post('/api/ai-coordinator', (req, res) => {
+  try {
+    const STAGES = {
+      intake: { phase: 1, label: 'Giai đoạn 1 - Tiếp nhận & Chuẩn bị' },
+      handoff: { phase: 2, label: 'Giai đoạn 2 - Kết nối & Tóm tắt tuyến trên' },
+      explain: { phase: 3, label: 'Giai đoạn 3 - Hỗ trợ thảo luận' },
+      wrapup: { phase: 4, label: 'Giai đoạn 4 - Tổng hợp kết luận' }
+    };
+    const SBAR_WORD_LIMIT = 150;
+
+    const body = req.body || {};
+    const stage = STAGES[body.stage] ? body.stage : 'intake';
+    const num = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
+    const str = (v, max = 1500) => String(v == null ? '' : v).trim().slice(0, max);
+
+    const v = {
+      bp_sys: num(body.vitals?.bpSys ?? body.vitals?.bp_sys, 120),
+      bp_dia: num(body.vitals?.bpDia ?? body.vitals?.bp_dia, 80),
+      heart_rate: num(body.vitals?.heartRate ?? body.vitals?.heart_rate, 75),
+      spo2: num(body.vitals?.spo2, 98),
+      temperature: num(body.vitals?.temperature ?? body.vitals?.temp, 36.8),
+      weight: num(body.vitals?.weight, 0)
+    };
+
+    const patient = {
+      name: str(body.patient?.name, 120) || 'Bệnh nhân chưa rõ họ tên',
+      age: str(body.patient?.age, 8),
+      gender: str(body.patient?.gender, 16)
+    };
+    const symptoms = str(body.symptoms);
+    const notes = str(body.notes);
+    const history = str(body.history, 600);
+    const term = str(body.term, 200);
+    const conclusion = {
+      diagnosis: str(body.conclusion?.diagnosis, 400),
+      drugs: str(body.conclusion?.drugs, 1500),
+      advice: str(body.conclusion?.advice, 600)
+    };
+
+    const redFlags = [];
+    const warnings = [];
+    let status = 'NORMAL';
+    const critical = (msg) => { redFlags.push(msg); status = 'CRITICAL'; };
+    const warn = (msg) => { warnings.push(msg); if (status !== 'CRITICAL') status = 'WARNING'; };
+
+    if (v.spo2 < 92) critical(`CẢNH BÁO CẤP CỨU: Nồng độ Oxy SpO2 giảm nguy hiểm (${v.spo2}% < 92%). Cần thở Oxy hỗ trợ khẩn cấp!`);
+    else if (v.spo2 < 95) warn(`Cảnh báo: SpO2 nhẹ/vừa (${v.spo2}%). Theo dõi sát đường hô hấp.`);
+
+    if (v.bp_sys >= 160 || v.bp_dia >= 100) critical(`CẢNH BÁO CẤP CỨU: Cơn tăng huyết áp cấp cứu (${v.bp_sys}/${v.bp_dia} mmHg). Nguy cơ biến cố tim mạch/đột quỵ!`);
+    else if (v.bp_sys >= 140 || v.bp_sys < 90 || v.bp_dia >= 90 || v.bp_dia < 60) warn(`Cảnh báo Huyết áp bất thường: ${v.bp_sys}/${v.bp_dia} mmHg.`);
+
+    if (v.heart_rate >= 130 || v.heart_rate <= 45) critical(`CẢNH BÁO CẤP CỨU: Nhịp tim ${v.heart_rate} bpm ngoài ngưỡng an toàn. Cần điện tâm đồ ECG ngay!`);
+    else if (v.heart_rate > 100 || v.heart_rate < 55) warn(`Nhịp tim bất thường (${v.heart_rate} bpm). Cần kiểm tra điện tâm đồ ECG.`);
+
+    if (v.temperature >= 39.5 || v.temperature <= 35) critical(`CẢNH BÁO CẤP CỨU: Nhiệt độ ${v.temperature}°C. Nguy cơ sốt cao/hạ nhiệt độ.`);
+    else if (v.temperature >= 38.5) warn(`Sốt cao (${v.temperature}°C). Cần chườm ấm & xem xét hạ sốt khẩn.`);
+
+    // Lưới an toàn thứ hai: dấu hiệu nguy kịch chỉ xuất hiện trong lời kể.
+    const narrative = `${symptoms} ${notes} ${history}`.toLowerCase();
+    const PHRASES = [
+      { match: ['đau ngực', 'tức ngực'], msg: 'CẢNH BÁO CẤP CỨU: Bệnh nhân khai đau ngực - loại trừ hội chứng vành cấp, đo ECG ngay.' },
+      { match: ['khó thở', 'hụt hơi'], msg: 'CẢNH BÁO CẤP CỨU: Bệnh nhân khó thở - đánh giá đường thở, chuẩn bị Oxy.' },
+      { match: ['ngất', 'mất ý thức', 'co giật'], msg: 'CẢNH BÁO CẤP CỨU: Rối loạn ý thức/co giật - đặt nằm nghiêng an toàn, kiểm tra đường huyết mao mạch.' },
+      { match: ['méo miệng', 'yếu nửa người', 'nói ngọng'], msg: 'CẢNH BÁO CẤP CỨU: Dấu hiệu đột quỵ (FAST) - tính giờ khởi phát, chuyển tuyến khẩn.' }
+    ];
+    for (const rule of PHRASES) {
+      if (rule.match.some((p) => narrative.includes(p)) && !redFlags.includes(rule.msg)) redFlags.push(rule.msg);
+    }
+    const emergency = redFlags.length > 0;
+
+    const vitalsLine = `HA ${v.bp_sys}/${v.bp_dia} mmHg, Mạch ${v.heart_rate} l/p, SpO2 ${v.spo2}%, Nhiệt độ ${v.temperature}°C`
+      + (v.weight ? `, Cân nặng ${v.weight} kg` : '');
+    const patientLine = [patient.name, patient.age && `${patient.age} tuổi`, patient.gender].filter(Boolean).join(', ');
+    const complaint = symptoms || notes || 'chưa ghi nhận lý do khám';
+
+    // Cắt bản tóm tắt về đúng trần 150 từ, ưu tiên giữ S và B.
+    const sbar = {
+      situation: `${patientLine}. Lý do khám: ${complaint}.`,
+      background: `Tiền sử: ${history || 'chưa ghi nhận'}. Ghi chép điểm trạm: ${notes || 'chưa có'}.`,
+      assessment: `Sinh hiệu: ${vitalsLine}.` + (redFlags.length ? ` Dấu hiệu cần lưu ý: ${redFlags.join(' ')}` : ' Chưa phát hiện dấu hiệu nguy kịch trên sinh hiệu.'),
+      recommendation: emergency
+        ? 'Đề nghị tuyến trên đánh giá khẩn, cân nhắc chuyển tuyến ngay trong phiên.'
+        : 'Đề nghị tuyến trên xác nhận hướng chẩn đoán, chỉ định cận lâm sàng và chốt hướng điều trị.'
+    };
+    const words = (s) => (s.trim() ? s.trim().split(/\s+/).length : 0);
+    for (const key of ['recommendation', 'assessment', 'background', 'situation']) {
+      const total = Object.values(sbar).reduce((sum, s) => sum + words(s), 0);
+      if (total <= SBAR_WORD_LIMIT) break;
+      const parts = sbar[key].trim().split(/\s+/).filter(Boolean);
+      if (parts.length <= 1) continue;
+      const keep = Math.max(1, parts.length - (total - SBAR_WORD_LIMIT));
+      sbar[key] = parts.slice(0, keep).join(' ') + (keep < parts.length ? '…' : '');
+    }
+
+    const messages = [];
+    if (emergency) {
+      messages.push({ audience: 'clinician', label: '[CẢNH BÁO CẤP CỨU - Gửi Bác sĩ Trạm & Tuyến trên]', text: redFlags.join('\n') });
+    }
+
+    let draft = null;
+    if (stage === 'intake') {
+      messages.push({ audience: 'all', label: '[Chung]', text: `Đang ở ${STAGES.intake.label}. Đã ghi nhận sinh hiệu: ${vitalsLine}.` });
+      messages.push({ audience: 'patient', label: '[Gửi Bệnh nhân]', text: 'Anh/chị kể giúp em: khó chịu bắt đầu từ khi nào, đau hay mệt ở chỗ nào, có sốt hay nôn không ạ? Anh/chị đang uống thuốc gì thường xuyên và từng dị ứng thuốc nào chưa?' });
+      messages.push({ audience: 'clinician', label: '[Gửi Bác sĩ Trạm & Tuyến trên - SOAP rút gọn]', text: `S: ${complaint}.\nO: ${vitalsLine}.\nA: ${redFlags.length ? redFlags.join(' ') : 'Chưa có dấu hiệu nguy kịch trên sinh hiệu.'}\nP: Hoàn thiện khai thác bệnh sử, chuẩn bị camera cận cảnh vùng tổn thương.` });
+    } else if (stage === 'handoff') {
+      messages.push({ audience: 'all', label: '[Chung]', text: `${str(body.doctorName, 120) || 'Bác sĩ Tuyến trên'} đã tham gia phòng khám.` });
+      messages.push({ audience: 'clinician', label: '[Gửi Bác sĩ Tuyến trên - Tóm tắt nhanh]', text: `- Bệnh nhân: ${patientLine}.\n- Lý do khám: ${complaint}.\n- Sinh hiệu (điểm trạm cung cấp): ${vitalsLine}.\n- Tiền sử: ${history || 'chưa ghi nhận'}.` });
+      messages.push({ audience: 'patient', label: '[Gửi Bệnh nhân]', text: 'Bác sĩ chuyên khoa đã vào phòng khám rồi ạ. Bác sĩ sẽ trao đổi trực tiếp với anh/chị và cán bộ y tế tại trạm ngay bây giờ.' });
+    } else if (stage === 'explain') {
+      const label = term || 'thuật ngữ vừa nêu';
+      messages.push({ audience: 'patient', label: '[Gửi Bệnh nhân]', text: `Bác sĩ vừa nhắc tới "${label}". Đây là cách gọi trong ngành y của tình trạng bác sĩ đang khám cho anh/chị. Anh/chị chưa rõ chỗ nào cứ hỏi lại ạ.` });
+      messages.push({ audience: 'clinician', label: '[Gửi Bác sĩ Trạm & Tuyến trên]', text: `Đã diễn giải thuật ngữ "${label}" sang lời thường cho bệnh nhân.` });
+    } else {
+      const drugLines = conclusion.drugs.split(/\r?\n/).map((l) => l.replace(/^\s*\d+[.)]\s*/, '').trim()).filter(Boolean);
+      messages.push({ audience: 'all', label: '[Chung]', text: 'Phiên khám kết thúc. Toa thuốc & hướng dẫn điều trị DỰ THẢO đã sẵn sàng, chờ Bác sĩ trạm và Bác sĩ tuyến trên duyệt/ký số.' });
+      messages.push({ audience: 'clinician', label: '[Gửi Bác sĩ Trạm & Tuyến trên - Dự thảo chờ ký]', text: `Chẩn đoán (theo kết luận của Bác sĩ): ${conclusion.diagnosis || 'chưa nhập'}.\nThuốc: ${drugLines.join('; ') || 'chưa nhập'}.\nLời dặn: ${conclusion.advice || 'chưa nhập'}.` });
+      messages.push({ audience: 'patient', label: '[Gửi Bệnh nhân]', text: `Bác sĩ đã có kết luận cho anh/chị. Anh/chị nhớ uống thuốc đúng theo tờ đơn cán bộ trạm in ra. Nếu thấy mệt nhiều hơn, khó thở hay sốt cao không hạ thì quay lại trạm ngay nhé ạ.` });
+      draft = {
+        diagnosis: conclusion.diagnosis,
+        prescription: drugLines.map((name) => ({ name, dosage: '', note: '' })),
+        advice: conclusion.advice,
+        followUp: emergency
+          ? 'Theo dõi sát tại trạm, sẵn sàng chuyển tuyến; tái khám ngay khi triệu chứng nặng lên.'
+          : 'Tái khám sau 3-5 ngày hoặc ngay khi triệu chứng nặng lên.'
+      };
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        stage,
+        phase: STAGES[stage].phase,
+        stageLabel: STAGES[stage].label,
+        messages,
+        sbar,
+        sbarWordCount: Object.values(sbar).reduce((sum, s) => sum + words(s), 0),
+        redFlags,
+        warnings,
+        status,
+        emergency,
+        draft,
+        disclaimer: 'Nội dung do Trợ lý AI điều phối tổng hợp, chỉ mang tính ĐỀ XUẤT. Chẩn đoán xác định và đơn thuốc chính thức thuộc thẩm quyền của Bác sĩ.',
+        source: 'rules',
+        model: '',
+        generatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('AI Coordinator Error:', error);
+    return res.status(500).json({ success: false, message: 'Không dựng được nội dung điều phối.' });
+  }
+});
+
 // 5. Save & Print Examination Report API
 app.post('/api/examination-report', (req, res) => {
   try {

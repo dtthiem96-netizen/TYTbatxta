@@ -1,18 +1,21 @@
 /**
- * Khoá ngưỡng đánh giá sinh hiệu ở hai nơi lại với nhau.
+ * Khoá ngưỡng đánh giá sinh hiệu ở ba nơi lại với nhau.
  *
  *   node tools/vitals-parity.mjs
  *
  * Trạm bật biểu ngữ cảnh báo ngay tại trình duyệt bằng evaluateVitalsLocally()
- * trong app.js, còn bản ghi chính thức do evaluateVitals() trong
- * netlify/functions/vitals.ts tạo ra. Hai bản này buộc phải cho cùng một mức
- * nguy hiểm: nếu lệch, cán bộ trạm thấy CẤP CỨU trong khi hồ sơ chỉ ghi WARNING
- * (hoặc NORMAL), và tuyến trên đọc lại sẽ đánh giá thấp mức nguy hiểm thật.
+ * trong app.js, bản ghi chính thức do evaluateVitals() trong
+ * netlify/functions/vitals.ts tạo ra, còn AI điều phối đa bên quyết định có phát
+ * [CẢNH BÁO CẤP CỨU] tới hai bác sĩ hay không bằng evaluateVitals() trong
+ * netlify/functions/ai-coordinator.ts. Cả ba buộc phải cho cùng một mức nguy
+ * hiểm: nếu lệch, cán bộ trạm thấy CẤP CỨU trong khi hồ sơ chỉ ghi WARNING (hoặc
+ * AI vẫn nói chuyện bình thản với bệnh nhân ngay trước mặt người bệnh), và tuyến
+ * trên đọc lại sẽ đánh giá thấp mức nguy hiểm thật.
  *
- * Không so sánh câu chữ của thông báo - hai bên được phép diễn đạt khác nhau.
+ * Không so sánh câu chữ của thông báo - ba bên được phép diễn đạt khác nhau.
  * Chỉ so sánh `status` và tập các mức `level` sinh ra.
  *
- * Cách lấy hàm ra: cả hai đều là hàm thuần, không phụ thuộc DOM hay mạng, nên
+ * Cách lấy hàm ra: cả ba đều là hàm thuần, không phụ thuộc DOM hay mạng, nên
  * trích nguyên văn phần khai báo rồi đánh giá trong một Function riêng. Phần TS
  * được gỡ chú thích kiểu bằng module.stripTypeScriptTypes của Node 24.
  */
@@ -42,14 +45,18 @@ function extractFunction(source, name) {
 
 const appSrc = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
 const fnSrc = fs.readFileSync(path.join(ROOT, 'netlify/functions/vitals.ts'), 'utf8');
+const coordSrc = fs.readFileSync(path.join(ROOT, 'netlify/functions/ai-coordinator.ts'), 'utf8');
 
 const localSrc = extractFunction(appSrc, 'evaluateVitalsLocally');
 const serverSrcTs = extractFunction(fnSrc, 'evaluateVitals');
+const coordSrcTs = extractFunction(coordSrc, 'evaluateVitals');
 // stripTypeScriptTypes cần một mô-đun hợp lệ, nên bọc lại rồi lấy ra.
 const serverSrc = stripTypeScriptTypes(serverSrcTs, { mode: 'strip' });
+const coordJs = stripTypeScriptTypes(coordSrcTs, { mode: 'strip' });
 
 const evaluateLocal = new Function(`${localSrc}; return evaluateVitalsLocally;`)();
 const evaluateServer = new Function(`${serverSrc}; return evaluateVitals;`)();
+const evaluateCoordinator = new Function(`${coordJs}; return evaluateVitals;`)();
 
 /**
  * Các trường hợp phủ hai phía của từng ngưỡng, cộng thêm vài ca lâm sàng thật.
@@ -110,21 +117,28 @@ const mismatches = [];
 for (const c of CASES) {
   const local = evaluateLocal(c);
   const server = evaluateServer(toServer(c));
-  if (local.status !== server.status || levels(local) !== levels(server)) {
+  const coordinator = evaluateCoordinator(toServer(c));
+  const differs =
+    local.status !== server.status ||
+    local.status !== coordinator.status ||
+    levels(local) !== levels(server) ||
+    levels(local) !== levels(coordinator);
+  if (differs) {
     mismatches.push(
-      `${c.label}\n      trạm    : status=${local.status} levels=${levels(local)}`
-      + `\n      máy chủ : status=${server.status} levels=${levels(server)}`
+      `${c.label}\n      trạm       : status=${local.status} levels=${levels(local)}`
+      + `\n      máy chủ    : status=${server.status} levels=${levels(server)}`
+      + `\n      điều phối  : status=${coordinator.status} levels=${levels(coordinator)}`
     );
   }
 }
 
 console.log(`Đối chiếu ngưỡng sinh hiệu: ${CASES.length} trường hợp.`);
 if (!mismatches.length) {
-  console.log('✓ app.js và netlify/functions/vitals.ts cho cùng mức nguy hiểm ở mọi trường hợp.');
+  console.log('✓ app.js, netlify/functions/vitals.ts và netlify/functions/ai-coordinator.ts cho cùng mức nguy hiểm ở mọi trường hợp.');
   process.exit(0);
 }
 console.log(`✗ ${mismatches.length} trường hợp lệch nhau:`);
 for (const m of mismatches) console.log('    ' + m);
-console.log('\nSửa để hai bên trùng ngưỡng. Đánh giá thấp hơn ở phía máy chủ là hướng nguy hiểm:');
+console.log('\nSửa để cả ba bên trùng ngưỡng. Đánh giá thấp hơn ở phía máy chủ là hướng nguy hiểm:');
 console.log('hồ sơ chính thức sẽ nhẹ hơn điều cán bộ trạm đang nhìn thấy.');
 process.exit(1);

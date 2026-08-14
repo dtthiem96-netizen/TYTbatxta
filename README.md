@@ -12,7 +12,7 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 - **`public/index.html`**: Giao diện chuẩn Y tế (màu xanh navy/trắng), phân chia bố cục rõ ràng giữa Màn hình Video Call đa chiều, Bảng Sinh hiệu bệnh nhân và Bảng Ghi chú lâm sàng / AI Co-pilot.
 - **`public/app.js` & `app.js`**: Logic xử lý chuyển đổi camera cận cảnh/toàn cảnh, bật/tắt mic, thu âm chuyển giọng nói thành văn bản (Speech-to-Text), đồng bộ chỉ số sinh hiệu và báo động cảnh báo cấp cứu thời gian thực.
 - **`admin/index.html` & `public/admin/index.html`**: Bảng điều khiển Quản trị nội bộ dành cho Cán bộ Y tế (Quản lý bài viết tin tức, cập nhật lịch tiêm chủng, tiếp nhận lịch đăng ký khám).
-- **`netlify/functions/`**: Bộ serverless functions triển khai trên Netlify (`vitals.ts`, `signal.ts`, `clinical-ai.ts`, `cms.ts`, `examination-report.ts`, `station-auth.ts`, `admin-users.ts`, `video.ts`, `ai.ts`).
+- **`netlify/functions/`**: Bộ serverless functions triển khai trên Netlify (`vitals.ts`, `signal.ts`, `clinical-ai.ts`, `ai-coordinator.ts`, `cms.ts`, `examination-report.ts`, `station-auth.ts`, `admin-users.ts`, `video.ts`, `ai.ts`).
 - **`auth/`**: Mô-đun Xác thực dùng cho CMS (Express + bcryptjs + jsonwebtoken) - đăng nhập, phiếu phiên JWT hạn 8 giờ, `authMiddleware` bảo vệ tuyến đường. Xem mục 6.
 - **`netlify/lib/auth.ts`**: Lớp xác thực dùng chung - băm mật khẩu bcrypt, ký/kiểm tra phiếu phiên JWT và middleware phân quyền `requireScope()`.
 - **`db/`**: Schema và kết nối cơ sở dữ liệu Netlify Database (PostgreSQL / Drizzle ORM).
@@ -39,7 +39,43 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
    - Khung "Ghi chép lâm sàng" hỗ trợ công nghệ Speech-to-Text (chuyển lời nói Y sĩ/ Bác sĩ thành văn bản, chỉ thu âm khi đang trong cuộc gọi).
    - Khung "Gợi ý chẩn đoán & Đơn thuốc tham khảo": AI tự động phân tích chỉ số sinh hiệu & triệu chứng để đưa ra cảnh báo cờ đỏ (Red Flags), mã ICD-10 và hướng xử trí tham khảo.
 
-4. **Thanh Điều Khiển Cuộc Gọi**
+4. **AI Điều phối Khám đa bên (Multi-Party AI Medical Coordinator)**
+   - Khung "AI Điều phối đa bên" đứng ngay trên khung gợi ý chẩn đoán, có mặt ở cả
+     bảng điều khiển điểm trạm (`/tram`) lẫn mô-đun bác sĩ tuyến trên (`/bacsi`).
+     Máy chủ dựng nội dung một lần rồi phát lại nguyên văn qua kênh signaling
+     (bản tin `coordinator`), nên ba bên luôn đọc đúng một bản.
+   - Mọi câu chữ đều dán nhãn người nhận: **`[Gửi Bệnh nhân]`** (lời dễ hiểu, trấn
+     an, không thuật ngữ - đồng thời đẩy sang khung trò chuyện để người bệnh đọc
+     được), **`[Gửi Bác sĩ Trạm & Tuyến trên]`** (ngôn ngữ y khoa, tóm tắt theo
+     SBAR/SOAP) và **`[Chung]`** (thông báo cả ba bên cùng theo).
+   - **Bốn giai đoạn**:
+     1. *Tiếp nhận & Chuẩn bị*: gom bệnh sử, triệu chứng người bệnh khai và sinh
+        hiệu cán bộ trạm nhập. Tự chạy khi bộ sinh hiệu vừa gửi bị chấm `CRITICAL`.
+     2. *Kết nối & Tóm tắt*: ngay khi bác sĩ tuyến trên vào phòng, hệ thống tự phát
+        **Bản tóm tắt ca bệnh dưới 150 từ** (máy chủ cắt bớt để bảo đảm trần từ,
+        khung hiển thị kèm số từ `n/150`).
+     3. *Hỗ trợ thảo luận*: gõ một thuật ngữ vừa nghe được vào ô "Giải thích" để AI
+        diễn giải bằng lời thường cho người bệnh, không cắt ngang hai bác sĩ.
+     4. *Tổng hợp kết luận*: dựng **Toa thuốc & Hướng dẫn điều trị dự thảo** từ kết
+        luận của bác sĩ tuyến trên; nút "Chèn dự thảo vào ô đơn thuốc" chỉ điền vào
+        các ô còn trống để hai bác sĩ duyệt và ký số. Chạy kèm lúc bấm "Hoàn thành
+        & Xuất Phiếu khám".
+   - **Hai lớp, an toàn trước**: bộ luật lâm sàng tất định luôn chạy trước và tự
+     mình sinh cờ đỏ, bản SBAR và bản dự thảo; mô hình Gemini chỉ viết lại lời văn
+     và được phép **thêm** cảnh báo chứ không được gỡ cảnh báo của bộ luật. Gọi mô
+     hình hỏng thì đáp ứng hạ xuống `source: "rules-fallback"` và phiên khám vẫn
+     chạy tiếp.
+   - **Ranh giới y tế**: AI không tự chẩn đoán xác định, không tự kê đơn - quyết
+     định cuối cùng thuộc về bác sĩ; mọi cờ đỏ (đau ngực, khó thở cấp, ngất/mất ý
+     thức, co giật, dấu đột quỵ FAST, chảy máu, bụng ngoại khoa, hoặc sinh hiệu mức
+     cấp cứu) đều phát **`[CẢNH BÁO CẤP CỨU]`** tới **cả hai bác sĩ** kèm biểu ngữ
+     đỏ và tiếng báo.
+   - Điểm cuối `POST /api/ai-coordinator` (`netlify/functions/ai-coordinator.ts`)
+     bắt buộc phiếu phiên còn hạn với quyền `station` hoặc `doctor` vì đây là dữ
+     liệu sức khoẻ người bệnh. `server.js` có tuyến cùng đường dẫn chạy thuần bộ
+     luật để chạy thử cục bộ.
+
+5. **Thanh Điều Khiển Cuộc Gọi**
    - Nút "Bắt đầu cuộc gọi" / "Kết thúc cuộc gọi" - lối vào và lối ra duy nhất của camera, micro và phòng khám từ xa.
    - Nút Chuyển đổi Camera (Góc rộng / Cận cảnh tổn thương).
    - Nút Bật/Tắt Mic điểm trạm.
@@ -83,6 +119,22 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 2. **Truy cập qua Netlify Local Port 8889**:
    - **Bảng điều khiển Cán bộ Y tế Điểm trạm**: `http://localhost:8889/tram`
    - **Cổng Quản trị Nội bộ**: `http://localhost:8889/admin`
+
+---
+
+### Đối chiếu ngưỡng sinh hiệu (bắt buộc khi sửa ngưỡng)
+
+```bash
+node tools/vitals-parity.mjs
+```
+
+Lệnh này khoá ba nơi cùng đánh giá sinh hiệu lại với nhau - `evaluateVitalsLocally()`
+trong `app.js` (biểu ngữ tại trình duyệt trạm), `evaluateVitals()` trong
+`netlify/functions/vitals.ts` (bản ghi chính thức) và `evaluateVitals()` trong
+`netlify/functions/ai-coordinator.ts` (quyết định phát `[CẢNH BÁO CẤP CỨU]`) - qua 27
+trường hợp phủ hai phía từng ngưỡng. Lệch nhau nghĩa là cán bộ trạm thấy CẤP CỨU
+trong khi hồ sơ chỉ ghi WARNING, hoặc AI vẫn nói chuyện bình thản ngay trước mặt
+người bệnh đang nguy kịch. Sửa ngưỡng ở một tệp thì phải sửa cả ba.
 
 ---
 
@@ -286,7 +338,10 @@ Hai tệp này đọc tài khoản thẳng từ bảng `users` trên Netlify Dat
 
 Trợ lý AI của trang (`POST /api/ai`) gọi mô hình Gemini của Google. Toàn bộ việc
 chọn giấy tờ xác thực nằm trong `netlify/lib/google-ai.ts`, nên đổi cách kết nối
-chỉ là đổi biến môi trường, không phải sửa mã.
+chỉ là đổi biến môi trường, không phải sửa mã. Hai điểm cuối lâm sàng
+`POST /api/clinical-ai` và `POST /api/ai-coordinator` dùng chung lớp kết nối này;
+riêng bộ điều phối đa bên vẫn chạy được khi mô hình hỏng vì lớp luật tất định của
+nó không phụ thuộc mạng.
 
 ### Ba đường kết nối, xét theo đúng thứ tự ưu tiên
 

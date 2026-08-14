@@ -289,6 +289,9 @@ async function startTeleconsultation(targetRoomId) {
   updateCallControlsUI();
   updateConnectionBadge(false, 'Đang mở camera và micro...');
   appendChatMessage('Hệ thống', 'Đang xin quyền camera và micro của thiết bị...');
+  // Mỗi lượt gọi là một bệnh nhân khác: dòng chảy điều phối phải bắt đầu lại từ
+  // Giai đoạn 1, không để tóm tắt của ca trước dính sang ca sau.
+  resetCoordinator();
 
   await initLocalCamera();
 
@@ -994,6 +997,16 @@ async function handleSignalMessage(msg) {
       remotePeerName = (msg.payload && msg.payload.name) || 'Y sĩ/ Bác sĩ';
       appendChatMessage('Hệ thống', `${remotePeerName} đã tham gia phòng khám.`);
       // Không tạo offer ở đây: bên vừa vào phòng mới là bên gọi.
+
+      /* Giai đoạn 2 của phiên điều phối: bác sĩ tuyến trên vừa vào phòng thì bản
+         tóm tắt SBAR phải có mặt ngay, không đợi cán bộ trạm nhớ ra mà bấm nút.
+         Chỉ điểm trạm dựng bản này (điểm trạm là nơi giữ sinh hiệu và bệnh sử);
+         tuyến trên nhận qua bản tin "coordinator" nên hai màn hình khớp nhau. */
+      const joinedRole = msg.payload && msg.payload.role;
+      if (!IS_DOCTOR_MODULE && joinedRole === 'doctor' && handoffSentForPeer !== msg.from) {
+        handoffSentForPeer = msg.from;
+        runCoordinator('handoff');
+      }
       break;
     }
 
@@ -1050,6 +1063,13 @@ async function handleSignalMessage(msg) {
       if (advice) appendChatMessage('Chỉ định', advice);
       break;
     }
+
+    /* Kết quả một lượt AI điều phối do đầu bên kia dựng. Vẽ lại nguyên văn thay
+       vì tự gọi lại máy chủ: hai bác sĩ và bệnh nhân phải cùng đọc một bản, và
+       một lượt điều phối chỉ nên tốn một lượt gọi mô hình. */
+    case 'coordinator':
+      renderCoordinatorResult(msg.payload, true);
+      break;
 
     /* Kết luận hội chẩn của đầu bên kia (chẩn đoán, đơn thuốc, lời dặn). Bác sĩ
        tuyến trên chốt bên module riêng thì điểm trạm thấy ngay, và ngược lại -
@@ -2752,6 +2772,12 @@ async function sendVitalsToDoctor() {
 
       // Automatically trigger AI Co-pilot analysis on new vitals submit
       requestAIConsultation();
+
+      /* Sinh hiệu ở mức cấp cứu là lúc AI điều phối phải lên tiếng với CẢ HAI
+         bác sĩ ngay, kèm lời trấn an cho bệnh nhân. Chỉ chạy ở mức CRITICAL:
+         mỗi lượt là một lượt gọi mô hình có tính phí, không bắn theo mọi lần đo. */
+      const serverStatus = evaluation?.status || localEval.status;
+      if (serverStatus === 'CRITICAL') runCoordinator('intake');
     }
   } catch (err) {
     console.error('Error submitting vitals:', err);
@@ -2961,6 +2987,350 @@ function renderAIResults(data) {
   if (confidenceEl) confidenceEl.textContent = `Độ tin cậy AI: ${data.aiConfidence || '94%'}`;
 }
 
+// 6B. AI Điều phối Khám đa bên (Multi-Party AI Medical Coordinator)
+/*
+ * Một buổi khám từ xa ở đây luôn có ba bên ngồi ba nơi: bệnh nhân, cán bộ y tế
+ * điểm trạm và bác sĩ chuyên khoa tuyến trên. Trợ lý AI Co-Pilot ở mục 6 chỉ
+ * phục vụ cán bộ trạm; phần này lo việc còn lại - dựng nội dung ĐÃ GẮN NHÃN
+ * người nhận rồi phát đúng chỗ:
+ *
+ *   [Chung]        - thông báo cả ba bên cùng theo dõi.
+ *   [Gửi Bệnh nhân] - lời mộc mạc, không thuật ngữ, đẩy luôn vào khung hội thoại
+ *                     để bệnh nhân ngồi cạnh cán bộ trạm đọc/nghe được.
+ *   [Gửi Bác sĩ...] - SBAR/SOAP cho hai bác sĩ, KHÔNG đẩy vào khung hội thoại
+ *                     chung mà chỉ hiện trong bảng điều phối của hai đầu.
+ *
+ * Bốn giai đoạn khớp với /api/ai-coordinator: intake -> handoff -> explain ->
+ * wrapup. Mỗi kết quả được phát sang đầu bên kia bằng bản tin signaling
+ * "coordinator" nên hai màn hình luôn nhìn thấy cùng một nội dung điều phối.
+ */
+
+/** Giai đoạn đang chạy của phiên điều phối (1..4). */
+let coordinatorPhase = 1;
+let coordinatorBusy = false;
+/** Kết quả gần nhất - nút "Chèn dự thảo vào đơn" đọc lại từ đây. */
+let lastCoordinatorData = null;
+/** Chống bắn trùng bản tóm tắt bàn giao khi tuyến trên vào/ra phòng liên tục. */
+let handoffSentForPeer = null;
+
+const COORDINATOR_AUDIENCE = {
+  all: { label: 'CHUNG', cls: 'border-sky-500/60 bg-sky-950/40 text-sky-200' },
+  patient: { label: 'GỬI BỆNH NHÂN', cls: 'border-emerald-500/60 bg-emerald-950/40 text-emerald-200' },
+  clinician: { label: 'GỬI BÁC SĨ', cls: 'border-indigo-500/60 bg-indigo-950/40 text-indigo-200' }
+};
+
+/** Gom toàn bộ bối cảnh buổi khám đang mở để gửi lên máy chủ. */
+function coordinatorContext() {
+  const val = (id) => document.getElementById(id)?.value?.trim() || '';
+  return {
+    patient: {
+      name: val('patient-name') || 'Bệnh nhân',
+      age: val('patient-age'),
+      gender: val('patient-gender')
+    },
+    vitals: currentVitals,
+    symptoms: val('patient-symptoms'),
+    notes: val('clinical-notes'),
+    history: val('patient-history'),
+    conclusion: {
+      diagnosis: val('station-dx-diagnosis'),
+      drugs: val('station-dx-drugs'),
+      advice: val('station-doctor-advice')
+    },
+    doctorName: remotePeerName || '',
+    stationLabel: `${stationCode} - ${stationName(stationCode)}`
+  };
+}
+
+/** Cập nhật thẻ giai đoạn trên đầu bảng điều phối. */
+function renderCoordinatorPhase(phase, label) {
+  coordinatorPhase = phase || coordinatorPhase;
+  const badge = document.getElementById('coordinator-phase');
+  if (badge) badge.textContent = `GĐ ${coordinatorPhase}/4`;
+  const labelEl = document.getElementById('coordinator-phase-label');
+  if (labelEl && label) labelEl.textContent = label;
+}
+
+/** Một thẻ thông điệp trong dòng chảy điều phối. Nội dung luôn đi qua textContent. */
+function appendCoordinatorEntry(entry) {
+  const stream = document.getElementById('coordinator-stream');
+  if (!stream) return;
+
+  const empty = document.getElementById('coordinator-empty');
+  if (empty) empty.remove();
+
+  const meta = COORDINATOR_AUDIENCE[entry.audience] || COORDINATOR_AUDIENCE.all;
+  const card = document.createElement('div');
+  card.className = `border rounded-xl px-2.5 py-2 space-y-1 ${meta.cls}`;
+
+  const head = document.createElement('div');
+  head.className = 'flex items-center justify-between gap-2';
+
+  const tag = document.createElement('span');
+  tag.className = 'text-[9px] font-black tracking-wider';
+  tag.textContent = entry.label || `[${meta.label}]`;
+  head.appendChild(tag);
+
+  const time = document.createElement('span');
+  time.className = 'text-[9px] opacity-70 font-mono shrink-0';
+  time.textContent = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  head.appendChild(time);
+
+  const body = document.createElement('p');
+  body.className = 'text-[11px] leading-relaxed whitespace-pre-line text-slate-100';
+  body.textContent = entry.text || '';
+
+  card.appendChild(head);
+  card.appendChild(body);
+  stream.appendChild(card);
+  stream.scrollTop = stream.scrollHeight;
+}
+
+/** Bảng SBAR bàn giao cho tuyến trên (kèm số từ để thấy rõ trần 150 từ). */
+function renderCoordinatorSbar(sbar, wordCount) {
+  const box = document.getElementById('coordinator-sbar');
+  if (!box) return;
+  if (!sbar) {
+    box.classList.add('hidden');
+    return;
+  }
+  const rows = [
+    ['S - Tình huống', sbar.situation],
+    ['B - Bối cảnh', sbar.background],
+    ['A - Nhận định', sbar.assessment],
+    ['R - Đề xuất', sbar.recommendation]
+  ];
+  box.innerHTML = '';
+  const title = document.createElement('div');
+  title.className = 'text-[9px] font-black tracking-wider text-indigo-300 flex justify-between';
+  const titleText = document.createElement('span');
+  titleText.textContent = 'TÓM TẮT SBAR CHO TUYẾN TRÊN';
+  const counter = document.createElement('span');
+  counter.className = 'font-mono opacity-80';
+  counter.textContent = `${wordCount || 0}/150 từ`;
+  title.appendChild(titleText);
+  title.appendChild(counter);
+  box.appendChild(title);
+
+  for (const [label, value] of rows) {
+    const row = document.createElement('p');
+    row.className = 'text-[11px] leading-relaxed text-slate-200';
+    const strong = document.createElement('span');
+    strong.className = 'font-bold text-indigo-300';
+    strong.textContent = `${label}: `;
+    row.appendChild(strong);
+    row.appendChild(document.createTextNode(value || '--'));
+    box.appendChild(row);
+  }
+  box.classList.remove('hidden');
+}
+
+/** Toa thuốc & hướng dẫn DỰ THẢO của giai đoạn 4, chờ hai bác sĩ duyệt/ký số. */
+function renderCoordinatorDraft(draft) {
+  const box = document.getElementById('coordinator-draft');
+  if (!box) return;
+  if (!draft) {
+    box.classList.add('hidden');
+    return;
+  }
+  const lines = [
+    ['Chẩn đoán (theo Bác sĩ)', draft.diagnosis],
+    ['Thuốc', (draft.prescription || []).map(rx => rx.name).filter(Boolean).join('; ')],
+    ['Lời dặn', draft.advice],
+    ['Theo dõi/tái khám', draft.followUp]
+  ];
+  box.innerHTML = '';
+  const title = document.createElement('div');
+  title.className = 'text-[9px] font-black tracking-wider text-amber-300';
+  title.textContent = 'TOA THUỐC & HƯỚNG DẪN (DỰ THẢO - CHỜ BÁC SĨ DUYỆT/KÝ SỐ)';
+  box.appendChild(title);
+  for (const [label, value] of lines) {
+    const row = document.createElement('p');
+    row.className = 'text-[11px] leading-relaxed text-slate-200';
+    const strong = document.createElement('span');
+    strong.className = 'font-bold text-amber-300';
+    strong.textContent = `${label}: `;
+    row.appendChild(strong);
+    row.appendChild(document.createTextNode(value || 'chưa có'));
+    box.appendChild(row);
+  }
+  box.classList.remove('hidden');
+}
+
+/**
+ * Vẽ toàn bộ kết quả một lượt điều phối.
+ *
+ * @param {object} data   phần data của /api/ai-coordinator
+ * @param {boolean} remote true nếu nội dung do đầu bên kia phát sang
+ */
+function renderCoordinatorResult(data, remote) {
+  if (!data) return;
+  lastCoordinatorData = data;
+  renderCoordinatorPhase(data.phase, data.stageLabel);
+
+  for (const msg of data.messages || []) {
+    appendCoordinatorEntry({
+      audience: msg.audience,
+      label: remote ? `${msg.label} · từ đầu bên kia` : msg.label,
+      text: msg.text
+    });
+    // Lời dành cho bệnh nhân phải hiện ở khung hội thoại chung: bệnh nhân ngồi
+    // cạnh cán bộ trạm và chỉ nhìn được khung đó, không nhìn bảng điều phối.
+    if (msg.audience === 'patient' && !remote) {
+      appendChatMessage('Trợ lý AI → Bệnh nhân', msg.text);
+    }
+  }
+
+  renderCoordinatorSbar(data.sbar, data.sbarWordCount);
+  renderCoordinatorDraft(data.draft);
+
+  const flagsBox = document.getElementById('coordinator-red-flags');
+  if (flagsBox) {
+    flagsBox.innerHTML = '';
+    if (data.emergency && (data.redFlags || []).length) {
+      for (const flag of data.redFlags) {
+        const row = document.createElement('div');
+        row.textContent = `⚠️ ${flag}`;
+        flagsBox.appendChild(row);
+      }
+      flagsBox.classList.remove('hidden');
+      // Cảnh báo cấp cứu phải đập vào mắt cả hai bác sĩ, không nằm im trong bảng.
+      showAlertBanner(data.redFlags.join(' '), 'CRITICAL');
+      playBeepTone(1200, 220);
+    } else {
+      flagsBox.classList.add('hidden');
+    }
+  }
+
+  const note = document.getElementById('coordinator-source');
+  if (note) {
+    const via = data.source === 'rules' || data.source === 'rules-fallback'
+      ? 'bộ luật lâm sàng tại chỗ'
+      : `mô hình ${data.model || 'Gemini'}`;
+    note.textContent = `${data.disclaimer || ''} (Nguồn: ${via})`;
+  }
+}
+
+/** Bật/tắt trạng thái đang chạy cho cả cụm nút của bảng điều phối. */
+function setCoordinatorBusy(busy) {
+  coordinatorBusy = busy;
+  const spinner = document.getElementById('coordinator-busy');
+  if (spinner) spinner.classList.toggle('hidden', !busy);
+  document.querySelectorAll('[data-coordinator-btn]').forEach(btn => {
+    btn.disabled = busy;
+    btn.classList.toggle('opacity-50', busy);
+  });
+}
+
+/**
+ * Chạy một giai đoạn điều phối và phát kết quả sang đầu bên kia.
+ *
+ * @param {'intake'|'handoff'|'explain'|'wrapup'} stage
+ * @param {object} [extra] trường bổ sung theo giai đoạn (VD { term } cho explain)
+ */
+async function runCoordinator(stage, extra) {
+  if (coordinatorBusy) return null;
+  setCoordinatorBusy(true);
+  try {
+    const payload = Object.assign({ stage }, coordinatorContext(), extra || {});
+    const response = await stationApiFetch('/api/ai-coordinator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!result.success || !result.data) {
+      appendCoordinatorEntry({
+        audience: 'all',
+        label: '[Chung]',
+        text: result.message || 'Chưa dựng được nội dung điều phối. Vui lòng thử lại.'
+      });
+      return null;
+    }
+    renderCoordinatorResult(result.data, false);
+    // Đầu bên kia nhận đúng nội dung này, không phải một bản dựng lại khác.
+    if (callActive && peerId) sendSignal('coordinator', result.data);
+    return result.data;
+  } catch (err) {
+    console.error('AI điều phối lỗi:', err);
+    appendCoordinatorEntry({
+      audience: 'all',
+      label: '[Chung]',
+      text: 'Không liên hệ được Trợ lý AI điều phối. Buổi khám vẫn tiếp tục bình thường.'
+    });
+    return null;
+  } finally {
+    setCoordinatorBusy(false);
+  }
+}
+
+/** Giai đoạn 3: dịch một thuật ngữ bác sĩ vừa dùng sang lời bệnh nhân hiểu được. */
+function explainTermForPatient() {
+  const input = document.getElementById('coordinator-term');
+  const term = input?.value?.trim();
+  if (!term) {
+    appendCoordinatorEntry({
+      audience: 'all',
+      label: '[Chung]',
+      text: 'Nhập thuật ngữ bác sĩ vừa dùng để Trợ lý AI giải thích cho bệnh nhân.'
+    });
+    return;
+  }
+  if (input) input.value = '';
+  runCoordinator('explain', { term });
+}
+
+/** Chèn dự thảo của giai đoạn 4 vào các ô đơn thuốc - chỉ điền vào ô còn trống. */
+function applyCoordinatorDraft() {
+  const draft = lastCoordinatorData?.draft;
+  if (!draft) return;
+  const fill = (id, value) => {
+    const el = document.getElementById(id);
+    if (el && value && !el.value.trim()) {
+      el.value = value;
+      return true;
+    }
+    return false;
+  };
+  const drugs = (draft.prescription || [])
+    .map((rx, idx) => `${idx + 1}. ${rx.name}${rx.dosage ? ' - ' + rx.dosage : ''}`)
+    .join('\n');
+
+  const filled = [
+    fill('station-dx-diagnosis', draft.diagnosis),
+    fill('station-dx-drugs', drugs),
+    fill('station-doctor-advice', draft.advice)
+  ].some(Boolean);
+
+  appendCoordinatorEntry({
+    audience: 'all',
+    label: '[Chung]',
+    text: filled
+      ? 'Đã chèn dự thảo vào ô đơn thuốc. Bác sĩ kiểm tra lại rồi ký số trước khi in phiếu.'
+      : 'Các ô đơn thuốc đã có nội dung - dự thảo không ghi đè lên phần bác sĩ đã nhập.'
+  });
+  if (filled && typeof window.syncStationPrescriptionData === 'function') {
+    window.syncStationPrescriptionData();
+  }
+}
+
+/** Xoá dòng chảy điều phối khi chuyển sang bệnh nhân khác. */
+function resetCoordinator() {
+  lastCoordinatorData = null;
+  handoffSentForPeer = null;
+  coordinatorPhase = 1;
+  const stream = document.getElementById('coordinator-stream');
+  if (stream) stream.innerHTML = '';
+  ['coordinator-sbar', 'coordinator-draft', 'coordinator-red-flags'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.innerHTML = '';
+      el.classList.add('hidden');
+    }
+  });
+  renderCoordinatorPhase(1, 'Giai đoạn 1 - Tiếp nhận & Chuẩn bị');
+}
+
 // 7. Finish Consultation & Export Examination Sheet Report
 async function finishAndExportReport() {
   const val = (id) => document.getElementById(id)?.value?.trim() || '';
@@ -3029,6 +3399,11 @@ async function finishAndExportReport() {
     treatmentPlan,
     advice: manualAdvice
   });
+
+  /* Giai đoạn 4 của phiên điều phối: dựng "Toa thuốc & Hướng dẫn điều trị dự
+     thảo" từ ĐÚNG kết luận vừa chốt, kèm lời dặn mộc mạc cho bệnh nhân. Chạy
+     song song với cửa sổ phiếu khám - bác sĩ không phải chờ AI mới in được. */
+  runCoordinator('wrapup');
 
   if (!reportData) {
     appendChatMessage('Hệ thống', 'Chưa lưu được phiếu khám lên máy chủ - bản in A5 vẫn sẵn sàng để in.');
@@ -3471,6 +3846,19 @@ window.refreshAudioDeviceOptions = refreshAudioDeviceOptions;
 window.toggleSpeechToText = toggleSpeechToText;
 window.sendVitalsToDoctor = sendVitalsToDoctor;
 window.requestAIConsultation = requestAIConsultation;
+/* AI Điều phối khám đa bên - bốn giai đoạn được markup gọi thẳng bằng onclick. */
+window.runCoordinatorIntake = () => runCoordinator('intake');
+window.runCoordinatorHandoff = () => runCoordinator('handoff');
+window.runCoordinatorWrapup = () => runCoordinator('wrapup');
+window.explainTermForPatient = explainTermForPatient;
+window.handleCoordinatorTermKey = function(event) {
+  if (event && event.key === 'Enter') {
+    event.preventDefault();
+    explainTermForPatient();
+  }
+};
+window.applyCoordinatorDraft = applyCoordinatorDraft;
+window.resetCoordinator = resetCoordinator;
 window.finishAndExportReport = finishAndExportReport;
 window.closeReportModal = closeReportModal;
 window.openLoginModal = openLoginModal;
