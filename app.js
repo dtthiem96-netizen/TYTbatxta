@@ -237,7 +237,12 @@ if (document.readyState === 'loading') {
   Promise.resolve().then(startStationPanel);
 }
 
-/** Hiển thị mã điểm trạm, tên điểm trạm và cán bộ trực trên mọi vị trí liên quan. */
+/**
+ * Hiển thị điểm trạm được CMS chỉ định và cán bộ trực trên mọi vị trí liên quan.
+ *
+ * Không còn ô chọn trạm nào: điểm trạm là thuộc tính của tài khoản, nên ở đây
+ * chỉ có việc CHIẾU nó ra màn hình chứ không có đường nào đổi được.
+ */
 function renderStationIdentity() {
   const elCode = document.getElementById('display-station-code');
   if (elCode) {
@@ -248,42 +253,30 @@ function renderStationIdentity() {
   const elOp = document.getElementById('display-operator-name');
   if (elOp) elOp.textContent = operatorName;
 
-  ['input-station-code', 'station-switcher'].forEach(id => {
-    const sel = document.getElementById(id);
-    if (sel && sel.value !== stationCode) sel.value = stationCode;
+  /* Điểm trạm cố định hiện ở đầu Bảng điều khiển và trong hộp đăng nhập. Đây là
+     nhãn chứ không phải ô chọn: nơi trực do CMS Quản trị gán cho tài khoản, cán
+     bộ không tự đổi được. Chưa đăng nhập thì chưa biết trạm nào nên giấu đi. */
+  ['bound-station-name', 'login-bound-station-name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = stationCode ? `${stationName(stationCode)} [${stationCode}]` : 'Chưa được CMS Quản trị chỉ định';
+    if (id === 'bound-station-name') el.classList.toggle('hidden', !stationCode);
   });
-}
-
-/**
- * Chuyển sang một điểm trạm khu vực khác: rời phòng trực cũ và vào phòng trực
- * của điểm trạm mới để tuyến trên nhìn thấy đúng nơi đang cần hỗ trợ.
- */
-function switchStation(code) {
-  if (!code || code === stationCode) return;
-
-  const previousPeerId = peerId;
-  const previousRoomId = roomId;
-
-  stationCode = code;
-  roomId = defaultRoomForStation(code);
-  renderStationIdentity();
-
-  if (previousPeerId && previousRoomId) {
-    fetch(SIGNAL_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'leave', roomId: previousRoomId, peerId: previousPeerId })
-    }).catch(() => {});
+  const roomEl = document.getElementById('bound-station-room');
+  if (roomEl) {
+    // Phòng gọi cố định của điểm trạm - cũng chính là phòng người dân vào khi chọn trạm này.
+    roomEl.textContent = stationCode ? defaultRoomForStation(stationCode) : '';
+    roomEl.classList.toggle('hidden', !stationCode);
   }
 
-  appendChatMessage('Hệ thống', `Đã chuyển sang ${stationName(code)} [${code}].`);
-
-  // Chỉ vào phòng của điểm trạm mới khi đang thực sự có cuộc gọi. Đổi điểm trạm
-  // lúc chưa gọi chỉ là chọn nơi trực, không phải lệnh mở cuộc gọi.
-  if (callActive) {
-    joinRoom();
-  } else {
-    updateConnectionBadge(false, 'Chưa kết nối - bấm "Bắt đầu cuộc gọi"');
+  /* Riêng module Bác sĩ tuyến trên vẫn còn ô chọn điểm trạm, vì tuyến trên hỗ trợ
+     MỌI điểm trạm - ô đó chỉ để ưu tiên hàng đợi chứ không phải nơi trực cố định.
+     Bảng điều khiển trạm không còn hai ô này nên vòng lặp bên dưới không tìm thấy gì. */
+  if (IS_DOCTOR_MODULE) {
+    ['input-station-code', 'station-switcher'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel && sel.value !== stationCode) sel.value = stationCode;
+    });
   }
 }
 
@@ -475,7 +468,7 @@ function populateCmsAccountsDropdown() {
     if ((u.status || 'ACTIVE').toUpperCase() === 'DISABLED') return false;
     /* Bảng điều khiển đã gộp khu Quản trị điểm trạm vào, nên Quản trị viên luôn
        có lối vào kể cả khi không được cấp quyền trực khám - họ vào để cấu hình
-       phòng Zoom, tài khoản nhận cuộc gọi và định tuyến. Cùng quy tắc với nhánh
+       điểm trạm, tài khoản nhận cuộc gọi và định tuyến. Cùng quy tắc với nhánh
        scope "control" ở /api/station-auth. */
     if (/Admin|Quản trị|Quan tri/i.test(u.role || '')) return true;
     if (u.stationAccess === 'true') return true;
@@ -534,6 +527,17 @@ function onCmsAccountSelect(username) {
     operatorName = found.name;
     const nameInput = document.getElementById('input-operator-name');
     if (nameInput) nameInput.value = found.name;
+  }
+  /* Xem trước điểm trạm mà CMS Quản trị đã gắn cho tài khoản này. Cán bộ không
+     chọn nơi trực nữa, nên phải thấy ngay mình sẽ trực phòng gọi của trạm nào -
+     và thấy luôn nếu chưa được gán để đi hỏi Quản trị thay vì đăng nhập rồi bị
+     máy chủ từ chối. Giá trị chốt vẫn là do máy chủ trả về lúc đăng nhập. */
+  const el = document.getElementById('login-bound-station-name');
+  if (el) {
+    const code = String((found && found.stationCode) || '').trim();
+    el.textContent = code
+      ? `${stationName(code)} [${code}]`
+      : 'Chưa được CMS Quản trị gán điểm trạm';
   }
 }
 
@@ -650,22 +654,39 @@ function queueStationCode(r) {
 }
 
 /**
+ * Cuộc gọi thuộc phạm vi tiếp nhận của màn hình đang mở.
+ *
+ * Bảng điều khiển điểm trạm CHỈ thấy cuộc gọi của điểm trạm CMS Quản trị đã gán
+ * cho tài khoản - kể cả cuộc gọi đang đổ chuông sang trạm này theo bậc leo thang
+ * dự phòng. Module Bác sĩ tuyến trên thì ngược lại: hỗ trợ mọi điểm trạm nên
+ * không lọc. Đây là bản lọc của giao diện; máy chủ vẫn từ chối lần nữa ở
+ * /api/signal nếu có ai gọi thẳng vào phòng của trạm khác.
+ */
+function isCallForThisStation(r) {
+  if (IS_DOCTOR_MODULE) return true;
+  if (!stationCode) return false;
+  if (queueStationCode(r) === stationCode) return true;
+  // Trạm dự phòng: máy chủ đã chuyển chuông sang đây thì cán bộ ở đây được nhận.
+  return Boolean(r && r.ringingStation && r.ringingStation === stationCode);
+}
+
+/**
  * Cuộc gọi sẽ được nhận khi bấm nút tiếp nhận nhanh.
  *
- * Thứ tự ưu tiên: cuộc gọi đã leo thang (người dân chờ lâu nhất và chưa ai nhận)
- * rồi mới tới cuộc gọi của chính điểm trạm này, cuối cùng là cuộc chờ lâu nhất.
+ * Ưu tiên cuộc đã leo thang (người dân chờ lâu nhất và chưa ai nhận), sau đó
+ * tới cuộc chờ lâu nhất - trong phạm vi điểm trạm của tài khoản.
  */
 function nextPendingCall() {
-  const waiting = pendingCallQueue.filter(r => !r.hasDoctor && r.routingState !== 'ACCEPTED');
+  const waiting = pendingCallQueue
+    .filter(r => !r.hasDoctor && r.routingState !== 'ACCEPTED')
+    .filter(isCallForThisStation);
   if (!waiting.length) return null;
   const byWait = (a, b) => Number(a.since || 0) - Number(b.since || 0);
 
-  const mine = waiting.filter(r => queueStationCode(r) === stationCode);
-  const escalatedMine = mine.filter(r => r.escalated || r.exhausted);
-  if (escalatedMine.length) return escalatedMine.slice().sort(byWait)[0];
+  const escalated = waiting.filter(r => r.escalated || r.exhausted);
+  if (escalated.length) return escalated.slice().sort(byWait)[0];
 
-  const pool = mine.length ? mine : waiting;
-  return pool.slice().sort(byWait)[0];
+  return waiting.slice().sort(byWait)[0];
 }
 
 /** Nút "Tiếp nhận cuộc gọi" của khung "Cuộc gọi chờ từ Người dân". */
@@ -690,7 +711,11 @@ async function refreshIncomingCallsQueue(wait) {
   if (!res.ok) throw new Error('rooms ' + res.status);
   const data = await res.json();
   if (typeof data.sig === 'string') queueSignature = data.sig;
-  const rooms = (data.rooms || []).filter(r => r.roomId !== '__lobby__');
+  /* Hàng đợi hiển thị đã cắt theo điểm trạm được chỉ định: cán bộ không nhìn
+     thấy - và do đó không bấm nhầm vào - cuộc gọi của điểm trạm khác. */
+  const rooms = (data.rooms || [])
+    .filter(r => r.roomId !== '__lobby__')
+    .filter(isCallForThisStation);
   pendingCallQueue = rooms;
 
   const countEl = document.getElementById('station-queue-count');
@@ -701,7 +726,9 @@ async function refreshIncomingCallsQueue(wait) {
 
   if (!listEl) return;
   if (rooms.length === 0) {
-    listEl.innerHTML = '<div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>';
+    listEl.innerHTML = IS_DOCTOR_MODULE
+      ? '<div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>'
+      : `<div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào gọi tới ${queueText(stationName(stationCode) || stationCode)}. Đang chờ kết nối...</div>`;
     return;
   }
 
@@ -712,7 +739,7 @@ async function refreshIncomingCallsQueue(wait) {
       // đậm khi cuộc gọi đang đổ chuông vào chính điểm trạm cán bộ đang trực.
       const targetCode = queueStationCode(r);
       const targetName = r.stationName || stationName(targetCode) || '';
-      const forMe = targetCode && targetCode === stationCode;
+      const forMe = Boolean(targetCode) && targetCode === stationCode;
       const targetBadge = targetName
         ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${forMe ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-700 text-slate-300'}">
              <i class="fa-solid fa-location-dot"></i> ${queueText(targetName)}
@@ -887,18 +914,25 @@ function syncStationIdCard() {
  * điều kiện; ai bấm sau nhận lại tên người đã nhận. Không có bước này thì hai
  * cán bộ có thể cùng lao vào một bệnh nhân.
  *
- * Trả về { ok, zoom } - ok=false nghĩa là đừng vào phòng nữa.
+ * Máy chủ đối chiếu điểm trạm của cuộc gọi với điểm trạm CMS Quản trị đã gán
+ * cho tài khoản; lệch trạm thì trả 403 và cán bộ KHÔNG được vào phòng.
+ *
+ * Trả về { ok } - ok=false nghĩa là đừng vào phòng nữa.
  */
 async function claimPatientCall(targetRoomId) {
+  let denied = false;
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = (typeof window.getStationToken === 'function') ? window.getStationToken() : '';
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
     const res = await fetch(SIGNAL_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         action: 'accept',
         roomId: targetRoomId,
         peerId: peerId || newPeerId(),
-        userId: (loggedInCmsUser && loggedInCmsUser.id) || '',
         name: operatorName
       })
     });
@@ -915,34 +949,30 @@ async function claimPatientCall(targetRoomId) {
         refreshIncomingCallsQueue(false).catch(() => {});
         return { ok: false };
       }
+      /* Máy chủ từ chối vì lệch điểm trạm hoặc phiên hết hạn: đây là câu trả lời
+         DỨT KHOÁT, không phải sự cố mạng, nên tuyệt đối không đi tiếp vào nhánh
+         "vẫn cho vào phòng" bên dưới. */
+      if (res.status === 401 || res.status === 403) {
+        denied = true;
+        const message = (data && data.error) || 'Tài khoản không được phép tiếp nhận cuộc gọi này.';
+        showAlertBanner(message);
+        if (res.status === 401 && typeof window.handleStationAuthFailure === 'function') {
+          window.handleStationAuthFailure(message);
+        }
+        refreshIncomingCallsQueue(false).catch(() => {});
+        return { ok: false };
+      }
       throw new Error((data && data.error) || 'accept ' + res.status);
     }
-    return { ok: true, zoom: data.zoom || null };
+    return { ok: true };
   } catch (err) {
+    if (denied) return { ok: false };
     /* Mất mạng đúng lúc bấm: vẫn cho vào phòng. Kết nối WebRTC không phụ thuộc
        vào lượt ghi nhận này, mà người dân thì đang chờ - chặn ở đây thiệt hại
        lớn hơn là ghi nhận thiếu một dòng trạng thái. */
     console.warn('Không ghi nhận được lượt tiếp nhận:', err && err.message);
-    return { ok: true, zoom: null, offline: true };
+    return { ok: true, offline: true };
   }
-}
-
-/** Thanh phòng Zoom trong Bảng điều khiển điểm trạm. */
-function renderStationZoomBar(zoom) {
-  const bar = document.getElementById('station-zoom-bar');
-  if (!bar) return;
-  if (!zoom || !zoom.joinUrl) { bar.classList.add('hidden'); return; }
-
-  const link = document.getElementById('station-zoom-link');
-  if (link) link.href = zoom.joinUrl;
-  const meta = document.getElementById('station-zoom-meta');
-  if (meta) {
-    meta.textContent = [
-      zoom.meetingId ? 'Mã phòng ' + zoom.meetingId : '',
-      zoom.passcode ? 'Mật khẩu ' + zoom.passcode : ''
-    ].filter(Boolean).join(' · ');
-  }
-  bar.classList.remove('hidden');
 }
 
 async function acceptPatientCall(targetRoomId, patientName, symptoms, patientIdCardValue) {
@@ -950,7 +980,6 @@ async function acceptPatientCall(targetRoomId, patientName, symptoms, patientIdC
 
   const claim = await claimPatientCall(targetRoomId);
   if (!claim.ok) return;
-  renderStationZoomBar(claim.zoom);
   if (claim.offline) {
     showAlertBanner('Không liên lạc được máy chủ điều phối, vẫn đang kết nối trực tiếp với người dân.');
   }
@@ -1014,13 +1043,37 @@ function signalRole() {
   return role === 'superior_doctor' ? 'doctor' : 'station';
 }
 
+/**
+ * Gửi một lệnh signaling kèm phiếu phiên.
+ *
+ * Máy chủ đọc điểm trạm của cán bộ TỪ PHIẾU chứ không từ nội dung gửi lên, nên
+ * thiếu phiếu là không vào được phòng khám nào - kể cả phòng của chính mình.
+ */
+/* Phiếu phiên đi kèm mọi lệnh gọi /api/signal. Máy chủ đọc điểm trạm được CMS
+   Quản trị gán từ phiếu này chứ không tin mã trạm trình duyệt gửi lên, nên cán
+   bộ không thể trực phòng gọi của điểm trạm khác. */
+function signalHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = (typeof window.getStationToken === 'function') ? window.getStationToken() : '';
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  return headers;
+}
+
 async function signalPost(body) {
   const res = await fetch(SIGNAL_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: signalHeaders(),
     body: JSON.stringify(Object.assign({ roomId, peerId }, body))
   });
-  if (!res.ok) throw new Error('Signaling lỗi ' + res.status);
+  if (!res.ok) {
+    const data = await res.clone().json().catch(() => null);
+    if (res.status === 401 || res.status === 403) {
+      const message = (data && data.error) || 'Phiên làm việc không còn hiệu lực. Vui lòng đăng nhập lại.';
+      if (typeof window.handleStationAuthFailure === 'function') window.handleStationAuthFailure(message);
+      throw new Error(message);
+    }
+    throw new Error('Signaling lỗi ' + res.status);
+  }
   return res.json();
 }
 
@@ -4189,14 +4242,19 @@ function setStationLoginStatus(message, tone) {
   el.textContent = message;
 }
 
+/**
+ * Đăng nhập Bảng điều khiển.
+ *
+ * KHÔNG có bước chọn điểm trạm: điểm trạm đi kèm tài khoản do CMS Quản trị gán,
+ * máy chủ trả về trong result.station và giao diện chỉ việc nhận lấy. Cán bộ
+ * không có cách nào trực một điểm trạm khác ngoài điểm được chỉ định.
+ */
 async function submitLogin() {
-  const code = document.getElementById('input-station-code').value.trim();
   const selectedCmsUsername = (document.getElementById('input-cms-account')?.value || '').trim();
   const typedName = document.getElementById('input-operator-name').value.trim();
   const password = document.getElementById('input-station-password')?.value || '';
   const submitBtn = document.getElementById('station-login-submit');
 
-  if (!code) return setStationLoginStatus('Vui lòng chọn điểm trạm đang trực.', 'error');
   if (!selectedCmsUsername) return setStationLoginStatus(IS_DOCTOR_MODULE
     ? 'Vui lòng chọn tài khoản Bác sĩ tuyến trên đã được CMS Quản trị cấp quyền.'
     : 'Vui lòng chọn tài khoản cán bộ đã được CMS Quản trị cấp quyền.', 'error');
@@ -4234,9 +4292,19 @@ async function submitLogin() {
 
   const previousPeerId = peerId;
   const previousRoomId = roomId;
-  const stationChanged = code !== stationCode;
 
-  stationCode = code;
+  /* Điểm trạm lấy theo thứ tự: khối station máy chủ trả về, rồi cột station_code
+     của hồ sơ tài khoản. Cán bộ KHÔNG được tự chọn nơi trực - đây là điểm trạm
+     CMS Quản trị đã gắn cho tài khoản, và cũng là phòng gọi duy nhất tài khoản
+     được vào. Bác sĩ tuyến trên thì không thuộc trạm nào: họ hỗ trợ mọi nơi nên
+     lấy theo ô chọn ở cửa sổ đăng nhập của module tuyến trên. */
+  const pickedCode = IS_DOCTOR_MODULE
+    ? String(document.getElementById('input-station-code')?.value || '').trim()
+    : '';
+  const assignedCode = String((result.station && result.station.code) || authUser.stationCode || pickedCode || '').trim();
+  const stationChanged = Boolean(assignedCode) && assignedCode !== stationCode;
+
+  if (assignedCode) stationCode = assignedCode;
   operatorName = authUser.name || typedName || authUser.username;
   // Vai trò cố định theo module: điểm trạm là Cán bộ Y tế, module riêng của
   // tuyến trên luôn vào phòng khám với vai trò Bác sĩ.
@@ -4256,7 +4324,8 @@ async function submitLogin() {
       username: authUser.username,
       name: operatorName,
       role: authUser.role || '',
-      stationCode: authUser.stationCode || stationCode,
+      stationCode: (result.station && result.station.code) || authUser.stationCode || stationCode,
+      stationName: (result.station && result.station.name) || '',
       loginAt: Date.now()
     });
   }
@@ -4453,13 +4522,48 @@ window.startTeleconsultation = startTeleconsultation;
 window.endTeleconsultation = endTeleconsultation;
 /** Bảng điều khiển hỏi trạng thái cuộc gọi trước khi cho đóng hẳn module. */
 window.isStationCallActive = function() { return callActive; };
-window.switchStation = switchStation;
+/**
+ * Đổi điểm trạm đang ưu tiên trong hàng đợi - CHỈ dành cho module Bác sĩ tuyến trên.
+ *
+ * Cán bộ điểm trạm không còn hàm này: mỗi tài khoản do CMS Quản trị cấp được gắn
+ * với đúng MỘT điểm trạm và chỉ trực đúng phòng gọi của nơi đó, nên Bảng điều
+ * khiển trạm không có ô chuyển trạm nữa. Tuyến trên thì ngược lại - họ nhận cuộc
+ * gọi leo thang từ mọi điểm trạm, nên vẫn cần chọn nơi đang muốn hỗ trợ trước.
+ * Máy chủ vẫn tự quyết định lần cuối: /api/signal chỉ miễn ràng buộc điểm trạm
+ * cho phiếu phiên mang phạm vi "doctor" hoặc "admin".
+ */
+window.switchStation = function(code) {
+  if (!IS_DOCTOR_MODULE) return;
+  if (!code || code === stationCode) return;
+
+  const previousPeerId = peerId;
+  const previousRoomId = roomId;
+
+  stationCode = code;
+  roomId = defaultRoomForStation(code);
+  renderStationIdentity();
+
+  if (previousPeerId && previousRoomId) {
+    fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: signalHeaders(),
+      body: JSON.stringify({ action: 'leave', roomId: previousRoomId, peerId: previousPeerId })
+    }).catch(() => {});
+  }
+
+  appendChatMessage('Hệ thống', `Đã chuyển sang ${stationName(code)} [${code}].`);
+
+  // Chỉ vào phòng của điểm trạm mới khi đang thực sự có cuộc gọi. Đổi điểm trạm
+  // lúc chưa gọi chỉ là chọn nơi trực, không phải lệnh mở cuộc gọi.
+  if (callActive) joinRoom();
+};
 /**
  * Khôi phục danh tính sau khi lớp vỏ của trang xác minh lại một phiên đã lưu.
  *
- * Khác switchStation(): không rời/vào phòng khám và không ghi dòng nhật ký "đã
- * chuyển trạm" - đây chỉ là dựng lại đúng tên người trực và điểm trạm của phiên
- * cũ, chưa phải một thao tác nghiệp vụ. Chỉ nhận mã điểm trạm có trong danh mục.
+ * Chỉ dựng lại tên người trực và điểm trạm của phiên cũ, không rời/vào phòng
+ * khám nào. Điểm trạm vẫn phải là một mã có trong danh mục - phiên lưu trong
+ * trình duyệt không phải nguồn tin cậy, và máy chủ vẫn đối chiếu lại ở mọi lệnh
+ * gọi /api/signal.
  */
 window.restoreStationIdentity = function(identity) {
   if (!identity) return;

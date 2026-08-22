@@ -1,21 +1,28 @@
 /**
  * API Mô-đun "Bảng điều khiển điểm trạm" (lối vào ở Chân trang CMS).
  *
- * Đây là nơi Quản trị viên cấp và quản lý phòng Zoom + tài khoản nhận cuộc gọi
- * cho từng điểm trạm. Cũng chính API này phát danh mục điểm trạm ra màn hình
- * người dân, nhưng bản công khai đã lược bỏ mọi thông tin phòng họp.
+ * Đây là nơi Quản trị viên quản lý hồ sơ điểm trạm, định tuyến đổ chuông và
+ * tài khoản cán bộ trực của từng điểm trạm. Cũng chính API này phát danh mục
+ * điểm trạm ra màn hình người dân.
+ *
+ * MỘT TÀI KHOẢN - MỘT ĐIỂM TRẠM - MỘT PHÒNG GỌI. Mỗi điểm trạm có đúng một
+ * phòng khám từ xa cố định "room-<slug mã trạm>"; người dân chọn điểm trạm nào
+ * là vào phòng đó. Gán một tài khoản cán bộ vào điểm trạm chính là gắn tài khoản
+ * ấy với phòng gọi của trạm: máy chủ ghi luôn users.station_code và khoá duy
+ * nhất trên station_receivers.user_id không cho tài khoản có điểm trạm thứ hai.
+ * Muốn chuyển cán bộ sang trạm khác thì phải chuyển hẳn (moveAccount), không
+ * tồn tại trạng thái một người trực hai nơi.
  *
  *   GET  /api/station-rooms                    danh mục công khai cho ô chọn của người dân
  *   GET  /api/station-rooms?admin=1            hồ sơ đầy đủ (yêu cầu phạm vi "admin")
  *   GET  /api/station-rooms?audit=<mã trạm>    nhật ký thay đổi cấu hình
  *   POST /api/station-rooms  { action: ... }
  *        create            tạo điểm trạm mới
- *        update            sửa hồ sơ / phòng Zoom / định tuyến
+ *        update            sửa hồ sơ / định tuyến
  *        set_status        ACTIVE | PAUSED | DISABLED (có kiểm tra điều kiện đủ)
  *        delete            xoá điểm trạm chưa từng dùng
- *        check_zoom        phân tích liên kết Zoom, cảnh báo trùng phòng
- *        add_receiver      gán tài khoản nhận cuộc gọi vào trạm
- *        update_receiver   sửa mức ưu tiên / phòng riêng / kênh thông báo
+ *        add_receiver      gắn tài khoản cán bộ vào phòng gọi của trạm
+ *        update_receiver   sửa mức ưu tiên / kênh thông báo
  *        remove_receiver   gỡ tài khoản khỏi trạm
  *
  * Phân quyền: mọi tuyến trừ danh mục công khai đều đi qua requireScope(req,
@@ -24,19 +31,17 @@
  */
 import { db } from "../../db/index.js";
 import { pushSubscriptions, stationReceivers, stationRoomAudits, stationRooms, telehealthPeers, users } from "../../db/schema.js";
-import { and, desc, eq, gt, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { authErrorResponse, requireScope, type AuthContext } from "../lib/auth.js";
 import {
   adminStation,
-  formatMeetingId,
   getStation,
   isWithinDutyHours,
   listStations,
-  normalizeMeetingId,
-  parseZoomLink,
   publicStation,
   RING_TIMEOUT_MAX,
   RING_TIMEOUT_MIN,
+  stationRoomId,
   writeAudit
 } from "../lib/stations.js";
 
@@ -139,9 +144,8 @@ async function handleAdminList(now: number) {
       accountStatus: String(user?.status || "UNKNOWN").toUpperCase(),
       canReceiveVideo: String(user?.canReceiveVideo || "true") !== "false",
       priority: Number(link.priority || 1),
-      personalZoomUrl: link.personalZoomUrl || "",
-      personalMeetingId: link.personalMeetingId || "",
-      personalMeetingIdPretty: formatMeetingId(link.personalMeetingId || ""),
+      // Phòng gọi mà tài khoản này được gắn vào - luôn là phòng của chính trạm.
+      roomId: stationRoomId(link.stationCode),
       notifyChannels: String(link.notifyChannels || "POPUP,SOUND,PUSH").split(",").filter(Boolean),
       isActive: String(link.isActive || "true") === "true",
       onDuty: onDutyUserIds.has(link.userId)
@@ -154,7 +158,6 @@ async function handleAdminList(now: number) {
       (a, b) => a.priority - b.priority || a.name.localeCompare(b.name, "vi")
     );
     const issues: string[] = [];
-    if (!row.zoomJoinUrl) issues.push("Chưa gán phòng Zoom");
     if (!receivers.some((r) => r.priority === 1 && r.isActive)) issues.push("Chưa có tài khoản trực chính");
     return {
       ...adminStation(row),
@@ -166,10 +169,25 @@ async function handleAdminList(now: number) {
     };
   });
 
-  // Danh sách tài khoản đủ điều kiện gán - giao diện không phải gọi thêm API khác.
+  /* Danh sách tài khoản đủ điều kiện gán - giao diện không phải gọi thêm API
+     khác. boundStationCode cho Quản trị thấy ngay tài khoản nào đã gắn với điểm
+     trạm nào, vì gán sang trạm mới là CHUYỂN chứ không phải thêm. */
+  const boundByUser = new Map(links.map((l) => [l.userId, l.stationCode]));
+  const stationNameByCode = new Map(rows.map((r) => [r.stationCode, r.stationName]));
   const eligible = accounts
     .filter((u) => String(u.status || "ACTIVE").toUpperCase() === "ACTIVE" && String(u.canReceiveVideo || "true") !== "false")
-    .map((u) => ({ id: u.id, name: u.name, username: u.username, role: u.role, stationCode: u.stationCode || "" }))
+    .map((u) => {
+      const bound = boundByUser.get(u.id) || "";
+      return {
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        role: u.role,
+        stationCode: u.stationCode || "",
+        boundStationCode: bound,
+        boundStationName: bound ? stationNameByCode.get(bound) || bound : ""
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name, "vi"));
 
   return json({ success: true, stations, eligibleAccounts: eligible, ts: now });
@@ -186,51 +204,6 @@ async function handleAudit(code: string) {
 }
 
 // ---------------------------------------------------------------------------
-//  Kiểm tra liên kết Zoom
-// ---------------------------------------------------------------------------
-
-/**
- * Phân tích liên kết và đối chiếu với các trạm khác.
- *
- * Cố ý KHÔNG gọi ra máy chủ Zoom: phòng cố định không có API kiểm tra công khai,
- * và một lần gọi mạng hỏng sẽ chặn Quản trị lưu cấu hình đúng. Việc kiểm tra ở
- * đây là phân tích cú pháp cộng đối chiếu nội bộ, chạy tức thì và tin cậy được.
- */
-async function handleCheckZoom(body: Record<string, any>) {
-  const parsed = parseZoomLink(text(body.zoomJoinUrl));
-  if (!parsed.ok) return json({ success: false, error: parsed.error });
-
-  const typed = normalizeMeetingId(text(body.zoomMeetingId));
-  const warnings: string[] = [];
-  if (typed && parsed.meetingId && typed !== parsed.meetingId) {
-    warnings.push(
-      `Mã phòng trong liên kết (${formatMeetingId(parsed.meetingId)}) khác ô Mã phòng đang nhập (${formatMeetingId(typed)}).`
-    );
-  }
-
-  const code = text(body.stationCode);
-  const meetingId = typed || parsed.meetingId || "";
-  if (meetingId) {
-    const clash = await db
-      .select()
-      .from(stationRooms)
-      .where(and(eq(stationRooms.zoomMeetingId, meetingId), code ? ne(stationRooms.stationCode, code) : undefined));
-    if (clash.length) {
-      warnings.push(`Phòng này đang được dùng cho: ${clash.map((c) => c.stationName).join(", ")}.`);
-    }
-  }
-
-  return json({
-    success: true,
-    meetingId,
-    meetingIdPretty: formatMeetingId(meetingId),
-    passcodeDetected: Boolean(parsed.passcode),
-    normalizedUrl: parsed.normalizedUrl,
-    warnings
-  });
-}
-
-// ---------------------------------------------------------------------------
 //  Tạo / sửa điểm trạm
 // ---------------------------------------------------------------------------
 
@@ -241,43 +214,6 @@ function validateStationCode(code: string): string | null {
     return "Mã điểm trạm chỉ gồm chữ in hoa, chữ số và dấu gạch ngang, dài 4-40 ký tự.";
   }
   return null;
-}
-
-/** Gom các trường Zoom từ body và trả về bản vá đã chuẩn hoá, hoặc lỗi. */
-function zoomPatch(body: Record<string, any>): { patch: Record<string, unknown> } | { error: string } {
-  const patch: Record<string, unknown> = {};
-
-  if (body.zoomJoinUrl !== undefined) {
-    const raw = text(body.zoomJoinUrl);
-    if (!raw) {
-      // Gỡ phòng Zoom khỏi trạm: chấp nhận, nhưng trạm sẽ không bật ACTIVE được.
-      patch.zoomJoinUrl = null;
-      patch.zoomMeetingId = null;
-    } else {
-      const parsed = parseZoomLink(raw);
-      if (!parsed.ok) return { error: parsed.error || "Liên kết phòng Zoom không hợp lệ." };
-      patch.zoomJoinUrl = parsed.normalizedUrl;
-      const typed = normalizeMeetingId(text(body.zoomMeetingId));
-      patch.zoomMeetingId = typed || parsed.meetingId || null;
-    }
-  } else if (body.zoomMeetingId !== undefined) {
-    const typed = normalizeMeetingId(text(body.zoomMeetingId));
-    if (typed && (typed.length < 9 || typed.length > 12)) {
-      return { error: "Mã phòng Zoom phải gồm 9-12 chữ số." };
-    }
-    patch.zoomMeetingId = typed || null;
-  }
-
-  if (body.zoomPasscode !== undefined) {
-    const pass = text(body.zoomPasscode);
-    patch.zoomPasscode = pass || null;
-  }
-  if (body.zoomHostEmail !== undefined) {
-    const mail = text(body.zoomHostEmail);
-    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { error: "Email tài khoản Zoom chủ phòng không hợp lệ." };
-    patch.zoomHostEmail = mail || null;
-  }
-  return { patch };
 }
 
 async function handleCreate(body: Record<string, any>, ctx: AuthContext, now: number) {
@@ -293,9 +229,6 @@ async function handleCreate(body: Record<string, any>, ctx: AuthContext, now: nu
     return json({ success: false, error: `Mã điểm trạm "${code}" đã tồn tại.` }, 409);
   }
 
-  const zoom = zoomPatch(body);
-  if ("error" in zoom) return json({ success: false, error: zoom.error }, 400);
-
   await db.insert(stationRooms).values({
     stationCode: code,
     stationName: name,
@@ -308,12 +241,14 @@ async function handleCreate(body: Record<string, any>, ctx: AuthContext, now: nu
     status: "PAUSED",
     displayOrder: Number(body.displayOrder) || 99,
     updatedBy: ctx.user.name,
-    updatedAt: now,
-    ...zoom.patch
+    updatedAt: now
   } as never);
 
   await writeAudit([{ stationCode: code, actorName: ctx.user.name, actorUsername: ctx.user.username, action: "CREATE" }], now);
-  return json({ success: true, message: `Đã tạo điểm trạm ${name}. Hãy gán phòng Zoom và tài khoản nhận cuộc gọi trước khi bật hoạt động.` });
+  return json({
+    success: true,
+    message: `Đã tạo điểm trạm ${name} với phòng gọi ${stationRoomId(code)}. Hãy gán tài khoản cán bộ trực trước khi bật hoạt động.`
+  });
 }
 
 function clampTimeout(raw: unknown): number {
@@ -361,28 +296,6 @@ async function handleUpdate(body: Record<string, any>, ctx: AuthContext, now: nu
     patch.fallbackStationCode = fallback || null;
   }
 
-  const zoom = zoomPatch(body);
-  if ("error" in zoom) return json({ success: false, error: zoom.error }, 400);
-  Object.assign(patch, zoom.patch);
-
-  // Trùng phòng giữa hai trạm chỉ được lưu khi Quản trị xác nhận rõ ràng.
-  const nextMeetingId = patch.zoomMeetingId !== undefined ? String(patch.zoomMeetingId || "") : current.zoomMeetingId || "";
-  if (nextMeetingId && body.allowSharedRoom !== true) {
-    const clash = await db
-      .select()
-      .from(stationRooms)
-      .where(and(eq(stationRooms.zoomMeetingId, nextMeetingId), ne(stationRooms.stationCode, code)));
-    if (clash.length) {
-      return json({
-        success: false,
-        code: "ROOM_SHARED",
-        error: `Phòng Zoom ${formatMeetingId(nextMeetingId)} đang dùng cho ${clash
-          .map((c) => c.stationName)
-          .join(", ")}. Tích ô xác nhận nếu vẫn muốn hai điểm trạm dùng chung phòng.`
-      }, 409);
-    }
-  }
-
   if (!Object.keys(patch).length) return json({ success: true, message: "Không có thay đổi nào." });
 
   patch.updatedBy = ctx.user.name;
@@ -421,7 +334,6 @@ async function handleSetStatus(body: Record<string, any>, ctx: AuthContext, now:
 
   if (status === "ACTIVE") {
     const missing: string[] = [];
-    if (!current.zoomJoinUrl) missing.push("liên kết phòng Zoom");
     const receivers = await db.select().from(stationReceivers).where(eq(stationReceivers.stationCode, code));
     if (!receivers.some((r) => Number(r.priority || 1) === 1 && String(r.isActive || "true") === "true")) {
       missing.push("tài khoản nhận cuộc gọi mức ưu tiên 1");
@@ -457,6 +369,8 @@ async function handleDelete(body: Record<string, any>, ctx: AuthContext, now: nu
   }
 
   await db.delete(stationReceivers).where(eq(stationReceivers.stationCode, code));
+  // Không còn trạm thì không còn phòng gọi để gắn - trả các tài khoản về trạng thái chưa chỉ định.
+  await db.update(users).set({ stationCode: null, updatedAt: now }).where(eq(users.stationCode, code));
   await db.delete(stationRooms).where(eq(stationRooms.stationCode, code));
   await writeAudit([{ stationCode: code, actorName: ctx.user.name, actorUsername: ctx.user.username, action: "DELETE" }], now);
   return json({ success: true, message: `Đã xoá điểm trạm ${current.stationName}.` });
@@ -475,6 +389,14 @@ function parseChannels(raw: unknown): string {
   return Array.from(new Set(picked)).join(",");
 }
 
+/**
+ * Gắn một tài khoản cán bộ vào phòng gọi khám từ xa của điểm trạm.
+ *
+ * Đây là điểm chốt của quy tắc "một tài khoản - một điểm trạm": bảng
+ * station_receivers có khoá duy nhất trên user_id, và mọi lần gán đều ghi lại
+ * users.station_code cho khớp. Tài khoản đã gắn ở trạm khác không được gán
+ * thêm - Quản trị phải xác nhận CHUYỂN (moveAccount) thì hàng trực cũ mới bị gỡ.
+ */
 async function handleAddReceiver(body: Record<string, any>, ctx: AuthContext, now: number) {
   const code = text(body.stationCode).toUpperCase();
   const station = await getStation(code);
@@ -494,28 +416,49 @@ async function handleAddReceiver(body: Record<string, any>, ctx: AuthContext, no
     }, 400);
   }
 
-  const existing = await db
-    .select()
-    .from(stationReceivers)
-    .where(and(eq(stationReceivers.stationCode, code), eq(stationReceivers.userId, userId)));
-  if (existing.length) return json({ success: false, error: "Tài khoản này đã được gán vào điểm trạm." }, 409);
+  /* Một tài khoản chỉ có một hàng trực trên toàn hệ thống, nên tra theo user_id
+     chứ không theo cặp (trạm, tài khoản). */
+  const existing = await db.select().from(stationReceivers).where(eq(stationReceivers.userId, userId));
+  const current = existing[0];
 
-  const personalUrl = text(body.personalZoomUrl);
-  let personalMeetingId: string | null = null;
-  let normalizedPersonal: string | null = null;
-  if (personalUrl) {
-    const parsed = parseZoomLink(personalUrl);
-    if (!parsed.ok) return json({ success: false, error: `Phòng Zoom riêng: ${parsed.error}` }, 400);
-    normalizedPersonal = parsed.normalizedUrl || null;
-    personalMeetingId = parsed.meetingId || null;
+  if (current && current.stationCode === code) {
+    return json({ success: false, error: "Tài khoản này đã được gán vào điểm trạm." }, 409);
+  }
+
+  if (current) {
+    const from = await getStation(current.stationCode);
+    const fromName = from?.stationName || current.stationCode;
+    if (body.moveAccount !== true) {
+      return json({
+        success: false,
+        code: "ACCOUNT_BOUND",
+        error: `${account.name} đang được gắn với phòng gọi của ${fromName}. Mỗi tài khoản chỉ trực một điểm trạm, hãy xác nhận chuyển sang ${station.stationName}.`,
+        boundStationCode: current.stationCode,
+        boundStationName: fromName
+      }, 409);
+    }
+    // Chuyển đi khỏi trạm cũ cũng là gỡ người trực - vẫn phải qua chốt trực chính.
+    const guard = await ensurePrimaryRemains(current.stationCode, current.id);
+    if (guard) return json({ success: false, error: guard }, 400);
+    await db.delete(stationReceivers).where(eq(stationReceivers.id, current.id));
+    await writeAudit(
+      [{
+        stationCode: current.stationCode,
+        actorName: ctx.user.name,
+        actorUsername: ctx.user.username,
+        action: "REMOVE_RECEIVER",
+        field: "receiver",
+        oldValue: account.name,
+        newValue: `chuyển sang ${station.stationName}`
+      }],
+      now
+    );
   }
 
   await db.insert(stationReceivers).values({
     id: `SR-${now}-${Math.floor(Math.random() * 10000)}`,
     stationCode: code,
     userId,
-    personalZoomUrl: normalizedPersonal,
-    personalMeetingId,
     priority: Math.min(9, Math.max(1, Number(body.priority) || 1)),
     notifyChannels: parseChannels(body.notifyChannels),
     isActive: "true",
@@ -523,11 +466,18 @@ async function handleAddReceiver(body: Record<string, any>, ctx: AuthContext, no
     updatedAt: now
   });
 
+  /* Hồ sơ tài khoản mang luôn điểm trạm được chỉ định: cổng đăng nhập và kênh
+     signaling đều đọc cột này để chặn cán bộ vào phòng gọi của trạm khác. */
+  await db.update(users).set({ stationCode: code, updatedAt: now }).where(eq(users.id, userId));
+
   await writeAudit(
     [{ stationCode: code, actorName: ctx.user.name, actorUsername: ctx.user.username, action: "ADD_RECEIVER", field: "receiver", newValue: account.name }],
     now
   );
-  return json({ success: true, message: `Đã gán ${account.name} vào ${station.stationName}.` });
+  return json({
+    success: true,
+    message: `Đã gắn ${account.name} với phòng gọi ${stationRoomId(code)} của ${station.stationName}.`
+  });
 }
 
 async function handleUpdateReceiver(body: Record<string, any>, ctx: AuthContext, now: number) {
@@ -540,18 +490,6 @@ async function handleUpdateReceiver(body: Record<string, any>, ctx: AuthContext,
   if (body.priority !== undefined) patch.priority = Math.min(9, Math.max(1, Number(body.priority) || 1));
   if (body.isActive !== undefined) patch.isActive = body.isActive === true || body.isActive === "true" ? "true" : "false";
   if (body.notifyChannels !== undefined) patch.notifyChannels = parseChannels(body.notifyChannels);
-  if (body.personalZoomUrl !== undefined) {
-    const raw = text(body.personalZoomUrl);
-    if (!raw) {
-      patch.personalZoomUrl = null;
-      patch.personalMeetingId = null;
-    } else {
-      const parsed = parseZoomLink(raw);
-      if (!parsed.ok) return json({ success: false, error: `Phòng Zoom riêng: ${parsed.error}` }, 400);
-      patch.personalZoomUrl = parsed.normalizedUrl;
-      patch.personalMeetingId = parsed.meetingId || null;
-    }
-  }
 
   // Gỡ người trực chính cuối cùng của một trạm đang hoạt động là tự tay làm mất
   // đường đổ chuông - chặn ở đây thay vì để cuộc gọi rơi vào khoảng trống.
@@ -591,11 +529,17 @@ async function handleRemoveReceiver(body: Record<string, any>, ctx: AuthContext,
   if (guard) return json({ success: false, error: guard }, 400);
 
   await db.delete(stationReceivers).where(eq(stationReceivers.id, id));
+  /* Gỡ khỏi trạm là cắt luôn đường vào phòng gọi: xoá điểm trạm trong hồ sơ tài
+     khoản để cán bộ không còn mở được Bảng điều khiển của trạm cũ. */
+  await db
+    .update(users)
+    .set({ stationCode: null, updatedAt: now })
+    .where(and(eq(users.id, link.userId), eq(users.stationCode, link.stationCode)));
   await writeAudit(
     [{ stationCode: link.stationCode, actorName: ctx.user.name, actorUsername: ctx.user.username, action: "REMOVE_RECEIVER", field: "receiver" }],
     now
   );
-  return json({ success: true, message: "Đã gỡ tài khoản khỏi điểm trạm." });
+  return json({ success: true, message: "Đã gỡ tài khoản khỏi điểm trạm và khỏi phòng gọi của trạm." });
 }
 
 /** Danh sách thiết bị đã đăng ký nhận thông báo đẩy - phục vụ FR-ADM-14. */
@@ -628,7 +572,7 @@ export default async (req: Request) => {
 
   try {
     if (req.method === "GET") {
-      // Danh mục công khai: không đòi đăng nhập, nhưng cũng không lộ gì về Zoom.
+      // Danh mục công khai: không đòi đăng nhập, chỉ gồm thông tin người dân cần.
       if (url.searchParams.get("admin") !== "1" && !url.searchParams.get("audit")) {
         return await handlePublicList(now);
       }
@@ -653,8 +597,6 @@ export default async (req: Request) => {
         return await handleSetStatus(body, ctx, now);
       case "delete":
         return await handleDelete(body, ctx, now);
-      case "check_zoom":
-        return await handleCheckZoom(body);
       case "add_receiver":
         return await handleAddReceiver(body, ctx, now);
       case "update_receiver":
