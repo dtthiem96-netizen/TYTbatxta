@@ -912,6 +912,14 @@
 
                         <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ CMS</a>
 
+                        <!-- ===== MÔ-ĐUN BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM =====
+                             Nơi Quản trị viên cấp và quản lý phòng Zoom cùng tài khoản nhận cuộc gọi
+                             cho từng điểm trạm. Đây chỉ là LỐI VÀO đặt ở chân trang; bản thân mô-đun
+                             nằm trong CMS và chỉ mở được bằng tài khoản có quyền Quản trị. -->
+                        <a href="#" id="footer-station-rooms-module" onclick="window.openStationRoomsModule(); return false;" title="Cấp và quản lý phòng Zoom, tài khoản nhận cuộc gọi cho từng điểm trạm - yêu cầu quyền Quản trị viên" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-cyan-300 tracking-wide inline-flex items-center gap-1.5">
+                            <i class="fas fa-tower-broadcast text-[11px]"></i> BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM
+                        </a>
+
                         <!-- ===== MODULE BÁC SĨ TUYẾN TRÊN =====
                              Module riêng, có trang và cổng đăng nhập riêng (/bacsi). Chỉ tài khoản
                              được CMS Quản trị cấp ô "Module Bác sĩ tuyến trên" mới vào được; đây
@@ -1169,6 +1177,9 @@
                             <h4 class="font-bold text-lg text-white mb-1">Đang chờ Cán bộ Y tế tiếp nhận cuộc gọi...</h4>
                             <p id="patient-wait-duty" class="text-xs text-slate-400">Đang kiểm tra cán bộ trực...</p>
                             <p id="patient-wait-timer" class="text-[11px] font-mono text-slate-500 mt-1">Thời gian chờ: 00:00</p>
+                            <!-- Cuộc gọi đang đổ chuông tới ai, còn bao lâu thì chuyển tiếp:
+                                 người dân nhìn thấy hệ thống đang làm gì thay vì một màn hình chờ câm. -->
+                            <p id="patient-wait-routing" class="hidden text-[11px] font-bold text-blue-300 mt-2 max-w-sm leading-relaxed"></p>
                             <div id="patient-wait-fallback" class="hidden mt-4 w-full max-w-sm bg-amber-500/10 border border-amber-500/40 rounded-2xl p-3 space-y-2">
                                 <p class="text-[11px] text-amber-200 font-bold leading-relaxed">
                                     Chưa có cán bộ tiếp nhận. Bạn có thể gọi trực tiếp qua điện thoại hoặc Zalo trong lúc chờ.
@@ -1188,6 +1199,19 @@
                              bấm một ô để đưa đầu cầu đó lên khung hình lớn. -->
                         <div id="patient-peer-strip" class="hidden absolute top-3 right-3 flex flex-col gap-2 z-10"></div>
                         <span id="patient-peer-count-badge" class="hidden absolute top-3 left-3 bg-blue-950/90 text-blue-200 border border-blue-800 px-2.5 py-0.5 rounded-full font-bold text-[11px] z-10"><i class="fa-solid fa-users"></i> <span></span></span>
+                    </div>
+
+                    <!-- Phòng Zoom của điểm trạm: chỉ hiện sau khi đã có cán bộ tiếp nhận,
+                         vì trước đó chưa biết cuộc gọi sẽ rơi về trạm nào (leo thang / dự phòng). -->
+                    <div id="patient-zoom-bar" class="hidden rounded-2xl border border-blue-500/40 bg-blue-500/10 p-4">
+                        <p class="text-sm font-bold text-blue-100 mb-1"><i class="fas fa-user-check mr-1.5"></i> <span id="patient-zoom-who">Cán bộ đã tiếp nhận cuộc gọi</span></p>
+                        <p class="text-[11px] text-blue-200/80 mb-3">Bạn có thể tiếp tục nói chuyện ngay trên trang này, hoặc vào phòng Zoom của trạm nếu cán bộ yêu cầu.</p>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <a id="patient-zoom-link" href="#" target="_blank" rel="noopener" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition">
+                                <i class="fas fa-video"></i> Vào phòng khám Zoom
+                            </a>
+                            <span id="patient-zoom-meta" class="text-[11px] font-mono text-blue-200/70"></span>
+                        </div>
                     </div>
 
                     <!-- Thanh điều khiển cuộc gọi -->
@@ -1943,6 +1967,15 @@
                             class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
                             <i class="fas fa-phone-volume"></i> <span id="station-queue-accept-label">Chưa có cuộc gọi chờ</span>
                         </button>
+                        <!-- Phòng Zoom máy chủ chốt cho lượt tiếp nhận này. Chỉ hiện sau khi
+                             tiếp nhận thành công, nên không có nguy cơ vào nhầm phòng trạm khác. -->
+                        <div id="station-zoom-bar" class="hidden rounded-xl border border-blue-700 bg-blue-950/60 p-3 space-y-2">
+                            <p class="text-[11px] font-bold text-blue-200"><i class="fas fa-video mr-1"></i> Phòng Zoom của điểm trạm</p>
+                            <p id="station-zoom-meta" class="text-[10px] font-mono text-blue-300/80 break-all"></p>
+                            <a id="station-zoom-link" href="#" target="_blank" rel="noopener" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg text-[11px] transition">
+                                <i class="fas fa-arrow-right-to-bracket"></i> Mở phòng Zoom
+                            </a>
+                        </div>
                     </div>
 
                     <!-- Thông tin căn cước công dân do NGƯỜI DÂN tự nhập.
@@ -2671,6 +2704,7 @@
                     <li><a href="#" onclick="window.switchAdminTab('service')" id="tab-btn-service" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-list mr-3"></i> Quản lý Dịch vụ (Luồng Zalo)</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-address-book mr-3"></i> Quản lý Danh bạ Cán bộ</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('telehealth')" id="tab-btn-telehealth" class="block p-3.5 text-blue-700 bg-blue-50/80 hover:bg-blue-100 rounded-xl font-bold border-l-4 border-blue-600 shadow-sm transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-video text-blue-600 mr-3 animate-pulse"></i> Cuộc gọi Video & Khám Từ xa</span> <span class="flex items-center gap-1"><span id="cms-live-call-badge" class="hidden bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-black animate-pulse">0 đang gọi</span> <span id="cms-telehealth-count" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('stations')" id="tab-btn-stations" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-tower-broadcast mr-3"></i> Bảng điều khiển điểm trạm</span> <span id="stations-issue-badge" class="hidden bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></a></li>
                     <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fab fa-youtube mr-3"></i> Quản lý Video Y khoa</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-users-cog mr-3"></i> Phân quyền Hệ thống</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('signature')" id="tab-btn-signature" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-signature mr-3"></i> Chữ ký số &amp; Người ký đơn</a></li>
@@ -2942,11 +2976,29 @@
                                 <div id="cms-permission-badge" class="bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5">
                                     <i class="fas fa-shield-alt text-emerald-600"></i> <span id="cms-permission-text">Có quyền nhận cuộc gọi Video</span>
                                 </div>
+                                <!-- Thông báo đẩy: đổ chuông cả khi đã đóng tab CMS. Nút chỉ hiện
+                                     khi trình duyệt hỗ trợ và máy chủ đã cấu hình đôi khoá VAPID. -->
+                                <button onclick="window.toggleCmsPushNotify()" id="cms-push-btn" class="hidden bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm flex items-center gap-2">
+                                    <i id="cms-push-icon" class="fas fa-bell-slash"></i>
+                                    <span id="cms-push-text">Bật thông báo ngoài trình duyệt</span>
+                                </button>
                                 <button onclick="window.toggleCmsReadyStatus()" id="cms-ready-status-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow flex items-center gap-2">
                                     <span class="w-2.5 h-2.5 rounded-full bg-white animate-ping"></span>
                                     <span id="cms-ready-text">Trạng thái: SẴN SÀNG TRỰC</span>
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- Phòng Zoom của cuộc gọi đang khám: chỉ hiện sau khi máy chủ đã
+                             chốt phòng cho lượt tiếp nhận này, nên hai đầu luôn cùng một phòng. -->
+                        <div id="cms-zoom-bar" class="hidden bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-black text-blue-900"><i class="fas fa-video mr-1.5"></i> Phòng Zoom của điểm trạm đã sẵn sàng</p>
+                                <p id="cms-zoom-meta" class="text-[11px] font-mono text-blue-700/80 mt-0.5"></p>
+                            </div>
+                            <a id="cms-zoom-link" href="#" target="_blank" rel="noopener" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition shrink-0">
+                                <i class="fas fa-arrow-right-to-bracket"></i> Mở phòng Zoom
+                            </a>
                         </div>
 
                         <!-- Cảnh báo nếu tài khoản không có quyền -->
@@ -3279,6 +3331,230 @@
                     </div>
                 </div>
 
+                <!-- ============================================================
+                     ADMIN TAB: BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM
+                     Bố cục hai cấp: bên trái là danh sách điểm trạm (nhìn một lượt
+                     biết trạm nào đã đủ điều kiện hoạt động), bên phải là hồ sơ chi
+                     tiết của trạm đang chọn, chia theo năm thẻ nghiệp vụ. Cách này
+                     giữ cho một màn hình không phải gánh cùng lúc năm nhóm cấu hình.
+                     ============================================================ -->
+                <div id="admin-stations-section" class="admin-tab space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 lg:p-8 border border-gray-200">
+                        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-gray-100">
+                            <div>
+                                <h2 class="text-2xl font-black text-gray-900 flex items-center gap-2"><i class="fas fa-tower-broadcast text-cyan-600"></i> Bảng điều khiển điểm trạm</h2>
+                                <p class="text-xs text-gray-500 font-bold mt-1 uppercase tracking-wider">Cấp phòng Zoom &amp; tài khoản nhận cuộc gọi cho từng điểm trạm</p>
+                            </div>
+                            <div class="flex gap-2 flex-wrap">
+                                <button type="button" onclick="window.refreshStationRooms(true)" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 border border-gray-200"><i class="fas fa-rotate"></i> Tải lại</button>
+                                <button type="button" onclick="window.openNewStationForm()" class="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-black px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"><i class="fas fa-plus"></i> Thêm điểm trạm</button>
+                            </div>
+                        </div>
+
+                        <div id="stations-auth-warning" class="hidden mt-4 bg-amber-50 border-l-4 border-amber-500 text-amber-900 p-4 rounded-r-xl text-sm font-bold"></div>
+
+                        <!-- Dải chỉ số nhanh: trả lời ngay câu hỏi "hệ thống có đang sẵn sàng nhận cuộc gọi không". -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
+                            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-3.5">
+                                <p class="text-[11px] font-black text-gray-500 uppercase tracking-wider">Tổng điểm trạm</p>
+                                <p id="stations-kpi-total" class="text-2xl font-black text-gray-900 mt-0.5">—</p>
+                            </div>
+                            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3.5">
+                                <p class="text-[11px] font-black text-emerald-700 uppercase tracking-wider">Đang hoạt động</p>
+                                <p id="stations-kpi-active" class="text-2xl font-black text-emerald-800 mt-0.5">—</p>
+                            </div>
+                            <div class="rounded-2xl border border-blue-200 bg-blue-50 p-3.5">
+                                <p class="text-[11px] font-black text-blue-700 uppercase tracking-wider">Đang có người trực</p>
+                                <p id="stations-kpi-duty" class="text-2xl font-black text-blue-800 mt-0.5">—</p>
+                            </div>
+                            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3.5">
+                                <p class="text-[11px] font-black text-amber-700 uppercase tracking-wider">Còn thiếu cấu hình</p>
+                                <p id="stations-kpi-issues" class="text-2xl font-black text-amber-800 mt-0.5">—</p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col xl:flex-row gap-6 mt-6">
+                            <!-- CẤP 1: DANH SÁCH ĐIỂM TRẠM -->
+                            <div class="w-full xl:w-[22rem] shrink-0">
+                                <input type="search" id="stations-search" oninput="window.renderStationRoomList()" placeholder="Tìm theo tên hoặc mã trạm..." class="w-full border-2 border-gray-200 rounded-xl px-3.5 py-2 text-sm font-medium mb-3 focus:outline-none focus:border-cyan-500">
+                                <div id="stations-list" class="space-y-2 max-h-[38rem] overflow-y-auto pr-1">
+                                    <p class="text-sm text-gray-500 font-medium p-4 text-center"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang tải danh mục điểm trạm...</p>
+                                </div>
+                            </div>
+
+                            <!-- CẤP 2: HỒ SƠ CHI TIẾT -->
+                            <div class="flex-1 min-w-0">
+                                <div id="station-detail-empty" class="rounded-2xl border-2 border-dashed border-gray-200 p-10 text-center text-gray-500">
+                                    <i class="fas fa-hand-pointer text-3xl mb-3 text-gray-300"></i>
+                                    <p class="font-bold">Chọn một điểm trạm ở danh sách bên trái để xem và sửa hồ sơ.</p>
+                                </div>
+
+                                <div id="station-detail" class="hidden rounded-2xl border border-gray-200 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-cyan-600 to-blue-700 text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <h3 id="station-detail-name" class="font-black text-lg truncate">—</h3>
+                                            <p class="text-[11px] font-mono text-cyan-100"><span id="station-detail-code">—</span></p>
+                                        </div>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <span id="station-detail-status" class="text-[11px] font-black px-2.5 py-1 rounded-full bg-white/20">—</span>
+                                            <select id="station-status-select" onchange="window.changeStationStatus(this.value)" class="text-xs font-bold text-gray-900 rounded-lg px-2 py-1.5 border-0">
+                                                <option value="ACTIVE">Đang hoạt động</option>
+                                                <option value="PAUSED">Tạm ngưng</option>
+                                                <option value="DISABLED">Vô hiệu hoá</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div id="station-detail-issues" class="hidden bg-amber-50 border-b border-amber-200 px-5 py-3 text-xs font-bold text-amber-900"></div>
+
+                                    <div class="flex flex-wrap gap-1 bg-gray-50 border-b border-gray-200 px-3 pt-3">
+                                        <button type="button" id="sttab-btn-info" onclick="window.switchStationTab('info')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Thông tin trạm</button>
+                                        <button type="button" id="sttab-btn-zoom" onclick="window.switchStationTab('zoom')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Phòng Zoom</button>
+                                        <button type="button" id="sttab-btn-receivers" onclick="window.switchStationTab('receivers')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Tài khoản nhận</button>
+                                        <button type="button" id="sttab-btn-routing" onclick="window.switchStationTab('routing')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Định tuyến &amp; Dự phòng</button>
+                                        <button type="button" id="sttab-btn-audit" onclick="window.switchStationTab('audit')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Nhật ký thay đổi</button>
+                                    </div>
+
+                                    <!-- THẺ 1: THÔNG TIN TRẠM -->
+                                    <div id="sttab-info" class="station-tab p-5 space-y-4">
+                                        <div class="grid md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-name">Tên hiển thị <span class="text-rose-500">*</span></label>
+                                                <input type="text" id="st-name" maxlength="80" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium">
+                                                <p class="text-[11px] text-gray-500 mt-1">Chính chuỗi này hiện trong ô chọn của người dân.</p>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-code-readonly">Mã điểm trạm</label>
+                                                <input type="text" id="st-code-readonly" readonly class="w-full border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm font-mono text-gray-600">
+                                                <p class="text-[11px] text-gray-500 mt-1">Mã là khoá nghiệp vụ, đã nằm trong mã phòng khám và nhật ký nên không sửa được.</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-black text-gray-700 mb-1" for="st-note">Ghi chú hiển thị cho người dân</label>
+                                            <input type="text" id="st-note" maxlength="120" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium" placeholder="VD: Trực 24/7 - Phòng khám đa khoa">
+                                        </div>
+                                        <div class="grid md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-order">Thứ tự hiển thị</label>
+                                                <input type="number" id="st-order" min="0" max="99" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-duty">Khung giờ trực</label>
+                                                <select id="st-duty" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white">
+                                                    <option value='{"always":true}'>Trực 24/7</option>
+                                                    <option value='{"mon_fri":["07:30","17:00"]}'>Thứ 2 - Thứ 6, 07:30 - 17:00</option>
+                                                    <option value='{"mon_sat":["07:30","17:00"]}'>Thứ 2 - Thứ 7, 07:30 - 17:00</option>
+                                                    <option value='{"mon_sat":["07:00","11:30"]}'>Thứ 2 - Thứ 7, 07:00 - 11:30</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-offhours">Ngoài giờ trực</label>
+                                                <select id="st-offhours" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white">
+                                                    <option value="SHOW">Vẫn hiện, kèm cảnh báo</option>
+                                                    <option value="HIDE">Ẩn khỏi danh sách người dân</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+                                            <p id="st-info-updated" class="text-[11px] text-gray-500 font-medium"></p>
+                                            <button type="button" onclick="window.saveStationInfo()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm"><i class="fas fa-save mr-1"></i> Lưu thông tin</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- THẺ 2: PHÒNG ZOOM -->
+                                    <div id="sttab-zoom" class="station-tab hidden p-5 space-y-4">
+                                        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-[11px] text-blue-900 font-medium leading-relaxed">
+                                            <i class="fas fa-circle-info mr-1"></i> Dán <b>liên kết phòng họp cố định</b> (Personal Meeting Room) của tài khoản Zoom được cấp cho điểm trạm này.
+                                            Mã phòng được đọc tự động từ liên kết. Mật khẩu phòng chỉ được gửi tới người đã tiếp nhận cuộc gọi -
+                                            không xuất hiện trong danh sách công khai, nhật ký thay đổi hay nội dung thông báo đẩy.
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-black text-gray-700 mb-1" for="st-zoom-url">Liên kết phòng Zoom <span class="text-rose-500">*</span></label>
+                                            <div class="flex flex-col sm:flex-row gap-2">
+                                                <input type="url" id="st-zoom-url" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium" placeholder="https://us02web.zoom.us/j/9471234567?pwd=...">
+                                                <button type="button" onclick="window.checkStationZoomLink()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2 rounded-xl border border-gray-200 shrink-0"><i class="fas fa-vial mr-1"></i> Kiểm tra liên kết</button>
+                                            </div>
+                                            <div id="st-zoom-check" class="hidden mt-2 text-[11px] font-bold rounded-xl px-3 py-2"></div>
+                                        </div>
+                                        <div class="grid md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-zoom-id">Mã phòng (Meeting ID)</label>
+                                                <input type="text" id="st-zoom-id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" placeholder="Tự đọc từ liên kết">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-zoom-pass">Mật khẩu phòng</label>
+                                                <input type="text" id="st-zoom-pass" autocomplete="off" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" placeholder="Để trống nếu liên kết đã nhúng sẵn">
+                                                <p id="st-zoom-pass-state" class="text-[11px] text-gray-500 mt-1"></p>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-zoom-host">Email tài khoản Zoom chủ phòng</label>
+                                                <input type="email" id="st-zoom-host" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium" placeholder="tram01@laocai.gov.vn">
+                                            </div>
+                                        </div>
+                                        <label class="flex items-start gap-2 text-[11px] font-bold text-gray-600">
+                                            <input type="checkbox" id="st-zoom-shared" class="mt-0.5">
+                                            <span>Cho phép dùng chung phòng với điểm trạm khác. Chỉ tích khi thực sự muốn hai trạm đổ về cùng một phòng họp - nếu không, hai cuộc gọi khác nhau sẽ gặp nhau trong cùng một phòng.</span>
+                                        </label>
+                                        <div class="flex justify-end pt-2 border-t border-gray-100">
+                                            <button type="button" onclick="window.saveStationZoom()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm"><i class="fas fa-save mr-1"></i> Lưu phòng Zoom</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- THẺ 3: TÀI KHOẢN NHẬN CUỘC GỌI -->
+                                    <div id="sttab-receivers" class="station-tab hidden p-5 space-y-4">
+                                        <div class="flex flex-col sm:flex-row gap-2 items-end bg-gray-50 border border-gray-200 rounded-2xl p-3.5">
+                                            <div class="flex-1 w-full">
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-recv-user">Gán tài khoản nhận cuộc gọi</label>
+                                                <select id="st-recv-user" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white"></select>
+                                            </div>
+                                            <div class="w-full sm:w-40">
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-recv-priority">Mức ưu tiên</label>
+                                                <select id="st-recv-priority" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white">
+                                                    <option value="1">1 - Trực chính</option>
+                                                    <option value="2">2 - Trực phụ</option>
+                                                    <option value="3">3 - Hỗ trợ</option>
+                                                </select>
+                                            </div>
+                                            <button type="button" onclick="window.addStationReceiver()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm shrink-0 w-full sm:w-auto"><i class="fas fa-user-plus mr-1"></i> Gán vào trạm</button>
+                                        </div>
+                                        <p class="text-[11px] text-gray-500 font-medium">Chỉ tài khoản đang hoạt động và đã được cấp <b>Quyền nhận cuộc gọi Video</b> ở mục Phân quyền Hệ thống mới xuất hiện trong danh sách này.</p>
+                                        <div id="st-receivers-list" class="space-y-2"></div>
+                                    </div>
+
+                                    <!-- THẺ 4: ĐỊNH TUYẾN & DỰ PHÒNG -->
+                                    <div id="sttab-routing" class="station-tab hidden p-5 space-y-4">
+                                        <div class="grid md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-ring-timeout">Thời gian đổ chuông mỗi vòng (giây)</label>
+                                                <input type="number" id="st-ring-timeout" min="20" max="180" oninput="window.renderStationRoutingPreview()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium">
+                                                <p class="text-[11px] text-gray-500 mt-1">Hết một vòng mà chưa ai nhận, cuộc gọi tự lan sang mức ưu tiên tiếp theo. Cho phép 20 - 180 giây.</p>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-fallback">Điểm trạm dự phòng</label>
+                                                <select id="st-fallback" onchange="window.renderStationRoutingPreview()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white"></select>
+                                                <p class="text-[11px] text-gray-500 mt-1">Sau 3 vòng không ai nhận, cuộc gọi chuyển sang trạm này. Để trống nếu trạm không có tuyến sau.</p>
+                                            </div>
+                                        </div>
+                                        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                                            <p class="text-xs font-black text-gray-700 mb-2"><i class="fas fa-diagram-project mr-1 text-cyan-600"></i> Đường đi của một cuộc gọi tại trạm này</p>
+                                            <ol id="st-routing-preview" class="text-[11px] text-gray-600 font-medium space-y-1 list-decimal list-inside"></ol>
+                                        </div>
+                                        <div class="flex justify-end pt-2 border-t border-gray-100">
+                                            <button type="button" onclick="window.saveStationRouting()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm"><i class="fas fa-save mr-1"></i> Lưu định tuyến</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- THẺ 5: NHẬT KÝ THAY ĐỔI -->
+                                    <div id="sttab-audit" class="station-tab hidden p-5">
+                                        <p class="text-[11px] text-gray-500 font-medium mb-3">Ghi lại 100 thay đổi gần nhất. Giá trị mật khẩu phòng luôn được che, chỉ ghi nhận là đã có thay đổi.</p>
+                                        <div id="st-audit-list" class="space-y-1.5 max-h-[28rem] overflow-y-auto"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ADMIN TAB: CONFIG & USERS -->
                 <div id="admin-config-section" class="admin-tab space-y-6">
                     <!-- CẤU HÌNH TÊN PHÒNG KHÁM HIỂN THỊ TRÊN MODULE BẢNG ĐIỀU KHIỂN TRẠM -->
@@ -3330,6 +3606,9 @@
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 mb-1" for="cfg-user-stationcode">Điểm trạm trực thuộc <span class="text-rose-500">*</span></label>
                                     <select id="cfg-user-stationcode" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm bg-white">
+                                         <!-- Danh mục nạp động từ window.TELEHEALTH_STATIONS: Quản trị thêm
+                                              điểm trạm mới ở Bảng điều khiển điểm trạm là ô này có ngay, không
+                                              phải sửa lại HTML. Các mục dưới đây chỉ là bản dự phòng khi mất mạng. -->
                                          <option value="TYT-BATXAT-01">TYT-BATXAT-01 — Trạm Y tế Bát Xát (Trung tâm)</option>
                                          <option value="TYT-BATXAT-BQ-02">TYT-BATXAT-BQ-02 — Điểm trạm Bản Qua</option>
                                          <option value="TYT-BATXAT-BV-03">TYT-BATXAT-BV-03 — Điểm trạm Bản Vược</option>
@@ -3582,11 +3861,56 @@
             const sel = document.getElementById(selectId);
             if (!sel) return;
             const current = selectedCode || sel.value || window.TELEHEALTH_STATIONS[0].code;
-            sel.innerHTML = window.TELEHEALTH_STATIONS.map(st =>
-                `<option value="${st.code}">${withNote ? `${st.name} — ${st.note}` : `${st.code} — ${st.name}`}</option>`
-            ).join('');
+            sel.innerHTML = window.TELEHEALTH_STATIONS.map(st => {
+                /* Người dân cần biết trạm có ai trực TRƯỚC khi bấm gọi. Đưa thẳng
+                   trạng thái vào nhãn của ô chọn thay vì để họ gọi rồi mới biết
+                   không ai nghe - danh mục nạp từ máy chủ mới có các trường này,
+                   danh mục dự phòng thì thiếu nên câu điều kiện bên dưới bỏ qua. */
+                let badge = '';
+                if (typeof st.dutyCount === 'number') {
+                    if (st.status === 'PAUSED') badge = ' (tạm ngưng)';
+                    else if (st.dutyCount > 0) badge = ` (● ${st.dutyCount} cán bộ đang trực)`;
+                    else if (st.onDutyHours === false) badge = ' (ngoài giờ trực)';
+                    else badge = ' (chưa có cán bộ trực)';
+                }
+                const label = withNote
+                    ? `${st.name}${st.note ? ' — ' + st.note : ''}${badge}`
+                    : `${st.code} — ${st.name}`;
+                return `<option value="${st.code}">${label}</option>`;
+            }).join('');
             sel.value = current;
             if (!sel.value) sel.value = window.TELEHEALTH_STATIONS[0].code;
+        };
+
+        /**
+         * Nạp danh mục điểm trạm thật từ máy chủ.
+         *
+         * Danh sách cứng phía trên chỉ còn là bản dự phòng cho lần vẽ đầu tiên và
+         * cho trường hợp mất mạng: sau khi Quản trị thêm/sửa trạm trong Bảng điều
+         * khiển điểm trạm thì đây mới là nguồn đúng. Cố ý GHI ĐÈ TẠI CHỖ vào đúng
+         * mảng cũ (splice) chứ không gán mảng mới, vì app.js đã giữ một tham chiếu
+         * tới mảng này từ lúc tải trang - gán mới sẽ khiến hai bên nhìn hai danh
+         * sách khác nhau.
+         */
+        window.refreshStationCatalog = async function() {
+            try {
+                const res = await fetch('/api/station-rooms', { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) return false;
+                const data = await res.json();
+                if (!data || data.success !== true || !Array.isArray(data.stations) || !data.stations.length) return false;
+
+                window.TELEHEALTH_STATIONS.splice(0, window.TELEHEALTH_STATIONS.length, ...data.stations);
+
+                // Vẽ lại những ô chọn đang mở để nhãn trực khớp với dữ liệu vừa nạp.
+                ['quick-call-station', 'station-switcher', 'input-station-code', 'cfg-user-stationcode'].forEach(id => {
+                    if (document.getElementById(id)) window.renderStationOptions(id, null, id === 'quick-call-station');
+                });
+                if (window.updateQuickCallStationHint) window.updateQuickCallStationHint();
+                return true;
+            } catch (err) {
+                // Mất mạng thì giữ nguyên danh mục dự phòng, không làm hỏng màn hình.
+                return false;
+            }
         };
 
         // 1. CƠ SỞ DỮ LIỆU LOCAL/FALLBACK
@@ -5057,6 +5381,14 @@
 
         window.clearCmsAdminSession = function() {
             try { sessionStorage.removeItem(CMS_ADMIN_SESSION_KEY); } catch (err) {}
+            /* Phiếu đã hết hiệu lực thì xoá luôn bản sao Service Worker đang giữ:
+               để lại một phiếu chết chỉ khiến thông báo đẩy hiện ra rồi không lấy
+               được nội dung, mà tệ hơn là phiếu còn nằm trên máy sau khi đăng xuất. */
+            try {
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_TOKEN' });
+                }
+            } catch (err) {}
             window.renderAccountAuthWarning();
         };
 
@@ -5884,6 +6216,558 @@
             }
         };
 
+        /* =====================================================================
+           MÔ-ĐUN "BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM"
+           Lối vào đặt ở chân trang, nội dung nằm trong CMS. Đây là nơi duy nhất
+           cấp phòng Zoom và tài khoản nhận cuộc gọi cho từng điểm trạm.
+
+           Mọi thao tác đi qua /api/station-rooms với phiếu phiên phạm vi "admin";
+           giao diện chỉ là lớp hiển thị, quyền do máy chủ quyết định.
+           ===================================================================== */
+        let stationRoomsData = [];
+        let stationEligibleAccounts = [];
+        let selectedStationCode = '';
+        let stationTabActive = 'info';
+
+        function stEsc(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        /** Gọi API điểm trạm kèm phiếu phiên Quản trị. */
+        async function stationApi(payload, method) {
+            const session = window.getCmsAdminSession();
+            if (!session) throw new Error('Phiên Quản trị đã hết hạn. Vui lòng đăng nhập lại CMS.');
+
+            const options = {
+                method: method || 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.token }
+            };
+            if (options.method !== 'GET') options.body = JSON.stringify(payload || {});
+
+            const url = options.method === 'GET' ? (payload || '/api/station-rooms?admin=1') : '/api/station-rooms';
+            const res = await fetch(url, options);
+            const data = await res.json().catch(() => null);
+
+            if (res.status === 401) {
+                window.clearCmsAdminSession();
+                throw new Error((data && data.error) || 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại CMS.');
+            }
+            if (!res.ok || !data || data.success !== true) {
+                throw new Error((data && data.error) || 'Máy chủ từ chối thao tác trên điểm trạm.');
+            }
+            return data;
+        }
+
+        /* Lối vào ở chân trang: chưa đăng nhập thì mở cửa sổ đăng nhập rồi mới vào
+           mô-đun, thay vì để người dùng bấm xong không thấy gì xảy ra. */
+        window.openStationRoomsModule = function() {
+            const session = window.getCmsAdminSession();
+            const isAdmin = !!(session && Array.isArray(session.scopes) && session.scopes.indexOf('admin') !== -1);
+
+            if (!isAdmin) {
+                window.pendingAdminTab = 'stations';
+                window.openModal('modal-admin-login');
+                window.showToast('Mô-đun Bảng điều khiển điểm trạm yêu cầu tài khoản Quản trị viên.');
+                return;
+            }
+
+            const mainSite = document.getElementById('main-website');
+            const adminDash = document.getElementById('admin-dashboard');
+            if (mainSite && adminDash) {
+                mainSite.classList.add('hidden');
+                adminDash.classList.remove('hidden');
+                window.scrollTo(0, 0);
+            }
+            window.switchAdminTab('stations');
+        };
+
+        window.initStationRoomsModule = function() {
+            const warn = document.getElementById('stations-auth-warning');
+            const session = window.getCmsAdminSession();
+            const isAdmin = !!(session && Array.isArray(session.scopes) && session.scopes.indexOf('admin') !== -1);
+            if (warn) {
+                warn.classList.toggle('hidden', isAdmin);
+                if (!isAdmin) {
+                    warn.innerHTML = '<i class="fas fa-triangle-exclamation mr-1"></i> Phiên Quản trị chưa được máy chủ xác thực. Hãy đăng xuất và đăng nhập lại CMS bằng tài khoản Quản trị viên để cấu hình điểm trạm.';
+                }
+            }
+            if (isAdmin) window.refreshStationRooms();
+        };
+
+        window.refreshStationRooms = async function(announce) {
+            const list = document.getElementById('stations-list');
+            try {
+                const data = await stationApi('/api/station-rooms?admin=1', 'GET');
+                stationRoomsData = Array.isArray(data.stations) ? data.stations : [];
+                stationEligibleAccounts = Array.isArray(data.eligibleAccounts) ? data.eligibleAccounts : [];
+
+                renderStationKpis();
+                window.renderStationRoomList();
+
+                // Giữ nguyên trạm đang mở sau khi tải lại, người dùng không bị văng về màn hình trống.
+                if (selectedStationCode && stationRoomsData.some(s => s.code === selectedStationCode)) {
+                    window.selectStationRoom(selectedStationCode, true);
+                }
+                if (announce) window.showToast('Đã tải lại ' + stationRoomsData.length + ' điểm trạm.');
+            } catch (err) {
+                if (list) list.innerHTML = '<p class="text-sm text-rose-600 font-bold p-4 text-center">' + stEsc(err.message) + '</p>';
+            }
+        };
+
+        function renderStationKpis() {
+            const active = stationRoomsData.filter(s => s.status === 'ACTIVE').length;
+            const duty = stationRoomsData.filter(s => Number(s.dutyCount || 0) > 0).length;
+            const issues = stationRoomsData.filter(s => !s.ready).length;
+
+            const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+            set('stations-kpi-total', stationRoomsData.length);
+            set('stations-kpi-active', active);
+            set('stations-kpi-duty', duty);
+            set('stations-kpi-issues', issues);
+
+            // Huy hiệu trên thanh bên: Quản trị thấy ngay là có trạm chưa cấu hình xong.
+            const badge = document.getElementById('stations-issue-badge');
+            if (badge) {
+                badge.textContent = issues;
+                badge.classList.toggle('hidden', issues === 0);
+            }
+        }
+
+        const ST_STATUS_STYLE = {
+            ACTIVE:   { label: 'Đang hoạt động', dot: 'bg-emerald-500', chip: 'bg-emerald-100 text-emerald-800' },
+            PAUSED:   { label: 'Tạm ngưng',      dot: 'bg-amber-500',   chip: 'bg-amber-100 text-amber-800' },
+            DISABLED: { label: 'Vô hiệu hoá',    dot: 'bg-gray-400',    chip: 'bg-gray-200 text-gray-700' }
+        };
+
+        window.renderStationRoomList = function() {
+            const box = document.getElementById('stations-list');
+            if (!box) return;
+
+            const term = (document.getElementById('stations-search')?.value || '').trim().toLowerCase();
+            const rows = stationRoomsData.filter(st =>
+                !term || st.name.toLowerCase().includes(term) || st.code.toLowerCase().includes(term)
+            );
+
+            if (!rows.length) {
+                box.innerHTML = '<p class="text-sm text-gray-500 font-medium p-4 text-center">Không có điểm trạm nào khớp.</p>';
+                return;
+            }
+
+            box.innerHTML = rows.map(st => {
+                const style = ST_STATUS_STYLE[st.status] || ST_STATUS_STYLE.DISABLED;
+                const selected = st.code === selectedStationCode;
+                const dutyChip = Number(st.dutyCount || 0) > 0
+                    ? '<span class="text-[10px] font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">' + st.dutyCount + ' đang trực</span>'
+                    : '<span class="text-[10px] font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">Không có người trực</span>';
+                const issueChip = st.ready
+                    ? ''
+                    : '<span class="text-[10px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-full"><i class="fas fa-triangle-exclamation"></i> Thiếu cấu hình</span>';
+                return '' +
+                    '<button type="button" onclick="window.selectStationRoom(\'' + stEsc(st.code) + '\')" class="w-full text-left rounded-xl border p-3 transition ' +
+                        (selected ? 'border-cyan-500 bg-cyan-50 shadow-sm' : 'border-gray-200 bg-white hover:border-cyan-300 hover:bg-gray-50') + '">' +
+                        '<div class="flex items-start gap-2">' +
+                            '<span class="w-2 h-2 rounded-full mt-1.5 shrink-0 ' + style.dot + '"></span>' +
+                            '<div class="min-w-0 flex-1">' +
+                                '<p class="font-black text-sm text-gray-900 truncate">' + stEsc(st.name) + '</p>' +
+                                '<p class="text-[10px] font-mono text-gray-500 truncate">' + stEsc(st.code) + '</p>' +
+                                '<div class="flex flex-wrap gap-1 mt-1.5">' + dutyChip + issueChip +
+                                    '<span class="text-[10px] font-black px-1.5 py-0.5 rounded-full ' + style.chip + '">' + style.label + '</span>' +
+                                    (st.zoomJoinUrl ? '<span class="text-[10px] font-black text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full"><i class="fas fa-video"></i> ' + stEsc(st.zoomMeetingIdPretty || 'Có phòng') + '</span>' : '') +
+                                '</div>' +
+                            '</div>' +
+                            '<span class="text-[10px] font-black text-gray-400 shrink-0">#' + Number(st.displayOrder || 0) + '</span>' +
+                        '</div>' +
+                    '</button>';
+            }).join('');
+        };
+
+        function currentStation() {
+            return stationRoomsData.find(s => s.code === selectedStationCode) || null;
+        }
+
+        window.selectStationRoom = function(code, keepTab) {
+            selectedStationCode = code;
+            const st = currentStation();
+            if (!st) return;
+
+            document.getElementById('station-detail-empty')?.classList.add('hidden');
+            document.getElementById('station-detail')?.classList.remove('hidden');
+            window.renderStationRoomList();
+
+            const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+            const val = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
+
+            set('station-detail-name', st.name);
+            set('station-detail-code', st.code);
+            const style = ST_STATUS_STYLE[st.status] || ST_STATUS_STYLE.DISABLED;
+            set('station-detail-status', style.label);
+            val('station-status-select', st.status);
+
+            const issueBox = document.getElementById('station-detail-issues');
+            if (issueBox) {
+                issueBox.classList.toggle('hidden', st.ready);
+                if (!st.ready) {
+                    issueBox.innerHTML = '<i class="fas fa-triangle-exclamation mr-1"></i> Chưa đủ điều kiện bật hoạt động: ' +
+                        st.issues.map(i => stEsc(i)).join(' · ') + '.';
+                }
+            }
+
+            // Thẻ 1
+            val('st-name', st.name);
+            val('st-code-readonly', st.code);
+            val('st-note', st.note || '');
+            val('st-order', Number(st.displayOrder || 0));
+            const dutySel = document.getElementById('st-duty');
+            if (dutySel) {
+                const has = Array.from(dutySel.options).some(o => o.value === st.dutyHours);
+                if (!has) dutySel.add(new Option('Khung giờ tuỳ chỉnh', st.dutyHours));
+                dutySel.value = st.dutyHours;
+            }
+            val('st-offhours', st.offHoursMode);
+            set('st-info-updated', st.updatedAt
+                ? 'Cập nhật gần nhất: ' + new Date(Number(st.updatedAt)).toLocaleString('vi-VN') + (st.updatedBy ? ' bởi ' + st.updatedBy : '')
+                : 'Chưa có lần cập nhật nào.');
+
+            // Thẻ 2
+            val('st-zoom-url', st.zoomJoinUrl || '');
+            val('st-zoom-id', st.zoomMeetingIdPretty || '');
+            val('st-zoom-pass', '');
+            val('st-zoom-host', st.zoomHostEmail || '');
+            const passState = document.getElementById('st-zoom-pass-state');
+            if (passState) {
+                /* Mật khẩu đã lưu KHÔNG bao giờ được trả về giao diện - chỉ báo là có
+                   hay không. Bỏ trống ô này khi lưu nghĩa là giữ nguyên mật khẩu cũ. */
+                passState.textContent = st.hasPasscode
+                    ? 'Đã có mật khẩu. Để trống để giữ nguyên, gõ giá trị mới để thay.'
+                    : 'Chưa đặt mật khẩu riêng.';
+            }
+            const sharedBox = document.getElementById('st-zoom-shared');
+            if (sharedBox) sharedBox.checked = false;
+            document.getElementById('st-zoom-check')?.classList.add('hidden');
+
+            // Thẻ 3 + 4
+            renderStationReceivers(st);
+            renderStationRouting(st);
+
+            if (!keepTab) window.switchStationTab('info');
+            else window.switchStationTab(stationTabActive);
+        };
+
+        window.switchStationTab = function(tab) {
+            stationTabActive = tab;
+            ['info', 'zoom', 'receivers', 'routing', 'audit'].forEach(key => {
+                document.getElementById('sttab-' + key)?.classList.toggle('hidden', key !== tab);
+                const btn = document.getElementById('sttab-btn-' + key);
+                if (btn) {
+                    btn.className = key === tab
+                        ? 'px-3.5 py-2 text-xs font-black rounded-t-lg bg-white text-cyan-700 border-t border-x border-gray-200 -mb-px'
+                        : 'px-3.5 py-2 text-xs font-black rounded-t-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100';
+                }
+            });
+            if (tab === 'audit') window.loadStationAudit();
+        };
+
+        // --- Thẻ 1: Thông tin trạm ------------------------------------------
+        window.saveStationInfo = async function() {
+            const st = currentStation();
+            if (!st) return;
+            try {
+                const data = await stationApi({
+                    action: 'update',
+                    stationCode: st.code,
+                    stationName: document.getElementById('st-name').value,
+                    note: document.getElementById('st-note').value,
+                    displayOrder: document.getElementById('st-order').value,
+                    dutyHours: document.getElementById('st-duty').value,
+                    offHoursMode: document.getElementById('st-offhours').value
+                });
+                window.showToast(data.message || 'Đã lưu.');
+                await window.refreshStationRooms();
+                window.refreshStationCatalog();
+            } catch (err) {
+                window.showToast(err.message);
+            }
+        };
+
+        // --- Thẻ 2: Phòng Zoom ----------------------------------------------
+        window.checkStationZoomLink = async function() {
+            const box = document.getElementById('st-zoom-check');
+            if (!box) return;
+            box.classList.remove('hidden');
+            box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-gray-100 text-gray-600';
+            box.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Đang kiểm tra...';
+
+            try {
+                const data = await stationApi({
+                    action: 'check_zoom',
+                    stationCode: selectedStationCode,
+                    zoomJoinUrl: document.getElementById('st-zoom-url').value,
+                    zoomMeetingId: document.getElementById('st-zoom-id').value
+                });
+                // Đọc được mã phòng thì điền hộ luôn, Quản trị không phải gõ lại.
+                if (data.meetingIdPretty) document.getElementById('st-zoom-id').value = data.meetingIdPretty;
+
+                const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+                if (warnings.length) {
+                    box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-amber-50 text-amber-900 border border-amber-200';
+                    box.innerHTML = '<i class="fas fa-triangle-exclamation mr-1"></i> ' + warnings.map(w => stEsc(w)).join('<br>');
+                } else {
+                    box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200';
+                    box.innerHTML = '<i class="fas fa-circle-check mr-1"></i> Liên kết hợp lệ. Mã phòng ' + stEsc(data.meetingIdPretty || '(không đọc được)') +
+                        (data.passcodeDetected ? ' · Liên kết đã nhúng sẵn mật khẩu.' : ' · Liên kết không kèm mật khẩu.');
+                }
+            } catch (err) {
+                box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-rose-50 text-rose-700 border border-rose-200';
+                box.innerHTML = '<i class="fas fa-circle-xmark mr-1"></i> ' + stEsc(err.message);
+            }
+        };
+
+        window.saveStationZoom = async function() {
+            const st = currentStation();
+            if (!st) return;
+
+            const payload = {
+                action: 'update',
+                stationCode: st.code,
+                zoomJoinUrl: document.getElementById('st-zoom-url').value,
+                zoomMeetingId: document.getElementById('st-zoom-id').value,
+                zoomHostEmail: document.getElementById('st-zoom-host').value,
+                allowSharedRoom: document.getElementById('st-zoom-shared').checked === true
+            };
+            // Ô mật khẩu để trống nghĩa là "giữ nguyên", không phải "xoá đi".
+            const pass = document.getElementById('st-zoom-pass').value;
+            if (pass) payload.zoomPasscode = pass;
+
+            try {
+                const data = await stationApi(payload);
+                window.showToast(data.message || 'Đã lưu phòng Zoom.');
+                await window.refreshStationRooms();
+                window.refreshStationCatalog();
+            } catch (err) {
+                window.showToast(err.message);
+            }
+        };
+
+        // --- Thẻ 3: Tài khoản nhận cuộc gọi ----------------------------------
+        function renderStationReceivers(st) {
+            const sel = document.getElementById('st-recv-user');
+            if (sel) {
+                const assigned = new Set((st.receivers || []).map(r => r.userId));
+                const options = stationEligibleAccounts.filter(a => !assigned.has(a.id));
+                sel.innerHTML = options.length
+                    ? options.map(a => '<option value="' + stEsc(a.id) + '">' + stEsc(a.name) + ' — ' + stEsc(a.role) + '</option>').join('')
+                    : '<option value="">Không còn tài khoản đủ điều kiện để gán</option>';
+            }
+
+            const box = document.getElementById('st-receivers-list');
+            if (!box) return;
+            const rows = st.receivers || [];
+            if (!rows.length) {
+                box.innerHTML = '<div class="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 p-4 text-center text-xs font-bold text-amber-800">' +
+                    'Chưa có tài khoản nào nhận cuộc gọi cho điểm trạm này. Người dân chọn trạm sẽ không có ai đổ chuông.</div>';
+                return;
+            }
+
+            box.innerHTML = rows.map(r => {
+                const dutyDot = r.onDuty
+                    ? '<span class="text-[10px] font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full"><i class="fas fa-circle text-[6px] mr-0.5"></i> Đang trực</span>'
+                    : '<span class="text-[10px] font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">Không trực</span>';
+                const inactive = r.isActive ? '' : '<span class="text-[10px] font-black text-gray-600 bg-gray-200 px-1.5 py-0.5 rounded-full">Đã tắt</span>';
+                const noVideo = r.canReceiveVideo ? '' : '<span class="text-[10px] font-black text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-full">Chưa có quyền nhận video</span>';
+                return '' +
+                    '<div class="rounded-xl border border-gray-200 bg-white p-3 flex flex-col sm:flex-row sm:items-center gap-3">' +
+                        '<div class="flex-1 min-w-0">' +
+                            '<p class="font-black text-sm text-gray-900 truncate">' + stEsc(r.name) + '</p>' +
+                            '<p class="text-[11px] text-gray-500 font-medium truncate">' + stEsc(r.username) + ' · ' + stEsc(r.role) + '</p>' +
+                            '<div class="flex flex-wrap gap-1 mt-1.5">' + dutyDot + inactive + noVideo +
+                                (r.personalMeetingIdPretty ? '<span class="text-[10px] font-black text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full">Phòng riêng ' + stEsc(r.personalMeetingIdPretty) + '</span>' : '') +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="flex items-center gap-2 shrink-0">' +
+                            '<select onchange="window.updateStationReceiver(\'' + stEsc(r.id) + '\', \'priority\', this.value)" class="text-xs font-bold border border-gray-300 rounded-lg px-2 py-1.5 bg-white">' +
+                                [1, 2, 3].map(n => '<option value="' + n + '"' + (Number(r.priority) === n ? ' selected' : '') + '>Ưu tiên ' + n + '</option>').join('') +
+                            '</select>' +
+                            '<button type="button" onclick="window.updateStationReceiver(\'' + stEsc(r.id) + '\', \'isActive\', ' + (r.isActive ? 'false' : 'true') + ')" title="Bật/tắt nhận cuộc gọi" class="w-8 h-8 rounded-lg text-xs ' + (r.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500') + '"><i class="fas fa-power-off"></i></button>' +
+                            '<button type="button" onclick="window.removeStationReceiver(\'' + stEsc(r.id) + '\', \'' + stEsc(r.name) + '\')" title="Gỡ khỏi điểm trạm" class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 text-xs"><i class="fas fa-user-minus"></i></button>' +
+                        '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        window.addStationReceiver = async function() {
+            const userId = document.getElementById('st-recv-user')?.value;
+            if (!userId) { window.showToast('Không còn tài khoản đủ điều kiện để gán.'); return; }
+            try {
+                const data = await stationApi({
+                    action: 'add_receiver',
+                    stationCode: selectedStationCode,
+                    userId,
+                    priority: document.getElementById('st-recv-priority').value
+                });
+                window.showToast(data.message || 'Đã gán tài khoản.');
+                await window.refreshStationRooms();
+            } catch (err) {
+                window.showToast(err.message);
+            }
+        };
+
+        window.updateStationReceiver = async function(id, field, value) {
+            try {
+                const payload = { action: 'update_receiver', id };
+                payload[field] = value;
+                const data = await stationApi(payload);
+                window.showToast(data.message || 'Đã cập nhật.');
+                await window.refreshStationRooms();
+            } catch (err) {
+                window.showToast(err.message);
+                // Thao tác bị máy chủ từ chối: vẽ lại để ô chọn không hiển thị giá trị chưa được lưu.
+                await window.refreshStationRooms();
+            }
+        };
+
+        window.removeStationReceiver = async function(id, name) {
+            if (!confirm('Gỡ ' + name + ' khỏi điểm trạm này? Tài khoản sẽ không nhận cuộc gọi của trạm nữa.')) return;
+            try {
+                const data = await stationApi({ action: 'remove_receiver', id });
+                window.showToast(data.message || 'Đã gỡ tài khoản.');
+                await window.refreshStationRooms();
+            } catch (err) {
+                window.showToast(err.message);
+            }
+        };
+
+        // --- Thẻ 4: Định tuyến & dự phòng ------------------------------------
+        function renderStationRouting(st) {
+            const timeout = document.getElementById('st-ring-timeout');
+            if (timeout) timeout.value = Number(st.ringTimeoutSec || 45);
+
+            const sel = document.getElementById('st-fallback');
+            if (sel) {
+                sel.innerHTML = '<option value="">— Không có trạm dự phòng —</option>' +
+                    stationRoomsData
+                        .filter(o => o.code !== st.code)
+                        .map(o => '<option value="' + stEsc(o.code) + '">' + stEsc(o.name) + '</option>')
+                        .join('');
+                sel.value = st.fallbackStationCode || '';
+            }
+            window.renderStationRoutingPreview();
+        }
+
+        /* Diễn giải bằng lời đường đi của cuộc gọi. Cấu hình leo thang bằng con số
+           rất dễ đọc nhầm, nên màn hình nói thẳng ra "giây thứ bao nhiêu thì ai đổ
+           chuông" thay vì bắt Quản trị tự nhẩm. */
+        window.renderStationRoutingPreview = function() {
+            const st = currentStation();
+            const box = document.getElementById('st-routing-preview');
+            if (!st || !box) return;
+
+            const timeout = Number(document.getElementById('st-ring-timeout')?.value || st.ringTimeoutSec || 45);
+            const fallbackCode = document.getElementById('st-fallback')?.value || '';
+            const fallback = stationRoomsData.find(o => o.code === fallbackCode);
+            const steps = [];
+
+            for (let round = 0; round < 3; round += 1) {
+                steps.push('Giây ' + (round * timeout) + ' - ' + ((round + 1) * timeout) + ': đổ chuông tới tài khoản mức ưu tiên 1' +
+                    (round >= 1 ? ' đến ' + (round + 1) : '') + ' của ' + stEsc(st.name) + '.');
+            }
+            if (fallback) {
+                steps.push('Từ giây ' + (3 * timeout) + ': chuyển sang trạm dự phòng ' + stEsc(fallback.name) + ' và lặp lại ba vòng tương tự.');
+                steps.push('Hết các vòng ở trạm dự phòng mà vẫn không ai nhận: cuộc gọi được đánh dấu lỡ và hiện cảnh báo đỏ trên hàng đợi.');
+            } else {
+                steps.push('Từ giây ' + (3 * timeout) + ': gọi tới toàn bộ tài khoản của trạm. Không có trạm dự phòng nên hết vòng là cuộc gọi bị đánh dấu lỡ.');
+            }
+            box.innerHTML = steps.map(t => '<li>' + t + '</li>').join('');
+        };
+
+        window.saveStationRouting = async function() {
+            const st = currentStation();
+            if (!st) return;
+            try {
+                const data = await stationApi({
+                    action: 'update',
+                    stationCode: st.code,
+                    ringTimeoutSec: document.getElementById('st-ring-timeout').value,
+                    fallbackStationCode: document.getElementById('st-fallback').value
+                });
+                window.showToast(data.message || 'Đã lưu định tuyến.');
+                await window.refreshStationRooms();
+            } catch (err) {
+                window.showToast(err.message);
+            }
+        };
+
+        // --- Trạng thái hoạt động --------------------------------------------
+        window.changeStationStatus = async function(status) {
+            const st = currentStation();
+            if (!st) return;
+            try {
+                const data = await stationApi({ action: 'set_status', stationCode: st.code, status });
+                window.showToast(data.message || 'Đã đổi trạng thái.');
+                await window.refreshStationRooms();
+                window.refreshStationCatalog();
+            } catch (err) {
+                window.showToast(err.message);
+                // Máy chủ chặn vì thiếu điều kiện: trả ô chọn về đúng trạng thái thật.
+                document.getElementById('station-status-select').value = st.status;
+            }
+        };
+
+        // --- Thẻ 5: Nhật ký ---------------------------------------------------
+        const ST_AUDIT_ACTION = {
+            CREATE: 'Tạo điểm trạm', UPDATE: 'Sửa cấu hình', STATUS: 'Đổi trạng thái',
+            DELETE: 'Xoá điểm trạm', ADD_RECEIVER: 'Gán tài khoản nhận',
+            UPDATE_RECEIVER: 'Sửa phân công', REMOVE_RECEIVER: 'Gỡ tài khoản nhận'
+        };
+
+        window.loadStationAudit = async function() {
+            const box = document.getElementById('st-audit-list');
+            if (!box || !selectedStationCode) return;
+            box.innerHTML = '<p class="text-xs text-gray-500 font-medium p-3"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang tải nhật ký...</p>';
+            try {
+                const data = await stationApi('/api/station-rooms?audit=' + encodeURIComponent(selectedStationCode), 'GET');
+                const rows = Array.isArray(data.entries) ? data.entries : [];
+                if (!rows.length) {
+                    box.innerHTML = '<p class="text-xs text-gray-500 font-medium p-3">Chưa có thay đổi nào được ghi nhận.</p>';
+                    return;
+                }
+                box.innerHTML = rows.map(e => {
+                    const when = e.ts ? new Date(Number(e.ts)).toLocaleString('vi-VN') : '';
+                    const change = e.field
+                        ? '<span class="font-mono text-[10px] text-gray-500">' + stEsc(e.field) + '</span>: ' +
+                          '<span class="text-gray-500 line-through">' + stEsc(e.oldValue || '(trống)') + '</span> → ' +
+                          '<span class="text-gray-900 font-bold">' + stEsc(e.newValue || '(trống)') + '</span>'
+                        : '';
+                    return '<div class="text-[11px] border-l-2 border-gray-200 pl-3 py-1.5">' +
+                        '<p class="font-black text-gray-800">' + stEsc(ST_AUDIT_ACTION[e.action] || e.action) + '</p>' +
+                        (change ? '<p class="text-gray-600 break-all">' + change + '</p>' : '') +
+                        '<p class="text-gray-400 font-medium">' + stEsc(e.actorName || 'Không rõ') + ' · ' + when + '</p>' +
+                    '</div>';
+                }).join('');
+            } catch (err) {
+                box.innerHTML = '<p class="text-xs text-rose-600 font-bold p-3">' + stEsc(err.message) + '</p>';
+            }
+        };
+
+        // --- Thêm điểm trạm mới -----------------------------------------------
+        window.openNewStationForm = async function() {
+            const code = (prompt('Mã điểm trạm mới (chữ in hoa, số và dấu gạch ngang):\n\nVí dụ: TYT-BATXAT-XX-06') || '').trim().toUpperCase();
+            if (!code) return;
+            const name = (prompt('Tên hiển thị của điểm trạm "' + code + '":') || '').trim();
+            if (!name) return;
+
+            try {
+                const data = await stationApi({ action: 'create', stationCode: code, stationName: name });
+                window.showToast(data.message || 'Đã tạo điểm trạm.');
+                await window.refreshStationRooms();
+                window.selectStationRoom(code);
+                window.refreshStationCatalog();
+            } catch (err) {
+                window.showToast(err.message);
+            }
+        };
+
         window.switchAdminTab = function(tabName) {
             const isStationUser = currentCmsUser && (
                 (currentCmsUser.role && (currentCmsUser.role.includes('Điểm trạm') || currentCmsUser.role.includes('Station') || currentCmsUser.role.includes('STATION'))) ||
@@ -5892,7 +6776,7 @@
 
             if (isStationUser) {
                 // Phân quyền nghiêm ngặt cho Cán bộ Điểm trạm: Ẩn toàn bộ các tab quản trị khác
-                ['news', 'vaccine', 'docs', 'service', 'contact', 'video', 'config', 'signature', 'appointments'].forEach(key => {
+                ['news', 'vaccine', 'docs', 'service', 'contact', 'video', 'config', 'signature', 'appointments', 'stations'].forEach(key => {
                     const btn = document.getElementById(`tab-btn-${key}`);
                     if (btn && btn.parentElement) btn.parentElement.style.display = 'none';
                 });
@@ -5909,6 +6793,18 @@
                     const btn = document.getElementById(`tab-btn-${key}`);
                     if (btn && btn.parentElement) btn.parentElement.style.display = '';
                 });
+
+                /* Bảng điều khiển điểm trạm cấp phòng Zoom và tài khoản nhận cuộc gọi
+                   nên chỉ Quản trị viên thấy - Biên tập viên không có phạm vi "admin"
+                   thì máy chủ cũng sẽ từ chối, ẩn đi cho khỏi dẫn người dùng vào ngõ cụt. */
+                const adminSession = window.getCmsAdminSession();
+                const canManageStations = !!(adminSession && Array.isArray(adminSession.scopes) && adminSession.scopes.indexOf('admin') !== -1);
+                const stationsBtn = document.getElementById('tab-btn-stations');
+                if (stationsBtn && stationsBtn.parentElement) stationsBtn.parentElement.style.display = canManageStations ? '' : 'none';
+                if (!canManageStations && tabName === 'stations') {
+                    window.showToast('Mô-đun Bảng điều khiển điểm trạm chỉ dành cho tài khoản Quản trị viên.');
+                    tabName = 'telehealth';
+                }
             }
 
             document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active')); 
@@ -5927,6 +6823,9 @@
             if (tabName === 'signature') {
                 window.initSignaturePad();
                 window.renderSignerAdmin();
+            }
+            if (tabName === 'stations') {
+                window.initStationRoomsModule();
             }
         };
 
@@ -6023,10 +6922,14 @@
                     adminDash.classList.remove('hidden');
                     window.scrollTo(0,0);
 
+                    /* Vào CMS từ lối tắt ở chân trang thì mở thẳng mô-đun người dùng
+                       đã bấm, thay vì đổ họ xuống trang Tin tức rồi bắt tìm lại. */
+                    const wanted = window.pendingAdminTab;
+                    window.pendingAdminTab = null;
                     if (isStation) {
                         if (window.switchAdminTab) window.switchAdminTab('telehealth');
                     } else {
-                        if (window.switchAdminTab) window.switchAdminTab('news');
+                        if (window.switchAdminTab) window.switchAdminTab(wanted || 'news');
                     }
                     if (window.checkCmsVideoPermission && window.checkCmsVideoPermission()) {
                         if (window.startCmsIncomingWatcher) window.startCmsIncomingWatcher();
@@ -6123,6 +7026,8 @@
 
         let publicDutyTimer = null;
         let publicDutyCount = null;
+        /* Số cán bộ đang trực TÁCH THEO TỪNG TRẠM: { 'TYT-BATXAT-01': 2, ... } */
+        let publicDutyByStation = {};
 
         window.openTelehealthQuickCall = function() {
             window.openModal('modal-telehealth-quick');
@@ -6146,11 +7051,32 @@
             if (!code) return;
             quickCallStationCode = code;
             try { localStorage.setItem('tyt_quick_call_station', code); } catch (e) {}
+            window.updateQuickCallStationHint();
+        };
+
+        /* Trạng thái trực của RIÊNG trạm đang chọn. Con số tổng ở khối phía trên
+           không trả lời được câu hỏi thật sự của người dân: "trạm tôi chọn có ai
+           nghe không?" - trạm khác đang trực đông cũng không giúp được gì. */
+        window.updateQuickCallStationHint = function() {
+            const code = document.getElementById('quick-call-station')?.value || quickCallStationCode;
             const station = window.TELEHEALTH_STATIONS.find(s => s.code === code);
             const hint = document.getElementById('quick-call-station-hint');
-            if (hint && station) {
-                hint.innerHTML = `<i class="fas fa-location-dot mr-1 text-blue-500"></i> Cuộc gọi sẽ đổ chuông tại <b>${teleEscape(station.name)}</b> <span class="font-mono">(${teleEscape(station.code)})</span> — ${teleEscape(station.note)}.`;
+            if (!hint || !station) return;
+
+            const duty = (publicDutyByStation && publicDutyByStation[station.code]) || 0;
+            let state;
+            if (duty > 0) {
+                state = `<span class="text-emerald-700"><i class="fas fa-circle-check mr-1"></i> ${duty} cán bộ của trạm đang trực, cuộc gọi sẽ đổ chuông ngay.</span>`;
+            } else if (station.onDutyHours === false) {
+                const fallback = window.TELEHEALTH_STATIONS.find(s => s.code === station.fallbackStationCode);
+                state = `<span class="text-amber-700"><i class="fas fa-clock mr-1"></i> Ngoài giờ trực của trạm này.` +
+                    (fallback ? ` Sau ${Number(station.ringTimeoutSec || 45)} giây không ai nghe, cuộc gọi tự chuyển tới <b>${teleEscape(fallback.name)}</b>.` : ' Bạn vẫn có thể gọi để đổ chuông hoặc đặt lịch khám.') +
+                    `</span>`;
+            } else {
+                state = `<span class="text-amber-700"><i class="fas fa-circle-exclamation mr-1"></i> Hiện chưa có cán bộ nào của trạm trực tuyến. Cuộc gọi vẫn được ghi nhận và đổ chuông.</span>`;
             }
+
+            hint.innerHTML = `<i class="fas fa-location-dot mr-1 text-blue-500"></i> Cuộc gọi sẽ đổ chuông tại <b>${teleEscape(station.name)}</b> <span class="font-mono">(${teleEscape(station.code)})</span>${station.note ? ' — ' + teleEscape(station.note) : ''}.<br>${state}`;
         };
 
         function renderDutyStatus(count) {
@@ -6189,8 +7115,20 @@
                 if (!res.ok) throw new Error('on-duty ' + res.status);
                 const data = await res.json();
                 publicDutyCount = Number(data.doctorsOnline || 0);
+                publicDutyByStation = data.dutyByStation || {};
+
+                // Danh mục mang theo dutyCount để nhãn ô chọn trạm không bị lệch với thực tế.
+                window.TELEHEALTH_STATIONS.forEach(st => {
+                    if (typeof st.dutyCount === 'number') st.dutyCount = publicDutyByStation[st.code] || 0;
+                });
+                if (document.getElementById('quick-call-station')) {
+                    window.renderStationOptions('quick-call-station', quickCallStationCode, true);
+                }
+
                 renderDutyStatus(publicDutyCount);
+                window.updateQuickCallStationHint();
             } catch (err) {
+                publicDutyByStation = {};
                 renderDutyStatus(0);
             }
         };
@@ -6968,7 +7906,11 @@
             waitTicker: null,
             waitStartedAt: 0,
             connected: false,
-            doctorsOnline: null
+            doctorsOnline: null,
+            /* Ảnh chụp điều hướng do máy chủ trả kèm mỗi lượt hỏi tín hiệu:
+               đang đổ chuông tới mức ưu tiên nào, còn bao lâu thì leo thang, ai
+               đã tiếp nhận. Người dân chỉ đọc, mọi quyết định nằm ở máy chủ. */
+            routing: null
         };
 
         /* Màn hình chờ của người dân: đồng hồ chờ, số cán bộ trực, phương án dự phòng. */
@@ -6994,6 +7936,77 @@
                 }
             }
             if (fallbackEl) fallbackEl.classList.toggle('hidden', waited < 45);
+            teleRenderRouting();
+        }
+
+        /* Diễn giải trạng thái điều hướng thành một câu người dân đọc được. */
+        function teleRenderRouting() {
+            const el = document.getElementById('patient-wait-routing');
+            if (!el) return;
+            const r = TELE.routing;
+            if (!r || !r.routingState || TELE.role === 'doctor') { el.classList.add('hidden'); return; }
+
+            const stationName = r.ringingStationName || r.stationName || '';
+            let html = '';
+
+            if (r.routingState === 'WAITING' || r.routingState === 'RINGING') {
+                html = `<i class="fas fa-bell mr-1"></i> Đang đổ chuông tại <b>${teleEscape(stationName)}</b>` +
+                    (typeof r.ringRemainingSec === 'number' && r.ringRemainingSec > 0
+                        ? ` — còn ${r.ringRemainingSec} giây trước khi chuyển tiếp tới cán bộ khác.`
+                        : '.');
+            } else if (r.routingState === 'ESCALATED') {
+                html = `<i class="fas fa-arrow-up-right-dots mr-1 text-amber-300"></i> <span class="text-amber-300">Chưa ai bắt máy, cuộc gọi đã được chuyển rộng tới <b>${teleEscape(stationName)}</b>` +
+                    (typeof r.ringRemainingSec === 'number' && r.ringRemainingSec > 0 ? ` — còn ${r.ringRemainingSec} giây.` : '.') + '</span>';
+            } else if (r.routingState === 'ACCEPTED') {
+                html = `<i class="fas fa-circle-check mr-1 text-emerald-400"></i> <span class="text-emerald-400"><b>${teleEscape(r.acceptedName || 'Cán bộ y tế')}</b> đã tiếp nhận cuộc gọi của bạn.</span>`;
+            } else if (r.exhausted) {
+                html = `<i class="fas fa-circle-exclamation mr-1 text-rose-400"></i> <span class="text-rose-400">Đã gọi hết các cán bộ của trạm mà chưa ai tiếp nhận. Vui lòng dùng số điện thoại hoặc Zalo bên dưới.</span>`;
+            }
+
+            el.innerHTML = html;
+            el.classList.toggle('hidden', !html);
+        }
+
+        /**
+         * Nhận ảnh chụp phòng khám sau mỗi lượt hỏi tín hiệu.
+         *
+         * Liên kết Zoom chỉ có mặt trong dữ liệu này SAU khi đã có người tiếp nhận
+         * (máy chủ quyết định, xem roomView trong signal.ts) - nên chỉ cần thấy nó
+         * là hiện được nút vào phòng, không phải tự suy đoán ở phía trình duyệt.
+         */
+        function teleUpdateRouting(room) {
+            if (!room) return;
+            const before = TELE.routing ? TELE.routing.routingState : '';
+            TELE.routing = room;
+
+            if (room.routingState === 'ACCEPTED' && before !== 'ACCEPTED' && TELE.role !== 'doctor') {
+                window.showToast(`${room.acceptedName || 'Cán bộ y tế'} đã tiếp nhận cuộc gọi của bạn.`);
+            }
+            teleRenderZoomBar(room);
+            if (!TELE.connected) teleRenderWaiting();
+        }
+
+        function teleRenderZoomBar(room) {
+            const bar = document.getElementById('patient-zoom-bar');
+            if (!bar || TELE.role === 'doctor') return;
+
+            const zoom = room && room.zoom;
+            if (!zoom || !zoom.joinUrl) { bar.classList.add('hidden'); return; }
+
+            const who = document.getElementById('patient-zoom-who');
+            if (who) who.textContent = `${room.acceptedName || 'Cán bộ y tế'} đã tiếp nhận cuộc gọi`;
+
+            const link = document.getElementById('patient-zoom-link');
+            if (link) link.href = zoom.joinUrl;
+
+            const meta = document.getElementById('patient-zoom-meta');
+            if (meta) {
+                meta.textContent = [
+                    zoom.meetingId ? 'Mã phòng ' + zoom.meetingId : '',
+                    zoom.passcode ? 'Mật khẩu ' + zoom.passcode : ''
+                ].filter(Boolean).join(' · ');
+            }
+            bar.classList.remove('hidden');
         }
 
         function teleStartWaitTicker() {
@@ -7506,8 +8519,9 @@
                     if (TELE.mesh && Array.isArray(data.peers)) {
                         if (TELE.mesh.sync(data.peers)) telePeerLayout();
                     }
-                    if (data.room && data.room.vitals && TELE.role === 'doctor') {
-                        teleRenderVitals(data.room.vitals);
+                    if (data.room) {
+                        teleUpdateRouting(data.room);
+                        if (data.room.vitals && TELE.role === 'doctor') teleRenderVitals(data.room.vitals);
                     }
                 } catch (err) {
                     console.warn('Mất tín hiệu signaling, đang thử lại...', err);
@@ -9254,6 +10268,157 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             window.showToast("Đã ngắt cuộc gọi video.");
         };
 
+        /* =====================================================================
+           THÔNG BÁO ĐẨY NGOÀI TRÌNH DUYỆT (WEB PUSH)
+
+           Lớp cuối cùng của ba lớp báo cuộc gọi: cửa sổ nổi và chuông chỉ hoạt
+           động khi tab CMS còn mở. Cán bộ trạm thường đóng máy đi làm việc khác,
+           nên phải có một đường báo tới hệ điều hành.
+
+           Bản tin đẩy từ máy chủ là bản tin RỖNG (xem netlify/lib/push.ts): tệp
+           sw.js nhận được thì tự hỏi lại /api/notify để lấy nội dung. Vì vậy ở đây
+           phải chuyển phiếu đăng nhập sang cho Service Worker - nó không đọc được
+           localStorage của trang.
+           ===================================================================== */
+        let cmsPushSubscription = null;
+        let cmsPushPublicKey = '';
+        let cmsSwRegistration = null;
+
+        function urlBase64ToUint8Array(base64) {
+            const padded = (base64 + '='.repeat((4 - base64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+            const raw = atob(padded);
+            const out = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
+            return out;
+        }
+
+        function cmsPushSupported() {
+            return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+        }
+
+        function renderCmsPushButton(enabled) {
+            const btn = document.getElementById('cms-push-btn');
+            const icon = document.getElementById('cms-push-icon');
+            const text = document.getElementById('cms-push-text');
+            if (!btn) return;
+            btn.classList.remove('hidden');
+            if (enabled) {
+                btn.className = 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm flex items-center gap-2';
+                if (icon) icon.className = 'fas fa-bell';
+                if (text) text.textContent = 'Thông báo ngoài trình duyệt: ĐANG BẬT';
+            } else {
+                btn.className = 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm flex items-center gap-2';
+                if (icon) icon.className = 'fas fa-bell-slash';
+                if (text) text.textContent = 'Bật thông báo ngoài trình duyệt';
+            }
+        }
+
+        /** Gửi phiếu đăng nhập sang Service Worker để nó tự hỏi chi tiết cuộc gọi. */
+        function cmsSendTokenToSw() {
+            const session = window.getCmsAdminSession();
+            if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+            navigator.serviceWorker.controller.postMessage(
+                session && session.token
+                    ? { type: 'AUTH_TOKEN', token: session.token }
+                    : { type: 'CLEAR_TOKEN' }
+            );
+        }
+
+        window.initCmsPushNotify = async function() {
+            if (!cmsPushSupported()) return;
+            try {
+                const cfg = await fetch('/api/notify').then(r => r.json()).catch(() => null);
+                // Chưa cấu hình đôi khoá VAPID thì giấu nút đi thay vì để nó báo lỗi khi bấm.
+                if (!cfg || cfg.configured !== true || !cfg.publicKey) return;
+                cmsPushPublicKey = cfg.publicKey;
+
+                cmsSwRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                await navigator.serviceWorker.ready;
+                cmsSendTokenToSw();
+
+                cmsPushSubscription = await cmsSwRegistration.pushManager.getSubscription();
+                renderCmsPushButton(Boolean(cmsPushSubscription) && Notification.permission === 'granted');
+            } catch (err) {
+                console.warn('Không khởi tạo được thông báo đẩy:', err && err.message);
+            }
+        };
+
+        window.toggleCmsPushNotify = async function() {
+            if (!cmsPushSupported() || !cmsSwRegistration) {
+                window.showToast('Trình duyệt này không hỗ trợ thông báo ngoài trình duyệt.');
+                return;
+            }
+            const session = window.getCmsAdminSession();
+            if (!session) {
+                window.showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại CMS.');
+                return;
+            }
+
+            try {
+                if (cmsPushSubscription) {
+                    const endpoint = cmsPushSubscription.endpoint;
+                    await cmsPushSubscription.unsubscribe().catch(() => {});
+                    cmsPushSubscription = null;
+                    // Xoá luôn ở máy chủ, nếu không nó vẫn gõ cửa một địa chỉ đã chết.
+                    await fetch('/api/notify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.token },
+                        body: JSON.stringify({ action: 'unsubscribe', endpoint })
+                    }).catch(() => {});
+                    renderCmsPushButton(false);
+                    window.showToast('Đã tắt thông báo ngoài trình duyệt trên thiết bị này.');
+                    return;
+                }
+
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    window.showToast('Trình duyệt đã chặn thông báo. Hãy cấp quyền trong phần cài đặt trang web.');
+                    return;
+                }
+
+                cmsPushSubscription = await cmsSwRegistration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(cmsPushPublicKey)
+                });
+
+                const payload = cmsPushSubscription.toJSON();
+                const res = await fetch('/api/notify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.token },
+                    body: JSON.stringify({
+                        action: 'subscribe',
+                        endpoint: payload.endpoint,
+                        keys: payload.keys,
+                        stationCode: (currentCmsUser && currentCmsUser.stationCode) || '',
+                        userAgent: navigator.userAgent
+                    })
+                });
+                const data = await res.json().catch(() => null);
+                if (!res.ok || !data || data.success !== true) {
+                    throw new Error((data && data.error) || 'Máy chủ từ chối đăng ký thiết bị.');
+                }
+
+                cmsSendTokenToSw();
+                renderCmsPushButton(true);
+                window.showToast('Đã bật thông báo. Cuộc gọi sẽ báo ngay cả khi bạn đóng tab này.');
+            } catch (err) {
+                renderCmsPushButton(Boolean(cmsPushSubscription));
+                window.showToast('Không bật được thông báo đẩy: ' + (err && err.message ? err.message : 'lỗi không rõ'));
+            }
+        };
+
+        /* Bấm vào thông báo hệ điều hành: Service Worker đưa tab này lên và báo
+           cuộc gọi nào cần mở, thay vì bắt cán bộ tự tìm lại trong hàng đợi. */
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                const data = event.data || {};
+                if (data.type !== 'OPEN_CALL') return;
+                window.switchAdminTab('telehealth');
+                window.refreshCmsIncomingCalls(false);
+                if (data.roomId) window.showToast('Cuộc gọi đang chờ tiếp nhận trong hàng đợi bên dưới.');
+            });
+        }
+
         let cmsIncomingTimer = null;
         let cmsStandbyPeerId = null;
         let cmsRingSoundOn = true;
@@ -9271,6 +10436,8 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 cmsStandbyPeerId = 'standby-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
             }
             if (cmsIncomingTimer) return;
+            // Bật trực là lúc hợp lý nhất để dựng đường thông báo đẩy.
+            window.initCmsPushNotify();
             cmsWatchToken += 1;
             cmsWatchLoop(cmsWatchToken);
             // Lưới an toàn: vòng chờ dài đứt (tab ngủ, đổi mạng) thì vẫn có nhịp quét.
@@ -9315,6 +10482,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             }
             cmsKnownRooms = [];
             cmsRingDismissed = [];
+            cmsStopRingLoop();
             window.renderCmsRingBanner([]);
         };
 
@@ -9342,6 +10510,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
 
         window.toggleCmsRingSound = function() {
             cmsRingSoundOn = !cmsRingSoundOn;
+            if (!cmsRingSoundOn) cmsStopRingLoop();
             const btn = document.getElementById('cms-ring-sound-btn');
             if (btn) btn.innerHTML = `<i class="fas fa-bell${cmsRingSoundOn ? '' : '-slash'}"></i>`;
             window.showToast(cmsRingSoundOn ? "Đã bật tiếng báo cuộc gọi." : "Đã tắt tiếng báo cuộc gọi.");
@@ -9349,6 +10518,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
 
         window.dismissCmsRing = function() {
             cmsRingDismissed = cmsKnownRooms.slice();
+            cmsStopRingLoop();
             window.renderCmsRingBanner([]);
         };
 
@@ -9377,6 +10547,25 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             }
         }
 
+        /* Chuông đổ LIÊN TỤC chừng nào còn cuộc gọi chưa ai nhận.
+           Một tiếng "ting" duy nhất lúc cuộc gọi xuất hiện rất dễ lọt qua tai khi
+           cán bộ đang quay đi làm việc khác - mà đó đúng là lúc cần nghe nhất.
+           Chuông tự tắt ngay khi hàng đợi trống hoặc cán bộ bấm tiếp nhận/ẩn. */
+        let cmsRingLoopTimer = null;
+
+        function cmsStartRingLoop() {
+            if (cmsRingLoopTimer || !cmsRingSoundOn) return;
+            cmsPlayRingTone();
+            cmsRingLoopTimer = setInterval(() => {
+                if (!cmsRingSoundOn) { cmsStopRingLoop(); return; }
+                cmsPlayRingTone();
+            }, 4000);
+        }
+
+        function cmsStopRingLoop() {
+            if (cmsRingLoopTimer) { clearInterval(cmsRingLoopTimer); cmsRingLoopTimer = null; }
+        }
+
         function cmsRoomCardHtml(r, compact) {
             const v = r.vitals || {};
             const vitalLine = [
@@ -9389,11 +10578,27 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             const mine = CMS_CALLS.has(r.roomId);
             const focused = r.roomId === cmsFocusedRoomId;
             const joined = r.hasDoctor;
-            // Người dân đã chọn điểm phòng khám nào thì hiện đúng tên điểm đó.
-            const station = window.teleStationFromRoomId(r.roomId);
-            const stationBadge = station
-                ? `<span class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-bold"><i class="fas fa-location-dot"></i> ${teleEscape(station.name)}</span>`
+            /* Tên điểm trạm lấy từ máy chủ trước (cột station_code của cuộc gọi),
+               chỉ khi thiếu mới suy ngược từ mã phòng - cuộc gọi cũ tạo trước khi
+               có cột này vẫn hiển thị đúng. */
+            const stationName = r.stationName || (window.teleStationFromRoomId(r.roomId) || {}).name || '';
+            const stationBadge = stationName
+                ? `<span class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-bold"><i class="fas fa-location-dot"></i> ${teleEscape(stationName)}</span>`
                 : '';
+
+            /* Bậc leo thang: cán bộ thấy rõ cuộc gọi còn bao lâu thì lan sang người
+               khác, và cuộc nào đã quá hạn mà chưa ai nhận. */
+            let routingBadge = '';
+            if (r.exhausted) {
+                routingBadge = '<span class="text-[10px] bg-rose-100 text-rose-700 border border-rose-300 px-1.5 py-0.5 rounded font-black"><i class="fas fa-circle-exclamation"></i> Chưa ai tiếp nhận</span>';
+            } else if (r.escalated) {
+                routingBadge = `<span class="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded font-black"><i class="fas fa-arrow-up-right-dots"></i> Đã chuyển tiếp${typeof r.ringRemainingSec === 'number' ? ' · còn ' + r.ringRemainingSec + 's' : ''}</span>`;
+            } else if (typeof r.ringRemainingSec === 'number' && !r.hasDoctor) {
+                routingBadge = `<span class="text-[10px] bg-blue-100 text-blue-800 border border-blue-300 px-1.5 py-0.5 rounded font-black"><i class="fa-regular fa-clock"></i> Còn ${r.ringRemainingSec}s</span>`;
+            }
+            if (r.routingState === 'ACCEPTED' && r.acceptedName) {
+                routingBadge = `<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded font-black"><i class="fas fa-user-check"></i> ${teleEscape(r.acceptedName)} đã nhận</span>`;
+            }
             const label = mine ? (focused ? 'Đang khám' : 'Chuyển sang khám') : (joined ? 'Vào lại phòng' : 'Tiếp nhận cuộc gọi');
             const btnColor = mine
                 ? (focused ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600')
@@ -9405,15 +10610,25 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                         ${teleEscape(r.patientName || 'Bệnh nhân chưa rõ tên')}
                         <span class="font-mono text-[10px] bg-white border border-gray-200 px-1.5 py-0.5 rounded">${teleEscape(r.roomId)}</span>
                         ${stationBadge}
+                        ${routingBadge}
                         ${mine && !focused ? '<span class="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">GIỮ MÁY</span>' : ''}
                     </div>
                     <div class="text-gray-500 mt-0.5">Đang chờ: ${teleEscape(names)}${vitalLine ? ' — ' + teleEscape(vitalLine) : ''}</div>
                     ${r.symptoms && !compact ? `<div class="text-gray-500 italic mt-0.5">${teleEscape(r.symptoms)}</div>` : ''}
                 </div>
-                <button type="button" class="cms-accept-call ${btnColor} text-white font-bold px-3 py-2 rounded-lg text-xs transition flex items-center gap-1.5"
-                        data-room="${teleEscape(r.roomId)}" data-patient="${teleEscape(r.patientName || 'Bệnh nhân')}" data-symptoms="${teleEscape(r.symptoms || '')}">
-                    <i class="fas fa-video"></i> ${label}
-                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="cms-accept-call ${btnColor} text-white font-bold px-3 py-2 rounded-lg text-xs transition flex items-center gap-1.5"
+                            data-room="${teleEscape(r.roomId)}" data-patient="${teleEscape(r.patientName || 'Bệnh nhân')}" data-symptoms="${teleEscape(r.symptoms || '')}">
+                        <i class="fas fa-video"></i> ${label}
+                    </button>
+                    ${(!mine && !joined && r.routingState !== 'ACCEPTED')
+                        ? `<button type="button" class="cms-decline-call bg-white hover:bg-gray-100 text-gray-600 border border-gray-300 font-bold px-3 py-2 rounded-lg text-xs transition flex items-center gap-1.5"
+                                   title="Không tiếp nhận được - chuyển ngay cho cán bộ khác thay vì để người dân chờ hết giờ"
+                                   data-room="${teleEscape(r.roomId)}">
+                            <i class="fas fa-share"></i> Chuyển tiếp
+                           </button>`
+                        : ''}
+                </div>
             </div>`;
         }
 
@@ -9425,13 +10640,118 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             window.acceptCmsCall(btn.dataset.room, btn.dataset.patient, btn.dataset.symptoms, btn.dataset.appointment || null, btn.dataset.idcard || '');
         });
 
-        window.acceptCmsCall = function(roomId, patientName, symptoms, appointmentId, patientId) {
+        document.addEventListener('click', (ev) => {
+            const btn = ev.target.closest && ev.target.closest('.cms-decline-call');
+            if (!btn) return;
+            ev.preventDefault();
+            window.declineCmsCall(btn.dataset.room);
+        });
+
+        /* Liên kết phòng Zoom của từng cuộc gọi, chốt tại thời điểm tiếp nhận. */
+        const cmsCallZoom = new Map();
+
+        /**
+         * Tiếp nhận cuộc gọi.
+         *
+         * Bấm nút KHÔNG mở thẳng phòng khám nữa mà xin quyền tiếp nhận ở máy chủ
+         * trước. Cùng một cuộc gọi có thể đổ chuông ở nhiều máy (trực chính, trực
+         * phụ, bác sĩ tuyến trên); máy chủ chỉ trao cho đúng một người bằng một
+         * lệnh cập nhật có điều kiện, người bấm sau nhận lại lời báo ai đã nhận
+         * thay vì hai cán bộ cùng lao vào một bệnh nhân.
+         */
+        window.acceptCmsCall = async function(roomId, patientName, symptoms, appointmentId, patientId) {
             if (!cmsRingDismissed.includes(roomId)) cmsRingDismissed.push(roomId);
             window.renderCmsRingBanner([]);
+            cmsStopRingLoop();
+
+            try {
+                const res = await fetch('/api/signal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'accept',
+                        roomId,
+                        peerId: cmsStandbyPeerId || ('cms-' + Date.now().toString(36)),
+                        userId: (currentCmsUser && currentCmsUser.id) || '',
+                        name: (currentCmsUser && currentCmsUser.name) || 'Cán bộ trực'
+                    })
+                });
+                const data = await res.json().catch(() => null);
+
+                if (!res.ok || !data || data.ok !== true) {
+                    if (data && data.code === 'ALREADY_TAKEN') {
+                        window.showToast(data.error || 'Cuộc gọi đã được cán bộ khác tiếp nhận.');
+                        window.refreshCmsIncomingCalls(false);
+                        return;
+                    }
+                    if (data && data.code === 'GONE') {
+                        window.showToast('Người dân đã ngắt máy, cuộc gọi không còn trong hàng đợi.');
+                        window.refreshCmsIncomingCalls(false);
+                        return;
+                    }
+                    throw new Error((data && data.error) || 'Máy chủ từ chối lượt tiếp nhận.');
+                }
+
+                if (data.zoom && data.zoom.joinUrl) cmsCallZoom.set(roomId, data.zoom);
+            } catch (err) {
+                /* Mất mạng ngay lúc bấm: vẫn cho vào phòng khám trực tiếp trên trang,
+                   vì cuộc gọi WebRTC không phụ thuộc vào lượt ghi nhận này. Người dân
+                   đang chờ - chặn ở đây thì thiệt hại lớn hơn là ghi nhận sai trạng thái. */
+                console.warn('Không ghi nhận được lượt tiếp nhận:', err && err.message);
+                window.showToast('Không liên lạc được máy chủ điều phối, vẫn đang kết nối trực tiếp với người dân.');
+            }
+
             const section = document.getElementById('admin-telehealth-section');
             if (section && !section.classList.contains('active')) window.switchAdminTab('telehealth');
             window.joinCmsTelehealthCall(roomId, patientName, symptoms, appointmentId, patientId);
+            cmsRenderZoomBar(roomId);
         };
+
+        /** Chuyển tiếp ngay: rút ngắn một vòng chờ thay vì để người dân đợi hết giờ. */
+        window.declineCmsCall = async function(roomId) {
+            try {
+                const res = await fetch('/api/signal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'decline',
+                        roomId,
+                        peerId: cmsStandbyPeerId || ('cms-' + Date.now().toString(36)),
+                        name: (currentCmsUser && currentCmsUser.name) || 'Cán bộ trực'
+                    })
+                });
+                const data = await res.json().catch(() => null);
+                if (data && data.code === 'ALREADY_TAKEN') {
+                    window.showToast('Cuộc gọi vừa được cán bộ khác tiếp nhận.');
+                } else {
+                    window.showToast('Đã chuyển cuộc gọi sang cán bộ tiếp theo.');
+                }
+                if (!cmsRingDismissed.includes(roomId)) cmsRingDismissed.push(roomId);
+                window.refreshCmsIncomingCalls(false);
+            } catch (err) {
+                window.showToast('Không chuyển tiếp được cuộc gọi. Vui lòng thử lại.');
+            }
+        };
+
+        /* Thanh phòng Zoom trong Bảng điều khiển: hiện đúng phòng máy chủ đã chốt
+           cho cuộc gọi này, để cán bộ và người dân chắc chắn vào cùng một phòng. */
+        function cmsRenderZoomBar(roomId) {
+            const bar = document.getElementById('cms-zoom-bar');
+            if (!bar) return;
+            const zoom = cmsCallZoom.get(roomId);
+            if (!zoom || !zoom.joinUrl) { bar.classList.add('hidden'); return; }
+
+            const link = document.getElementById('cms-zoom-link');
+            if (link) link.href = zoom.joinUrl;
+            const meta = document.getElementById('cms-zoom-meta');
+            if (meta) {
+                meta.textContent = [
+                    zoom.meetingId ? 'Mã phòng ' + zoom.meetingId : '',
+                    zoom.passcode ? 'Mật khẩu ' + zoom.passcode : ''
+                ].filter(Boolean).join(' · ');
+            }
+            bar.classList.remove('hidden');
+        }
 
         window.renderCmsRingBanner = function(rooms) {
             const banner = document.getElementById('cms-ring-banner');
@@ -9447,12 +10767,14 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             }
             if (!banner || !list) return;
             if (!pending.length) {
+                cmsStopRingLoop();
                 banner.classList.add('hidden');
                 list.innerHTML = '';
                 return;
             }
             banner.classList.remove('hidden');
             list.innerHTML = pending.map(r => cmsRoomCardHtml(r, true)).join('');
+            cmsStartRingLoop();
         };
 
         window.refreshCmsIncomingCalls = async function(wait) {
@@ -9472,6 +10794,11 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                             roomId: '__lobby__',
                             peerId: cmsStandbyPeerId,
                             name: (currentCmsUser && currentCmsUser.name) || 'Cán bộ trực CMS',
+                            /* Danh tính người trực đi kèm mỗi nhịp báo sống: máy chủ
+                               nhờ đó đếm được số người trực CỦA TỪNG TRẠM và biết
+                               cuộc gọi nên đổ chuông tới ai. */
+                            stationCode: (currentCmsUser && currentCmsUser.stationCode) || '',
+                            userId: (currentCmsUser && currentCmsUser.id) || '',
                             sig: canWait ? cmsQueueSig : undefined
                         })
                     });
@@ -9492,7 +10819,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 // Có phòng mới chưa ai tiếp nhận -> đổ chuông.
                 const fresh = rooms.filter(r => !r.hasDoctor && !cmsKnownRooms.includes(r.roomId));
                 if (fresh.length) {
-                    cmsPlayRingTone();
+                    // Vòng chuông do renderCmsRingBanner bật/tắt; ở đây chỉ báo bằng chữ.
                     window.showToast(`Có ${fresh.length} cuộc gọi khám từ xa đang chờ tiếp nhận!`);
                 }
                 cmsKnownRooms = roomIds;
@@ -10086,7 +11413,13 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 window.renderStationOptions('quick-call-station', null, true);
                 window.renderStationOptions('station-switcher', null, false);
                 window.renderStationOptions('input-station-code', null, false);
+                window.renderStationOptions('cfg-user-stationcode', null, false);
             } catch (e) { console.warn('Không nạp được danh mục điểm phòng khám:', e); }
+
+            /* Rồi thay danh mục dự phòng bằng danh mục thật từ máy chủ. Vẽ trước
+               bằng danh sách cứng để trang không có khoảnh khắc ô chọn trống, sau
+               đó mới ghi đè - Quản trị thêm trạm mới là người dân thấy ngay. */
+            window.refreshStationCatalog();
 
             // Theo dõi cán bộ trực CỐ Ý không chạy lúc mới vào website: chỉ hiển thị
             // lời mời bấm nút. Kênh gọi sang điểm trạm chỉ mở khi người dân chủ động

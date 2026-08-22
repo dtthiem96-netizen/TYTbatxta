@@ -291,6 +291,15 @@
   [headers.values]
     Cache-Control = "public, max-age=0, no-cache, must-revalidate"
 
+# /sw.js là Service Worker nhận thông báo cuộc gọi. Trình duyệt chỉ thay bản mới
+# khi tải về được tệp khác byte, nên tệp này tuyệt đối không được cache: một bản
+# cũ nằm lại trong máy nghĩa là cán bộ mất thông báo cuộc gọi mà không hay biết.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+    Service-Worker-Allowed = "/"
+
 # /doctor.js (lớp vỏ của Module Bác sĩ tuyến trên) cũng không có vân tay nội dung
 # trong tên, nên chịu đúng luật của /app.js: luôn kiểm tra lại với máy chủ để một
 # bản lỗi không nằm lại trong máy của bác sĩ.

@@ -626,16 +626,32 @@ function updateQueueAcceptButton() {
     : `Tiếp nhận cuộc gọi - ${pName}`;
 }
 
-/** Cuộc gọi sẽ được nhận khi bấm nút tiếp nhận nhanh. */
+/** Điểm trạm đích của một cuộc gọi trong hàng đợi. */
+function queueStationCode(r) {
+  // Cột station_code của máy chủ là nguồn đúng; chỉ suy từ mã phòng cho những
+  // cuộc gọi tạo trước khi có cột này.
+  if (r && r.stationCode) return r.stationCode;
+  const target = stationFromRoomId(r && r.roomId);
+  return target ? target.code : '';
+}
+
+/**
+ * Cuộc gọi sẽ được nhận khi bấm nút tiếp nhận nhanh.
+ *
+ * Thứ tự ưu tiên: cuộc gọi đã leo thang (người dân chờ lâu nhất và chưa ai nhận)
+ * rồi mới tới cuộc gọi của chính điểm trạm này, cuối cùng là cuộc chờ lâu nhất.
+ */
 function nextPendingCall() {
-  const waiting = pendingCallQueue.filter(r => !r.hasDoctor);
+  const waiting = pendingCallQueue.filter(r => !r.hasDoctor && r.routingState !== 'ACCEPTED');
   if (!waiting.length) return null;
-  const mine = waiting.filter(r => {
-    const target = stationFromRoomId(r.roomId);
-    return target && target.code === stationCode;
-  });
+  const byWait = (a, b) => Number(a.since || 0) - Number(b.since || 0);
+
+  const mine = waiting.filter(r => queueStationCode(r) === stationCode);
+  const escalatedMine = mine.filter(r => r.escalated || r.exhausted);
+  if (escalatedMine.length) return escalatedMine.slice().sort(byWait)[0];
+
   const pool = mine.length ? mine : waiting;
-  return pool.slice().sort((a, b) => Number(a.since || 0) - Number(b.since || 0))[0];
+  return pool.slice().sort(byWait)[0];
 }
 
 /** Nút "Tiếp nhận cuộc gọi" của khung "Cuộc gọi chờ từ Người dân". */
@@ -645,7 +661,8 @@ function acceptNextPatientCall() {
     showAlertBanner('Hiện chưa có cuộc gọi nào của người dân đang chờ tiếp nhận.');
     return;
   }
-  acceptPatientCall(next.roomId, next.patientName || 'Bệnh nhân', next.symptoms || '', next.patientId || '');
+  acceptPatientCall(next.roomId, next.patientName || 'Bệnh nhân', next.symptoms || '', next.patientId || '')
+    .catch(err => console.warn('Lỗi tiếp nhận cuộc gọi:', err && err.message));
 }
 
 async function refreshIncomingCallsQueue(wait) {
@@ -679,13 +696,29 @@ async function refreshIncomingCallsQueue(wait) {
       const isCurrent = r.roomId === roomId && callActive;
       // Người dân đã chọn điểm phòng khám nào thì hiện đúng tên điểm đó, và tô
       // đậm khi cuộc gọi đang đổ chuông vào chính điểm trạm cán bộ đang trực.
-      const target = stationFromRoomId(r.roomId);
-      const forMe = target && target.code === stationCode;
-      const targetBadge = target
+      const targetCode = queueStationCode(r);
+      const targetName = r.stationName || stationName(targetCode) || '';
+      const forMe = targetCode && targetCode === stationCode;
+      const targetBadge = targetName
         ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${forMe ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-700 text-slate-300'}">
-             <i class="fa-solid fa-location-dot"></i> ${queueText(target.name)}
+             <i class="fa-solid fa-location-dot"></i> ${queueText(targetName)}
            </span>`
         : '';
+
+      /* Đồng hồ đếm ngược của bậc leo thang: cán bộ biết còn bao nhiêu giây nữa
+         cuộc gọi sẽ lan sang người khác, và cuộc nào đã hết vòng mà vẫn chưa ai
+         nhận thì tô đỏ - đó là cuộc phải xử lý trước. */
+      let routingBadge = '';
+      if (r.exhausted) {
+        routingBadge = '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-rose-900/80 text-rose-200"><i class="fa-solid fa-circle-exclamation"></i> Chưa ai tiếp nhận</span>';
+      } else if (r.escalated) {
+        routingBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-900/80 text-amber-200"><i class="fa-solid fa-arrow-up-right-dots"></i> Đã chuyển tiếp${typeof r.ringRemainingSec === 'number' ? ' · ' + r.ringRemainingSec + 's' : ''}</span>`;
+      } else if (typeof r.ringRemainingSec === 'number' && !r.hasDoctor) {
+        routingBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-blue-900/80 text-blue-200"><i class="fa-regular fa-hourglass-half"></i> Còn ${r.ringRemainingSec}s</span>`;
+      }
+      if (r.routingState === 'ACCEPTED' && r.acceptedName) {
+        routingBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-900/80 text-emerald-200"><i class="fa-solid fa-user-check"></i> ${queueText(r.acceptedName)} đã nhận</span>`;
+      }
       const waited = queueWaitedLabel(r.since);
       // Thẻ xếp dọc: tên bệnh nhân, triệu chứng rồi tới nút tiếp nhận chiếm trọn
       // bề ngang. Cách xếp ngang trước đây làm nút bị đẩy khuất khỏi cột hẹp của
@@ -698,6 +731,7 @@ async function refreshIncomingCallsQueue(wait) {
               <div class="font-bold text-white text-[12px] break-words">${queueText(pName)}</div>
               <div class="mt-0.5 flex flex-wrap items-center gap-1">
                 ${targetBadge}
+                ${routingBadge}
                 ${waited ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-900/70 text-amber-200"><i class="fa-regular fa-clock"></i> Chờ ${waited}</span>` : ''}
                 ${r.hasDoctor ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-700 text-slate-300">Đã có cán bộ</span>' : ''}
               </div>
@@ -831,8 +865,81 @@ function syncStationIdCard() {
 }
 
 // Tiếp nhận cuộc gọi từ giao diện người dân gọi
-function acceptPatientCall(targetRoomId, patientName, symptoms, patientIdCardValue) {
+/**
+ * Xin quyền tiếp nhận ở máy chủ trước khi mở phòng khám.
+ *
+ * Một cuộc gọi đổ chuông đồng thời ở nhiều máy (trực chính, trực phụ, bác sĩ
+ * tuyến trên). Máy chủ chỉ trao cho đúng một người bằng một lệnh cập nhật có
+ * điều kiện; ai bấm sau nhận lại tên người đã nhận. Không có bước này thì hai
+ * cán bộ có thể cùng lao vào một bệnh nhân.
+ *
+ * Trả về { ok, zoom } - ok=false nghĩa là đừng vào phòng nữa.
+ */
+async function claimPatientCall(targetRoomId) {
+  try {
+    const res = await fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'accept',
+        roomId: targetRoomId,
+        peerId: peerId || newPeerId(),
+        userId: (loggedInCmsUser && loggedInCmsUser.id) || '',
+        name: operatorName
+      })
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data || data.ok !== true) {
+      if (data && data.code === 'ALREADY_TAKEN') {
+        showAlertBanner(data.error || 'Cuộc gọi đã được cán bộ khác tiếp nhận.');
+        refreshIncomingCallsQueue(false).catch(() => {});
+        return { ok: false };
+      }
+      if (data && data.code === 'GONE') {
+        showAlertBanner('Người dân đã ngắt máy, cuộc gọi không còn trong hàng đợi.');
+        refreshIncomingCallsQueue(false).catch(() => {});
+        return { ok: false };
+      }
+      throw new Error((data && data.error) || 'accept ' + res.status);
+    }
+    return { ok: true, zoom: data.zoom || null };
+  } catch (err) {
+    /* Mất mạng đúng lúc bấm: vẫn cho vào phòng. Kết nối WebRTC không phụ thuộc
+       vào lượt ghi nhận này, mà người dân thì đang chờ - chặn ở đây thiệt hại
+       lớn hơn là ghi nhận thiếu một dòng trạng thái. */
+    console.warn('Không ghi nhận được lượt tiếp nhận:', err && err.message);
+    return { ok: true, zoom: null, offline: true };
+  }
+}
+
+/** Thanh phòng Zoom trong Bảng điều khiển điểm trạm. */
+function renderStationZoomBar(zoom) {
+  const bar = document.getElementById('station-zoom-bar');
+  if (!bar) return;
+  if (!zoom || !zoom.joinUrl) { bar.classList.add('hidden'); return; }
+
+  const link = document.getElementById('station-zoom-link');
+  if (link) link.href = zoom.joinUrl;
+  const meta = document.getElementById('station-zoom-meta');
+  if (meta) {
+    meta.textContent = [
+      zoom.meetingId ? 'Mã phòng ' + zoom.meetingId : '',
+      zoom.passcode ? 'Mật khẩu ' + zoom.passcode : ''
+    ].filter(Boolean).join(' · ');
+  }
+  bar.classList.remove('hidden');
+}
+
+async function acceptPatientCall(targetRoomId, patientName, symptoms, patientIdCardValue) {
   if (!targetRoomId) return;
+
+  const claim = await claimPatientCall(targetRoomId);
+  if (!claim.ok) return;
+  renderStationZoomBar(claim.zoom);
+  if (claim.offline) {
+    showAlertBanner('Không liên lạc được máy chủ điều phối, vẫn đang kết nối trực tiếp với người dân.');
+  }
 
   // Tiếp nhận cuộc gọi thì bảng điều khiển phải hiện lại đầy đủ, kể cả khi cán
   // bộ đang để nó ở dạng khung nổi hoặc đã ẩn để làm việc khác.
@@ -4306,7 +4413,9 @@ window.stopQueuePolling = stopQueuePolling;
 window.refreshIncomingCallsQueue = (wait) => refreshIncomingCallsQueue(wait).catch(err => {
   console.warn('Lỗi quét hàng đợi cuộc gọi:', err && err.message);
 });
-window.acceptPatientCall = acceptPatientCall;
+window.acceptPatientCall = (roomIdArg, patientName, symptoms, patientIdCardValue) =>
+  acceptPatientCall(roomIdArg, patientName, symptoms, patientIdCardValue)
+    .catch(err => console.warn('Lỗi tiếp nhận cuộc gọi:', err && err.message));
 window.acceptNextPatientCall = acceptNextPatientCall;
 window.onStationIdCardInput = onStationIdCardInput;
 window.copyStationIdCard = copyStationIdCard;
