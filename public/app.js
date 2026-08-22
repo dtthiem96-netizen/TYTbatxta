@@ -65,6 +65,15 @@ const MODULE_SCOPE = (typeof window !== 'undefined' && window.STATION_MODULE_SCO
   : 'station';
 const IS_DOCTOR_MODULE = MODULE_SCOPE === 'doctor';
 
+/* Cổng đăng nhập gửi lên /api/station-auth.
+ *
+ * Bảng điều khiển trạm y tế đã gộp hai mô-đun chân trang thành một cửa sổ hai
+ * khu làm việc, nên nó dùng cổng "control": qua được cổng nếu tài khoản có
+ * quyền trực khám tại điểm trạm HOẶC có vai trò Quản trị viên. Phiếu cấp ra
+ * mang đúng phạm vi của tài khoản, giao diện chỉ mở khu nào người đó được phép,
+ * và máy chủ vẫn kiểm tra lại phạm vi ở từng lệnh gọi API. */
+const LOGIN_SCOPE = IS_DOCTOR_MODULE ? 'doctor' : 'control';
+
 let stationCode = 'TYT-BATXAT-01';
 let operatorName = IS_DOCTOR_MODULE ? 'Bác sĩ tuyến trên' : 'Y sĩ Nguyễn Văn A';
 // signalRole() quy đổi vai trò này thành 'doctor' hoặc 'station' khi vào phòng khám.
@@ -464,9 +473,14 @@ function populateCmsAccountsDropdown() {
   const hasStationAccess = (u) => {
     if (!u) return false;
     if ((u.status || 'ACTIVE').toUpperCase() === 'DISABLED') return false;
+    /* Bảng điều khiển đã gộp khu Quản trị điểm trạm vào, nên Quản trị viên luôn
+       có lối vào kể cả khi không được cấp quyền trực khám - họ vào để cấu hình
+       phòng Zoom, tài khoản nhận cuộc gọi và định tuyến. Cùng quy tắc với nhánh
+       scope "control" ở /api/station-auth. */
+    if (/Admin|Quản trị|Quan tri/i.test(u.role || '')) return true;
     if (u.stationAccess === 'true') return true;
     if (u.stationAccess === 'false') return false;
-    return /Điểm trạm|Station|Admin|Quản trị/i.test(u.role || '');
+    return /Điểm trạm|Station/i.test(u.role || '');
   };
 
   /* Module Bác sĩ tuyến trên đọc cột doctor_access - quyền này được CMS cấp
@@ -4196,7 +4210,7 @@ async function submitLogin() {
     const res = await fetch(STATION_AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: selectedCmsUsername, password, scope: MODULE_SCOPE })
+      body: JSON.stringify({ username: selectedCmsUsername, password, scope: LOGIN_SCOPE })
     });
     result = await res.json().catch(() => null);
 
@@ -4409,12 +4423,20 @@ window.populateCmsAccountsDropdown = populateCmsAccountsDropdown;
 window.onCmsAccountSelect = onCmsAccountSelect;
 window.startQueuePolling = startQueuePolling;
 window.stopQueuePolling = stopQueuePolling;
-// Bản xuất ra window nuốt lỗi mạng: nơi gọi từ HTML không có chỗ bắt ngoại lệ.
-window.refreshIncomingCallsQueue = (wait) => refreshIncomingCallsQueue(wait).catch(err => {
+/* Bản xuất ra window nuốt lỗi mạng: nơi gọi từ HTML không có chỗ bắt ngoại lệ.
+ *
+ * PHẢI giữ tham chiếu gốc trước khi gán đè lên window. app.js là script cổ điển,
+ * nên khai báo "async function f()" ở cấp cao nhất chính là thuộc tính window.f;
+ * gán "window.f = (x) => f(x)" sẽ khiến f bên trong trỏ ngược vào chính hàm bao
+ * và mọi lệnh gọi - kể cả vòng quét hàng đợi bên trong app.js - đổ vỡ vì đệ quy
+ * vô hạn. Đặt tên khác cho bản gốc là cắt đứt vòng lặp đó. */
+const refreshIncomingCallsQueueImpl = refreshIncomingCallsQueue;
+window.refreshIncomingCallsQueue = (wait) => refreshIncomingCallsQueueImpl(wait).catch(err => {
   console.warn('Lỗi quét hàng đợi cuộc gọi:', err && err.message);
 });
+const acceptPatientCallImpl = acceptPatientCall;
 window.acceptPatientCall = (roomIdArg, patientName, symptoms, patientIdCardValue) =>
-  acceptPatientCall(roomIdArg, patientName, symptoms, patientIdCardValue)
+  acceptPatientCallImpl(roomIdArg, patientName, symptoms, patientIdCardValue)
     .catch(err => console.warn('Lỗi tiếp nhận cuộc gọi:', err && err.message));
 window.acceptNextPatientCall = acceptNextPatientCall;
 window.onStationIdCardInput = onStationIdCardInput;

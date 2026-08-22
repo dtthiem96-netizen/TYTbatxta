@@ -897,28 +897,23 @@
                     <div class="flex items-center gap-4 flex-wrap justify-center">
                         <a href="#" class="hover:text-white transition text-blue-200">Chính sách bảo mật</a>
 
-                        <!-- ===== MODULE BẢNG ĐIỀU KHIỂN TRẠM Y TẾ =====
-                             Module được chuyển từ thanh tiêu đề xuống đúng vị trí của lối vào
-                             "Bảng điều khiển trạm" cũ và thay thế hoàn toàn lối vào đó.
-                             Tên phòng khám là biến động, lấy từ CMS Quản trị (khoá station-clinic-name).
-                             Mọi lượt mở đều đi qua rào chắn đăng nhập. -->
-                        <button type="button" id="footer-station-module" onclick="window.openStationPanel()" title="Bảng điều khiển dành cho Cán bộ Y tế trực tại Điểm trạm - yêu cầu đăng nhập tài khoản được CMS Quản trị cấp quyền" class="group inline-flex items-center gap-3 border-l-2 border-blue-700 pl-4 text-left transition">
+                        <!-- ===== MODULE HỢP NHẤT: BẢNG ĐIỀU KHIỂN TRẠM Y TẾ =====
+                             Chân trang trước đây có HAI lối vào riêng rẽ cho cùng một điểm trạm:
+                             "Bảng điều khiển trạm y tế" (cán bộ trực khám) và "Bảng điều khiển
+                             điểm trạm" (Quản trị cấp phòng Zoom, tài khoản nhận cuộc gọi, định
+                             tuyến). Hai mô-đun đó nay gộp thành MỘT cửa sổ duy nhất với hai khu
+                             làm việc bên trong; khu nào hiện ra là do phạm vi quyền của tài khoản
+                             đăng nhập quyết định, máy chủ vẫn kiểm tra lại quyền ở từng lệnh gọi.
+                             Tên phòng khám là biến động, lấy từ CMS Quản trị (khoá station-clinic-name). -->
+                        <button type="button" id="footer-station-module" onclick="window.openStationControlCenter()" title="Bảng điều khiển hợp nhất của điểm trạm: trực khám - hội chẩn từ xa và quản trị phòng Zoom, tài khoản nhận cuộc gọi, định tuyến. Yêu cầu đăng nhập tài khoản được CMS Quản trị cấp quyền." class="group inline-flex items-center gap-3 border-l-2 border-blue-700 pl-4 text-left transition">
                             <span class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 flex items-center justify-center shadow-inner group-hover:bg-emerald-500/25 transition"><i class="fas fa-notes-medical"></i></span>
                             <span class="leading-tight">
                                 <span class="block font-black text-emerald-400 group-hover:text-emerald-300 tracking-wide transition">BẢNG ĐIỀU KHIỂN <span data-station-clinic-name>TRẠM Y TẾ BÁT XÁT</span></span>
-                                <span class="block text-[11px] text-blue-300 font-bold"><i class="fas fa-lock text-[9px] mr-1"></i>Yêu cầu đăng nhập tài khoản được cấp quyền</span>
+                                <span class="block text-[11px] text-blue-300 font-bold"><i class="fas fa-lock text-[9px] mr-1"></i>Trực khám &amp; Hội chẩn · Quản trị điểm trạm — yêu cầu đăng nhập</span>
                             </span>
                         </button>
 
                         <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ CMS</a>
-
-                        <!-- ===== MÔ-ĐUN BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM =====
-                             Nơi Quản trị viên cấp và quản lý phòng Zoom cùng tài khoản nhận cuộc gọi
-                             cho từng điểm trạm. Đây chỉ là LỐI VÀO đặt ở chân trang; bản thân mô-đun
-                             nằm trong CMS và chỉ mở được bằng tài khoản có quyền Quản trị. -->
-                        <a href="#" id="footer-station-rooms-module" onclick="window.openStationRoomsModule(); return false;" title="Cấp và quản lý phòng Zoom, tài khoản nhận cuộc gọi cho từng điểm trạm - yêu cầu quyền Quản trị viên" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-cyan-300 tracking-wide inline-flex items-center gap-1.5">
-                            <i class="fas fa-tower-broadcast text-[11px]"></i> BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM
-                        </a>
 
                         <!-- ===== MODULE BÁC SĨ TUYẾN TRÊN =====
                              Module riêng, có trang và cổng đăng nhập riêng (/bacsi). Chỉ tài khoản
@@ -1831,9 +1826,11 @@
             </div>
             <div class="p-6 space-y-4 text-xs">
                 <div class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-[11px] text-slate-400 leading-relaxed">
-                    <i class="fas fa-lock text-blue-400 mr-1"></i> Module này bị khoá. Chỉ tài khoản đã được
+                    <i class="fas fa-lock text-blue-400 mr-1"></i> Module này bị khoá. Đăng nhập được nếu tài khoản đã được
                     <strong class="text-slate-200">CMS Quản trị cấp quyền truy cập Bảng điều khiển trạm</strong>
-                    mới đăng nhập và thao tác được.
+                    (khu Trực khám &amp; Hội chẩn) <em class="text-slate-300 not-italic font-bold">hoặc</em> có
+                    <strong class="text-slate-200">vai trò Quản trị viên</strong> (khu Quản trị điểm trạm).
+                    Cửa sổ chỉ mở đúng khu làm việc mà tài khoản được phép.
                 </div>
                 <div>
                     <label class="block text-slate-300 font-bold mb-1" for="input-station-code">Điểm trạm y tế khu vực</label>
@@ -1910,7 +1907,7 @@
                          tra cứu tin tức, danh bạ, hồ sơ... trên cùng trang mà cuộc gọi
                          và vòng quét hàng đợi vẫn chạy bình thường. -->
                     <span class="flex items-center gap-1.5">
-                        <button type="button" data-tw-btn="min" onclick="window.TeleWin.toggleMin('modal-station-panel')" title="Thu nhỏ thành khung nổi để dùng chức năng khác" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center justify-center text-xs transition">
+                        <button type="button" data-tw-btn="min" onclick="window.minimizeStationPanel()" title="Thu nhỏ thành khung nổi để dùng chức năng khác" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center justify-center text-xs transition">
                             <i class="fas fa-window-minimize"></i>
                         </button>
                         <button type="button" data-tw-btn="max" onclick="window.TeleWin.toggleMax('modal-station-panel')" title="Phóng to toàn màn hình" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 flex items-center justify-center text-xs transition">
@@ -1945,6 +1942,26 @@
                 <button onclick="window.closeAlertBanner()" class="text-rose-400 hover:text-white text-xs px-2"><i class="fas fa-times"></i></button>
             </div>
 
+            <!-- ===== THANH CHỌN KHU LÀM VIỆC =====
+                 Hai mô-đun chân trang cũ nay là hai khu làm việc của CÙNG một cửa
+                 sổ: "Trực khám & Hội chẩn" (tiếp nhận cuộc gọi, sinh hiệu, camera,
+                 ghi chép, trợ lý AI) và "Quản trị điểm trạm" (phòng Zoom, tài khoản
+                 nhận cuộc gọi, định tuyến, nhật ký). Thẻ nào hiện ra do phạm vi
+                 quyền của phiên đăng nhập quyết định - máy chủ vẫn kiểm tra lại
+                 quyền ở từng lệnh gọi API, giao diện chỉ là lớp hiển thị. -->
+            <div id="station-workspace-bar" data-tw-hide-min class="bg-slate-900/70 border-b border-slate-800 px-4 sm:px-6 flex items-center gap-2 overflow-x-auto">
+                <button type="button" id="station-ws-btn-live" onclick="window.switchStationWorkspace('live')" class="px-3.5 py-2.5 text-xs font-black whitespace-nowrap border-b-2 border-transparent text-slate-400 transition flex items-center gap-1.5">
+                    <i class="fas fa-stethoscope"></i> Trực khám &amp; Hội chẩn
+                </button>
+                <button type="button" id="station-ws-btn-admin" onclick="window.switchStationWorkspace('admin')" class="hidden px-3.5 py-2.5 text-xs font-black whitespace-nowrap border-b-2 border-transparent text-slate-400 transition items-center gap-1.5">
+                    <i class="fas fa-tower-broadcast"></i> Quản trị điểm trạm
+                    <span id="stations-issue-badge" class="hidden bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">0</span>
+                </button>
+                <span id="station-ws-hint" class="hidden ml-auto text-[10px] font-bold text-slate-500 py-2 pl-3 whitespace-nowrap"></span>
+            </div>
+
+            <!-- KHU LÀM VIỆC 1: TRỰC KHÁM & HỘI CHẨN -->
+            <div id="station-ws-live">
             <!-- Content Grid -->
             <div class="tw-grid tw-pad p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <!-- Cột trái: Hàng đợi cuộc gọi & Sinh hiệu bệnh nhân (4 col) -->
@@ -2416,6 +2433,225 @@
                     </div>
                 </div>
             </div>
+            </div>
+
+            <!-- KHU LÀM VIỆC 2: QUẢN TRỊ ĐIỂM TRẠM (gộp từ mô-đun "Bảng điều khiển điểm trạm") -->
+            <div id="station-ws-admin" data-tw-hide-min class="hidden tw-pad p-4 sm:p-6 space-y-5">
+                <div class="bg-slate-900 rounded-2xl shadow-sm p-6 lg:p-8 border border-slate-800">
+                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-slate-800">
+                        <div>
+                            <h2 class="text-2xl font-black text-white flex items-center gap-2"><i class="fas fa-tower-broadcast text-cyan-400"></i> Quản trị điểm trạm</h2>
+                            <p class="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider">Cấp phòng Zoom, tài khoản nhận cuộc gọi và định tuyến cho từng điểm trạm</p>
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                            <button type="button" onclick="window.refreshStationRooms(true)" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 border border-slate-800"><i class="fas fa-rotate"></i> Tải lại</button>
+                            <button type="button" onclick="window.openNewStationForm()" class="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-black px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"><i class="fas fa-plus"></i> Thêm điểm trạm</button>
+                        </div>
+                    </div>
+
+                    <div id="stations-auth-warning" class="hidden mt-4 bg-amber-950/50 border-l-4 border-amber-500 text-amber-200 p-4 rounded-r-xl text-sm font-bold"></div>
+
+                    <!-- Dải chỉ số nhanh: trả lời ngay câu hỏi "hệ thống có đang sẵn sàng nhận cuộc gọi không". -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
+                        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-3.5">
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Tổng điểm trạm</p>
+                            <p id="stations-kpi-total" class="text-2xl font-black text-white mt-0.5">—</p>
+                        </div>
+                        <div class="rounded-2xl border border-emerald-800 bg-emerald-950/50 p-3.5">
+                            <p class="text-[11px] font-black text-emerald-300 uppercase tracking-wider">Đang hoạt động</p>
+                            <p id="stations-kpi-active" class="text-2xl font-black text-emerald-300 mt-0.5">—</p>
+                        </div>
+                        <div class="rounded-2xl border border-blue-800 bg-blue-950/50 p-3.5">
+                            <p class="text-[11px] font-black text-blue-300 uppercase tracking-wider">Đang có người trực</p>
+                            <p id="stations-kpi-duty" class="text-2xl font-black text-blue-200 mt-0.5">—</p>
+                        </div>
+                        <div class="rounded-2xl border border-amber-800 bg-amber-950/50 p-3.5">
+                            <p class="text-[11px] font-black text-amber-300 uppercase tracking-wider">Còn thiếu cấu hình</p>
+                            <p id="stations-kpi-issues" class="text-2xl font-black text-amber-200 mt-0.5">—</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col xl:flex-row gap-6 mt-6">
+                        <!-- CẤP 1: DANH SÁCH ĐIỂM TRẠM -->
+                        <div class="w-full xl:w-[22rem] shrink-0">
+                            <input type="search" id="stations-search" oninput="window.renderStationRoomList()" placeholder="Tìm theo tên hoặc mã trạm..." class="w-full border-2 border-slate-800 rounded-xl px-3.5 py-2 text-sm font-medium mb-3 focus:outline-none focus:border-cyan-500 bg-slate-950 text-white placeholder-slate-500">
+                            <div id="stations-list" class="space-y-2 max-h-[38rem] overflow-y-auto pr-1">
+                                <p class="text-sm text-slate-400 font-medium p-4 text-center"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang tải danh mục điểm trạm...</p>
+                            </div>
+                        </div>
+
+                        <!-- CẤP 2: HỒ SƠ CHI TIẾT -->
+                        <div class="flex-1 min-w-0">
+                            <div id="station-detail-empty" class="rounded-2xl border-2 border-dashed border-slate-800 p-10 text-center text-slate-400">
+                                <i class="fas fa-hand-pointer text-3xl mb-3 text-slate-600"></i>
+                                <p class="font-bold">Chọn một điểm trạm ở danh sách bên trái để xem và sửa hồ sơ.</p>
+                            </div>
+
+                            <div id="station-detail" class="hidden rounded-2xl border border-slate-800 overflow-hidden">
+                                <div class="bg-gradient-to-r from-cyan-600 to-blue-700 text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <h3 id="station-detail-name" class="font-black text-lg truncate">—</h3>
+                                        <p class="text-[11px] font-mono text-cyan-100"><span id="station-detail-code">—</span></p>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span id="station-detail-status" class="text-[11px] font-black px-2.5 py-1 rounded-full bg-white/20">—</span>
+                                        <select id="station-status-select" onchange="window.changeStationStatus(this.value)" class="text-xs font-bold text-white rounded-lg px-2 py-1.5 border-0 bg-slate-950 placeholder-slate-500">
+                                            <option value="ACTIVE">Đang hoạt động</option>
+                                            <option value="PAUSED">Tạm ngưng</option>
+                                            <option value="DISABLED">Vô hiệu hoá</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div id="station-detail-issues" class="hidden bg-amber-950/50 border-b border-amber-800 px-5 py-3 text-xs font-bold text-amber-200"></div>
+
+                                <div class="flex flex-wrap gap-1 bg-slate-900/60 border-b border-slate-800 px-3 pt-3">
+                                    <button type="button" id="sttab-btn-info" onclick="window.switchStationTab('info')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Thông tin trạm</button>
+                                    <button type="button" id="sttab-btn-zoom" onclick="window.switchStationTab('zoom')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Phòng Zoom</button>
+                                    <button type="button" id="sttab-btn-receivers" onclick="window.switchStationTab('receivers')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Tài khoản nhận</button>
+                                    <button type="button" id="sttab-btn-routing" onclick="window.switchStationTab('routing')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Định tuyến &amp; Dự phòng</button>
+                                    <button type="button" id="sttab-btn-audit" onclick="window.switchStationTab('audit')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Nhật ký thay đổi</button>
+                                </div>
+
+                                <!-- THẺ 1: THÔNG TIN TRẠM -->
+                                <div id="sttab-info" class="station-tab p-5 space-y-4">
+                                    <div class="grid md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-name">Tên hiển thị <span class="text-rose-500">*</span></label>
+                                            <input type="text" id="st-name" maxlength="80" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-950 text-white placeholder-slate-500">
+                                            <p class="text-[11px] text-slate-400 mt-1">Chính chuỗi này hiện trong ô chọn của người dân.</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-code-readonly">Mã điểm trạm</label>
+                                            <input type="text" id="st-code-readonly" readonly class="w-full border border-slate-800 bg-slate-800 rounded-lg px-3 py-2 text-sm font-mono text-slate-300 text-white placeholder-slate-500">
+                                            <p class="text-[11px] text-slate-400 mt-1">Mã là khoá nghiệp vụ, đã nằm trong mã phòng khám và nhật ký nên không sửa được.</p>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-black text-slate-200 mb-1" for="st-note">Ghi chú hiển thị cho người dân</label>
+                                        <input type="text" id="st-note" maxlength="120" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-950 text-white placeholder-slate-500" placeholder="VD: Trực 24/7 - Phòng khám đa khoa">
+                                    </div>
+                                    <div class="grid md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-order">Thứ tự hiển thị</label>
+                                            <input type="number" id="st-order" min="0" max="99" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-950 text-white placeholder-slate-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-duty">Khung giờ trực</label>
+                                            <select id="st-duty" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-900 text-white placeholder-slate-500">
+                                                <option value='{"always":true}'>Trực 24/7</option>
+                                                <option value='{"mon_fri":["07:30","17:00"]}'>Thứ 2 - Thứ 6, 07:30 - 17:00</option>
+                                                <option value='{"mon_sat":["07:30","17:00"]}'>Thứ 2 - Thứ 7, 07:30 - 17:00</option>
+                                                <option value='{"mon_sat":["07:00","11:30"]}'>Thứ 2 - Thứ 7, 07:00 - 11:30</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-offhours">Ngoài giờ trực</label>
+                                            <select id="st-offhours" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-900 text-white placeholder-slate-500">
+                                                <option value="SHOW">Vẫn hiện, kèm cảnh báo</option>
+                                                <option value="HIDE">Ẩn khỏi danh sách người dân</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                                        <p id="st-info-updated" class="text-[11px] text-slate-400 font-medium"></p>
+                                        <button type="button" onclick="window.saveStationInfo()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm"><i class="fas fa-save mr-1"></i> Lưu thông tin</button>
+                                    </div>
+                                </div>
+
+                                <!-- THẺ 2: PHÒNG ZOOM -->
+                                <div id="sttab-zoom" class="station-tab hidden p-5 space-y-4">
+                                    <div class="bg-blue-950/50 border border-blue-800 rounded-2xl p-3.5 text-[11px] text-blue-200 font-medium leading-relaxed">
+                                        <i class="fas fa-circle-info mr-1"></i> Dán <b>liên kết phòng họp cố định</b> (Personal Meeting Room) của tài khoản Zoom được cấp cho điểm trạm này.
+                                        Mã phòng được đọc tự động từ liên kết. Mật khẩu phòng chỉ được gửi tới người đã tiếp nhận cuộc gọi -
+                                        không xuất hiện trong danh sách công khai, nhật ký thay đổi hay nội dung thông báo đẩy.
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-black text-slate-200 mb-1" for="st-zoom-url">Liên kết phòng Zoom <span class="text-rose-500">*</span></label>
+                                        <div class="flex flex-col sm:flex-row gap-2">
+                                            <input type="url" id="st-zoom-url" class="flex-1 border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-950 text-white placeholder-slate-500" placeholder="https://us02web.zoom.us/j/9471234567?pwd=...">
+                                            <button type="button" onclick="window.checkStationZoomLink()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-2 rounded-xl border border-slate-800 shrink-0"><i class="fas fa-vial mr-1"></i> Kiểm tra liên kết</button>
+                                        </div>
+                                        <div id="st-zoom-check" class="hidden mt-2 text-[11px] font-bold rounded-xl px-3 py-2"></div>
+                                    </div>
+                                    <div class="grid md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-zoom-id">Mã phòng (Meeting ID)</label>
+                                            <input type="text" id="st-zoom-id" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono bg-slate-950 text-white placeholder-slate-500" placeholder="Tự đọc từ liên kết">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-zoom-pass">Mật khẩu phòng</label>
+                                            <input type="text" id="st-zoom-pass" autocomplete="off" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono bg-slate-950 text-white placeholder-slate-500" placeholder="Để trống nếu liên kết đã nhúng sẵn">
+                                            <p id="st-zoom-pass-state" class="text-[11px] text-slate-400 mt-1"></p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-zoom-host">Email tài khoản Zoom chủ phòng</label>
+                                            <input type="email" id="st-zoom-host" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-950 text-white placeholder-slate-500" placeholder="tram01@laocai.gov.vn">
+                                        </div>
+                                    </div>
+                                    <label class="flex items-start gap-2 text-[11px] font-bold text-slate-300">
+                                        <input type="checkbox" id="st-zoom-shared" class="mt-0.5 accent-cyan-500">
+                                        <span>Cho phép dùng chung phòng với điểm trạm khác. Chỉ tích khi thực sự muốn hai trạm đổ về cùng một phòng họp - nếu không, hai cuộc gọi khác nhau sẽ gặp nhau trong cùng một phòng.</span>
+                                    </label>
+                                    <div class="flex justify-end pt-2 border-t border-slate-800">
+                                        <button type="button" onclick="window.saveStationZoom()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm"><i class="fas fa-save mr-1"></i> Lưu phòng Zoom</button>
+                                    </div>
+                                </div>
+
+                                <!-- THẺ 3: TÀI KHOẢN NHẬN CUỘC GỌI -->
+                                <div id="sttab-receivers" class="station-tab hidden p-5 space-y-4">
+                                    <div class="flex flex-col sm:flex-row gap-2 items-end bg-slate-900/60 border border-slate-800 rounded-2xl p-3.5">
+                                        <div class="flex-1 w-full">
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-recv-user">Gán tài khoản nhận cuộc gọi</label>
+                                            <select id="st-recv-user" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-900 text-white placeholder-slate-500"></select>
+                                        </div>
+                                        <div class="w-full sm:w-40">
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-recv-priority">Mức ưu tiên</label>
+                                            <select id="st-recv-priority" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-900 text-white placeholder-slate-500">
+                                                <option value="1">1 - Trực chính</option>
+                                                <option value="2">2 - Trực phụ</option>
+                                                <option value="3">3 - Hỗ trợ</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" onclick="window.addStationReceiver()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm shrink-0 w-full sm:w-auto"><i class="fas fa-user-plus mr-1"></i> Gán vào trạm</button>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 font-medium">Chỉ tài khoản đang hoạt động và đã được cấp <b>Quyền nhận cuộc gọi Video</b> ở mục Phân quyền Hệ thống mới xuất hiện trong danh sách này.</p>
+                                    <div id="st-receivers-list" class="space-y-2"></div>
+                                </div>
+
+                                <!-- THẺ 4: ĐỊNH TUYẾN & DỰ PHÒNG -->
+                                <div id="sttab-routing" class="station-tab hidden p-5 space-y-4">
+                                    <div class="grid md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-ring-timeout">Thời gian đổ chuông mỗi vòng (giây)</label>
+                                            <input type="number" id="st-ring-timeout" min="20" max="180" oninput="window.renderStationRoutingPreview()" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-950 text-white placeholder-slate-500">
+                                            <p class="text-[11px] text-slate-400 mt-1">Hết một vòng mà chưa ai nhận, cuộc gọi tự lan sang mức ưu tiên tiếp theo. Cho phép 20 - 180 giây.</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-black text-slate-200 mb-1" for="st-fallback">Điểm trạm dự phòng</label>
+                                            <select id="st-fallback" onchange="window.renderStationRoutingPreview()" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm font-medium bg-slate-900 text-white placeholder-slate-500"></select>
+                                            <p class="text-[11px] text-slate-400 mt-1">Sau 3 vòng không ai nhận, cuộc gọi chuyển sang trạm này. Để trống nếu trạm không có tuyến sau.</p>
+                                        </div>
+                                    </div>
+                                    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                                        <p class="text-xs font-black text-slate-200 mb-2"><i class="fas fa-diagram-project mr-1 text-cyan-400"></i> Đường đi của một cuộc gọi tại trạm này</p>
+                                        <ol id="st-routing-preview" class="text-[11px] text-slate-300 font-medium space-y-1 list-decimal list-inside"></ol>
+                                    </div>
+                                    <div class="flex justify-end pt-2 border-t border-slate-800">
+                                        <button type="button" onclick="window.saveStationRouting()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm"><i class="fas fa-save mr-1"></i> Lưu định tuyến</button>
+                                    </div>
+                                </div>
+
+                                <!-- THẺ 5: NHẬT KÝ THAY ĐỔI -->
+                                <div id="sttab-audit" class="station-tab hidden p-5">
+                                    <p class="text-[11px] text-slate-400 font-medium mb-3">Ghi lại 100 thay đổi gần nhất. Giá trị mật khẩu phòng luôn được che, chỉ ghi nhận là đã có thay đổi.</p>
+                                    <div id="st-audit-list" class="space-y-1.5 max-h-[28rem] overflow-y-auto"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- CHI TIẾT MỘT LƯỢT CUỘC GỌI: ĐƠN THUỐC ĐÃ KÊ & NỘI DUNG TRÒ CHUYỆN -->
@@ -2704,7 +2940,10 @@
                     <li><a href="#" onclick="window.switchAdminTab('service')" id="tab-btn-service" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-list mr-3"></i> Quản lý Dịch vụ (Luồng Zalo)</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-address-book mr-3"></i> Quản lý Danh bạ Cán bộ</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('telehealth')" id="tab-btn-telehealth" class="block p-3.5 text-blue-700 bg-blue-50/80 hover:bg-blue-100 rounded-xl font-bold border-l-4 border-blue-600 shadow-sm transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-video text-blue-600 mr-3 animate-pulse"></i> Cuộc gọi Video & Khám Từ xa</span> <span class="flex items-center gap-1"><span id="cms-live-call-badge" class="hidden bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-black animate-pulse">0 đang gọi</span> <span id="cms-telehealth-count" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></span></a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('stations')" id="tab-btn-stations" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-tower-broadcast mr-3"></i> Bảng điều khiển điểm trạm</span> <span id="stations-issue-badge" class="hidden bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></a></li>
+                    <!-- Mục "Bảng điều khiển điểm trạm" đã gộp vào Module Bảng điều khiển trạm y tế
+                         (khu làm việc "Quản trị điểm trạm"). Giữ lại một lối tắt để Quản trị đang ở
+                         trong CMS mở thẳng khu đó, thay vì phải quay ra chân trang. -->
+                    <li><a href="#" onclick="window.openStationControlCenter({ workspace: 'admin' }); return false;" id="tab-btn-stations" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-tower-broadcast mr-3"></i> Quản trị điểm trạm <span class="ml-2 text-[9px] font-black text-cyan-700 bg-cyan-100 px-1.5 py-0.5 rounded-full uppercase">Mở bảng điều khiển</span></span> <span id="stations-issue-badge-cms" class="hidden bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></a></li>
                     <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fab fa-youtube mr-3"></i> Quản lý Video Y khoa</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-users-cog mr-3"></i> Phân quyền Hệ thống</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('signature')" id="tab-btn-signature" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-signature mr-3"></i> Chữ ký số &amp; Người ký đơn</a></li>
@@ -3331,229 +3570,6 @@
                     </div>
                 </div>
 
-                <!-- ============================================================
-                     ADMIN TAB: BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM
-                     Bố cục hai cấp: bên trái là danh sách điểm trạm (nhìn một lượt
-                     biết trạm nào đã đủ điều kiện hoạt động), bên phải là hồ sơ chi
-                     tiết của trạm đang chọn, chia theo năm thẻ nghiệp vụ. Cách này
-                     giữ cho một màn hình không phải gánh cùng lúc năm nhóm cấu hình.
-                     ============================================================ -->
-                <div id="admin-stations-section" class="admin-tab space-y-6">
-                    <div class="bg-white rounded-2xl shadow-sm p-6 lg:p-8 border border-gray-200">
-                        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-gray-100">
-                            <div>
-                                <h2 class="text-2xl font-black text-gray-900 flex items-center gap-2"><i class="fas fa-tower-broadcast text-cyan-600"></i> Bảng điều khiển điểm trạm</h2>
-                                <p class="text-xs text-gray-500 font-bold mt-1 uppercase tracking-wider">Cấp phòng Zoom &amp; tài khoản nhận cuộc gọi cho từng điểm trạm</p>
-                            </div>
-                            <div class="flex gap-2 flex-wrap">
-                                <button type="button" onclick="window.refreshStationRooms(true)" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 border border-gray-200"><i class="fas fa-rotate"></i> Tải lại</button>
-                                <button type="button" onclick="window.openNewStationForm()" class="text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-black px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"><i class="fas fa-plus"></i> Thêm điểm trạm</button>
-                            </div>
-                        </div>
-
-                        <div id="stations-auth-warning" class="hidden mt-4 bg-amber-50 border-l-4 border-amber-500 text-amber-900 p-4 rounded-r-xl text-sm font-bold"></div>
-
-                        <!-- Dải chỉ số nhanh: trả lời ngay câu hỏi "hệ thống có đang sẵn sàng nhận cuộc gọi không". -->
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
-                            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-3.5">
-                                <p class="text-[11px] font-black text-gray-500 uppercase tracking-wider">Tổng điểm trạm</p>
-                                <p id="stations-kpi-total" class="text-2xl font-black text-gray-900 mt-0.5">—</p>
-                            </div>
-                            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3.5">
-                                <p class="text-[11px] font-black text-emerald-700 uppercase tracking-wider">Đang hoạt động</p>
-                                <p id="stations-kpi-active" class="text-2xl font-black text-emerald-800 mt-0.5">—</p>
-                            </div>
-                            <div class="rounded-2xl border border-blue-200 bg-blue-50 p-3.5">
-                                <p class="text-[11px] font-black text-blue-700 uppercase tracking-wider">Đang có người trực</p>
-                                <p id="stations-kpi-duty" class="text-2xl font-black text-blue-800 mt-0.5">—</p>
-                            </div>
-                            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3.5">
-                                <p class="text-[11px] font-black text-amber-700 uppercase tracking-wider">Còn thiếu cấu hình</p>
-                                <p id="stations-kpi-issues" class="text-2xl font-black text-amber-800 mt-0.5">—</p>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col xl:flex-row gap-6 mt-6">
-                            <!-- CẤP 1: DANH SÁCH ĐIỂM TRẠM -->
-                            <div class="w-full xl:w-[22rem] shrink-0">
-                                <input type="search" id="stations-search" oninput="window.renderStationRoomList()" placeholder="Tìm theo tên hoặc mã trạm..." class="w-full border-2 border-gray-200 rounded-xl px-3.5 py-2 text-sm font-medium mb-3 focus:outline-none focus:border-cyan-500">
-                                <div id="stations-list" class="space-y-2 max-h-[38rem] overflow-y-auto pr-1">
-                                    <p class="text-sm text-gray-500 font-medium p-4 text-center"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang tải danh mục điểm trạm...</p>
-                                </div>
-                            </div>
-
-                            <!-- CẤP 2: HỒ SƠ CHI TIẾT -->
-                            <div class="flex-1 min-w-0">
-                                <div id="station-detail-empty" class="rounded-2xl border-2 border-dashed border-gray-200 p-10 text-center text-gray-500">
-                                    <i class="fas fa-hand-pointer text-3xl mb-3 text-gray-300"></i>
-                                    <p class="font-bold">Chọn một điểm trạm ở danh sách bên trái để xem và sửa hồ sơ.</p>
-                                </div>
-
-                                <div id="station-detail" class="hidden rounded-2xl border border-gray-200 overflow-hidden">
-                                    <div class="bg-gradient-to-r from-cyan-600 to-blue-700 text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                        <div class="min-w-0">
-                                            <h3 id="station-detail-name" class="font-black text-lg truncate">—</h3>
-                                            <p class="text-[11px] font-mono text-cyan-100"><span id="station-detail-code">—</span></p>
-                                        </div>
-                                        <div class="flex items-center gap-2 shrink-0">
-                                            <span id="station-detail-status" class="text-[11px] font-black px-2.5 py-1 rounded-full bg-white/20">—</span>
-                                            <select id="station-status-select" onchange="window.changeStationStatus(this.value)" class="text-xs font-bold text-gray-900 rounded-lg px-2 py-1.5 border-0">
-                                                <option value="ACTIVE">Đang hoạt động</option>
-                                                <option value="PAUSED">Tạm ngưng</option>
-                                                <option value="DISABLED">Vô hiệu hoá</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div id="station-detail-issues" class="hidden bg-amber-50 border-b border-amber-200 px-5 py-3 text-xs font-bold text-amber-900"></div>
-
-                                    <div class="flex flex-wrap gap-1 bg-gray-50 border-b border-gray-200 px-3 pt-3">
-                                        <button type="button" id="sttab-btn-info" onclick="window.switchStationTab('info')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Thông tin trạm</button>
-                                        <button type="button" id="sttab-btn-zoom" onclick="window.switchStationTab('zoom')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Phòng Zoom</button>
-                                        <button type="button" id="sttab-btn-receivers" onclick="window.switchStationTab('receivers')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Tài khoản nhận</button>
-                                        <button type="button" id="sttab-btn-routing" onclick="window.switchStationTab('routing')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Định tuyến &amp; Dự phòng</button>
-                                        <button type="button" id="sttab-btn-audit" onclick="window.switchStationTab('audit')" class="px-3.5 py-2 text-xs font-black rounded-t-lg">Nhật ký thay đổi</button>
-                                    </div>
-
-                                    <!-- THẺ 1: THÔNG TIN TRẠM -->
-                                    <div id="sttab-info" class="station-tab p-5 space-y-4">
-                                        <div class="grid md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-name">Tên hiển thị <span class="text-rose-500">*</span></label>
-                                                <input type="text" id="st-name" maxlength="80" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium">
-                                                <p class="text-[11px] text-gray-500 mt-1">Chính chuỗi này hiện trong ô chọn của người dân.</p>
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-code-readonly">Mã điểm trạm</label>
-                                                <input type="text" id="st-code-readonly" readonly class="w-full border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm font-mono text-gray-600">
-                                                <p class="text-[11px] text-gray-500 mt-1">Mã là khoá nghiệp vụ, đã nằm trong mã phòng khám và nhật ký nên không sửa được.</p>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-black text-gray-700 mb-1" for="st-note">Ghi chú hiển thị cho người dân</label>
-                                            <input type="text" id="st-note" maxlength="120" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium" placeholder="VD: Trực 24/7 - Phòng khám đa khoa">
-                                        </div>
-                                        <div class="grid md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-order">Thứ tự hiển thị</label>
-                                                <input type="number" id="st-order" min="0" max="99" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-duty">Khung giờ trực</label>
-                                                <select id="st-duty" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white">
-                                                    <option value='{"always":true}'>Trực 24/7</option>
-                                                    <option value='{"mon_fri":["07:30","17:00"]}'>Thứ 2 - Thứ 6, 07:30 - 17:00</option>
-                                                    <option value='{"mon_sat":["07:30","17:00"]}'>Thứ 2 - Thứ 7, 07:30 - 17:00</option>
-                                                    <option value='{"mon_sat":["07:00","11:30"]}'>Thứ 2 - Thứ 7, 07:00 - 11:30</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-offhours">Ngoài giờ trực</label>
-                                                <select id="st-offhours" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white">
-                                                    <option value="SHOW">Vẫn hiện, kèm cảnh báo</option>
-                                                    <option value="HIDE">Ẩn khỏi danh sách người dân</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center justify-between pt-2 border-t border-gray-100">
-                                            <p id="st-info-updated" class="text-[11px] text-gray-500 font-medium"></p>
-                                            <button type="button" onclick="window.saveStationInfo()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm"><i class="fas fa-save mr-1"></i> Lưu thông tin</button>
-                                        </div>
-                                    </div>
-
-                                    <!-- THẺ 2: PHÒNG ZOOM -->
-                                    <div id="sttab-zoom" class="station-tab hidden p-5 space-y-4">
-                                        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-[11px] text-blue-900 font-medium leading-relaxed">
-                                            <i class="fas fa-circle-info mr-1"></i> Dán <b>liên kết phòng họp cố định</b> (Personal Meeting Room) của tài khoản Zoom được cấp cho điểm trạm này.
-                                            Mã phòng được đọc tự động từ liên kết. Mật khẩu phòng chỉ được gửi tới người đã tiếp nhận cuộc gọi -
-                                            không xuất hiện trong danh sách công khai, nhật ký thay đổi hay nội dung thông báo đẩy.
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-black text-gray-700 mb-1" for="st-zoom-url">Liên kết phòng Zoom <span class="text-rose-500">*</span></label>
-                                            <div class="flex flex-col sm:flex-row gap-2">
-                                                <input type="url" id="st-zoom-url" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium" placeholder="https://us02web.zoom.us/j/9471234567?pwd=...">
-                                                <button type="button" onclick="window.checkStationZoomLink()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2 rounded-xl border border-gray-200 shrink-0"><i class="fas fa-vial mr-1"></i> Kiểm tra liên kết</button>
-                                            </div>
-                                            <div id="st-zoom-check" class="hidden mt-2 text-[11px] font-bold rounded-xl px-3 py-2"></div>
-                                        </div>
-                                        <div class="grid md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-zoom-id">Mã phòng (Meeting ID)</label>
-                                                <input type="text" id="st-zoom-id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" placeholder="Tự đọc từ liên kết">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-zoom-pass">Mật khẩu phòng</label>
-                                                <input type="text" id="st-zoom-pass" autocomplete="off" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" placeholder="Để trống nếu liên kết đã nhúng sẵn">
-                                                <p id="st-zoom-pass-state" class="text-[11px] text-gray-500 mt-1"></p>
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-zoom-host">Email tài khoản Zoom chủ phòng</label>
-                                                <input type="email" id="st-zoom-host" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium" placeholder="tram01@laocai.gov.vn">
-                                            </div>
-                                        </div>
-                                        <label class="flex items-start gap-2 text-[11px] font-bold text-gray-600">
-                                            <input type="checkbox" id="st-zoom-shared" class="mt-0.5">
-                                            <span>Cho phép dùng chung phòng với điểm trạm khác. Chỉ tích khi thực sự muốn hai trạm đổ về cùng một phòng họp - nếu không, hai cuộc gọi khác nhau sẽ gặp nhau trong cùng một phòng.</span>
-                                        </label>
-                                        <div class="flex justify-end pt-2 border-t border-gray-100">
-                                            <button type="button" onclick="window.saveStationZoom()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm"><i class="fas fa-save mr-1"></i> Lưu phòng Zoom</button>
-                                        </div>
-                                    </div>
-
-                                    <!-- THẺ 3: TÀI KHOẢN NHẬN CUỘC GỌI -->
-                                    <div id="sttab-receivers" class="station-tab hidden p-5 space-y-4">
-                                        <div class="flex flex-col sm:flex-row gap-2 items-end bg-gray-50 border border-gray-200 rounded-2xl p-3.5">
-                                            <div class="flex-1 w-full">
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-recv-user">Gán tài khoản nhận cuộc gọi</label>
-                                                <select id="st-recv-user" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white"></select>
-                                            </div>
-                                            <div class="w-full sm:w-40">
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-recv-priority">Mức ưu tiên</label>
-                                                <select id="st-recv-priority" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white">
-                                                    <option value="1">1 - Trực chính</option>
-                                                    <option value="2">2 - Trực phụ</option>
-                                                    <option value="3">3 - Hỗ trợ</option>
-                                                </select>
-                                            </div>
-                                            <button type="button" onclick="window.addStationReceiver()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm shrink-0 w-full sm:w-auto"><i class="fas fa-user-plus mr-1"></i> Gán vào trạm</button>
-                                        </div>
-                                        <p class="text-[11px] text-gray-500 font-medium">Chỉ tài khoản đang hoạt động và đã được cấp <b>Quyền nhận cuộc gọi Video</b> ở mục Phân quyền Hệ thống mới xuất hiện trong danh sách này.</p>
-                                        <div id="st-receivers-list" class="space-y-2"></div>
-                                    </div>
-
-                                    <!-- THẺ 4: ĐỊNH TUYẾN & DỰ PHÒNG -->
-                                    <div id="sttab-routing" class="station-tab hidden p-5 space-y-4">
-                                        <div class="grid md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-ring-timeout">Thời gian đổ chuông mỗi vòng (giây)</label>
-                                                <input type="number" id="st-ring-timeout" min="20" max="180" oninput="window.renderStationRoutingPreview()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium">
-                                                <p class="text-[11px] text-gray-500 mt-1">Hết một vòng mà chưa ai nhận, cuộc gọi tự lan sang mức ưu tiên tiếp theo. Cho phép 20 - 180 giây.</p>
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-black text-gray-700 mb-1" for="st-fallback">Điểm trạm dự phòng</label>
-                                                <select id="st-fallback" onchange="window.renderStationRoutingPreview()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium bg-white"></select>
-                                                <p class="text-[11px] text-gray-500 mt-1">Sau 3 vòng không ai nhận, cuộc gọi chuyển sang trạm này. Để trống nếu trạm không có tuyến sau.</p>
-                                            </div>
-                                        </div>
-                                        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                                            <p class="text-xs font-black text-gray-700 mb-2"><i class="fas fa-diagram-project mr-1 text-cyan-600"></i> Đường đi của một cuộc gọi tại trạm này</p>
-                                            <ol id="st-routing-preview" class="text-[11px] text-gray-600 font-medium space-y-1 list-decimal list-inside"></ol>
-                                        </div>
-                                        <div class="flex justify-end pt-2 border-t border-gray-100">
-                                            <button type="button" onclick="window.saveStationRouting()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-sm"><i class="fas fa-save mr-1"></i> Lưu định tuyến</button>
-                                        </div>
-                                    </div>
-
-                                    <!-- THẺ 5: NHẬT KÝ THAY ĐỔI -->
-                                    <div id="sttab-audit" class="station-tab hidden p-5">
-                                        <p class="text-[11px] text-gray-500 font-medium mb-3">Ghi lại 100 thay đổi gần nhất. Giá trị mật khẩu phòng luôn được che, chỉ ghi nhận là đã có thay đổi.</p>
-                                        <div id="st-audit-list" class="space-y-1.5 max-h-[28rem] overflow-y-auto"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- ADMIN TAB: CONFIG & USERS -->
                 <div id="admin-config-section" class="admin-tab space-y-6">
@@ -6217,12 +6233,17 @@
         };
 
         /* =====================================================================
-           MÔ-ĐUN "BẢNG ĐIỀU KHIỂN ĐIỂM TRẠM"
-           Lối vào đặt ở chân trang, nội dung nằm trong CMS. Đây là nơi duy nhất
-           cấp phòng Zoom và tài khoản nhận cuộc gọi cho từng điểm trạm.
+           KHU LÀM VIỆC "QUẢN TRỊ ĐIỂM TRẠM" CỦA BẢNG ĐIỀU KHIỂN TRẠM Y TẾ
 
-           Mọi thao tác đi qua /api/station-rooms với phiếu phiên phạm vi "admin";
-           giao diện chỉ là lớp hiển thị, quyền do máy chủ quyết định.
+           Trước đây đây là một mô-đun riêng ("Bảng điều khiển điểm trạm") với lối
+           vào riêng ở chân trang và một tab riêng trong CMS. Nay nó là khu làm việc
+           thứ hai của chính Bảng điều khiển trạm y tế: cùng một cửa sổ, cùng một
+           lần đăng nhập, cùng một phiếu phiên.
+
+           Đây vẫn là nơi duy nhất cấp phòng Zoom, tài khoản nhận cuộc gọi và định
+           tuyến cho từng điểm trạm. Mọi thao tác đi qua /api/station-rooms với phiếu
+           phiên mang phạm vi "admin"; giao diện chỉ là lớp hiển thị, quyền do máy
+           chủ quyết định ở từng lệnh gọi.
            ===================================================================== */
         let stationRoomsData = [];
         let stationEligibleAccounts = [];
@@ -6235,14 +6256,37 @@
                 .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
-        /** Gọi API điểm trạm kèm phiếu phiên Quản trị. */
+        /* Phiếu phiên dùng cho các lệnh quản trị điểm trạm.
+
+           Sau khi gộp mô-đun, cán bộ có thể đang mang một trong hai phiếu: phiếu của
+           Bảng điều khiển (đăng nhập ở chân trang) hoặc phiếu CMS Quản trị (đăng nhập
+           trong CMS). Máy chủ cấp phiếu kèm ĐẦY ĐỦ phạm vi của tài khoản, nên phiếu
+           nào mang phạm vi "admin" cũng dùng được - không bắt Quản trị đăng nhập hai
+           lần chỉ vì đi vào bằng cửa khác. */
+        window.getStationAdminTicket = function() {
+            const withAdmin = (session, source) => {
+                if (!session || !session.token) return null;
+                const scopes = Array.isArray(session.scopes) ? session.scopes : [];
+                return scopes.indexOf('admin') !== -1 ? { token: session.token, source } : null;
+            };
+            const fromStation = withAdmin(window.getStationSession ? window.getStationSession() : null, 'station');
+            if (fromStation) return fromStation;
+            return withAdmin(window.getCmsAdminSession ? window.getCmsAdminSession() : null, 'cms');
+        };
+
+        /** Phiên hiện tại có được vào khu "Quản trị điểm trạm" hay không. */
+        window.hasStationAdminScope = function() {
+            return !!window.getStationAdminTicket();
+        };
+
+        /** Gọi API điểm trạm kèm phiếu phiên có phạm vi Quản trị. */
         async function stationApi(payload, method) {
-            const session = window.getCmsAdminSession();
-            if (!session) throw new Error('Phiên Quản trị đã hết hạn. Vui lòng đăng nhập lại CMS.');
+            const ticket = window.getStationAdminTicket();
+            if (!ticket) throw new Error('Phiên đăng nhập hiện tại không có quyền Quản trị điểm trạm. Vui lòng đăng nhập bằng tài khoản Quản trị viên.');
 
             const options = {
                 method: method || 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.token }
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ticket.token }
             };
             if (options.method !== 'GET') options.body = JSON.stringify(payload || {});
 
@@ -6251,8 +6295,10 @@
             const data = await res.json().catch(() => null);
 
             if (res.status === 401) {
-                window.clearCmsAdminSession();
-                throw new Error((data && data.error) || 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại CMS.');
+                // Phiếu đã hỏng: xoá đúng phiếu vừa dùng để lần sau không lặp lại lỗi cũ.
+                if (ticket.source === 'cms' && window.clearCmsAdminSession) window.clearCmsAdminSession();
+                if (ticket.source === 'station' && window.clearStationSession) window.clearStationSession();
+                throw new Error((data && data.error) || 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
             }
             if (!res.ok || !data || data.success !== true) {
                 throw new Error((data && data.error) || 'Máy chủ từ chối thao tác trên điểm trạm.');
@@ -6260,37 +6306,22 @@
             return data;
         }
 
-        /* Lối vào ở chân trang: chưa đăng nhập thì mở cửa sổ đăng nhập rồi mới vào
-           mô-đun, thay vì để người dùng bấm xong không thấy gì xảy ra. */
+        /* Tên gọi cũ của lối vào mô-đun (liên kết cũ, dấu trang, mã gọi lại): đưa
+           thẳng vào khu "Quản trị điểm trạm" của Bảng điều khiển hợp nhất. */
         window.openStationRoomsModule = function() {
-            const session = window.getCmsAdminSession();
-            const isAdmin = !!(session && Array.isArray(session.scopes) && session.scopes.indexOf('admin') !== -1);
-
-            if (!isAdmin) {
-                window.pendingAdminTab = 'stations';
-                window.openModal('modal-admin-login');
-                window.showToast('Mô-đun Bảng điều khiển điểm trạm yêu cầu tài khoản Quản trị viên.');
-                return;
+            if (typeof window.openStationControlCenter === 'function') {
+                window.openStationControlCenter({ workspace: 'admin' });
             }
-
-            const mainSite = document.getElementById('main-website');
-            const adminDash = document.getElementById('admin-dashboard');
-            if (mainSite && adminDash) {
-                mainSite.classList.add('hidden');
-                adminDash.classList.remove('hidden');
-                window.scrollTo(0, 0);
-            }
-            window.switchAdminTab('stations');
         };
 
+        /** Khu quản trị vừa được mở: kiểm tra quyền rồi nạp danh mục điểm trạm. */
         window.initStationRoomsModule = function() {
             const warn = document.getElementById('stations-auth-warning');
-            const session = window.getCmsAdminSession();
-            const isAdmin = !!(session && Array.isArray(session.scopes) && session.scopes.indexOf('admin') !== -1);
+            const isAdmin = window.hasStationAdminScope();
             if (warn) {
                 warn.classList.toggle('hidden', isAdmin);
                 if (!isAdmin) {
-                    warn.innerHTML = '<i class="fas fa-triangle-exclamation mr-1"></i> Phiên Quản trị chưa được máy chủ xác thực. Hãy đăng xuất và đăng nhập lại CMS bằng tài khoản Quản trị viên để cấu hình điểm trạm.';
+                    warn.innerHTML = '<i class="fas fa-triangle-exclamation mr-1"></i> Phiên đăng nhập hiện tại không mang quyền Quản trị. Hãy đăng xuất và đăng nhập lại Bảng điều khiển bằng tài khoản Quản trị viên để cấu hình điểm trạm.';
                 }
             }
             if (isAdmin) window.refreshStationRooms();
@@ -6312,7 +6343,7 @@
                 }
                 if (announce) window.showToast('Đã tải lại ' + stationRoomsData.length + ' điểm trạm.');
             } catch (err) {
-                if (list) list.innerHTML = '<p class="text-sm text-rose-600 font-bold p-4 text-center">' + stEsc(err.message) + '</p>';
+                if (list) list.innerHTML = '<p class="text-sm text-rose-400 font-bold p-4 text-center">' + stEsc(err.message) + '</p>';
             }
         };
 
@@ -6327,18 +6358,20 @@
             set('stations-kpi-duty', duty);
             set('stations-kpi-issues', issues);
 
-            // Huy hiệu trên thanh bên: Quản trị thấy ngay là có trạm chưa cấu hình xong.
-            const badge = document.getElementById('stations-issue-badge');
-            if (badge) {
+            /* Huy hiệu cảnh báo: Quản trị thấy ngay là có trạm chưa cấu hình xong,
+               kể cả khi đang đứng ở khu "Trực khám" hay đang ở trong CMS. */
+            ['stations-issue-badge', 'stations-issue-badge-cms'].forEach(id => {
+                const badge = document.getElementById(id);
+                if (!badge) return;
                 badge.textContent = issues;
                 badge.classList.toggle('hidden', issues === 0);
-            }
+            });
         }
 
         const ST_STATUS_STYLE = {
-            ACTIVE:   { label: 'Đang hoạt động', dot: 'bg-emerald-500', chip: 'bg-emerald-100 text-emerald-800' },
-            PAUSED:   { label: 'Tạm ngưng',      dot: 'bg-amber-500',   chip: 'bg-amber-100 text-amber-800' },
-            DISABLED: { label: 'Vô hiệu hoá',    dot: 'bg-gray-400',    chip: 'bg-gray-200 text-gray-700' }
+            ACTIVE:   { label: 'Đang hoạt động', dot: 'bg-emerald-500', chip: 'bg-emerald-900/60 text-emerald-300' },
+            PAUSED:   { label: 'Tạm ngưng',      dot: 'bg-amber-500',   chip: 'bg-amber-900/60 text-amber-200' },
+            DISABLED: { label: 'Vô hiệu hoá',    dot: 'bg-gray-400',    chip: 'bg-slate-700 text-slate-200' }
         };
 
         window.renderStationRoomList = function() {
@@ -6351,7 +6384,7 @@
             );
 
             if (!rows.length) {
-                box.innerHTML = '<p class="text-sm text-gray-500 font-medium p-4 text-center">Không có điểm trạm nào khớp.</p>';
+                box.innerHTML = '<p class="text-sm text-slate-400 font-medium p-4 text-center">Không có điểm trạm nào khớp.</p>';
                 return;
             }
 
@@ -6359,25 +6392,25 @@
                 const style = ST_STATUS_STYLE[st.status] || ST_STATUS_STYLE.DISABLED;
                 const selected = st.code === selectedStationCode;
                 const dutyChip = Number(st.dutyCount || 0) > 0
-                    ? '<span class="text-[10px] font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">' + st.dutyCount + ' đang trực</span>'
-                    : '<span class="text-[10px] font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">Không có người trực</span>';
+                    ? '<span class="text-[10px] font-black text-emerald-300 bg-emerald-900/60 px-1.5 py-0.5 rounded-full">' + st.dutyCount + ' đang trực</span>'
+                    : '<span class="text-[10px] font-black text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-full">Không có người trực</span>';
                 const issueChip = st.ready
                     ? ''
-                    : '<span class="text-[10px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-full"><i class="fas fa-triangle-exclamation"></i> Thiếu cấu hình</span>';
+                    : '<span class="text-[10px] font-black text-amber-200 bg-amber-900/60 px-1.5 py-0.5 rounded-full"><i class="fas fa-triangle-exclamation"></i> Thiếu cấu hình</span>';
                 return '' +
                     '<button type="button" onclick="window.selectStationRoom(\'' + stEsc(st.code) + '\')" class="w-full text-left rounded-xl border p-3 transition ' +
-                        (selected ? 'border-cyan-500 bg-cyan-50 shadow-sm' : 'border-gray-200 bg-white hover:border-cyan-300 hover:bg-gray-50') + '">' +
+                        (selected ? 'border-cyan-500 bg-cyan-950/50 shadow-sm' : 'border-slate-800 bg-slate-900 hover:border-cyan-500 hover:bg-slate-800') + '">' +
                         '<div class="flex items-start gap-2">' +
                             '<span class="w-2 h-2 rounded-full mt-1.5 shrink-0 ' + style.dot + '"></span>' +
                             '<div class="min-w-0 flex-1">' +
-                                '<p class="font-black text-sm text-gray-900 truncate">' + stEsc(st.name) + '</p>' +
-                                '<p class="text-[10px] font-mono text-gray-500 truncate">' + stEsc(st.code) + '</p>' +
+                                '<p class="font-black text-sm text-white truncate">' + stEsc(st.name) + '</p>' +
+                                '<p class="text-[10px] font-mono text-slate-400 truncate">' + stEsc(st.code) + '</p>' +
                                 '<div class="flex flex-wrap gap-1 mt-1.5">' + dutyChip + issueChip +
                                     '<span class="text-[10px] font-black px-1.5 py-0.5 rounded-full ' + style.chip + '">' + style.label + '</span>' +
-                                    (st.zoomJoinUrl ? '<span class="text-[10px] font-black text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full"><i class="fas fa-video"></i> ' + stEsc(st.zoomMeetingIdPretty || 'Có phòng') + '</span>' : '') +
+                                    (st.zoomJoinUrl ? '<span class="text-[10px] font-black text-blue-300 bg-blue-900/60 px-1.5 py-0.5 rounded-full"><i class="fas fa-video"></i> ' + stEsc(st.zoomMeetingIdPretty || 'Có phòng') + '</span>' : '') +
                                 '</div>' +
                             '</div>' +
-                            '<span class="text-[10px] font-black text-gray-400 shrink-0">#' + Number(st.displayOrder || 0) + '</span>' +
+                            '<span class="text-[10px] font-black text-slate-500 shrink-0">#' + Number(st.displayOrder || 0) + '</span>' +
                         '</div>' +
                     '</button>';
             }).join('');
@@ -6462,8 +6495,8 @@
                 const btn = document.getElementById('sttab-btn-' + key);
                 if (btn) {
                     btn.className = key === tab
-                        ? 'px-3.5 py-2 text-xs font-black rounded-t-lg bg-white text-cyan-700 border-t border-x border-gray-200 -mb-px'
-                        : 'px-3.5 py-2 text-xs font-black rounded-t-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100';
+                        ? 'px-3.5 py-2 text-xs font-black rounded-t-lg bg-slate-900 text-cyan-300 border-t border-x border-slate-800 -mb-px'
+                        : 'px-3.5 py-2 text-xs font-black rounded-t-lg text-slate-400 hover:text-white hover:bg-slate-800';
                 }
             });
             if (tab === 'audit') window.loadStationAudit();
@@ -6496,7 +6529,7 @@
             const box = document.getElementById('st-zoom-check');
             if (!box) return;
             box.classList.remove('hidden');
-            box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-gray-100 text-gray-600';
+            box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-slate-800 text-slate-300';
             box.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Đang kiểm tra...';
 
             try {
@@ -6511,15 +6544,15 @@
 
                 const warnings = Array.isArray(data.warnings) ? data.warnings : [];
                 if (warnings.length) {
-                    box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-amber-50 text-amber-900 border border-amber-200';
+                    box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-amber-950/50 text-amber-200 border border-amber-800';
                     box.innerHTML = '<i class="fas fa-triangle-exclamation mr-1"></i> ' + warnings.map(w => stEsc(w)).join('<br>');
                 } else {
-                    box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200';
+                    box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-emerald-950/50 text-emerald-300 border border-emerald-800';
                     box.innerHTML = '<i class="fas fa-circle-check mr-1"></i> Liên kết hợp lệ. Mã phòng ' + stEsc(data.meetingIdPretty || '(không đọc được)') +
                         (data.passcodeDetected ? ' · Liên kết đã nhúng sẵn mật khẩu.' : ' · Liên kết không kèm mật khẩu.');
                 }
             } catch (err) {
-                box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-rose-50 text-rose-700 border border-rose-200';
+                box.className = 'mt-2 text-[11px] font-bold rounded-xl px-3 py-2 bg-rose-950/50 text-rose-300 border border-rose-800';
                 box.innerHTML = '<i class="fas fa-circle-xmark mr-1"></i> ' + stEsc(err.message);
             }
         };
@@ -6565,32 +6598,32 @@
             if (!box) return;
             const rows = st.receivers || [];
             if (!rows.length) {
-                box.innerHTML = '<div class="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 p-4 text-center text-xs font-bold text-amber-800">' +
+                box.innerHTML = '<div class="rounded-xl border-2 border-dashed border-amber-700 bg-amber-950/50 p-4 text-center text-xs font-bold text-amber-200">' +
                     'Chưa có tài khoản nào nhận cuộc gọi cho điểm trạm này. Người dân chọn trạm sẽ không có ai đổ chuông.</div>';
                 return;
             }
 
             box.innerHTML = rows.map(r => {
                 const dutyDot = r.onDuty
-                    ? '<span class="text-[10px] font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full"><i class="fas fa-circle text-[6px] mr-0.5"></i> Đang trực</span>'
-                    : '<span class="text-[10px] font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">Không trực</span>';
-                const inactive = r.isActive ? '' : '<span class="text-[10px] font-black text-gray-600 bg-gray-200 px-1.5 py-0.5 rounded-full">Đã tắt</span>';
-                const noVideo = r.canReceiveVideo ? '' : '<span class="text-[10px] font-black text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-full">Chưa có quyền nhận video</span>';
+                    ? '<span class="text-[10px] font-black text-emerald-300 bg-emerald-900/60 px-1.5 py-0.5 rounded-full"><i class="fas fa-circle text-[6px] mr-0.5"></i> Đang trực</span>'
+                    : '<span class="text-[10px] font-black text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-full">Không trực</span>';
+                const inactive = r.isActive ? '' : '<span class="text-[10px] font-black text-slate-300 bg-slate-700 px-1.5 py-0.5 rounded-full">Đã tắt</span>';
+                const noVideo = r.canReceiveVideo ? '' : '<span class="text-[10px] font-black text-rose-300 bg-rose-900/60 px-1.5 py-0.5 rounded-full">Chưa có quyền nhận video</span>';
                 return '' +
-                    '<div class="rounded-xl border border-gray-200 bg-white p-3 flex flex-col sm:flex-row sm:items-center gap-3">' +
+                    '<div class="rounded-xl border border-slate-800 bg-slate-900 p-3 flex flex-col sm:flex-row sm:items-center gap-3">' +
                         '<div class="flex-1 min-w-0">' +
-                            '<p class="font-black text-sm text-gray-900 truncate">' + stEsc(r.name) + '</p>' +
-                            '<p class="text-[11px] text-gray-500 font-medium truncate">' + stEsc(r.username) + ' · ' + stEsc(r.role) + '</p>' +
+                            '<p class="font-black text-sm text-white truncate">' + stEsc(r.name) + '</p>' +
+                            '<p class="text-[11px] text-slate-400 font-medium truncate">' + stEsc(r.username) + ' · ' + stEsc(r.role) + '</p>' +
                             '<div class="flex flex-wrap gap-1 mt-1.5">' + dutyDot + inactive + noVideo +
-                                (r.personalMeetingIdPretty ? '<span class="text-[10px] font-black text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full">Phòng riêng ' + stEsc(r.personalMeetingIdPretty) + '</span>' : '') +
+                                (r.personalMeetingIdPretty ? '<span class="text-[10px] font-black text-blue-300 bg-blue-900/60 px-1.5 py-0.5 rounded-full">Phòng riêng ' + stEsc(r.personalMeetingIdPretty) + '</span>' : '') +
                             '</div>' +
                         '</div>' +
                         '<div class="flex items-center gap-2 shrink-0">' +
-                            '<select onchange="window.updateStationReceiver(\'' + stEsc(r.id) + '\', \'priority\', this.value)" class="text-xs font-bold border border-gray-300 rounded-lg px-2 py-1.5 bg-white">' +
+                            '<select onchange="window.updateStationReceiver(\'' + stEsc(r.id) + '\', \'priority\', this.value)" class="text-xs font-bold border border-slate-700 rounded-lg px-2 py-1.5 bg-slate-950 text-white">' +
                                 [1, 2, 3].map(n => '<option value="' + n + '"' + (Number(r.priority) === n ? ' selected' : '') + '>Ưu tiên ' + n + '</option>').join('') +
                             '</select>' +
-                            '<button type="button" onclick="window.updateStationReceiver(\'' + stEsc(r.id) + '\', \'isActive\', ' + (r.isActive ? 'false' : 'true') + ')" title="Bật/tắt nhận cuộc gọi" class="w-8 h-8 rounded-lg text-xs ' + (r.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500') + '"><i class="fas fa-power-off"></i></button>' +
-                            '<button type="button" onclick="window.removeStationReceiver(\'' + stEsc(r.id) + '\', \'' + stEsc(r.name) + '\')" title="Gỡ khỏi điểm trạm" class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 text-xs"><i class="fas fa-user-minus"></i></button>' +
+                            '<button type="button" onclick="window.updateStationReceiver(\'' + stEsc(r.id) + '\', \'isActive\', ' + (r.isActive ? 'false' : 'true') + ')" title="Bật/tắt nhận cuộc gọi" class="w-8 h-8 rounded-lg text-xs ' + (r.isActive ? 'bg-emerald-900/60 text-emerald-300' : 'bg-slate-700 text-slate-400') + '"><i class="fas fa-power-off"></i></button>' +
+                            '<button type="button" onclick="window.removeStationReceiver(\'' + stEsc(r.id) + '\', \'' + stEsc(r.name) + '\')" title="Gỡ khỏi điểm trạm" class="w-8 h-8 rounded-lg bg-rose-900/60 text-rose-300 text-xs"><i class="fas fa-user-minus"></i></button>' +
                         '</div>' +
                     '</div>';
             }).join('');
@@ -6724,29 +6757,29 @@
         window.loadStationAudit = async function() {
             const box = document.getElementById('st-audit-list');
             if (!box || !selectedStationCode) return;
-            box.innerHTML = '<p class="text-xs text-gray-500 font-medium p-3"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang tải nhật ký...</p>';
+            box.innerHTML = '<p class="text-xs text-slate-400 font-medium p-3"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang tải nhật ký...</p>';
             try {
                 const data = await stationApi('/api/station-rooms?audit=' + encodeURIComponent(selectedStationCode), 'GET');
                 const rows = Array.isArray(data.entries) ? data.entries : [];
                 if (!rows.length) {
-                    box.innerHTML = '<p class="text-xs text-gray-500 font-medium p-3">Chưa có thay đổi nào được ghi nhận.</p>';
+                    box.innerHTML = '<p class="text-xs text-slate-400 font-medium p-3">Chưa có thay đổi nào được ghi nhận.</p>';
                     return;
                 }
                 box.innerHTML = rows.map(e => {
                     const when = e.ts ? new Date(Number(e.ts)).toLocaleString('vi-VN') : '';
                     const change = e.field
-                        ? '<span class="font-mono text-[10px] text-gray-500">' + stEsc(e.field) + '</span>: ' +
-                          '<span class="text-gray-500 line-through">' + stEsc(e.oldValue || '(trống)') + '</span> → ' +
-                          '<span class="text-gray-900 font-bold">' + stEsc(e.newValue || '(trống)') + '</span>'
+                        ? '<span class="font-mono text-[10px] text-slate-400">' + stEsc(e.field) + '</span>: ' +
+                          '<span class="text-slate-400 line-through">' + stEsc(e.oldValue || '(trống)') + '</span> → ' +
+                          '<span class="text-white font-bold">' + stEsc(e.newValue || '(trống)') + '</span>'
                         : '';
-                    return '<div class="text-[11px] border-l-2 border-gray-200 pl-3 py-1.5">' +
-                        '<p class="font-black text-gray-800">' + stEsc(ST_AUDIT_ACTION[e.action] || e.action) + '</p>' +
-                        (change ? '<p class="text-gray-600 break-all">' + change + '</p>' : '') +
-                        '<p class="text-gray-400 font-medium">' + stEsc(e.actorName || 'Không rõ') + ' · ' + when + '</p>' +
+                    return '<div class="text-[11px] border-l-2 border-slate-800 pl-3 py-1.5">' +
+                        '<p class="font-black text-slate-100">' + stEsc(ST_AUDIT_ACTION[e.action] || e.action) + '</p>' +
+                        (change ? '<p class="text-slate-300 break-all">' + change + '</p>' : '') +
+                        '<p class="text-slate-500 font-medium">' + stEsc(e.actorName || 'Không rõ') + ' · ' + when + '</p>' +
                     '</div>';
                 }).join('');
             } catch (err) {
-                box.innerHTML = '<p class="text-xs text-rose-600 font-bold p-3">' + stEsc(err.message) + '</p>';
+                box.innerHTML = '<p class="text-xs text-rose-400 font-bold p-3">' + stEsc(err.message) + '</p>';
             }
         };
 
@@ -6769,6 +6802,17 @@
         };
 
         window.switchAdminTab = function(tabName) {
+            /* Mô-đun điểm trạm đã gộp vào Bảng điều khiển trạm y tế. Mọi lối gọi cũ
+               (lối tắt thanh bên, chuyển hướng sau đăng nhập, liên kết đã lưu) được
+               đưa thẳng sang khu làm việc "Quản trị điểm trạm" của cửa sổ hợp nhất
+               thay vì mở một tab CMS không còn tồn tại. */
+            if (tabName === 'stations') {
+                if (typeof window.openStationControlCenter === 'function') {
+                    window.openStationControlCenter({ workspace: 'admin' });
+                }
+                return;
+            }
+
             const isStationUser = currentCmsUser && (
                 (currentCmsUser.role && (currentCmsUser.role.includes('Điểm trạm') || currentCmsUser.role.includes('Station') || currentCmsUser.role.includes('STATION'))) ||
                 currentCmsUser.username === 'canbotram@laocai.gov.vn'
@@ -6776,7 +6820,7 @@
 
             if (isStationUser) {
                 // Phân quyền nghiêm ngặt cho Cán bộ Điểm trạm: Ẩn toàn bộ các tab quản trị khác
-                ['news', 'vaccine', 'docs', 'service', 'contact', 'video', 'config', 'signature', 'appointments', 'stations'].forEach(key => {
+                ['news', 'vaccine', 'docs', 'service', 'contact', 'video', 'config', 'signature', 'appointments'].forEach(key => {
                     const btn = document.getElementById(`tab-btn-${key}`);
                     if (btn && btn.parentElement) btn.parentElement.style.display = 'none';
                 });
@@ -6794,16 +6838,12 @@
                     if (btn && btn.parentElement) btn.parentElement.style.display = '';
                 });
 
-                /* Bảng điều khiển điểm trạm cấp phòng Zoom và tài khoản nhận cuộc gọi
-                   nên chỉ Quản trị viên thấy - Biên tập viên không có phạm vi "admin"
-                   thì máy chủ cũng sẽ từ chối, ẩn đi cho khỏi dẫn người dùng vào ngõ cụt. */
-                const adminSession = window.getCmsAdminSession();
-                const canManageStations = !!(adminSession && Array.isArray(adminSession.scopes) && adminSession.scopes.indexOf('admin') !== -1);
+                /* Lối tắt sang khu "Quản trị điểm trạm" chỉ có nghĩa với tài khoản mang
+                   phạm vi "admin" - Biên tập viên bấm vào cũng bị máy chủ từ chối, nên ẩn
+                   đi cho khỏi dẫn người dùng vào ngõ cụt. */
                 const stationsBtn = document.getElementById('tab-btn-stations');
-                if (stationsBtn && stationsBtn.parentElement) stationsBtn.parentElement.style.display = canManageStations ? '' : 'none';
-                if (!canManageStations && tabName === 'stations') {
-                    window.showToast('Mô-đun Bảng điều khiển điểm trạm chỉ dành cho tài khoản Quản trị viên.');
-                    tabName = 'telehealth';
+                if (stationsBtn && stationsBtn.parentElement) {
+                    stationsBtn.parentElement.style.display = (typeof window.hasStationAdminScope === 'function' && window.hasStationAdminScope()) ? '' : 'none';
                 }
             }
 
@@ -6823,9 +6863,6 @@
             if (tabName === 'signature') {
                 window.initSignaturePad();
                 window.renderSignerAdmin();
-            }
-            if (tabName === 'stations') {
-                window.initStationRoomsModule();
             }
         };
 
@@ -11669,17 +11706,190 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                         status.innerHTML = '<i class="fas fa-triangle-exclamation mr-1"></i> ' + message;
                     } else {
                         status.className = 'text-[11px] font-bold text-slate-400';
-                        status.innerHTML = '<i class="fas fa-lock mr-1"></i> Module yêu cầu đăng nhập bằng tài khoản đã được CMS Quản trị cấp quyền.';
+                        status.innerHTML = '<i class="fas fa-lock mr-1"></i> Module yêu cầu đăng nhập bằng tài khoản có quyền trực khám tại điểm trạm hoặc vai trò Quản trị viên.';
                     }
                 }
                 const pwd = document.getElementById('input-station-password');
                 if (pwd) { pwd.value = ''; setTimeout(() => pwd.focus(), 120); }
             };
 
-            // Mở thân module - luôn đi qua rào chắn đăng nhập.
-            window.openStationPanel = async function() {
-                const ok = await window.verifyStationSession();
-                if (!ok) {
+            /* =================================================================
+               MODULE HỢP NHẤT - QUYỀN, KHU LÀM VIỆC VÀ LỐI VÀO DUY NHẤT
+
+               Hai mô-đun chân trang cũ dùng hai phiếu phiên khác nhau: Bảng điều
+               khiển trạm đọc phiếu "station", mô-đun điểm trạm đọc phiếu CMS
+               "admin". Sau khi gộp, cửa sổ chỉ còn một lối vào nên phải chấp nhận
+               cả hai loại phiếu và tự suy ra khu làm việc nào được mở.
+
+               Máy chủ cấp phiếu kèm ĐẦY ĐỦ phạm vi của tài khoản, vì vậy một lần
+               đăng nhập là đủ cho cả hai khu nếu tài khoản có cả hai quyền.
+               ================================================================= */
+
+            /* Phạm vi quyền đọc từ phiếu đang giữ (chưa hỏi máy chủ) - dùng để vẽ
+               giao diện ngay, còn quyền thật vẫn do máy chủ chốt ở từng lệnh gọi. */
+            window.getStationModuleGrants = function() {
+                const scopes = new Set();
+                [window.getStationSession(), (window.getCmsAdminSession ? window.getCmsAdminSession() : null)].forEach(s => {
+                    if (s && s.token && Array.isArray(s.scopes)) s.scopes.forEach(x => scopes.add(x));
+                });
+                return { canOperate: scopes.has('station'), canAdminister: scopes.has('admin') };
+            };
+
+            /* Hỏi máy chủ xem (các) phiếu đang giữ còn hiệu lực và còn phạm vi gì.
+               Quản trị thu hồi quyền hay khoá tài khoản là lần mở kế tiếp trượt
+               ngay, không phải chờ phiếu hết hạn. */
+            window.verifyStationModuleSession = async function() {
+                const stationSession = window.getStationSession();
+                const cmsSession = window.getCmsAdminSession ? window.getCmsAdminSession() : null;
+
+                const tickets = [];
+                if (stationSession && stationSession.token) tickets.push({ source: 'station', token: stationSession.token });
+                if (cmsSession && cmsSession.token && (!stationSession || cmsSession.token !== stationSession.token)) {
+                    tickets.push({ source: 'cms', token: cmsSession.token });
+                }
+
+                const grants = { ok: false, canOperate: false, canAdminister: false };
+                for (const ticket of tickets) {
+                    let data = null;
+                    try {
+                        const res = await fetch('/api/station-auth', { headers: { 'Authorization': 'Bearer ' + ticket.token } });
+                        data = await res.json().catch(() => null);
+                        if (!res.ok || !data || data.success !== true) data = null;
+                    } catch (err) {
+                        console.error('Không kiểm tra được phiên Bảng điều khiển:', err);
+                        continue;
+                    }
+                    if (!data) {
+                        // Phiếu hỏng thì bỏ đi luôn, khỏi thử lại ở lần mở sau.
+                        if (ticket.source === 'station') window.clearStationSession();
+                        if (ticket.source === 'cms' && window.clearCmsAdminSession) window.clearCmsAdminSession();
+                        continue;
+                    }
+
+                    const scopes = Array.isArray(data.scopes) ? data.scopes : [];
+                    if (scopes.indexOf('station') !== -1) grants.canOperate = true;
+                    if (scopes.indexOf('admin') !== -1) grants.canAdminister = true;
+
+                    /* Ghi lại phạm vi vừa xác thực vào phiếu đang giữ: quyền có thể vừa
+                       được cấp thêm hoặc vừa bị thu hồi kể từ lúc đăng nhập. */
+                    if (ticket.source === 'station' && stationSession) {
+                        window.setStationSession(Object.assign({}, stationSession, { scopes: scopes }));
+                    }
+                    if (ticket.source === 'cms' && cmsSession && window.setCmsAdminSession) {
+                        window.setCmsAdminSession(Object.assign({}, cmsSession, { scopes: scopes }));
+                    }
+                }
+
+                grants.ok = grants.canOperate || grants.canAdminister;
+                return grants;
+            };
+
+            /* Khu làm việc đang mở và khu nào được phép mở. */
+            let stationWorkspace = 'live';
+            let stationWorkspaceGrants = { canOperate: false, canAdminister: false };
+
+            /** Bật/tắt thẻ chọn khu theo đúng quyền của phiên hiện tại. */
+            window.applyStationModuleGrants = function(grants) {
+                stationWorkspaceGrants = {
+                    canOperate: !!(grants && grants.canOperate),
+                    canAdminister: !!(grants && grants.canAdminister)
+                };
+
+                const liveBtn = document.getElementById('station-ws-btn-live');
+                const adminBtn = document.getElementById('station-ws-btn-admin');
+                if (liveBtn) liveBtn.classList.toggle('hidden', !stationWorkspaceGrants.canOperate);
+                if (adminBtn) adminBtn.classList.toggle('hidden', !stationWorkspaceGrants.canAdminister);
+
+                /* Điều khiển chỉ có nghĩa với cán bộ trực được giấu đi với tài khoản
+                   chỉ vào để cấu hình, và hiện lại khi người trực đăng nhập.
+                   Nút "Kết thúc cuộc gọi" thì chỉ giấu, việc hiện do luồng cuộc gọi lo. */
+                const switcher = document.getElementById('station-switcher');
+                if (switcher) switcher.classList.toggle('hidden', !stationWorkspaceGrants.canOperate);
+                if (!stationWorkspaceGrants.canOperate) {
+                    const endBtn = document.getElementById('btn-end-call-header');
+                    if (endBtn) endBtn.classList.add('hidden');
+                }
+
+                const hint = document.getElementById('station-ws-hint');
+                if (hint) {
+                    const onlyAdmin = stationWorkspaceGrants.canAdminister && !stationWorkspaceGrants.canOperate;
+                    hint.classList.toggle('hidden', !onlyAdmin);
+                    if (onlyAdmin) hint.textContent = 'Tài khoản chưa được cấp quyền trực khám - chỉ mở khu quản trị.';
+                }
+            };
+
+            /** Chuyển giữa hai khu làm việc của cùng một cửa sổ. */
+            window.switchStationWorkspace = function(target) {
+                const wanted = target === 'admin' ? 'admin' : 'live';
+                if (wanted === 'admin' && !stationWorkspaceGrants.canAdminister) {
+                    window.showToast('Khu Quản trị điểm trạm chỉ dành cho tài khoản có quyền Quản trị viên.');
+                    return;
+                }
+                if (wanted === 'live' && !stationWorkspaceGrants.canOperate) {
+                    window.showToast('Tài khoản chưa được cấp quyền trực khám tại điểm trạm.');
+                    return;
+                }
+                stationWorkspace = wanted;
+
+                /* Khu quản trị có bảng biểu và biểu mẫu dài, không dùng được trong
+                   khung nổi thu nhỏ (khung nổi ẩn hết nội dung data-tw-hide-min),
+                   nên mở khu này là trả cửa sổ về kích thước thường. */
+                if (stationWorkspace === 'admin' && window.TeleWin && window.TeleWin.state('modal-station-panel') === 'min') {
+                    window.TeleWin.set('modal-station-panel', 'normal');
+                }
+
+                const live = document.getElementById('station-ws-live');
+                const admin = document.getElementById('station-ws-admin');
+                if (live) live.classList.toggle('hidden', stationWorkspace !== 'live');
+                if (admin) admin.classList.toggle('hidden', stationWorkspace !== 'admin');
+
+                const paint = (id, key, allowed) => {
+                    const btn = document.getElementById(id);
+                    if (!btn) return;
+                    const active = key === stationWorkspace;
+                    btn.className = (allowed ? '' : 'hidden ') +
+                        'px-3.5 py-2.5 text-xs font-black whitespace-nowrap border-b-2 transition flex items-center gap-1.5 ' +
+                        (active
+                            ? 'border-blue-500 text-white'
+                            : 'border-transparent text-slate-400 hover:text-blue-200');
+                };
+                paint('station-ws-btn-live', 'live', stationWorkspaceGrants.canOperate);
+                paint('station-ws-btn-admin', 'admin', stationWorkspaceGrants.canAdminister);
+
+                // Vào khu quản trị mới nạp danh mục - khỏi tốn lượt gọi khi chỉ trực khám.
+                if (stationWorkspace === 'admin' && typeof window.initStationRoomsModule === 'function') {
+                    window.initStationRoomsModule();
+                }
+            };
+
+            /**
+             * Thu nhỏ Bảng điều khiển thành khung nổi.
+             *
+             * Khung nổi chỉ đủ chỗ cho khu trực khám, nên nếu cán bộ đang ở khu
+             * quản trị thì đưa về khu trực khám trước khi thu nhỏ - tránh thu nhỏ
+             * ra một khung rỗng.
+             */
+            window.minimizeStationPanel = function() {
+                if (window.TeleWin.state('modal-station-panel') !== 'min'
+                    && stationWorkspace === 'admin'
+                    && stationWorkspaceGrants.canOperate) {
+                    window.switchStationWorkspace('live');
+                }
+                window.TeleWin.toggleMin('modal-station-panel');
+            };
+
+            /**
+             * LỐI VÀO DUY NHẤT của Module Bảng điều khiển trạm y tế.
+             *
+             * options.workspace: 'live' (mặc định) hoặc 'admin'. Nếu tài khoản không
+             * có quyền cho khu được yêu cầu thì rơi về khu còn lại thay vì mở ra một
+             * cửa sổ trống.
+             */
+            window.openStationControlCenter = async function(options) {
+                const opts = options || {};
+                const grants = await window.verifyStationModuleSession();
+
+                if (!grants.ok) {
                     const had = !!window.getStationSession();
                     window.clearStationSession();
                     window.openStationLoginModal(had
@@ -11690,19 +11900,44 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
 
                 const overlay = document.getElementById('modal-overlay');
                 const modal = document.getElementById('modal-station-panel');
-                if (overlay && modal) {
-                    // Mở lại Bảng điều khiển luôn trả về kích thước thường, kể cả
-                    // khi lần trước cán bộ để nó ở dạng khung nổi hoặc đã ẩn đi.
-                    window.TeleWin.set('modal-station-panel', 'normal');
-                    window.TeleWin.hideModals('modal-station-panel');
-                    overlay.classList.remove('hidden');
-                    modal.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    window.renderStationAuthBadge();
-                    if (typeof window.applyStationClinicName === 'function') window.applyStationClinicName();
-                    if (typeof window.loadCmsData === 'function') window.loadCmsData();
-                    if (typeof window.startQueuePolling === 'function') window.startQueuePolling();
+                if (!overlay || !modal) return;
+
+                /* Vào Bảng điều khiển thì rời màn hình CMS: hai giao diện toàn màn
+                   hình chồng lên nhau sẽ khoá cuộn trang và làm mất lối thoát. */
+                const mainSite = document.getElementById('main-website');
+                const adminDash = document.getElementById('admin-dashboard');
+                if (adminDash && !adminDash.classList.contains('hidden')) {
+                    adminDash.classList.add('hidden');
+                    if (mainSite) mainSite.classList.remove('hidden');
                 }
+
+                // Mở lại Bảng điều khiển luôn trả về kích thước thường, kể cả
+                // khi lần trước cán bộ để nó ở dạng khung nổi hoặc đã ẩn đi.
+                window.TeleWin.set('modal-station-panel', 'normal');
+                window.TeleWin.hideModals('modal-station-panel');
+                overlay.classList.remove('hidden');
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+
+                window.applyStationModuleGrants(grants);
+                window.renderStationAuthBadge();
+                if (typeof window.applyStationClinicName === 'function') window.applyStationClinicName();
+                if (typeof window.loadCmsData === 'function') window.loadCmsData();
+                // Chỉ cán bộ có quyền trực mới quét hàng đợi cuộc gọi của người dân.
+                if (grants.canOperate && typeof window.startQueuePolling === 'function') window.startQueuePolling();
+
+                let workspace = opts.workspace === 'admin' ? 'admin' : 'live';
+                if (workspace === 'admin' && !grants.canAdminister) {
+                    workspace = 'live';
+                    window.showToast('Khu Quản trị điểm trạm chỉ dành cho tài khoản có quyền Quản trị viên.');
+                }
+                if (workspace === 'live' && !grants.canOperate) workspace = 'admin';
+                window.switchStationWorkspace(workspace);
+            };
+
+            /* Tên gọi cũ vẫn còn được app.js, đường dẫn /tram và các lối tắt dùng. */
+            window.openStationPanel = function(options) {
+                return window.openStationControlCenter(options);
             };
 
             /* app.js gọi khi API trả 401/403: đóng module, xoá phiếu và bắt đăng nhập lại. */
@@ -11715,6 +11950,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
 
             window.logoutStationPanel = function() {
                 window.clearStationSession();
+                window.applyStationModuleGrants({ canOperate: false, canAdminister: false });
                 // Đăng xuất phải trả camera/micro về cho máy, không để đèn camera sáng tiếp.
                 if (typeof window.endTeleconsultation === 'function') window.endTeleconsultation({ silent: true });
                 if (typeof window.stopQueuePolling === 'function') window.stopQueuePolling();

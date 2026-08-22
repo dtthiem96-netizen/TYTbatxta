@@ -41,6 +41,9 @@ const REQUIRED_HANDLERS = [
   'closeAlertBanner', 'closeReportModal',
   // Rào chắn đăng nhập & tên phòng khám biến động của Module Bảng điều khiển trạm.
   'submitLogin', 'logoutStationPanel', 'handleStationLoginKey',
+  // Module hợp nhất: một lối vào, hai khu làm việc chọn theo quyền.
+  'openStationControlCenter', 'switchStationWorkspace', 'minimizeStationPanel',
+  'initStationRoomsModule', 'hasStationAdminScope', 'getStationAdminTicket',
   'applyStationClinicName', 'getStationSession', 'setStationSession',
   'handleSaveClinicName', 'hasStationAccess', 'toggleUserStationPermission',
   // Cấp quyền vào Module Bác sĩ tuyến trên (/bacsi) - cấp tách khỏi quyền điểm trạm.
@@ -59,7 +62,14 @@ const DENIED_USER = {
   id: 'SMOKE-U2', username: 'bientap@smoke.test', name: 'Biên tập viên Không Quyền',
   role: 'Biên tập nội dung', canReceiveVideo: 'false', stationAccess: 'false'
 };
-const CMS_USERS = [GRANTED_USER, DENIED_USER];
+/* Quản trị viên KHÔNG được cấp quyền trực khám: sau khi hai mô-đun chân trang gộp
+   làm một, tài khoản này vẫn phải vào được Bảng điều khiển - nhưng chỉ mở khu
+   "Quản trị điểm trạm", không có khu "Trực khám & Hội chẩn". */
+const ADMIN_ONLY_USER = {
+  id: 'SMOKE-U3', username: 'quantri@smoke.test', name: 'Quản trị viên Hệ thống',
+  role: 'Quản trị viên', canReceiveVideo: 'true', stationAccess: 'false'
+};
+const CMS_USERS = [GRANTED_USER, DENIED_USER, ADMIN_ONLY_USER];
 
 function buildWindow(html, route, problems) {
   const note = (kind, msg) =>
@@ -109,6 +119,8 @@ function stubBrowser(win, note) {
     return /Điểm trạm|Station|Admin|Quản trị/i.test(u.role || '');
   };
 
+  const isAdmin = (u) => /admin|quản trị|quan tri/i.test((u && u.role) || '');
+
   /* Phạm vi quyền của phiếu phiên, tương ứng scopesFor() trong netlify/lib/auth.ts. */
   const scopesOf = (u) => {
     const list = [];
@@ -135,7 +147,7 @@ function stubBrowser(win, note) {
       if (method === 'GET') {
         const username = authHeader.replace(/^Bearer\s+smoke-token:/, '');
         const holder = CMS_USERS.find((x) => x.username === username);
-        if (!holder || !authRule(holder)) {
+        if (!holder || (!authRule(holder) && !isAdmin(holder))) {
           return jsonRes(401, { success: false, error: 'Phiên đăng nhập không hợp lệ' });
         }
         return jsonRes(200, { success: true, user: holder, scopes: scopesOf(holder) });
@@ -147,7 +159,14 @@ function stubBrowser(win, note) {
       if (!user || body.password !== STATION_PASSWORD) {
         return jsonRes(401, { success: false, error: 'Invalid credentials' });
       }
-      if (!authRule(user)) {
+      /* Bản sao rút gọn của nhánh scope trong netlify/functions/station-auth.ts.
+         "control" là cổng của Bảng điều khiển hợp nhất: chỉ cần MỘT trong hai
+         quyền, vì cửa sổ có hai khu làm việc dùng hai quyền khác nhau. */
+      const scope = String(body.scope || 'station').toLowerCase();
+      const passesGate = scope === 'control'
+        ? (authRule(user) || isAdmin(user))
+        : authRule(user);
+      if (!passesGate) {
         return jsonRes(403, {
           success: false,
           error: 'Tài khoản chưa được CMS Quản trị cấp quyền truy cập Bảng điều khiển trạm'
@@ -409,6 +428,71 @@ async function runPage(pageFile, route) {
     if (isHidden('modal-station-panel')) {
       note('phân quyền', 'không mở lại được #modal-station-panel sau khi đăng nhập lại');
     }
+  }
+
+  /* --- Module hợp nhất: một lối vào, hai khu làm việc ----------------------
+     Chân trang từng có hai nút riêng cho cùng một điểm trạm. Sau khi gộp, chỉ
+     còn một nút và hai khu làm việc nằm trong cùng cửa sổ; khu nào mở ra là do
+     phạm vi quyền của phiếu phiên quyết định. */
+  if ($('footer-station-rooms-module')) {
+    note('module hợp nhất', 'chân trang vẫn còn lối vào cũ #footer-station-rooms-module');
+  }
+  if ($('admin-stations-section')) {
+    note('module hợp nhất', 'CMS vẫn còn tab điểm trạm cũ #admin-stations-section');
+  }
+  const panelEl = $('modal-station-panel');
+  for (const id of ['station-workspace-bar', 'station-ws-live', 'station-ws-admin']) {
+    const node = $(id);
+    if (!node) note('module hợp nhất', `thiếu #${id}`);
+    else if (panelEl && !panelEl.contains(node)) {
+      note('module hợp nhất', `#${id} nằm ngoài #modal-station-panel`);
+    }
+  }
+
+  /* Tài khoản chỉ có quyền trực khám: mở đúng khu Trực khám, không thấy - và
+     không vào được - khu Quản trị điểm trạm. */
+  if (isHidden('station-ws-live')) note('module hợp nhất', 'cán bộ trực không mở được khu Trực khám');
+  if (!isHidden('station-ws-btn-admin')) {
+    note('module hợp nhất', 'tài khoản không có quyền Quản trị vẫn thấy thẻ Quản trị điểm trạm');
+  }
+  try { win.switchStationWorkspace('admin'); } catch (err) { note('module hợp nhất', err.stack || err.message); }
+  await wait(200);
+  if (!isHidden('station-ws-admin')) {
+    note('module hợp nhất', 'tài khoản không có quyền Quản trị vẫn mở được khu Quản trị điểm trạm');
+  }
+
+  /* Quản trị viên không được cấp quyền trực khám: trước khi gộp thì không có lối
+     vào nào; nay vào được Bảng điều khiển và rơi thẳng vào khu Quản trị. */
+  try { win.logoutStationPanel(); } catch (err) { note('module hợp nhất', err.stack || err.message); }
+  await wait(200);
+  try { await Promise.race([win.openStationControlCenter(), wait(3000)]); } catch (err) {
+    note('module hợp nhất', err.stack || err.message);
+  }
+  await wait(300);
+  await tryLogin(ADMIN_ONLY_USER.username, STATION_PASSWORD, 'đăng nhập Quản trị viên không trực khám');
+  if (isHidden('modal-station-panel')) {
+    note('module hợp nhất', 'Quản trị viên không mở được Bảng điều khiển sau khi gộp module');
+  }
+  if (isHidden('station-ws-admin')) {
+    note('module hợp nhất', 'Quản trị viên không được đưa vào khu Quản trị điểm trạm');
+  }
+  if (!isHidden('station-ws-btn-live')) {
+    note('module hợp nhất', 'tài khoản không có quyền trực khám vẫn thấy thẻ Trực khám');
+  }
+  if (!isHidden('station-ws-live')) {
+    note('module hợp nhất', 'tài khoản không có quyền trực khám vẫn mở được khu Trực khám');
+  }
+
+  // Trả trạng thái về cán bộ trực để các kiểm tra nghiệp vụ phía sau chạy đúng.
+  try { win.logoutStationPanel(); } catch (err) { note('module hợp nhất', err.stack || err.message); }
+  await wait(200);
+  try { await Promise.race([win.openStationControlCenter(), wait(3000)]); } catch (err) {
+    note('module hợp nhất', err.stack || err.message);
+  }
+  await wait(300);
+  await tryLogin(GRANTED_USER.username, STATION_PASSWORD, 'đăng nhập lại cán bộ trực');
+  if (isHidden('station-ws-live')) {
+    note('module hợp nhất', 'không quay lại được khu Trực khám sau khi đổi tài khoản');
   }
 
   // Tên phòng khám phải biến động theo CMS Quản trị, mọi vị trí hiển thị cùng đổi.

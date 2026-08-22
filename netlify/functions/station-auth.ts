@@ -3,7 +3,7 @@
  * Module Bác sĩ tuyến trên và CMS Quản trị.
  *
  *   POST /api/station-auth            đăng nhập, trả về phiếu phiên (JWT HS256)
- *        { username, password, scope? }   scope: "station" (mặc định) | "doctor" | "cms"
+ *        { username, password, scope? }   scope: "control" | "station" (mặc định) | "doctor" | "cms"
  *   GET  /api/station-auth            kiểm tra phiếu phiên hiện tại còn hiệu lực
  *        Authorization: Bearer <token>
  *   POST /api/station-auth (action=change_password)
@@ -71,10 +71,16 @@ async function touchLastLogin(id: string) {
 async function handleLogin(body: Record<string, any>) {
   const username = String(body.username || "").trim();
   const password = String(body.password || "");
-  // "station" = Module Bảng điều khiển điểm trạm, "doctor" = Module Bác sĩ
-  // tuyến trên, "cms" = CMS Quản trị.
+  /* Các cổng đăng nhập:
+       "control" = Bảng điều khiển trạm y tế (module hợp nhất ở chân trang, gồm
+                   khu Trực khám và khu Quản trị điểm trạm),
+       "station" = tên cũ của cổng trên, chỉ mở khu Trực khám,
+       "doctor"  = Module Bác sĩ tuyến trên,
+       "cms"     = CMS Quản trị. */
   const requested = String(body.scope || "station").toLowerCase();
-  const scope = requested === "cms" || requested === "doctor" ? requested : "station";
+  const scope = requested === "cms" || requested === "doctor" || requested === "control"
+    ? requested
+    : "station";
 
   if (!username || !password) {
     return json({ success: false, error: "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu." }, 400);
@@ -114,6 +120,19 @@ async function handleLogin(body: Record<string, any>) {
       success: false,
       code: "NO_STATION_ACCESS",
       error: "Tài khoản chưa được CMS Quản trị cấp quyền truy cập Mod Bảng điều khiển điểm trạm."
+    }, 403);
+  }
+
+  /* Bảng điều khiển hợp nhất có hai khu làm việc dùng hai quyền khác nhau: khu
+     Trực khám cần station_access, khu Quản trị điểm trạm cần vai trò Quản trị.
+     Có MỘT trong hai là đủ để qua cổng - phiếu cấp ra mang đúng phạm vi của tài
+     khoản nên giao diện chỉ mở đúng khu mà người đó được phép, và mọi tuyến API
+     vẫn kiểm tra lại phạm vi ở từng lệnh gọi. */
+  if (scope === "control" && !hasStationAccess(user) && !isAdminRole(user.role)) {
+    return json({
+      success: false,
+      code: "NO_STATION_ACCESS",
+      error: "Tài khoản chưa được CMS Quản trị cấp quyền trực khám tại điểm trạm, cũng không có vai trò Quản trị viên để cấu hình điểm trạm."
     }, 403);
   }
 
