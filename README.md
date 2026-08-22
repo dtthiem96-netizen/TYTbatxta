@@ -21,9 +21,30 @@ Hệ thống hỗ trợ Cán bộ Y tế tại Điểm trạm trực tiếp khá
 
 ## 2. Các Phân Hệ Chức Năng
 
-1. **Bảng điều khiển Cán bộ Y tế (Station Operator Panel)**
+1. **Bảng điều khiển Trạm Y tế (Station Control Center)** - module hợp nhất
    - Module nằm ở **chân trang** (thay thế hoàn toàn lối vào Bảng điều khiển trạm cũ); thanh tiêu đề không còn lối vào này.
-   - **Bắt buộc đăng nhập**: mọi lượt mở module đều qua popup xác thực, chỉ tài khoản được CMS Quản trị tích ô **"Quyền truy cập Mod Bảng điều khiển điểm trạm"** (`station_access`) mới vào được. Phiên làm việc dùng phiếu JWT và được kiểm tra lại ở cả trình duyệt lẫn máy chủ (xem mục 5).
+   - **Một lối vào, hai khu làm việc.** Chân trang từng có hai nút riêng cho cùng một
+     điểm trạm - "Bảng điều khiển trạm y tế" (trực khám) và "Bảng điều khiển điểm trạm"
+     (quản trị phòng Zoom, tài khoản nhận cuộc gọi, định tuyến). Hai mô-đun đó nay là
+     **hai khu làm việc trong cùng một cửa sổ**, chọn bằng thanh thẻ ngay dưới tiêu đề:
+     - **Trực khám & Hội chẩn** - hàng đợi cuộc gọi của người dân, sinh hiệu, camera,
+       ghi chép lâm sàng, trợ lý AI. Cần phạm vi `station`.
+     - **Quản trị điểm trạm** - cấp phòng Zoom, tài khoản nhận cuộc gọi, quy tắc định
+       tuyến, phương án dự phòng và nhật ký thay đổi của từng điểm trạm (`/api/station-rooms`).
+       Cần phạm vi `admin`.
+   - **Thẻ nào hiện ra là do quyền của tài khoản quyết định**: có cả hai quyền thì thấy
+     cả hai thẻ; chỉ có quyền quản trị thì cửa sổ mở thẳng khu Quản trị và ẩn các điều
+     khiển của cán bộ trực. Giao diện chỉ là lớp hiển thị - mọi tuyến API vẫn kiểm tra
+     lại phạm vi ở từng lệnh gọi.
+   - **Bắt buộc đăng nhập**: mọi lượt mở module đều qua popup xác thực. Cổng đăng nhập
+     của module là `scope: "control"` trong `/api/station-auth`: qua được nếu tài khoản
+     **hoặc** được CMS Quản trị tích ô **"Quyền truy cập Mod Bảng điều khiển điểm trạm"**
+     (`station_access`), **hoặc** mang vai trò Quản trị viên. Phiếu JWT cấp ra chứa đủ
+     phạm vi của tài khoản nên một lần đăng nhập dùng được cho cả hai khu; phiên được
+     kiểm tra lại ở cả trình duyệt lẫn máy chủ (xem mục 5).
+   - Lối tắt **CMS Quản trị → Quản trị điểm trạm** không mở tab CMS nữa mà mở thẳng khu
+     "Quản trị điểm trạm" của cửa sổ này. Hai tên gọi cũ `window.openStationPanel()` và
+     `window.openStationRoomsModule()` vẫn dùng được, đều dẫn về `window.openStationControlCenter()`.
    - Tên phòng khám hiển thị trên module là **biến động**, sửa trực tiếp trong CMS Quản trị (Cấu hình & Phân quyền → Tên phòng khám).
    - Đăng nhập theo Mã điểm trạm (`TYT-BATXAT-01`) & Tên cán bộ trực.
    - Bảng nhập nhanh Sinh hiệu Bệnh nhân (Vitals): Huyết áp (mmHg), Nhịp tim (bpm), SpO2 (%), Nhiệt độ (°C), Cân nặng (kg). Đồng bộ tức thì lên màn hình khám tuyến trên.
@@ -227,9 +248,14 @@ Vào **CMS Quản trị → Quản trị hệ thống → Quản lý tài khoả
 thiểu 8 ký tự gồm cả chữ và số), Email hoặc Số điện thoại, và Điểm trạm trực thuộc.
 
 **Cấp quyền** - ô đánh dấu **"Quyền truy cập Mod Bảng điều khiển điểm trạm"**. Chỉ
-tài khoản được tích ô này mới đăng nhập và thao tác được trong module. Quyền có thể
+tài khoản được tích ô này mới thao tác được ở khu **Trực khám & Hội chẩn**. Quyền có thể
 cấp/thu hồi bất kỳ lúc nào (bấm huy hiệu ở cột *Quyền Mod Bảng điều khiển* trong
 bảng danh sách) và có hiệu lực ngay ở yêu cầu kế tiếp, không phải chờ phiên hết hạn.
+
+Khu **Quản trị điểm trạm** của cùng cửa sổ đó đi theo **vai trò Quản trị viên**, không
+theo ô đánh dấu này: Quản trị viên vào được để cấu hình phòng Zoom, tài khoản nhận cuộc
+gọi và định tuyến ngay cả khi không được cấp quyền trực khám, và ngược lại cán bộ trực
+không có vai trò Quản trị thì không thấy khu này.
 
 **Vòng đời tài khoản** - mỗi dòng có sẵn: Sửa thông tin, Đặt lại mật khẩu (máy chủ
 sinh mật khẩu tạm và hiển thị **đúng một lần**, hãy sao chép ngay), Khoá/Mở tài khoản,
@@ -243,7 +269,7 @@ và Xoá. Tài khoản bị khoá không đăng nhập được vào bất kỳ 
 | Phiên đăng nhập | JWT HS256 ký bằng Web Crypto, hạn 8 giờ, giữ trong `sessionStorage` |
 | Khoá ký | `STATION_JWT_SECRET` / `JWT_SECRET`; nếu chưa đặt, hệ thống tự sinh và lưu kín trong `site_configs` (tuyến công khai `/api/cms` đã lọc bỏ) |
 | Middleware Backend | `requireScope()` trong `netlify/lib/auth.ts`, áp cho `/api/vitals`, `/api/examination-report`, `/api/admin-users`; **đọc lại quyền từ cơ sở dữ liệu ở mỗi yêu cầu** |
-| Middleware Frontend | `window.verifyStationSession()` hỏi lại `/api/station-auth` trước khi mở thân module, nên tự dựng phiên trong `sessionStorage` hay gõ thẳng `/tram` đều không vào được |
+| Middleware Frontend | `window.verifyStationModuleSession()` hỏi lại `/api/station-auth` trước khi mở thân module và suy ra khu làm việc nào được mở, nên tự dựng phiên trong `sessionStorage` hay gõ thẳng `/tram` đều không vào được |
 | Chống giả mạo hồ sơ | Tên cán bộ trên phiếu sinh hiệu và phiếu khám lấy từ phiên đã xác thực, không lấy theo thân yêu cầu |
 
 Ghi tài khoản qua tuyến công khai `/api/cms` đã bị chặn (403): mọi thao tác tài khoản
