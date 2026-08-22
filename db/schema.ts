@@ -104,8 +104,120 @@ export const telehealthRooms = pgTable("telehealth_rooms", {
   vitals: text("vitals"),
   notes: text("notes"),
   status: text("status").default("WAITING"),
+  /* ĐIỀU HƯỚNG THEO ĐIỂM TRẠM
+     Mã điểm trạm người dân chọn được lưu thành TRƯỜNG DỮ LIỆU thay vì chỉ nằm
+     trong chuỗi roomId. Quy ước "room-<slug trạm>-<thời điểm>" vẫn giữ nguyên để
+     tương thích ngược và làm đường đọc dự phòng, nhưng máy chủ định tuyến theo
+     cột này - đổi tên trạm hay thêm trạm mới không còn phải đụng vào cách đặt tên. */
+  stationCode: text("station_code"),
+  // WAITING | RINGING | ACCEPTED | ESCALATED | MISSED | CANCELLED | ENDED
+  routingState: text("routing_state").default("WAITING"),
+  // Trạm ĐANG đổ chuông: bằng stationCode lúc đầu, đổi sang trạm dự phòng khi leo thang.
+  ringingStation: text("ringing_station"),
+  ringingSince: bigint("ringing_since", { mode: "number" }),
+  // Vòng leo thang hiện tại: 0 = ưu tiên 1, 1 = ưu tiên 2..., -1 = đã sang trạm dự phòng.
+  escalationRound: integer("escalation_round").default(0),
+  // Ai đã giành quyền tiếp nhận. Cột này là chốt chống nhận trùng.
+  acceptedBy: text("accepted_by"),
+  acceptedName: text("accepted_name"),
+  acceptedAt: bigint("accepted_at", { mode: "number" }),
+  // Liên kết Zoom đã chốt cho phiên gọi này (phòng của trạm hoặc phòng cá nhân).
+  zoomJoinUrl: text("zoom_join_url"),
+  zoomMeetingId: text("zoom_meeting_id"),
+  // Sao chép mật khẩu phòng tại thời điểm tiếp nhận: cả người dân lẫn cán bộ đều
+  // đọc từ đây, nên đổi mật khẩu ở hồ sơ trạm không làm hỏng cuộc gọi đang diễn ra.
+  zoomPasscode: text("zoom_passcode"),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
+
+/* HỒ SƠ ĐIỂM TRẠM & PHÒNG ZOOM
+   Nguồn sự thật duy nhất cho danh mục điểm trạm: ô chọn của người dân, ô chuyển
+   trạm trong Bảng điều khiển và bộ định tuyến của máy chủ đều đọc từ đây. Quản
+   trị viên cấu hình toàn bộ tại mô-đun "Bảng điều khiển điểm trạm" ở chân trang CMS. */
+export const stationRooms = pgTable(
+  "station_rooms",
+  {
+    stationCode: text("station_code").primaryKey(),
+    stationName: text("station_name").notNull(),
+    note: text("note"),
+    zoomJoinUrl: text("zoom_join_url"),
+    zoomMeetingId: text("zoom_meeting_id"),
+    /* Mật khẩu phòng Zoom. KHÔNG bao giờ đi kèm danh sách công khai, không ghi
+       vào nhật ký cuộc gọi và không nằm trong nội dung thông báo đẩy. */
+    zoomPasscode: text("zoom_passcode"),
+    zoomHostEmail: text("zoom_host_email"),
+    fallbackStationCode: text("fallback_station_code"),
+    ringTimeoutSec: integer("ring_timeout_sec").default(45),
+    // JSON khung giờ trực, ví dụ {"always":true} hoặc {"mon_fri":["07:30","17:00"]}
+    dutyHours: text("duty_hours"),
+    // Ngoài giờ trực: HIDE (ẩn khỏi danh sách người dân) | SHOW (hiện kèm cảnh báo)
+    offHoursMode: text("off_hours_mode").default("SHOW"),
+    // ACTIVE | PAUSED | DISABLED
+    status: text("status").default("ACTIVE"),
+    displayOrder: integer("display_order").default(0),
+    updatedBy: text("updated_by"),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [index("station_rooms_status_idx").on(table.status)]
+);
+
+/* Tài khoản nhận cuộc gọi được gán vào điểm trạm, kèm mức ưu tiên đổ chuông. */
+export const stationReceivers = pgTable(
+  "station_receivers",
+  {
+    id: text("id").primaryKey(),
+    stationCode: text("station_code").notNull(),
+    userId: text("user_id").notNull(),
+    // Phòng Zoom riêng của tài khoản; bỏ trống thì dùng phòng của trạm.
+    personalZoomUrl: text("personal_zoom_url"),
+    personalMeetingId: text("personal_meeting_id"),
+    // 1 = trực chính, 2 = trực phụ... quyết định thứ tự leo thang.
+    priority: integer("priority").default(1),
+    // Danh sách kênh bật cho tài khoản: POPUP,SOUND,PUSH,ZALO
+    notifyChannels: text("notify_channels").default("POPUP,SOUND,PUSH"),
+    isActive: text("is_active").default("true"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [
+    index("station_receivers_station_idx").on(table.stationCode),
+    index("station_receivers_user_idx").on(table.userId),
+  ]
+);
+
+/* Thiết bị đã đăng ký nhận thông báo đẩy (Web Push) của cán bộ trực. */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    stationCode: text("station_code"),
+    endpoint: text("endpoint").notNull(),
+    keysJson: text("keys_json"),
+    userAgent: text("user_agent"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    lastUsedAt: bigint("last_used_at", { mode: "number" }),
+  },
+  (table) => [index("push_subscriptions_user_idx").on(table.userId)]
+);
+
+/* Nhật ký thay đổi cấu hình điểm trạm - tab "Nhật ký thay đổi" của mô-đun CMS.
+   Giá trị mật khẩu phòng luôn được che trước khi ghi, chỉ lưu VIỆC ĐÃ ĐỔI. */
+export const stationRoomAudits = pgTable(
+  "station_room_audits",
+  {
+    id: serial("id").primaryKey(),
+    stationCode: text("station_code").notNull(),
+    actorName: text("actor_name"),
+    actorUsername: text("actor_username"),
+    action: text("action").notNull(),
+    field: text("field"),
+    oldValue: text("old_value"),
+    newValue: text("new_value"),
+    ts: bigint("ts", { mode: "number" }).notNull(),
+  },
+  (table) => [index("station_room_audits_station_ts_idx").on(table.stationCode, table.ts)]
+);
 
 // Danh sách thành viên đang có mặt trong phòng (presence) dùng cho signaling WebRTC
 export const telehealthPeers = pgTable(
@@ -115,6 +227,11 @@ export const telehealthPeers = pgTable(
     roomId: text("room_id").notNull(),
     role: text("role").notNull(),
     name: text("name").notNull(),
+    /* Cán bộ đang trực báo kèm điểm trạm và tài khoản của mình khi mở kênh tiếp
+       nhận. Nhờ hai cột này, màn hình người dân đếm được số người trực CỦA TỪNG
+       TRẠM, và bộ định tuyến biết ai đang online để đổ chuông theo mức ưu tiên. */
+    stationCode: text("station_code"),
+    userId: text("user_id"),
     lastSeen: bigint("last_seen", { mode: "number" }).notNull(),
   },
   (table) => [index("telehealth_peers_room_idx").on(table.roomId)]
