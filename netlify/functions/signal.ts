@@ -51,6 +51,48 @@ import { authErrorResponse, requireAnyScope, scopesFor, type AuthContext } from 
 
 // Phòng ảo giữ danh sách cán bộ/bác sĩ đang trực (không phải phòng khám thật).
 const LOBBY_ROOM = "__lobby__";
+
+/* =============================================================================
+   VAI GIÁM SÁT NGẦM CỦA CMS QUẢN TRỊ - "cms_admin"
+   -----------------------------------------------------------------------------
+   Quản trị viên vào một phòng khám đang diễn ra để kiểm tra chất lượng buổi
+   khám. Yêu cầu nghiệp vụ là ba bên còn lại KHÔNG được biết có người thứ tư:
+
+     1. Không bản tin "peer-joined" / "peer-left"  -> máy người dân, điểm trạm và
+        bác sĩ không phát chuông báo, không in dòng "… đã vào phòng" lên khung
+        trao đổi, vì chúng chưa từng nhận được sự kiện nào.
+     2. Không nằm trong danh sách thành viên trả về cho người khác -> khung hình,
+        dải ô nhỏ, số đếm "N bên trong phòng khám" đều không đổi.
+     3. Không phát luồng: micro và camera bị khoá cứng ngay tại MÁY CHỦ, không
+        chỉ ở giao diện. Mọi lời mời/trả lời WebRTC do vai này gửi phải là
+        recvonly/inactive, và mọi bản tin nghiệp vụ (chat, sinh hiệu, ghi chép,
+        kết thúc lượt khám) đều bị từ chối.
+
+   Điều kiện 3 phải nằm ở máy chủ mới có giá trị: khoá nút bấm trên giao diện chỉ
+   ngăn được người dùng bình thường, không ngăn được một phiên đã sửa mã trang.
+   ========================================================================== */
+const GHOST_ROLE = "cms_admin";
+
+function isGhostRole(role: unknown): boolean {
+  return String(role || "") === GHOST_ROLE;
+}
+
+/** Bản tin WebRTC thuần tuý - vai giám sát chỉ được gửi đúng ba loại này. */
+const RTC_SIGNAL_TYPES = ["offer", "answer", "ice"];
+
+/**
+ * Mô tả phiên (SDP) này có phát luồng đi hay không.
+ *
+ * Mỗi khối "m=" là một luồng. Không ghi hướng thì mặc định của WebRTC là
+ * sendrecv, nên thiếu dòng hướng cũng bị tính là ĐANG PHÁT. Vai giám sát chỉ
+ * được phép recvonly/inactive trên mọi khối, đó chính là "khoá cứng micro và
+ * camera" ở tầng máy chủ.
+ */
+function sdpPublishesMedia(sdp: unknown): boolean {
+  const sections = String(sdp || "").split(/^m=/m).slice(1);
+  if (!sections.length) return false;
+  return sections.some((section) => !/^a=(recvonly|inactive)\s*$/m.test(section));
+}
 const PEER_TTL_MS = 45_000;
 const SIGNAL_TTL_MS = 180_000;
 // Giữ dưới ngưỡng timeout 10s của Netlify Functions.
@@ -106,6 +148,12 @@ async function activePeers(roomId: string, now: number) {
     .select()
     .from(telehealthPeers)
     .where(and(eq(telehealthPeers.roomId, roomId), gt(telehealthPeers.lastSeen, now - PEER_TTL_MS)));
+}
+
+/** Một bản ghi thành viên theo mã đầu cầu (dùng để biết vai thật của người gửi). */
+async function getPeer(peerId: string) {
+  const rows = await db.select().from(telehealthPeers).where(eq(telehealthPeers.id, peerId));
+  return rows[0] || null;
 }
 
 async function getRoom(roomId: string) {
@@ -177,6 +225,9 @@ async function listRooms(now: number, stations: Map<string, StationRow>) {
   const grouped = new Map<string, typeof peers>();
   for (const peer of peers) {
     if (peer.roomId === LOBBY_ROOM) continue;
+    /* Quản trị đang giám sát ngầm không phải một bên tham gia: không tính vào số
+       người trong phòng, không làm cuộc gọi trông như "đã có người tiếp nhận". */
+    if (isGhostRole(peer.role)) continue;
     const entry = grouped.get(peer.roomId) || ([] as typeof peers);
     entry.push(peer);
     grouped.set(peer.roomId, entry);
@@ -279,14 +330,27 @@ async function fetchMessages(roomId: string, peerId: string, cursor: number) {
     )
     .orderBy(telehealthSignals.seq);
 
-  return rows
-    .filter((row) => row.fromPeer !== peerId)
-    .map((row) => ({
-      seq: Number(row.seq),
-      from: row.fromPeer,
-      type: row.type,
-      payload: row.payload ? JSON.parse(row.payload) : null
-    }));
+  const mine = rows.filter((row) => row.fromPeer !== peerId);
+  if (!mine.length) return [];
+
+  /* Bản tin do vai giám sát gửi được đóng dấu ngay tại máy chủ. Trình duyệt nhận
+     lời mời kết nối từ một mã lạ sẽ dựa vào dấu này để mở kết nối ẨN: có nhận
+     hình/tiếng gửi đi, nhưng không thêm ô hình, không đổi số đếm, không báo gì.
+     Dấu do MÁY CHỦ đóng chứ không lấy theo lời khai của bên gửi - nếu tin lời
+     khai thì bất kỳ ai cũng tự xưng là giám sát để ẩn mình khỏi phòng khám. */
+  const ghosts = await db
+    .select({ id: telehealthPeers.id })
+    .from(telehealthPeers)
+    .where(and(eq(telehealthPeers.roomId, roomId), eq(telehealthPeers.role, GHOST_ROLE)));
+  const ghostIds = new Set(ghosts.map((g) => g.id));
+
+  return mine.map((row) => ({
+    seq: Number(row.seq),
+    from: row.fromPeer,
+    type: row.type,
+    payload: row.payload ? JSON.parse(row.payload) : null,
+    ...(ghostIds.has(row.fromPeer) ? { ghost: true } : {})
+  }));
 }
 
 /** Một ảnh chụp hàng đợi kèm vân tay để so sánh giữa hai lượt quét. */
@@ -407,6 +471,10 @@ async function handleGet(url: URL) {
   ]);
   const nextCursor = messages.length ? messages[messages.length - 1].seq : cursor;
 
+  /* Chỉ chính Quản trị đang giám sát mới nhìn thấy đủ ba bên; ba bên kia nhận
+     danh sách đã lọc sạch vai giám sát nên màn hình của họ không hề đổi. */
+  const iAmGhost = isGhostRole(peers.find((p) => p.id === peerId)?.role);
+
   return json({
     ok: true,
     cursor: nextCursor,
@@ -416,7 +484,9 @@ async function handleGet(url: URL) {
     room: room ? roomView(room, stations, pollNow) : null,
     // Toàn bộ thành viên đang có mặt (trừ chính mình): màn hình khám dùng danh
     // sách này để biết phải giữ bao nhiêu khung hình và ai vừa rời đi.
-    peers: peers.filter((p) => p.id !== peerId).map((p) => ({ peerId: p.id, role: p.role, name: p.name }))
+    peers: peers
+      .filter((p) => p.id !== peerId && (iAmGhost || !isGhostRole(p.role)))
+      .map((p) => ({ peerId: p.id, role: p.role, name: p.name }))
   });
 }
 
@@ -635,6 +705,98 @@ async function handleDecline(
   return json({ ok: true });
 }
 
+/**
+ * Quản trị viên vào phòng theo chế độ GIÁM SÁT NGẦM.
+ *
+ * Tách hẳn khỏi nhánh vào phòng thường vì gần như mọi tác dụng phụ đều phải bị
+ * bỏ đi: không đặt trạng thái phòng, không khởi động đổ chuông, không gõ cửa
+ * điểm trạm, và tuyệt đối không phát bản tin "peer-joined". Việc duy nhất còn
+ * lại là ghi tên mình vào danh sách thành viên (để nhận được bản tin và để lượt
+ * quét dọn tự gỡ khi mất kết nối) rồi xin danh sách ba bên đang khám.
+ */
+async function handleGhostJoin(
+  officer: AuthContext | null,
+  roomId: string,
+  peerId: string,
+  others: Array<{ id: string; role: string; name: string }>,
+  now: number
+) {
+  if (!officer || !scopesFor(officer.user).includes("admin")) {
+    return json({
+      ok: false,
+      code: "FORBIDDEN",
+      error: "Chỉ tài khoản Quản trị viên hệ thống mới vào được chế độ giám sát phòng khám."
+    }, 403);
+  }
+
+  const room = await getRoom(roomId);
+  if (!room) {
+    return json({ ok: false, code: "GONE", error: "Phòng khám này không còn hoạt động." }, 404);
+  }
+
+  await db
+    .insert(telehealthPeers)
+    .values({
+      id: peerId,
+      roomId,
+      role: GHOST_ROLE,
+      // Tên không bao giờ tới được máy của ba bên kia; chỉ dùng cho nhật ký máy chủ.
+      name: `[Giám sát] ${officer.user.name || officer.user.username || "Quản trị"}`,
+      lastSeen: now,
+      stationCode: room.stationCode || null,
+      userId: officer.user.id || null
+    })
+    .onConflictDoUpdate({
+      target: telehealthPeers.id,
+      set: { roomId, role: GHOST_ROLE, lastSeen: now }
+    });
+
+  const visible = others.filter((p) => !isGhostRole(p.role));
+  const cursor = await currentSeq();
+  const stations = await stationMapCached(now);
+
+  return json({
+    ok: true,
+    cursor,
+    silent: true,
+    // Bên vào sau chào mời bên đã có mặt - vai giám sát luôn là bên vào sau, và
+    // mọi lời mời của nó đều là recvonly (chỉ nhận, không phát).
+    shouldOffer: visible.length > 0,
+    offerTo: visible.map((p) => p.id),
+    peers: visible.map((p) => ({ peerId: p.id, role: p.role, name: p.name })),
+    room: roomView(room, stations, now)
+  });
+}
+
+/**
+ * Chặn mọi hành vi PHÁT của vai giám sát ngay tại máy chủ.
+ *
+ * Trả về null nếu người gửi không phải vai giám sát hoặc bản tin hợp lệ; ngược
+ * lại trả về thẳng một Response từ chối.
+ */
+async function ghostDenial(peerId: string, action: string, type: string, payload: unknown): Promise<Response | null> {
+  const sender = await getPeer(peerId);
+  if (!sender || !isGhostRole(sender.role)) return null;
+
+  if (action !== "signal" || !RTC_SIGNAL_TYPES.includes(type)) {
+    return json({
+      ok: false,
+      code: "SILENT_AUDIT_READ_ONLY",
+      error: "Chế độ giám sát chỉ được nhận luồng, không được phát bất kỳ nội dung nào vào phòng khám."
+    }, 403);
+  }
+
+  if ((type === "offer" || type === "answer") && sdpPublishesMedia((payload as any)?.sdp)) {
+    return json({
+      ok: false,
+      code: "SILENT_AUDIT_HARD_MUTE",
+      error: "Micro và camera của tài khoản giám sát bị khoá cứng: mô tả phiên phải ở chế độ chỉ nhận (recvonly)."
+    }, 403);
+  }
+
+  return null;
+}
+
 async function handlePost(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") {
@@ -652,6 +814,19 @@ async function handlePost(req: Request) {
   const officerActions = action === "join" || action === "standby" || action === "accept" || action === "decline";
   const officer = officerActions ? await readOfficer(req) : null;
 
+  /* RÀO CHẮN "CHỈ NHẬN, KHÔNG PHÁT" CỦA VAI GIÁM SÁT
+     Đặt trước mọi nhánh xử lý để không nhánh nào phải tự nhớ kiểm tra. Ứng viên
+     ICE là loại bản tin dày nhất trong một lượt bắt tay và không mang hướng
+     luồng nào, nên được miễn vòng đọc bản ghi thành viên mà rào vẫn kín. */
+  const guardedActions = ["signal", "vitals", "notes", "complete", "accept", "decline", "standby"];
+  if (guardedActions.includes(action)) {
+    const signalType = String((body as any).type || "");
+    if (!(action === "signal" && signalType === "ice")) {
+      const denied = await ghostDenial(peerId, action, signalType, (body as any).payload);
+      if (denied) return denied;
+    }
+  }
+
   if ((action === "standby" || action === "accept" || action === "decline") && !officer) {
     return json({
       ok: false,
@@ -667,7 +842,11 @@ async function handlePost(req: Request) {
        nào lên khung hình lớn, ai đang trực); mọi phép đếm hàng đợi vẫn chỉ phân
        biệt "doctor" với phần còn lại nên thêm vai "patient" không đổi hành vi cũ. */
     const rawRole = String((body as any).role || "");
-    const requestedRole = rawRole === "doctor" ? "doctor" : rawRole === "patient" ? "patient" : "station";
+    const requestedRole =
+      rawRole === "doctor" ? "doctor"
+      : rawRole === "patient" ? "patient"
+      : rawRole === GHOST_ROLE ? GHOST_ROLE
+      : "station";
     const name = String((body as any).name || "Thành viên");
 
     const [existing, stations, roomBefore] = await Promise.all([
@@ -676,6 +855,12 @@ async function handlePost(req: Request) {
       getRoom(roomId)
     ]);
     const others = existing.filter((p) => p.id !== peerId);
+
+    /* Giám sát ngầm đi lối riêng: không đụng tới trạng thái phòng, không phát
+       bản tin nào - xem handleGhostJoin. */
+    if (requestedRole === GHOST_ROLE) {
+      return await handleGhostJoin(officer, roomId, peerId, others, now);
+    }
 
     /* Chỉ người dân được vào phòng mà không đăng nhập. Vai của phía cán bộ do
        MÁY CHỦ quyết định theo quyền thật trong hồ sơ tài khoản: khai role
@@ -910,6 +1095,14 @@ async function handlePost(req: Request) {
   }
 
   if (action === "leave") {
+    /* Vai giám sát rời phòng cũng phải im lặng như lúc vào: không bản tin
+       "peer-left", không đụng tới trạng thái phòng khám đang diễn ra. */
+    const leaving = await getPeer(peerId);
+    if (leaving && isGhostRole(leaving.role)) {
+      await db.delete(telehealthPeers).where(eq(telehealthPeers.id, peerId));
+      return json({ ok: true, silent: true });
+    }
+
     await db.delete(telehealthPeers).where(eq(telehealthPeers.id, peerId));
     if (roomId === LOBBY_ROOM) {
       // Rời kênh trực: không phát bản tin vào phòng khám nào.
