@@ -2,14 +2,16 @@
  * Thư viện dùng chung cho việc ĐIỀU HƯỚNG CUỘC GỌI THEO ĐIỂM TRẠM.
  *
  * Cả ba nơi đều đọc từ đây để không có hai bản luật khác nhau:
- *   - netlify/functions/station-rooms.ts  (Quản trị cấu hình trạm ↔ phòng Zoom)
+ *   - netlify/functions/station-rooms.ts  (Quản trị cấu hình trạm và tài khoản trực)
  *   - netlify/functions/signal.ts         (định tuyến, đổ chuông, leo thang)
  *   - netlify/functions/notify.ts         (chọn thiết bị nhận thông báo đẩy)
  *
- * Nguyên tắc bảo mật xuyên suốt: liên kết và mật khẩu phòng Zoom KHÔNG bao giờ
- * lọt vào danh sách công khai của người dân, vào nhật ký, hay vào nội dung thông
- * báo đẩy. Chỉ tài khoản Quản trị (khi cấu hình) và người đã giành quyền tiếp
- * nhận cuộc gọi (khi vào phòng) mới đọc được bản đầy đủ.
+ * MỘT ĐIỂM TRẠM - MỘT PHÒNG GỌI. Phòng khám từ xa của mỗi điểm trạm là phòng
+ * WebRTC cố định "room-<slug mã trạm>" do chính hệ thống này phục vụ: người dân
+ * chọn điểm trạm nào thì vào đúng phòng đó, cán bộ được CMS Quản trị gán vào
+ * điểm trạm nào thì chỉ trực đúng phòng đó. Không có bước cấp phát hay chia
+ * phòng họp bên ngoài, nên cũng không có liên kết/mật khẩu phòng nào phải giữ
+ * kín trong hồ sơ trạm.
  */
 import { db } from "../../db/index.js";
 import { stationRooms, stationRoomAudits } from "../../db/schema.js";
@@ -28,72 +30,24 @@ export const RING_TIMEOUT_DEFAULT = 45;
 export const MAX_PRIORITY_ROUNDS = 3;
 
 // ---------------------------------------------------------------------------
-//  Liên kết Zoom
+//  Phòng gọi của điểm trạm
 // ---------------------------------------------------------------------------
 
-/** Miền được chấp nhận cho liên kết phòng Zoom. */
-function isZoomHost(host: string): boolean {
-  const h = host.toLowerCase();
-  return h === "zoom.us" || h.endsWith(".zoom.us") || h === "zoomgov.com" || h.endsWith(".zoomgov.com");
+/** Mã trạm rút gọn dùng trong tên phòng - phải khớp với stationSlug() ở app.js. */
+export function stationSlug(code: string): string {
+  return String(code || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
-
-export type ZoomLinkInfo = {
-  ok: boolean;
-  error?: string;
-  meetingId?: string;
-  passcode?: string;
-  normalizedUrl?: string;
-};
 
 /**
- * Phân tích liên kết "Copy Invite Link" của Zoom.
+ * Phòng gọi khám từ xa cố định của một điểm trạm.
  *
- * Chấp nhận cả dạng /j/<id> (tham gia thường) lẫn /s/<id> (phòng cá nhân của
- * chủ phòng); tham số pwd nếu có sẽ được tách ra làm mật khẩu gợi ý để Quản trị
- * không phải gõ lại bằng tay.
+ * Đây là phòng duy nhất gắn với điểm trạm: người dân chọn trạm sẽ vào phòng này
+ * (hoặc một phiên "room-<slug>-<thời điểm>" thuộc cùng trạm), và chỉ cán bộ được
+ * CMS Quản trị gán vào trạm mới được vào.
  */
-export function parseZoomLink(raw: string): ZoomLinkInfo {
-  const value = String(raw || "").trim();
-  if (!value) return { ok: false, error: "Chưa nhập liên kết phòng Zoom." };
-
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return { ok: false, error: "Liên kết không đúng định dạng. Ví dụ đúng: https://us02web.zoom.us/j/9471234567" };
-  }
-
-  if (url.protocol !== "https:") {
-    return { ok: false, error: "Liên kết phải bắt đầu bằng https:// để bảo mật cuộc gọi." };
-  }
-  if (!isZoomHost(url.hostname)) {
-    return { ok: false, error: "Liên kết phải thuộc miền zoom.us hoặc miền Zoom của đơn vị." };
-  }
-
-  const match = url.pathname.match(/\/(?:j|s|wc\/join)\/(\d{9,12})/);
-  if (!match) {
-    return { ok: false, error: 'Không đọc được mã phòng trong liên kết. Hãy dùng đường dẫn dạng ".../j/<mã phòng>".' };
-  }
-
-  return {
-    ok: true,
-    meetingId: match[1],
-    passcode: url.searchParams.get("pwd") || undefined,
-    normalizedUrl: url.toString()
-  };
-}
-
-/** Mã phòng chỉ gồm chữ số, cho phép người nhập gõ kèm dấu cách. */
-export function normalizeMeetingId(raw: string): string {
-  return String(raw || "").replace(/[^0-9]/g, "");
-}
-
-/** Hiển thị mã phòng theo nhóm 3-4-4 như trong ứng dụng Zoom. */
-export function formatMeetingId(raw: string): string {
-  const digits = normalizeMeetingId(raw);
-  if (digits.length < 9) return digits;
-  if (digits.length === 9) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
-  return `${digits.slice(0, 3)} ${digits.slice(3, 7)} ${digits.slice(7)}`;
+export function stationRoomId(code: string): string {
+  const slug = stationSlug(code);
+  return slug ? `room-${slug}` : "";
 }
 
 // ---------------------------------------------------------------------------
@@ -199,7 +153,7 @@ export function ringTimeoutSec(station: StationRow | null | undefined): number {
   return Math.min(RING_TIMEOUT_MAX, Math.max(RING_TIMEOUT_MIN, Math.round(raw)));
 }
 
-/** Bản chiếu công khai: KHÔNG kèm liên kết, mã phòng hay mật khẩu Zoom. */
+/** Bản chiếu công khai gửi cho trang của người dân. */
 export function publicStation(row: StationRow, now: number, dutyCount: number) {
   const onDutyHours = isWithinDutyHours(row, now);
   return {
@@ -207,7 +161,8 @@ export function publicStation(row: StationRow, now: number, dutyCount: number) {
     name: row.stationName,
     note: row.note || "",
     status: String(row.status || "ACTIVE").toUpperCase(),
-    hasZoom: Boolean(row.zoomJoinUrl),
+    // Phòng gọi cố định của trạm - người dân vào đúng phòng này khi chọn trạm.
+    roomId: stationRoomId(row.stationCode),
     onDutyHours,
     offHoursMode: String(row.offHoursMode || "SHOW").toUpperCase(),
     dutyCount,
@@ -216,17 +171,13 @@ export function publicStation(row: StationRow, now: number, dutyCount: number) {
   };
 }
 
-/** Bản chiếu cho Quản trị: có liên kết và mã phòng, mật khẩu chỉ báo CÓ hay KHÔNG. */
+/** Bản chiếu cho Quản trị: thêm cấu hình định tuyến và dấu vết chỉnh sửa. */
 export function adminStation(row: StationRow) {
   return {
     code: row.stationCode,
     name: row.stationName,
     note: row.note || "",
-    zoomJoinUrl: row.zoomJoinUrl || "",
-    zoomMeetingId: row.zoomMeetingId || "",
-    zoomMeetingIdPretty: formatMeetingId(row.zoomMeetingId || ""),
-    hasPasscode: Boolean(row.zoomPasscode),
-    zoomHostEmail: row.zoomHostEmail || "",
+    roomId: stationRoomId(row.stationCode),
     fallbackStationCode: row.fallbackStationCode || "",
     ringTimeoutSec: ringTimeoutSec(row),
     dutyHours: row.dutyHours || '{"always":true}',
@@ -320,7 +271,7 @@ export function stationFromRoomId(roomId: string, codes: Iterable<string>): stri
   const id = String(roomId || "").toLowerCase();
   let best = "";
   for (const code of codes) {
-    const slug = String(code).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const slug = stationSlug(code);
     if (!slug) continue;
     if (id === `room-${slug}` || id.startsWith(`room-${slug}-`)) {
       if (slug.length > best.length) best = code;
@@ -333,9 +284,6 @@ export function stationFromRoomId(roomId: string, codes: Iterable<string>): stri
 //  Nhật ký thay đổi cấu hình
 // ---------------------------------------------------------------------------
 
-/** Các trường không được ghi giá trị thật vào nhật ký. */
-const MASKED_FIELDS = new Set(["zoomPasscode", "zoom_passcode"]);
-
 export async function writeAudit(entries: Array<{
   stationCode: string;
   actorName?: string | null;
@@ -346,9 +294,8 @@ export async function writeAudit(entries: Array<{
   newValue?: unknown;
 }>, now: number) {
   if (!entries.length) return;
-  const mask = (field: string | null | undefined, value: unknown) => {
+  const trim = (value: unknown) => {
     if (value === undefined || value === null || value === "") return null;
-    if (field && MASKED_FIELDS.has(field)) return "••••";
     return String(value).slice(0, 400);
   };
   await db.insert(stationRoomAudits).values(
@@ -358,8 +305,8 @@ export async function writeAudit(entries: Array<{
       actorUsername: e.actorUsername || null,
       action: e.action,
       field: e.field || null,
-      oldValue: mask(e.field, e.oldValue),
-      newValue: mask(e.field, e.newValue),
+      oldValue: trim(e.oldValue),
+      newValue: trim(e.newValue),
       ts: now
     }))
   );

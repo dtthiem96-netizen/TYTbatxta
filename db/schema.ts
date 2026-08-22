@@ -1,4 +1,4 @@
-import { pgTable, text, bigint, serial, integer, real, index } from "drizzle-orm/pg-core";
+import { pgTable, text, bigint, serial, integer, real, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const news = pgTable("news", {
   id: text("id").primaryKey(),
@@ -121,31 +121,21 @@ export const telehealthRooms = pgTable("telehealth_rooms", {
   acceptedBy: text("accepted_by"),
   acceptedName: text("accepted_name"),
   acceptedAt: bigint("accepted_at", { mode: "number" }),
-  // Liên kết Zoom đã chốt cho phiên gọi này (phòng của trạm hoặc phòng cá nhân).
-  zoomJoinUrl: text("zoom_join_url"),
-  zoomMeetingId: text("zoom_meeting_id"),
-  // Sao chép mật khẩu phòng tại thời điểm tiếp nhận: cả người dân lẫn cán bộ đều
-  // đọc từ đây, nên đổi mật khẩu ở hồ sơ trạm không làm hỏng cuộc gọi đang diễn ra.
-  zoomPasscode: text("zoom_passcode"),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
-/* HỒ SƠ ĐIỂM TRẠM & PHÒNG ZOOM
-   Nguồn sự thật duy nhất cho danh mục điểm trạm: ô chọn của người dân, ô chuyển
-   trạm trong Bảng điều khiển và bộ định tuyến của máy chủ đều đọc từ đây. Quản
-   trị viên cấu hình toàn bộ tại mô-đun "Bảng điều khiển điểm trạm" ở chân trang CMS. */
+/* HỒ SƠ ĐIỂM TRẠM
+   Nguồn sự thật duy nhất cho danh mục điểm trạm: ô chọn của người dân, phòng gọi
+   khám từ xa của cán bộ trực và bộ định tuyến của máy chủ đều đọc từ đây. Quản
+   trị viên cấu hình toàn bộ tại mô-đun "Bảng điều khiển điểm trạm" ở chân trang CMS.
+   Mỗi điểm trạm có đúng MỘT phòng gọi cố định "room-<slug mã trạm>" - không cấp
+   phát, không chia phòng, nên hồ sơ trạm không lưu liên kết phòng họp bên ngoài. */
 export const stationRooms = pgTable(
   "station_rooms",
   {
     stationCode: text("station_code").primaryKey(),
     stationName: text("station_name").notNull(),
     note: text("note"),
-    zoomJoinUrl: text("zoom_join_url"),
-    zoomMeetingId: text("zoom_meeting_id"),
-    /* Mật khẩu phòng Zoom. KHÔNG bao giờ đi kèm danh sách công khai, không ghi
-       vào nhật ký cuộc gọi và không nằm trong nội dung thông báo đẩy. */
-    zoomPasscode: text("zoom_passcode"),
-    zoomHostEmail: text("zoom_host_email"),
     fallbackStationCode: text("fallback_station_code"),
     ringTimeoutSec: integer("ring_timeout_sec").default(45),
     // JSON khung giờ trực, ví dụ {"always":true} hoặc {"mon_fri":["07:30","17:00"]}
@@ -161,16 +151,16 @@ export const stationRooms = pgTable(
   (table) => [index("station_rooms_status_idx").on(table.status)]
 );
 
-/* Tài khoản nhận cuộc gọi được gán vào điểm trạm, kèm mức ưu tiên đổ chuông. */
+/* Tài khoản nhận cuộc gọi được gán vào điểm trạm, kèm mức ưu tiên đổ chuông.
+   MỖI TÀI KHOẢN CHỈ ĐƯỢC GẮN VÀO MỘT ĐIỂM TRẠM: khoá duy nhất đặt trên user_id
+   (không phải trên cặp trạm+tài khoản) nên cán bộ không thể trực - và cũng không
+   thể vào - phòng gọi của bất kỳ điểm trạm nào khác ngoài trạm CMS chỉ định. */
 export const stationReceivers = pgTable(
   "station_receivers",
   {
     id: text("id").primaryKey(),
     stationCode: text("station_code").notNull(),
     userId: text("user_id").notNull(),
-    // Phòng Zoom riêng của tài khoản; bỏ trống thì dùng phòng của trạm.
-    personalZoomUrl: text("personal_zoom_url"),
-    personalMeetingId: text("personal_meeting_id"),
     // 1 = trực chính, 2 = trực phụ... quyết định thứ tự leo thang.
     priority: integer("priority").default(1),
     // Danh sách kênh bật cho tài khoản: POPUP,SOUND,PUSH,ZALO
@@ -181,7 +171,7 @@ export const stationReceivers = pgTable(
   },
   (table) => [
     index("station_receivers_station_idx").on(table.stationCode),
-    index("station_receivers_user_idx").on(table.userId),
+    uniqueIndex("station_receivers_user_uidx").on(table.userId),
   ]
 );
 

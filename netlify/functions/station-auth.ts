@@ -13,10 +13,16 @@
  * Module Bảng điều khiển do CMS Quản trị cấp qua cột station_access, quyền vào
  * Module Bác sĩ tuyến trên cấp riêng qua cột doctor_access; tài khoản bị khoá
  * (status = DISABLED) không đăng nhập được ở bất kỳ cổng nào.
+ *
+ * ĐIỂM TRẠM ĐI KÈM TÀI KHOẢN. Cán bộ trực không tự chọn nơi trực khi đăng nhập:
+ * điểm trạm - và do đó phòng gọi khám từ xa - lấy từ users.station_code do CMS
+ * Quản trị chỉ định. Tài khoản có quyền trực khám nhưng chưa được gán điểm trạm
+ * sẽ bị chặn ngay ở cổng, vì có vào cũng không có phòng nào để trực.
  */
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
+import { getStation, stationRoomId } from "../lib/stations.js";
 import {
   authErrorResponse,
   hasDoctorAccess,
@@ -57,6 +63,24 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
  */
 function bootstrapPassword(): string {
   return process.env.STATION_PASSWORD || process.env.STATION_DEFAULT_PASSWORD || "Admin123@";
+}
+
+/**
+ * Điểm trạm và phòng gọi mà CMS Quản trị đã gắn cho tài khoản.
+ *
+ * Giao diện đọc khối này để hiển thị đúng một điểm trạm cố định thay cho ô chọn
+ * trạm cũ, và để biết ngay phòng gọi nào là của mình.
+ */
+async function boundStationOf(user: { stationCode: string | null }) {
+  const code = String(user.stationCode || "").trim().toUpperCase();
+  if (!code) return null;
+  const station = await getStation(code);
+  return {
+    code,
+    name: station?.stationName || code,
+    roomId: stationRoomId(code),
+    status: String(station?.status || "UNKNOWN").toUpperCase()
+  };
 }
 
 /** Thời điểm đăng nhập gần nhất - ghi lại nhưng không được làm hỏng luồng đăng nhập. */
@@ -136,6 +160,17 @@ async function handleLogin(body: Record<string, any>) {
     }, 403);
   }
 
+  /* Cán bộ trực khám phải có điểm trạm được chỉ định. Quản trị viên vào Bảng
+     điều khiển để cấu hình thì không cần, nên chỉ chặn khi tài khoản KHÔNG có
+     vai trò Quản trị. */
+  if ((scope === "station" || scope === "control") && !isAdminRole(user.role) && !String(user.stationCode || "").trim()) {
+    return json({
+      success: false,
+      code: "NO_STATION_ASSIGNED",
+      error: "Tài khoản chưa được CMS Quản trị gán vào điểm trạm nào nên chưa có phòng gọi khám từ xa để trực. Vui lòng liên hệ Quản trị viên hệ thống."
+    }, 403);
+  }
+
   if (scope === "doctor" && !hasDoctorAccess(user)) {
     return json({
       success: false,
@@ -151,7 +186,7 @@ async function handleLogin(body: Record<string, any>) {
   }
 
   const scopes = scopesFor(user);
-  const { token, expiresAt } = await signToken(user, scopes);
+  const [{ token, expiresAt }, station] = await Promise.all([signToken(user, scopes), boundStationOf(user)]);
   await touchLastLogin(user.id);
 
   return json({
@@ -159,6 +194,8 @@ async function handleLogin(body: Record<string, any>) {
     token,
     expiresAt,
     scopes,
+    // Điểm trạm duy nhất tài khoản này được trực - giao diện không cho chọn khác.
+    station,
     // mustChangePassword bật khi tài khoản đăng nhập bằng mật khẩu khởi tạo
     // hoặc vừa được Quản trị đặt lại mật khẩu.
     mustChangePassword: usedBootstrap || String(user.mustChangePassword || "false") === "true",
@@ -221,7 +258,8 @@ async function handleSession(req: Request) {
   // Quyền đọc lại từ cơ sở dữ liệu, không lấy theo phiếu: Quản trị thu hồi
   // quyền là phiên đang mở mất hiệu lực ngay ở lần kiểm tra kế tiếp.
   const scopes = scopesFor(user);
-  return json({ success: true, scopes, expiresAt: claims.exp * 1000, user: publicUser(user) });
+  const station = await boundStationOf(user);
+  return json({ success: true, scopes, station, expiresAt: claims.exp * 1000, user: publicUser(user) });
 }
 
 export default async (req: Request) => {

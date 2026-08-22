@@ -6,7 +6,7 @@
  * Bản tin đẩy ở đây cố ý không mang dữ liệu: chỉ là một cú "gõ cửa" rỗng. Service
  * Worker nhận được thì tự gọi ngược về máy chủ để lấy chi tiết cuộc gọi. Cách này
  * đổi lấy ba điều:
- *   - Tên người dân, triệu chứng và liên kết phòng Zoom không bao giờ đi qua máy
+ *   - Tên người dân, triệu chứng và mã phòng gọi không bao giờ đi qua máy
  *     chủ đẩy của Google/Mozilla/Apple, kể cả dưới dạng đã mã hoá.
  *   - Không phải hiện thực mã hoá tải tin theo RFC 8291 (aes128gcm) - phần dễ sai
  *     nhất của Web Push - nên không có nguy cơ cài sai rồi tưởng là an toàn.

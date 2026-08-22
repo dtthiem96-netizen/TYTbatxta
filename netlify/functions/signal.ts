@@ -1,15 +1,16 @@
 import { db } from "../../db/index.js";
-import { stationReceivers, telehealthPeers, telehealthRooms, telehealthSignals, appointments } from "../../db/schema.js";
+import { telehealthPeers, telehealthRooms, telehealthSignals, appointments } from "../../db/schema.js";
 import { and, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { ringPlan, ringTimeoutSec, stationFromRoomId, stationMapCached, type StationRow } from "../lib/stations.js";
 import { pushToStation } from "../lib/push.js";
+import { authErrorResponse, requireAnyScope, scopesFor, type AuthContext } from "../lib/auth.js";
 
 /**
  * Signaling WebRTC không dùng WebSocket (Netlify không giữ kết nối socket lâu dài).
  * Mỗi thành viên trong phòng khám gửi/nhận bản tin signaling qua HTTP:
  *   - POST /api/signal  { action: 'join' | 'signal' | 'leave' | 'vitals' | 'notes' | 'complete', ... }
- *   - POST /api/signal  { action: 'standby', roomId: '__lobby__', peerId, name, stationCode, userId }
- *   - POST /api/signal  { action: 'accept', roomId, peerId, userId, name }   (giành quyền tiếp nhận)
+ *   - POST /api/signal  { action: 'standby', roomId: '__lobby__', peerId, name }
+ *   - POST /api/signal  { action: 'accept', roomId, peerId, name }           (giành quyền tiếp nhận)
  *   - POST /api/signal  { action: 'decline', roomId, peerId }                (từ chối -> leo thang ngay)
  *   - GET  /api/signal?roomId=...&peerId=...&cursor=...   (long-poll ngắn, trả về bản tin mới)
  *   - GET  /api/signal?action=rooms                       (danh sách phòng đang chờ bác sĩ)
@@ -36,6 +37,16 @@ import { pushToStation } from "../lib/push.js";
  * Việc tiếp nhận đi qua MỘT câu lệnh UPDATE có điều kiện: chỉ cuộc gọi còn ở
  * trạng thái chờ mới bị đổi sang ACCEPTED, nên khi hai cán bộ bấm cùng lúc thì
  * đúng một người thắng và người kia nhận được thông báo "đã có người tiếp nhận".
+ *
+ * MỖI CÁN BỘ CHỈ VÀO ĐƯỢC PHÒNG GỌI CỦA ĐIỂM TRẠM ĐƯỢC CMS CHỈ ĐỊNH
+ * -----------------------------------------------------------------
+ * Người dân gọi tới thì không cần đăng nhập, nhưng ba hành động của phía cán bộ
+ * - vào phòng với vai station/doctor, bật trực (standby) và tiếp nhận (accept) -
+ * đều đòi phiếu phiên hợp lệ. Điểm trạm được lấy TỪ HỒ SƠ TÀI KHOẢN
+ * (users.station_code do CMS Quản trị gán), không lấy từ nội dung yêu cầu, nên
+ * sửa mã trạm hay vai trò trong lời gọi cũng không mở được phòng của trạm khác.
+ * Tài khoản có phạm vi "doctor" (bác sĩ tuyến trên) hoặc "admin" là ngoại lệ có
+ * chủ đích: tuyến trên phải hỗ trợ được mọi điểm trạm.
  */
 
 // Phòng ảo giữ danh sách cán bộ/bác sĩ đang trực (không phải phòng khám thật).
@@ -285,20 +296,13 @@ async function queueSnapshot(now: number) {
   return { rooms, onDuty, sig: queueSignature(rooms, onDuty) };
 }
 
-/**
- * Thông tin phòng khám trả về cho mọi thành viên đang ở trong phòng.
- *
- * Liên kết Zoom CHỈ xuất hiện sau khi cuộc gọi đã được tiếp nhận. Trước thời
- * điểm đó, biết roomId cũng không đọc được phòng họp của điểm trạm - đây là
- * ranh giới ngăn liên kết phòng bị dò ra từ bên ngoài.
- */
+/** Thông tin phòng khám trả về cho mọi thành viên đang ở trong phòng. */
 function roomView(
   room: NonNullable<Awaited<ReturnType<typeof getRoom>>>,
   stations: Map<string, StationRow>,
   now: number
 ) {
   const routingState = String(room.routingState || "WAITING").toUpperCase();
-  const accepted = routingState === "ACCEPTED";
 
   /* Bậc thang leo thang được suy ra tại chỗ từ mốc bắt đầu đổ chuông, giống hệt
      cách hàng đợi của cán bộ tính - nhờ vậy hai màn hình luôn nói cùng một câu
@@ -324,14 +328,7 @@ function roomView(
     exhausted: plan ? plan.exhausted : false,
     acceptedName: room.acceptedName || "",
     acceptedAt: room.acceptedAt || null,
-    ringingSince: room.ringingSince || null,
-    zoom: accepted && room.zoomJoinUrl
-      ? {
-          joinUrl: room.zoomJoinUrl,
-          meetingId: room.zoomMeetingId || "",
-          passcode: room.zoomPasscode || ""
-        }
-      : null
+    ringingSince: room.ringingSince || null
   };
 }
 
@@ -423,6 +420,90 @@ async function handleGet(url: URL) {
   });
 }
 
+// ---------------------------------------------------------------------------
+//  Rào chắn "một cán bộ - một điểm trạm"
+// ---------------------------------------------------------------------------
+
+/**
+ * Đọc phiếu phiên của phía cán bộ, trả về null nếu không có phiếu hợp lệ.
+ *
+ * Người dân gọi tới không hề đăng nhập nên tuyến /api/signal vẫn phải mở; hàm
+ * này chỉ dùng để phân biệt "đây là cán bộ" với "đây là người dân", còn việc
+ * bắt buộc phải có phiếu là do từng hành động tự quyết định.
+ */
+async function readOfficer(req: Request): Promise<AuthContext | null> {
+  try {
+    return await requireAnyScope(req, ["station", "doctor", "admin"]);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Bác sĩ tuyến trên và Quản trị hỗ trợ mọi điểm trạm, không bị ràng vào một trạm.
+ * Quyền đọc lại từ hồ sơ tài khoản chứ không lấy trong phiếu: Quản trị thu hồi
+ * quyền bác sĩ tuyến trên là phiếu đang cầm mất hiệu lực ngay.
+ */
+function servesAllStations(ctx: AuthContext): boolean {
+  const scopes = scopesFor(ctx.user);
+  return scopes.includes("doctor") || scopes.includes("admin");
+}
+
+/** Điểm trạm CMS Quản trị đã chỉ định cho tài khoản này. */
+function boundStation(ctx: AuthContext): string {
+  return String(ctx.user.stationCode || "").trim().toUpperCase();
+}
+
+/**
+ * Cán bộ này có được vào phòng gọi của điểm trạm đang xét hay không.
+ *
+ * Trả về null khi hợp lệ, hoặc thẳng một Response từ chối. Ngoài chính điểm
+ * trạm của cuộc gọi, trạm đang đổ chuông theo bậc leo thang cũng được chấp
+ * nhận: đó là trạm dự phòng do CMS cấu hình, nên cán bộ ở đó nhận cuộc gọi là
+ * đúng thiết kế chứ không phải tự ý sang trạm khác.
+ */
+function stationDenial(
+  ctx: AuthContext,
+  roomStation: string,
+  ringingSince: number | null | undefined,
+  stations: Map<string, StationRow>,
+  now: number
+): Response | null {
+  if (servesAllStations(ctx)) return null;
+
+  const bound = boundStation(ctx);
+  if (!bound) {
+    return json({
+      ok: false,
+      code: "NO_STATION_ASSIGNED",
+      error: "Tài khoản chưa được CMS Quản trị chỉ định điểm trạm nào. Hãy liên hệ Quản trị viên để được gán vào phòng gọi của một điểm trạm."
+    }, 403);
+  }
+
+  const origin = String(roomStation || "").trim().toUpperCase();
+  // Cuộc gọi chưa xác định được điểm trạm thì không ai được nhận thay.
+  if (!origin) {
+    return json({
+      ok: false,
+      code: "STATION_MISMATCH",
+      error: "Cuộc gọi này chưa gắn với điểm trạm nào nên không tiếp nhận được."
+    }, 403);
+  }
+  if (origin === bound) return null;
+
+  const ringing = ringPlan(origin, Number(ringingSince || now), stations, now).stationCode.toUpperCase();
+  if (ringing === bound) return null;
+
+  const originName = stations.get(origin)?.stationName || origin;
+  const boundName = stations.get(bound)?.stationName || bound;
+  return json({
+    ok: false,
+    code: "STATION_MISMATCH",
+    error: `Tài khoản chỉ được trực phòng gọi của ${boundName}. Cuộc gọi này thuộc ${originName}, không mở được từ máy đang đăng nhập.`,
+    boundStationCode: bound
+  }, 403);
+}
+
 /**
  * Một cán bộ giành quyền tiếp nhận cuộc gọi.
  *
@@ -430,37 +511,26 @@ async function handleGet(url: URL) {
  * (chưa ai nhận) ... RETURNING. Cơ sở dữ liệu tự tuần tự hoá hai lệnh đến cùng
  * lúc, nên đúng một lệnh nhận về bản ghi và trở thành người thắng; không cần khoá
  * ngoài, cũng không có khe hở giữa lúc đọc và lúc ghi như cách kiểm tra hai bước.
+ *
+ * Danh tính người nhận lấy từ phiếu phiên chứ không từ nội dung yêu cầu, và
+ * cuộc gọi phải thuộc đúng điểm trạm CMS đã chỉ định cho tài khoản.
  */
-async function handleAccept(body: Record<string, any>, roomId: string, peerId: string, now: number) {
-  const userId = String(body.userId || "").trim();
-  const name = String(body.name || "Cán bộ trực").trim();
+async function handleAccept(
+  body: Record<string, any>,
+  ctx: AuthContext,
+  roomId: string,
+  peerId: string,
+  now: number
+) {
+  const userId = ctx.user.id;
+  const name = String(body.name || ctx.user.name || "Cán bộ trực").trim();
 
   const room = await getRoom(roomId);
   if (!room) return json({ ok: false, code: "GONE", error: "Cuộc gọi không còn trong hàng đợi." }, 404);
 
-  /* Phòng Zoom dùng cho phiên này được CHỐT ngay lúc tiếp nhận: ưu tiên phòng
-     riêng của người nhận, không có thì dùng phòng của điểm trạm. Chốt lại thành
-     dữ liệu của cuộc gọi để người dân và cán bộ chắc chắn vào cùng một phòng, kể
-     cả khi Quản trị viên sửa cấu hình trạm ngay sau đó. */
   const stations = await stationMapCached(now);
-  const station = room.stationCode ? stations.get(room.stationCode) || null : null;
-  let joinUrl = station?.zoomJoinUrl || null;
-  let meetingId = station?.zoomMeetingId || null;
-  let passcode = station?.zoomPasscode || null;
-
-  if (userId && room.stationCode) {
-    const personal = await db
-      .select()
-      .from(stationReceivers)
-      .where(and(eq(stationReceivers.stationCode, room.stationCode), eq(stationReceivers.userId, userId)));
-    const link = personal[0];
-    if (link?.personalZoomUrl) {
-      joinUrl = link.personalZoomUrl;
-      meetingId = link.personalMeetingId || "";
-      // Phòng riêng thì mật khẩu nằm trong chính liên kết, không lấy của trạm.
-      passcode = null;
-    }
-  }
+  const denied = stationDenial(ctx, room.stationCode || "", room.ringingSince, stations, now);
+  if (denied) return denied;
 
   const claimed = await db
     .update(telehealthRooms)
@@ -470,9 +540,6 @@ async function handleAccept(body: Record<string, any>, roomId: string, peerId: s
       acceptedName: name,
       acceptedAt: now,
       status: "IN_CALL",
-      zoomJoinUrl: joinUrl,
-      zoomMeetingId: meetingId,
-      zoomPasscode: passcode,
       updatedAt: now
     })
     .where(and(eq(telehealthRooms.id, roomId), inArray(telehealthRooms.routingState, RINGING_STATES)))
@@ -494,8 +561,7 @@ async function handleAccept(body: Record<string, any>, roomId: string, peerId: s
   }
 
   /* Báo cho mọi máy đang mở phòng: người dân đổi màn hình chờ sang "đã kết nối",
-     các máy trực khác tắt chuông. Bản tin cố ý KHÔNG mang liên kết Zoom - ai
-     đang trong phòng sẽ đọc nó qua tuyến long-poll đã kiểm tra trạng thái. */
+     các máy trực khác tắt chuông. */
   await pushSignal({
     roomId,
     fromPeer: peerId,
@@ -507,7 +573,9 @@ async function handleAccept(body: Record<string, any>, roomId: string, peerId: s
   return json({
     ok: true,
     acceptedName: name,
-    zoom: joinUrl ? { joinUrl, meetingId: meetingId || "", passcode: passcode || "" } : null
+    // Phòng gọi của cuộc khám này - luôn là phòng của điểm trạm người dân đã chọn.
+    stationCode: room.stationCode || "",
+    roomId
   });
 }
 
@@ -517,8 +585,17 @@ async function handleAccept(body: Record<string, any>, roomId: string, peerId: s
  * Thay vì thêm một cột trạng thái nữa, chỉ cần lùi mốc `ringingSince` lại đúng
  * một chu kỳ đổ chuông - lượt quét kế tiếp tự suy ra là đã hết một vòng và mở
  * rộng sang mức ưu tiên tiếp theo. Một phép trừ, không có tiến trình nền nào.
+ *
+ * Từ chối cũng là can thiệp vào cuộc gọi của một điểm trạm, nên đi qua đúng rào
+ * chắn như lúc tiếp nhận: cán bộ trạm khác không được đẩy leo thang hộ.
  */
-async function handleDecline(body: Record<string, any>, roomId: string, peerId: string, now: number) {
+async function handleDecline(
+  body: Record<string, any>,
+  ctx: AuthContext,
+  roomId: string,
+  peerId: string,
+  now: number
+) {
   const room = await getRoom(roomId);
   if (!room) return json({ ok: true });
   if (String(room.routingState || "").toUpperCase() === "ACCEPTED") {
@@ -526,6 +603,9 @@ async function handleDecline(body: Record<string, any>, roomId: string, peerId: 
   }
 
   const stations = await stationMapCached(now);
+  const denied = stationDenial(ctx, room.stationCode || "", room.ringingSince, stations, now);
+  if (denied) return denied;
+
   const timeoutMs = ringTimeoutSec(room.stationCode ? stations.get(room.stationCode) : null) * 1000;
   await db
     .update(telehealthRooms)
@@ -549,7 +629,7 @@ async function handleDecline(body: Record<string, any>, roomId: string, peerId: 
     roomId,
     fromPeer: peerId,
     type: "call-declined",
-    payload: { by: String(body.name || "").trim(), at: now },
+    payload: { by: String(body.name || ctx.user.name || "").trim(), at: now },
     now
   });
   return json({ ok: true });
@@ -567,6 +647,19 @@ async function handlePost(req: Request) {
 
   const now = Date.now();
 
+  /* Ba hành động của phía cán bộ đều phải có phiếu phiên. Đọc một lần ở đây rồi
+     dùng lại, thay vì mỗi nhánh tự xác thực. */
+  const officerActions = action === "join" || action === "standby" || action === "accept" || action === "decline";
+  const officer = officerActions ? await readOfficer(req) : null;
+
+  if ((action === "standby" || action === "accept" || action === "decline") && !officer) {
+    return json({
+      ok: false,
+      code: "UNAUTHENTICATED",
+      error: "Phiên đăng nhập không còn hiệu lực. Vui lòng đăng nhập lại vào Bảng điều khiển điểm trạm."
+    }, 401);
+  }
+
   if (action === "join") {
     await pruneStale(now);
     /* Một phòng khám trực tiếp có tối đa ba vai: người dân đang gọi, bảng điều
@@ -574,10 +667,8 @@ async function handlePost(req: Request) {
        nào lên khung hình lớn, ai đang trực); mọi phép đếm hàng đợi vẫn chỉ phân
        biệt "doctor" với phần còn lại nên thêm vai "patient" không đổi hành vi cũ. */
     const rawRole = String((body as any).role || "");
-    const role = rawRole === "doctor" ? "doctor" : rawRole === "patient" ? "patient" : "station";
+    const requestedRole = rawRole === "doctor" ? "doctor" : rawRole === "patient" ? "patient" : "station";
     const name = String((body as any).name || "Thành viên");
-    const joinStation = String((body as any).stationCode || "").trim().toUpperCase();
-    const joinUserId = String((body as any).userId || "").trim();
 
     const [existing, stations, roomBefore] = await Promise.all([
       activePeers(roomId, now),
@@ -585,6 +676,37 @@ async function handlePost(req: Request) {
       getRoom(roomId)
     ]);
     const others = existing.filter((p) => p.id !== peerId);
+
+    /* Chỉ người dân được vào phòng mà không đăng nhập. Vai của phía cán bộ do
+       MÁY CHỦ quyết định theo quyền thật trong hồ sơ tài khoản: khai role
+       "doctor" trong lời gọi không biến cán bộ điểm trạm thành bác sĩ tuyến
+       trên, nên cũng không lách được rào chắn điểm trạm bên dưới. */
+    if (requestedRole !== "patient" && !officer) {
+      return json({
+        ok: false,
+        code: "UNAUTHENTICATED",
+        error: "Phiên đăng nhập không còn hiệu lực. Vui lòng đăng nhập lại để vào phòng khám."
+      }, 401);
+    }
+
+    let role = requestedRole;
+    let joinStation = String((body as any).stationCode || "").trim().toUpperCase();
+    let joinUserId = String((body as any).userId || "").trim();
+
+    if (officer && requestedRole !== "patient") {
+      role = servesAllStations(officer) && requestedRole === "doctor" ? "doctor" : "station";
+      joinUserId = officer.user.id;
+      const denied = stationDenial(
+        officer,
+        String(roomBefore?.stationCode || stationFromRoomId(roomId, stations.keys()) || joinStation),
+        roomBefore?.ringingSince,
+        stations,
+        now
+      );
+      if (denied) return denied;
+      // Điểm trạm ghi vào phòng lấy từ hồ sơ tài khoản, trừ tuyến trên/Quản trị.
+      if (!servesAllStations(officer)) joinStation = boundStation(officer);
+    }
 
     await db
       .insert(telehealthPeers)
@@ -671,8 +793,22 @@ async function handlePost(req: Request) {
     const name = String((body as any).name || "Cán bộ trực");
     // Trạm và tài khoản của người trực: hai thông tin này quyết định cuộc gọi nào
     // được đổ chuông tới máy nào, và làm nên phép đếm "đang trực" của từng trạm.
-    const dutyStation = String((body as any).stationCode || "").trim().toUpperCase();
-    const dutyUserId = String((body as any).userId || "").trim();
+    /* Trạm trực KHÔNG lấy theo nội dung yêu cầu: cán bộ điểm trạm luôn được
+       tính là đang trực đúng điểm trạm CMS Quản trị chỉ định trong hồ sơ tài
+       khoản. Bác sĩ tuyến trên không thuộc trạm nào nên vẫn dùng giá trị gửi lên. */
+    const ctx = officer as AuthContext;
+    const dutyStation = servesAllStations(ctx)
+      ? String((body as any).stationCode || "").trim().toUpperCase()
+      : boundStation(ctx);
+    const dutyUserId = ctx.user.id;
+
+    if (!servesAllStations(ctx) && !dutyStation) {
+      return json({
+        ok: false,
+        code: "NO_STATION_ASSIGNED",
+        error: "Tài khoản chưa được CMS Quản trị chỉ định điểm trạm nào nên chưa bật trực được."
+      }, 403);
+    }
     await db
       .insert(telehealthPeers)
       .values({
@@ -718,8 +854,12 @@ async function handlePost(req: Request) {
     });
   }
 
-  if (action === "accept") return await handleAccept(body as Record<string, any>, roomId, peerId, now);
-  if (action === "decline") return await handleDecline(body as Record<string, any>, roomId, peerId, now);
+  if (action === "accept") {
+    return await handleAccept(body as Record<string, any>, officer as AuthContext, roomId, peerId, now);
+  }
+  if (action === "decline") {
+    return await handleDecline(body as Record<string, any>, officer as AuthContext, roomId, peerId, now);
+  }
 
   if (action === "signal") {
     const type = String((body as any).type || "");
@@ -803,6 +943,8 @@ export default async (req: Request) => {
     if (req.method === "POST") return await handlePost(req);
     return json({ error: "Method not allowed" }, 405);
   } catch (err: any) {
+    const authResponse = authErrorResponse(err, headers);
+    if (authResponse) return authResponse;
     console.error("signal error", err);
     return json({ error: err?.message || "Lỗi signaling" }, 500);
   }

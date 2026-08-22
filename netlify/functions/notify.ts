@@ -130,7 +130,7 @@ async function handlePending(ctx: AuthContext, now: number) {
     .filter(({ room, plan }) => plan.maxPriority >= (priorityByStation.get(room.stationCode || "") || 99))
     .map(({ room, plan }) => ({
       roomId: room.id,
-      // Cố ý không kèm liên kết Zoom: thông báo chỉ để gọi người, vào phòng là bước sau.
+      // Cố ý không kèm mã phòng gọi: thông báo chỉ để gọi người, vào phòng là bước sau.
       patientName: room.patientName || "Người dân",
       symptoms: room.symptoms || "",
       stationCode: room.stationCode || "",
