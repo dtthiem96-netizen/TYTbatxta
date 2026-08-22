@@ -2202,6 +2202,13 @@
                         <button onclick="window.toggleAudioSettings()" id="btn-audio-settings" title="Chỉnh âm thanh: chống vang, chống hú, lọc tạp âm phòng khám" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition shadow border border-slate-700">
                             <i class="fas fa-sliders"></i> Âm thanh
                         </button>
+                        <!-- Kéo Bác sĩ tuyến trên vào CHÍNH phòng khám đang mở.
+                             Người dân không phải gọi lại và mã phòng không đổi:
+                             lời mời được ghi vào bản ghi phòng khám rồi gõ cửa
+                             Web Push tới mọi tài khoản có quyền tuyến trên. -->
+                        <button onclick="window.inviteSuperiorDoctor()" id="station-invite-doctor-btn" title="Mời bác sĩ tuyến trên cùng vào phòng khám này để hội chẩn" class="hidden px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow border border-violet-700/60">
+                            <i class="fas fa-user-doctor"></i> <span id="station-invite-doctor-label">Mời bác sĩ tuyến trên</span>
+                        </button>
                         <button onclick="window.sendVitalsToDoctor()" title="Gửi chỉ số sinh hiệu" class="px-3 h-10 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow">
                             <i class="fas fa-paper-plane"></i> Gửi sinh hiệu
                         </button>
@@ -8505,6 +8512,28 @@
                 return;
             }
 
+            /* Điểm trạm đang mời bác sĩ tuyến trên vào chính phòng khám này.
+               Người dân cần biết vì sắp có thêm một khuôn mặt trong khung hình -
+               và vì đó là lý do buổi khám kéo dài thêm vài phút. */
+            if (msg.type === 'consult-requested') {
+                const nguoiMoi = (msg.payload && msg.payload.by) || 'Điểm trạm';
+                teleAppendChat('Hệ thống', `${nguoiMoi} đang mời bác sĩ tuyến trên cùng tham gia phòng khám để hội chẩn cho quý vị.`);
+                window.showToast('Điểm trạm đang mời bác sĩ tuyến trên vào phòng khám.');
+                return;
+            }
+
+            if (msg.type === 'consult-cancelled') {
+                teleAppendChat('Hệ thống', 'Điểm trạm đã rút lời mời hội chẩn tuyến trên.');
+                return;
+            }
+
+            if (msg.type === 'consult-joining') {
+                const bacSi = (msg.payload && msg.payload.by) || 'Bác sĩ tuyến trên';
+                teleStatus(`${bacSi} đang vào phòng khám...`);
+                window.showToast(`${bacSi} đang vào phòng khám để hội chẩn.`);
+                return;
+            }
+
             /* Một đầu cầu rời đi KHÔNG có nghĩa buổi khám kết thúc: phòng ba bên
                vẫn còn hai người đang nói chuyện. Chỉ gỡ đúng kết nối của người vừa
                rời rồi vẽ lại khung hình. */
@@ -11023,6 +11052,13 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             if (r.routingState === 'ACCEPTED' && r.acceptedName) {
                 routingBadge = `<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded font-black"><i class="fas fa-user-check"></i> ${teleEscape(r.acceptedName)} đã nhận</span>`;
             }
+
+            /* Ca đang chờ Bác sĩ tuyến trên trả lời lời mời hội chẩn. Cán bộ CMS
+               thấy được để không kết thúc lượt khám khi tuyến trên còn đang vào. */
+            const consultBadge = r.consultRequested
+                ? `<span class="text-[10px] bg-violet-100 text-violet-800 border border-violet-300 px-1.5 py-0.5 rounded font-black" title="${teleEscape(r.consultNote || '')}"><i class="fas fa-user-doctor"></i> Đang mời hội chẩn tuyến trên</span>`
+                : '';
+
             const label = mine ? (focused ? 'Đang khám' : 'Chuyển sang khám') : (joined ? 'Vào lại phòng' : 'Tiếp nhận cuộc gọi');
             const btnColor = mine
                 ? (focused ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600')
@@ -11034,6 +11070,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                         ${teleEscape(r.patientName || 'Bệnh nhân chưa rõ tên')}
                         <span class="font-mono text-[10px] bg-white border border-gray-200 px-1.5 py-0.5 rounded">${teleEscape(r.roomId)}</span>
                         ${stationBadge}
+                        ${consultBadge}
                         ${routingBadge}
                         ${mine && !focused ? '<span class="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">GIỮ MÁY</span>' : ''}
                     </div>
@@ -11139,6 +11176,11 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                     }
                     throw new Error((data && data.error) || 'Máy chủ từ chối lượt tiếp nhận.');
                 }
+                /* Máy chủ không còn coi "đã có người nhận" là "phòng đã đóng":
+                   chính cán bộ đã nhận thì quay lại được phòng của mình (rejoin),
+                   còn tài khoản phục vụ mọi trạm thì vào theo lối hội chẩn. */
+                if (data.rejoin) window.showToast('Đã quay lại phòng khám đang tiếp nhận.');
+                else if (data.consult) window.showToast(`Đang vào phòng khám cùng ${data.acceptedName || 'điểm trạm'} để hội chẩn.`);
             } catch (err) {
                 /* Mất mạng ngay lúc bấm: vẫn cho vào phòng khám trực tiếp trên trang,
                    vì cuộc gọi WebRTC không phụ thuộc vào lượt ghi nhận này. Người dân

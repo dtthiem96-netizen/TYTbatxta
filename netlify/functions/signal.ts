@@ -2,7 +2,7 @@ import { db } from "../../db/index.js";
 import { telehealthPeers, telehealthRooms, telehealthSignals, appointments } from "../../db/schema.js";
 import { and, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { ringPlan, ringTimeoutSec, stationFromRoomId, stationMapCached, type StationRow } from "../lib/stations.js";
-import { pushToStation } from "../lib/push.js";
+import { pushToDoctors, pushToStation } from "../lib/push.js";
 import { authErrorResponse, requireAnyScope, scopesFor, type AuthContext } from "../lib/auth.js";
 
 /**
@@ -12,6 +12,7 @@ import { authErrorResponse, requireAnyScope, scopesFor, type AuthContext } from 
  *   - POST /api/signal  { action: 'standby', roomId: '__lobby__', peerId, name }
  *   - POST /api/signal  { action: 'accept', roomId, peerId, name }           (giành quyền tiếp nhận)
  *   - POST /api/signal  { action: 'decline', roomId, peerId }                (từ chối -> leo thang ngay)
+ *   - POST /api/signal  { action: 'consult', roomId, peerId, note, cancel }  (điểm trạm mời/huỷ mời tuyến trên)
  *   - GET  /api/signal?roomId=...&peerId=...&cursor=...   (long-poll ngắn, trả về bản tin mới)
  *   - GET  /api/signal?action=rooms                       (danh sách phòng đang chờ bác sĩ)
  *   - GET  /api/signal?action=rooms&wait=1&sig=...        (long-poll hàng đợi: trả ngay khi hàng đợi đổi)
@@ -37,6 +38,20 @@ import { authErrorResponse, requireAnyScope, scopesFor, type AuthContext } from 
  * Việc tiếp nhận đi qua MỘT câu lệnh UPDATE có điều kiện: chỉ cuộc gọi còn ở
  * trạng thái chờ mới bị đổi sang ACCEPTED, nên khi hai cán bộ bấm cùng lúc thì
  * đúng một người thắng và người kia nhận được thông báo "đã có người tiếp nhận".
+ *
+ * "ĐÃ CÓ NGƯỜI NHẬN" KHÔNG PHẢI LÀ "PHÒNG ĐÃ ĐÓNG"
+ * ------------------------------------------------
+ * Lượt tiếp nhận chỉ chống HAI CÁN BỘ ĐIỂM TRẠM cùng lao vào một bệnh nhân. Bác
+ * sĩ tuyến trên là bên thứ ba của chính buổi khám đó, không phải người tranh
+ * lượt: khi cuộc gọi đã có cán bộ trạm nhận, tuyến trên vào phòng theo lối "hội
+ * chẩn" (`consult`) - không đụng tới cột routing_state, không cướp lượt của ai,
+ * và cả ba bên nằm trong CÙNG một `ROOM-XX`. Chính người đã nhận cuộc gọi mở
+ * lại phòng của mình cũng đi qua lối này (rejoin) thay vì bị chặn.
+ *
+ * Chiều ngược lại là `action: 'consult'`: cán bộ điểm trạm đang khám bấm "Mời
+ * bác sĩ tuyến trên", máy chủ ghi lời mời vào hồ sơ phòng và gõ cửa mọi tài
+ * khoản có quyền `doctor`. Lời mời nằm trong bảng phòng chứ không trong hộp thư
+ * signaling, nên bác sĩ mở Module muộn vài phút vẫn thấy nó còn treo.
  *
  * MỖI CÁN BỘ CHỈ VÀO ĐƯỢC PHÒNG GỌI CỦA ĐIỂM TRẠM ĐƯỢC CMS CHỈ ĐỊNH
  * -----------------------------------------------------------------
@@ -281,6 +296,15 @@ async function listRooms(now: number, stations: Map<string, StationRow>) {
       // Đã gọi hết vòng mà không ai nhận: hàng đợi tô đỏ và báo Quản trị.
       exhausted: plan ? plan.exhausted : false,
       hasDoctor: entry.some((p) => p.role === "doctor"),
+      // Ai đang thực sự có mặt: Module Bác sĩ tuyến trên đọc ba cờ này để biết
+      // nên "Tiếp nhận cuộc gọi" (chưa ai nhận) hay "Vào hội chẩn" (trạm đang khám).
+      hasStation: entry.some((p) => p.role === "station"),
+      hasPatient: entry.some((p) => p.role === "patient"),
+      // --- Lời mời hội chẩn tuyến trên ---
+      consultRequested: Boolean(room?.consultRequestedAt),
+      consultRequestedAt: Number(room?.consultRequestedAt || 0),
+      consultRequestedBy: room?.consultRequestedBy || "",
+      consultNote: room?.consultNote || "",
       // Số bên đang có mặt trong phòng - màn hình tiếp nhận dùng để biết cuộc gọi
       // đã đủ ba bên (người dân + điểm trạm + tuyến trên) hay còn thiếu ai.
       participants: entry.length,
@@ -307,7 +331,7 @@ function queueSignature(rooms: Array<Record<string, unknown>>, onDuty: { count: 
       (r) =>
         `${r.roomId}:${r.status}:${r.routingState}:${r.ringingStation || ""}:${r.ringMaxPriority || 0}:${
           r.hasDoctor ? 1 : 0
-        }:${r.participants}`
+        }:${r.consultRequested ? 1 : 0}:${r.participants}`
     )
     .sort();
   const duty = Object.keys(onDuty.byStation)
@@ -392,7 +416,13 @@ function roomView(
     exhausted: plan ? plan.exhausted : false,
     acceptedName: room.acceptedName || "",
     acceptedAt: room.acceptedAt || null,
-    ringingSince: room.ringingSince || null
+    ringingSince: room.ringingSince || null,
+    /* Lời mời hội chẩn đi kèm mọi lượt long-poll trong phòng: màn hình người dân
+       và của cán bộ trạm biết "đang mời tuyến trên" kể cả khi bản tin
+       `consult-requested` đã trôi qua trước lúc họ vào phòng. */
+    consultRequested: Boolean(room.consultRequestedAt),
+    consultRequestedBy: room.consultRequestedBy || "",
+    consultNote: room.consultNote || ""
   };
 }
 
@@ -575,7 +605,7 @@ function stationDenial(
 }
 
 /**
- * Một cán bộ giành quyền tiếp nhận cuộc gọi.
+ * Một cán bộ giành quyền tiếp nhận cuộc gọi - hoặc vào cùng phòng để hội chẩn.
  *
  * Toàn bộ chống nhận trùng nằm ở MỘT câu lệnh UPDATE ... WHERE routing_state IN
  * (chưa ai nhận) ... RETURNING. Cơ sở dữ liệu tự tuần tự hoá hai lệnh đến cùng
@@ -584,6 +614,10 @@ function stationDenial(
  *
  * Danh tính người nhận lấy từ phiếu phiên chứ không từ nội dung yêu cầu, và
  * cuộc gọi phải thuộc đúng điểm trạm CMS đã chỉ định cho tài khoản.
+ *
+ * Thua lượt KHÔNG đồng nghĩa với bị chặn khỏi phòng: chính người đã nhận quay
+ * lại, và Bác sĩ tuyến trên vào hội chẩn, đều được trả về `ok: true` (kèm cờ
+ * `rejoin` / `consult`) để đi tiếp vào đúng `ROOM-XX` đang diễn ra.
  */
 async function handleAccept(
   body: Record<string, any>,
@@ -616,9 +650,44 @@ async function handleAccept(
     .returning();
 
   if (!claimed.length) {
-    // Thua cuộc: đọc lại để nói rõ ai đã nhận thay vì báo lỗi chung chung.
+    // Thua cuộc: đọc lại để biết ai đang giữ lượt trước khi quyết định từ chối.
     const taken = await getRoom(roomId);
     const holder = taken?.acceptedName || "cán bộ khác";
+    const closed = ["ENDED", "CANCELLED", "MISSED"].includes(String(taken?.routingState || "").toUpperCase());
+
+    /* MỘT LƯỢT TIẾP NHẬN, NHIỀU NGƯỜI TRONG PHÒNG
+       Cột routing_state trả lời câu hỏi "ai chịu trách nhiệm cuộc gọi này", chứ
+       không phải "phòng đã khoá". Hai trường hợp dưới đây vẫn phải vào được: */
+    if (!closed && taken) {
+      // 1) Chính người đã nhận mở lại phòng của mình (tải lại trang, đổi máy,
+      //    quay về sau khi bấm "giữ máy"). Chặn ở đây là tự nhốt cán bộ ra ngoài.
+      const mine = Boolean(userId) && String(taken.acceptedBy || "") === String(userId);
+      if (mine) {
+        return json({ ok: true, rejoin: true, acceptedName: taken.acceptedName || name, stationCode: taken.stationCode || "", roomId });
+      }
+
+      /* 2) Bác sĩ tuyến trên (và Quản trị) vào CÙNG phòng để hội chẩn. Họ không
+            tranh lượt với cán bộ trạm: lượt vẫn thuộc về người đã nhận, chỉ có
+            thêm một đầu cầu thứ ba. Đây chính là lối vào mà Module Bác sĩ tuyến
+            trên ở chân trang dùng khi cuộc gọi đã được điểm trạm tiếp nhận. */
+      if (servesAllStations(ctx)) {
+        await pushSignal({
+          roomId,
+          fromPeer: peerId,
+          type: "consult-joining",
+          payload: { by: name, at: now },
+          now
+        });
+        return json({
+          ok: true,
+          consult: true,
+          acceptedName: taken.acceptedName || "",
+          stationCode: taken.stationCode || "",
+          roomId
+        });
+      }
+    }
+
     return json(
       {
         ok: false,
@@ -703,6 +772,62 @@ async function handleDecline(
     now
   });
   return json({ ok: true });
+}
+
+/**
+ * Điểm trạm mời Bác sĩ tuyến trên vào cùng phòng khám đang diễn ra.
+ *
+ * Bậc leo thang chỉ chạy khi CHƯA ai tiếp nhận; một khi cán bộ trạm đã nhận
+ * cuộc gọi thì không còn cơ chế nào kéo tuyến trên vào nữa - đó là lý do phải
+ * có lối mời tường minh này.
+ *
+ * Lời mời được ghi vào hồ sơ phòng (chứ không chỉ bắn một bản tin signaling) vì
+ * hộp thư signaling bị dọn theo hạn và chỉ tới được người ĐANG ở trong phòng.
+ * Bác sĩ mở Module ở chân trang sau đó vài phút vẫn phải thấy lời mời còn treo
+ * trong hàng đợi của mình. Cờ này được xoá trắng ngay khi có bác sĩ tuyến trên
+ * thực sự vào phòng.
+ */
+async function handleConsult(
+  body: Record<string, any>,
+  ctx: AuthContext,
+  roomId: string,
+  peerId: string,
+  now: number
+) {
+  const room = await getRoom(roomId);
+  if (!room) return json({ ok: false, code: "GONE", error: "Cuộc gọi không còn trong hàng đợi." }, 404);
+
+  const stations = await stationMapCached(now);
+  const denied = stationDenial(ctx, room.stationCode || "", room.ringingSince, stations, now);
+  if (denied) return denied;
+
+  const by = String(body.name || ctx.user.name || "Cán bộ trực").trim();
+  const cancel = body.cancel === true;
+
+  if (cancel) {
+    await touchRoom(roomId, { consultRequestedAt: null, consultRequestedBy: null, consultNote: null }, now);
+    await pushSignal({ roomId, fromPeer: peerId, type: "consult-cancelled", payload: { by, at: now }, now });
+    return json({ ok: true, consultRequested: false });
+  }
+
+  const note = String(body.note || "").trim().slice(0, 300);
+  await touchRoom(roomId, { consultRequestedAt: now, consultRequestedBy: by, consultNote: note || null }, now);
+
+  /* Bản tin trong phòng để người dân và các đầu cầu đang mở thấy ngay dòng
+     "đang mời bác sĩ tuyến trên"; hàng đợi của tuyến trên thì đọc từ hồ sơ phòng. */
+  await pushSignal({ roomId, fromPeer: peerId, type: "consult-requested", payload: { by, note, at: now }, now });
+
+  /* Gõ cửa mọi tài khoản có quyền Bác sĩ tuyến trên. Hỏng ở đây không được phép
+     làm hỏng lời mời: hàng đợi long-poll vẫn là kênh chính, thông báo đẩy chỉ để
+     với tới máy đang đóng. */
+  let push: Awaited<ReturnType<typeof pushToDoctors>> | null = null;
+  try {
+    push = await pushToDoctors(now);
+  } catch (err) {
+    console.error("push to doctors failed", err);
+  }
+
+  return json({ ok: true, consultRequested: true, notified: push ? push.sent : 0 });
 }
 
 /**
@@ -811,14 +936,15 @@ async function handlePost(req: Request) {
 
   /* Ba hành động của phía cán bộ đều phải có phiếu phiên. Đọc một lần ở đây rồi
      dùng lại, thay vì mỗi nhánh tự xác thực. */
-  const officerActions = action === "join" || action === "standby" || action === "accept" || action === "decline";
+  const officerActions =
+    action === "join" || action === "standby" || action === "accept" || action === "decline" || action === "consult";
   const officer = officerActions ? await readOfficer(req) : null;
 
   /* RÀO CHẮN "CHỈ NHẬN, KHÔNG PHÁT" CỦA VAI GIÁM SÁT
      Đặt trước mọi nhánh xử lý để không nhánh nào phải tự nhớ kiểm tra. Ứng viên
      ICE là loại bản tin dày nhất trong một lượt bắt tay và không mang hướng
      luồng nào, nên được miễn vòng đọc bản ghi thành viên mà rào vẫn kín. */
-  const guardedActions = ["signal", "vitals", "notes", "complete", "accept", "decline", "standby"];
+  const guardedActions = ["signal", "vitals", "notes", "complete", "accept", "decline", "standby", "consult"];
   if (guardedActions.includes(action)) {
     const signalType = String((body as any).type || "");
     if (!(action === "signal" && signalType === "ice")) {
@@ -827,7 +953,7 @@ async function handlePost(req: Request) {
     }
   }
 
-  if ((action === "standby" || action === "accept" || action === "decline") && !officer) {
+  if ((action === "standby" || action === "accept" || action === "decline" || action === "consult") && !officer) {
     return json({
       ok: false,
       code: "UNAUTHENTICATED",
@@ -919,6 +1045,14 @@ async function handlePost(req: Request) {
        tải lại trang) không được phép làm đồng hồ leo thang chạy lại từ đầu. */
     const resolvedStation = joinStation || roomBefore?.stationCode || stationFromRoomId(roomId, stations.keys());
     if (resolvedStation && !roomBefore?.stationCode) roomPatch.stationCode = resolvedStation;
+    /* Bác sĩ tuyến trên đã vào phòng: lời mời hội chẩn coi như đã được đáp, gỡ
+       khỏi hàng đợi của những bác sĩ khác thay vì để nó treo mãi. */
+    if (role === "doctor" && roomBefore?.consultRequestedAt) {
+      roomPatch.consultRequestedAt = null;
+      roomPatch.consultRequestedBy = null;
+      roomPatch.consultNote = null;
+    }
+
     const startsRinging = role !== "doctor" && !roomBefore?.ringingSince;
     if (startsRinging) {
       roomPatch.routingState = "RINGING";
@@ -970,6 +1104,10 @@ async function handlePost(req: Request) {
           }
         : null
     });
+  }
+
+  if (action === "consult") {
+    return await handleConsult(body as Record<string, any>, officer as AuthContext, roomId, peerId, now);
   }
 
   if (action === "standby") {

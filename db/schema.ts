@@ -121,6 +121,15 @@ export const telehealthRooms = pgTable("telehealth_rooms", {
   acceptedBy: text("accepted_by"),
   acceptedName: text("accepted_name"),
   acceptedAt: bigint("accepted_at", { mode: "number" }),
+  /* MỜI HỘI CHẨN TUYẾN TRÊN
+     Điểm trạm đã tiếp nhận cuộc gọi rồi vẫn cần kéo bác sĩ tuyến trên vào CÙNG
+     phòng. Lời mời phải nằm trong hồ sơ phòng chứ không phải trong hộp thư
+     signaling: bác sĩ mở Module ở chân trang sau đó vài phút vẫn phải thấy lời
+     mời còn treo, mà bản tin signaling thì đã bị dọn theo hạn. Ba cột này được
+     xoá trắng ngay khi có bác sĩ tuyến trên thực sự vào phòng. */
+  consultRequestedAt: bigint("consult_requested_at", { mode: "number" }),
+  consultRequestedBy: text("consult_requested_by"),
+  consultNote: text("consult_note"),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
