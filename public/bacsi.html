@@ -401,21 +401,30 @@
             <!-- Cột trái: Hàng đợi, Căn cước công dân & Sinh hiệu (4 col) -->
             <div class="lg:col-span-4 space-y-4">
                 <!-- Hàng đợi cuộc gọi của người dân - bác sĩ tuyến trên thấy cuộc gọi
-                     của MỌI điểm trạm, cuộc gọi vào điểm mình phụ trách được tô đậm. -->
+                     của MỌI điểm trạm, cuộc gọi vào điểm mình phụ trách được tô đậm.
+
+                     Danh sách này KHÔNG cắt bỏ những ca điểm trạm đã tiếp nhận:
+                     tuyến trên vào chung phòng đó theo lối hội chẩn (nút tím),
+                     không tranh lượt tiếp nhận với cán bộ trạm. Ca có thẻ "Mời
+                     hội chẩn" là ca điểm trạm đang chờ tuyến trên trả lời. -->
                 <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
                     <div class="flex justify-between items-center">
                         <h4 class="font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
-                            <i class="fas fa-headset"></i> Cuộc gọi chờ hội chẩn
+                            <i class="fas fa-headset"></i> Cuộc gọi &amp; ca chờ hội chẩn
                         </h4>
                         <span id="station-queue-count" class="text-[10px] bg-blue-900/80 text-blue-300 px-2 py-0.5 rounded-full font-bold">0 cuộc gọi</span>
                     </div>
                     <div id="station-queue-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
                         <div class="text-[11px] text-slate-400 italic">Hiện không có người dân nào đang gọi. Đang chờ kết nối...</div>
                     </div>
+                    <p class="text-[10px] text-slate-500 leading-snug">
+                        Ca đã có điểm trạm tiếp nhận vẫn vào được: bác sĩ tuyến trên là người thứ ba
+                        của chính buổi khám đó, cùng một mã phòng với người dân và cán bộ trạm.
+                    </p>
                     <button type="button" id="station-queue-accept-btn" onclick="window.acceptNextPatientCall()" disabled
-                        title="Tiếp nhận cuộc gọi đang chờ lâu nhất - lúc này mới mở camera và micro của bác sĩ"
+                        title="Vào ca cần tuyến trên nhất: ưu tiên lời mời hội chẩn của điểm trạm, sau đó tới cuộc gọi chờ lâu nhất"
                         class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
-                        <i class="fas fa-phone-volume"></i> <span id="station-queue-accept-label">Chưa có cuộc gọi chờ</span>
+                        <i class="fas fa-phone-volume"></i> <span id="station-queue-accept-label">Chưa có ca nào cần tuyến trên</span>
                     </button>
                 </div>
 
