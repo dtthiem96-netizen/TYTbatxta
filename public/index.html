@@ -1057,7 +1057,7 @@
 
                         <div>
                             <div class="flex justify-between items-end mb-1">
-                                <label class="block text-sm font-bold text-gray-700" for="quick-call-name">Triệu chứng / Lý do khám</label>
+                                <label class="block text-sm font-bold text-gray-700" for="booking-reason">Triệu chứng / Lý do khám</label>
                                 <button type="button" onclick="window.summarizeSymptomsAI()" class="text-[11px] bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white font-bold px-2 py-1 rounded transition-colors flex items-center gap-1 shadow-sm">
                                     ✨ Tóm tắt y khoa
                                 </button>
@@ -1089,32 +1089,46 @@
                     <i class="fas fa-circle-notch fa-spin"></i> Đang kiểm tra cán bộ y tế đang trực...
                 </div>
                 <form onsubmit="window.startQuickTelehealthCall(event)">
+                    <!-- BIỂU MẪU RÚT GỌN CHO NGƯỜI CAO TUỔI / VÙNG CAO
+                         Chỉ hai ô bắt buộc nằm ngoài: Họ tên và số BHYT/CCCD. Điểm trạm,
+                         số điện thoại và lý do khám đều có giá trị mặc định dùng được ngay,
+                         nên chúng được xếp vào mục "Khai thêm" đóng sẵn. Người dân bấm gọi
+                         được sau hai lần gõ phím thay vì năm ô. -->
                     <div class="space-y-3.5">
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-station">Chọn điểm phòng khám nghe cuộc gọi <span class="text-red-500">*</span></label>
-                            <select id="quick-call-station" required onchange="window.onQuickCallStationChange(this.value)" class="w-full border-2 border-blue-200 bg-blue-50/60 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-bold text-gray-900">
-                                <!-- Danh sách điểm phòng khám được nạp động từ window.TELEHEALTH_STATIONS -->
-                            </select>
-                            <p id="quick-call-station-hint" class="text-[11px] text-gray-500 mt-1 font-medium">
-                                <i class="fas fa-location-dot mr-1 text-blue-500"></i> Cuộc gọi sẽ đổ chuông tại đúng điểm phòng khám bạn chọn.
-                            </p>
+                            <label class="block text-base font-black text-gray-800 mb-1.5" for="quick-call-name">Họ và tên người bệnh <span class="text-red-500">*</span></label>
+                            <input type="text" id="quick-call-name" required autocomplete="name" class="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 text-lg focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: Nguyễn Văn A">
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Họ và tên người bệnh <span class="text-red-500">*</span></label>
-                            <input type="text" id="quick-call-name" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: Nguyễn Văn A">
+                            <label class="block text-base font-black text-gray-800 mb-1.5" for="quick-call-idcard">Số thẻ BHYT / CCCD hoặc số điện thoại <span class="text-red-500">*</span></label>
+                            <input type="text" id="quick-call-idcard" required inputmode="numeric" class="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 text-lg focus:outline-none focus:border-blue-500 font-medium" placeholder="VD: HS4010112345678, 001099012345 hoặc 0912345678">
                         </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-phone">Số điện thoại liên hệ</label>
-                            <input type="tel" id="quick-call-phone" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Để cán bộ gọi lại nếu mất kết nối">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-idcard">Số thẻ BHYT hoặc số CCCD <span class="text-red-500">*</span></label>
-                            <input type="text" id="quick-call-idcard" required class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="VD: HS4010112345678 hoặc 001099012345">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-reason">Triệu chứng / Lý do cần tư vấn</label>
-                            <textarea id="quick-call-reason" rows="2" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: ho, sốt 2 ngày, đau tức ngực..."></textarea>
-                        </div>
+
+                        <details id="quick-call-more" class="border-2 border-gray-200 rounded-xl overflow-hidden">
+                            <summary class="cursor-pointer select-none px-4 py-3 bg-gray-50 text-sm font-bold text-gray-700 flex items-center gap-2">
+                                <i class="fas fa-chevron-right text-xs text-gray-400 transition-transform"></i>
+                                Khai thêm nếu cần (không bắt buộc)
+                            </summary>
+                            <div class="p-4 space-y-3.5 border-t border-gray-200">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-station">Điểm phòng khám nghe cuộc gọi</label>
+                                    <select id="quick-call-station" onchange="window.onQuickCallStationChange(this.value)" class="w-full border-2 border-blue-200 bg-blue-50/60 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-bold text-gray-900">
+                                        <!-- Danh sách điểm phòng khám được nạp động từ window.TELEHEALTH_STATIONS -->
+                                    </select>
+                                    <p id="quick-call-station-hint" class="text-[11px] text-gray-500 mt-1 font-medium">
+                                        <i class="fas fa-location-dot mr-1 text-blue-500"></i> Để trống thì cuộc gọi đổ chuông về Trạm Y tế Bát Xát.
+                                    </p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-phone">Số điện thoại liên hệ</label>
+                                    <input type="tel" id="quick-call-phone" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Để cán bộ gọi lại nếu mất kết nối">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1" for="quick-call-reason">Triệu chứng / Lý do cần tư vấn</label>
+                                    <textarea id="quick-call-reason" rows="2" class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium" placeholder="Ví dụ: ho, sốt 2 ngày, đau tức ngực..."></textarea>
+                                </div>
+                            </div>
+                        </details>
                         <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-[11px] text-blue-900 font-medium leading-relaxed">
                             <i class="fas fa-circle-info mr-1"></i> Khi bấm gọi, trình duyệt sẽ xin quyền dùng <b>Camera và Micro</b>. Hãy chọn
                             <b>"Cho phép"</b> để cán bộ y tế nhìn và nghe được. Cuộc gọi cần mạng Internet ổn định.
@@ -1196,27 +1210,43 @@
                         <span id="patient-peer-count-badge" class="hidden absolute top-3 left-3 bg-blue-950/90 text-blue-200 border border-blue-800 px-2.5 py-0.5 rounded-full font-bold text-[11px] z-10"><i class="fa-solid fa-users"></i> <span></span></span>
                     </div>
 
-                    <!-- Thanh điều khiển cuộc gọi -->
-                    <div class="flex flex-wrap items-center justify-center gap-3 bg-slate-900 p-3 rounded-2xl border border-slate-800">
-                        <button onclick="window.togglePatientMic()" id="patient-mic-btn" title="Bật/Tắt Micro điểm trạm" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-lg transition shadow">
-                            <i class="fas fa-microphone"></i>
+                    <!-- THANH ĐIỀU KHIỂN - ĐÚNG BỐN NÚT
+                         Người dùng chính là người cao tuổi ở vùng cao, cầm điện
+                         thoại một tay. Thanh này chỉ có Micro - Camera - Đổi
+                         camera - Kết thúc; mỗi nút cao 4.5rem, có chữ tiếng Việt
+                         dưới biểu tượng (biểu tượng đơn lẻ hay bị hiểu nhầm), và
+                         nút đỏ Kết thúc tách hẳn sang một bên để không bấm nhầm.
+                         Mọi tham số kỹ thuật khác đã được tự động hoá. -->
+                    <div class="grid grid-cols-4 gap-2 sm:gap-3 bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                        <button onclick="window.togglePatientMic()" id="patient-mic-btn" title="Bật/Tắt Micro" aria-label="Bật hoặc tắt micro" class="h-[4.5rem] rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-emerald-400 flex flex-col items-center justify-center gap-1 transition shadow">
+                            <i class="fas fa-microphone text-2xl"></i>
+                            <span class="text-[11px] font-bold leading-none">Micro</span>
                         </button>
-                        <button onclick="window.togglePatientCam()" id="patient-cam-btn" title="Bật/Tắt Camera" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-emerald-400 flex items-center justify-center text-lg transition shadow">
-                            <i class="fas fa-video"></i>
+                        <button onclick="window.togglePatientCam()" id="patient-cam-btn" title="Bật/Tắt Camera" aria-label="Bật hoặc tắt camera" class="h-[4.5rem] rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-emerald-400 flex flex-col items-center justify-center gap-1 transition shadow">
+                            <i class="fas fa-video text-2xl"></i>
+                            <span class="text-[11px] font-bold leading-none">Hình</span>
                         </button>
-                        <button onclick="window.teleSwitchCamera()" id="patient-switch-cam-btn" class="px-4 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-blue-300 flex items-center justify-center gap-2 text-xs font-bold transition shadow">
-                            <i class="fas fa-camera-rotate"></i> <span id="patient-cam-label">Chuyển Camera (Góc rộng / Cận cảnh)</span>
+                        <button onclick="window.teleSwitchCamera()" id="patient-switch-cam-btn" title="Đổi camera trước / sau" aria-label="Đổi camera trước hoặc sau" class="h-[4.5rem] rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-blue-300 flex flex-col items-center justify-center gap-1 transition shadow">
+                            <i class="fas fa-camera-rotate text-2xl"></i>
+                            <span id="patient-cam-label" class="text-[11px] font-bold leading-none">Đổi camera</span>
                         </button>
-                        <button onclick="window.closeTelehealthModal()" class="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center text-lg transition shadow">
-                            <i class="fas fa-phone-slash"></i>
+                        <button onclick="window.closeTelehealthModal()" title="Kết thúc cuộc gọi" aria-label="Kết thúc cuộc gọi" class="h-[4.5rem] rounded-2xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white flex flex-col items-center justify-center gap-1 transition shadow-lg ring-2 ring-red-500/40">
+                            <i class="fas fa-phone-slash text-2xl"></i>
+                            <span class="text-[11px] font-black leading-none">Kết thúc</span>
                         </button>
                     </div>
 
-                    <!-- Chỉnh nhanh âm thanh cho người dân: máy điện thoại để loa
-                         ngoài cạnh mic là nguồn vang/hú thường gặp nhất, nên hai
-                         núm này để ngay trên thanh điều khiển thay vì giấu trong
-                         một bảng cài đặt. -->
-                    <div data-tw-hide-min class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-slate-900/70 px-3 py-2 rounded-2xl border border-slate-800 text-[11px] text-slate-300">
+                    <!-- THIẾT LẬP ÂM THANH - TỰ ĐỘNG HOÁ VÀ ẨN ĐI
+                         Bộ xử lý âm thanh đã tự dò tiếng hú, tự hạ loa và tự né
+                         dội tiếng khi cán bộ y tế đang nói (xem telePaintAudioControls),
+                         nên người dân không phải chỉnh gì. Hai núm tay dưới đây chỉ
+                         là lối thoát hiểm cho cán bộ hỗ trợ tại chỗ, nên gập kín
+                         trong mục "Cài đặt nâng cao" thay vì bày ra màn hình gọi. -->
+                    <details data-tw-hide-min class="bg-slate-900/70 rounded-2xl border border-slate-800 text-[11px] text-slate-300">
+                    <summary class="cursor-pointer select-none px-3 py-2 text-slate-500 font-bold flex items-center gap-2">
+                        <i class="fas fa-sliders text-[10px]"></i> Cài đặt nâng cao (thường không cần dùng)
+                    </summary>
+                    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-3 pb-3 pt-1 border-t border-slate-800">
                         <label class="flex items-center gap-2" for="patient-speaker-range">
                             <i class="fas fa-volume-high text-blue-400"></i>
                             <span class="whitespace-nowrap">Âm lượng loa</span>
@@ -1234,6 +1264,7 @@
                         </label>
                         <span id="patient-audio-hint" class="text-[10px] text-slate-500">Nếu nghe vang hoặc hú: hạ âm lượng loa hoặc dùng tai nghe.</span>
                     </div>
+                    </details>
                 </div>
 
                 <!-- Bảng Sinh hiệu & Chat -->
@@ -1248,10 +1279,17 @@
                             <i class="fas fa-paper-plane"></i> Gửi định danh tới Bác sĩ
                         </button>
                     </div>
-                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
-                        <h4 class="font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-2">
-                            <i class="fas fa-heartbeat"></i> Nhập nhanh Sinh hiệu Bệnh nhân
-                        </h4>
+                    <!-- BẢNG SINH HIỆU DẠNG GẬP (ACCORDION)
+                         Phần lớn cuộc gọi không có máy đo tại nhà, nên bày sẵn năm
+                         ô số trước mặt người cao tuổi chỉ làm màn hình rối và khiến
+                         họ tưởng phải điền xong mới được nói chuyện. Bảng chỉ mở khi
+                         cán bộ điểm trạm hoặc người nhà thật sự có số để nhập. -->
+                    <details id="tele-vitals-accordion" class="bg-slate-900 rounded-2xl border border-slate-800">
+                        <summary class="cursor-pointer select-none p-4 font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-2">
+                            <i class="fas fa-heartbeat"></i> Nhập chỉ số sinh hiệu (nếu có máy đo)
+                            <i class="fas fa-chevron-down text-[10px] text-slate-500 ml-auto"></i>
+                        </summary>
+                        <div class="px-4 pb-4 space-y-3 border-t border-slate-800 pt-3">
                         <div class="grid grid-cols-2 gap-2 text-xs">
                             <div>
                                 <label class="block text-[10px] text-slate-400 mb-1" for="tele-vital-bp">Huyết áp (mmHg)</label>
@@ -1278,7 +1316,8 @@
                             <i class="fas fa-paper-plane"></i> Gửi chỉ số sinh hiệu
                         </button>
                         <p id="tele-vital-sync-status" class="text-[10px] text-slate-500 text-center">Chỉ số tự động đồng bộ lên màn hình khám của Bác sĩ.</p>
-                    </div>
+                        </div>
+                    </details>
 
                     <!-- Kết luận của Bác sĩ tuyến trên gửi về cho người dân -->
                     <div class="bg-slate-900 p-4 rounded-2xl border border-emerald-900/60 space-y-2">
@@ -2613,6 +2652,86 @@
             <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-2 justify-end">
                 <button type="button" onclick="window.printCallLog()" class="bg-white border border-gray-300 text-gray-700 font-bold px-4 py-2 rounded-lg hover:bg-gray-100 transition text-sm"><i class="fas fa-print mr-1"></i> In biên bản cuộc gọi</button>
                 <button type="button" onclick="window.closeModal()" class="bg-gray-800 text-white font-bold px-5 py-2 rounded-lg hover:bg-black transition text-sm">Đóng</button>
+            </div>
+        </div>
+
+        <!-- =====================================================================
+             CHẾ ĐỘ GIÁM SÁT NGẦM CỦA CMS QUẢN TRỊ (SILENT AUDIT / GHOST MODE)
+
+             Cửa sổ này CHỈ NHẬN luồng: không có nút bật micro, không có nút bật
+             camera, không có ô nhập tin nhắn. Đó không phải là cách trình bày mà
+             là toàn bộ khả năng của vai "cms_admin" - máy chủ từ chối mọi bản
+             tin phát đi từ vai này (xem netlify/functions/signal.ts).
+             ===================================================================== -->
+        <div id="modal-silent-monitor" class="modal-content hidden bg-slate-950 rounded-3xl w-full max-w-5xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all border border-amber-700/60 text-white">
+            <div class="bg-gradient-to-r from-amber-900 via-slate-900 to-slate-900 px-5 py-4 flex flex-wrap justify-between items-center gap-3 border-b border-amber-800/60">
+                <div class="min-w-0">
+                    <h3 class="font-black text-lg flex items-center gap-2 flex-wrap">
+                        <i class="fas fa-user-secret text-amber-400"></i> GIÁM SÁT PHÒNG KHÁM (ẨN DANH)
+                        <span class="text-xs bg-slate-800 border border-slate-700 px-2 py-0.5 rounded font-mono" id="ghost-room-code">ROOM-XX</span>
+                        <span class="hidden text-[10px] bg-emerald-800 px-2 py-0.5 rounded font-bold" id="ghost-room-station">Điểm phòng khám</span>
+                    </h3>
+                    <p class="text-xs text-amber-200/80 mt-0.5" id="ghost-status">Đang vào phòng giám sát...</p>
+                </div>
+                <button onclick="window.closeSilentMonitor()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0">
+                    <i class="fas fa-right-from-bracket"></i> Thoát giám sát
+                </button>
+            </div>
+
+            <div class="bg-amber-500/10 border-b border-amber-700/40 px-5 py-2.5 text-[11px] text-amber-200 font-bold flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span><i class="fas fa-microphone-slash mr-1"></i> Micro khoá cứng</span>
+                <span><i class="fas fa-video-slash mr-1"></i> Camera khoá cứng</span>
+                <span><i class="fas fa-bell-slash mr-1"></i> Không âm báo, không thông báo vào phòng</span>
+                <span><i class="fas fa-eye-slash mr-1"></i> Không hiện trên màn hình của Người dân / Cán bộ trạm / Bác sĩ</span>
+            </div>
+
+            <div class="p-5 grid grid-cols-1 lg:grid-cols-3 gap-5 max-h-[76vh] overflow-y-auto">
+                <div class="lg:col-span-2 space-y-4">
+                    <div id="ghost-video-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                    <div id="ghost-video-empty" class="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center text-slate-400">
+                        <i class="fas fa-satellite-dish text-4xl text-amber-500 mb-3 block"></i>
+                        <p class="font-bold text-white">Đang thu luồng hình/tiếng của phòng khám...</p>
+                        <p class="text-[11px] mt-1">Các bên trong phòng không nhận được bất kỳ tín hiệu nào về việc bạn đang xem.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-2">
+                            <i class="fas fa-users text-amber-400"></i> Thành viên thật trong phòng
+                        </h4>
+                        <div id="ghost-participants" class="flex flex-wrap gap-2 text-[11px] text-slate-300">
+                            <span class="text-slate-500 italic">Chưa nhận được danh sách thành viên.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-blue-400 flex items-center gap-2">
+                            <i class="fas fa-id-card"></i> Định danh &amp; Sinh hiệu
+                        </h4>
+                        <p class="text-[11px] text-slate-400">Người bệnh: <span id="ghost-patient-name" class="font-bold text-white">—</span></p>
+                        <p class="text-[11px] text-slate-400">Số BHYT/CCCD: <span id="ghost-patient-id" class="font-bold text-amber-300 font-mono">—</span></p>
+                        <p id="ghost-vitals" class="text-[11px] text-emerald-300 font-bold leading-relaxed">Chưa nhận được chỉ số sinh hiệu.</p>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                            <i class="fas fa-stethoscope"></i> Kết luận đang được chốt
+                        </h4>
+                        <p id="ghost-diagnosis" class="text-[11px] text-white italic whitespace-pre-line">Chưa có chẩn đoán.</p>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-2">
+                            <i class="fas fa-comments text-blue-400"></i> Trao đổi &amp; Đính kèm (chỉ đọc)
+                        </h4>
+                        <div id="ghost-chat-box" class="h-64 overflow-y-auto space-y-2 text-[11px] text-slate-300 pr-1">
+                            <div class="bg-slate-800/50 p-2 rounded-lg text-slate-500 italic border border-slate-700/50">Đang lắng nghe khung trao đổi của phòng khám...</div>
+                        </div>
+                        <p class="mt-2 text-[10px] text-amber-300/80 border-t border-slate-800 pt-2">
+                            <i class="fas fa-lock mr-1"></i> Chế độ giám sát không có quyền gửi tin nhắn vào phòng khám.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -7085,9 +7204,15 @@
             e.preventDefault();
             const name = (document.getElementById('quick-call-name').value || '').trim();
             if (!name) return;
-            const phone = (document.getElementById('quick-call-phone').value || '').trim();
             const idCard = (document.getElementById('quick-call-idcard').value || '').trim();
             const reason = (document.getElementById('quick-call-reason').value || '').trim();
+            /* Ô định danh rút gọn nhận cả số điện thoại: nhiều người cao tuổi ở
+               vùng cao không mang theo thẻ BHYT khi gọi. Nếu người dân gõ vào đó
+               một số máy thì lấy luôn làm số liên hệ, khỏi bắt mở mục khai thêm. */
+            let phone = (document.getElementById('quick-call-phone').value || '').trim();
+            if (!phone && /^0\d{8,10}$/.test(idCard.replace(/[\s.]/g, ''))) {
+                phone = idCard.replace(/[\s.]/g, '');
+            }
 
             // Điểm phòng khám người dân chọn được nhúng vào mã phòng, nhờ đó cả
             // Bảng điều khiển trạm lẫn màn hình tiếp nhận của Bác sĩ đều biết
@@ -8155,16 +8280,30 @@
             }
         }
 
+        /**
+         * Nhãn nút đổi camera.
+         *
+         * Nút chỉ rộng bằng một phần tư thanh điều khiển nên nhãn phải ngắn: chữ
+         * hiện trên nút là "Camera trước" / "Camera sau" (suy từ tên thiết bị mà
+         * trình duyệt trả về), còn tên thiết bị đầy đủ đưa xuống thuộc tính title.
+         * Người cao tuổi chỉ cần biết một chạm là đổi mặt camera, không cần biết
+         * đang dùng thiết bị thứ mấy trên bao nhiêu.
+         */
         function teleUpdateCameraLabel() {
             const label = document.getElementById('patient-cam-label');
             if (!label) return;
+            const btn = document.getElementById('patient-switch-cam-btn');
             const total = TELE.videoDevices.length;
             if (total > 1) {
                 const dev = TELE.videoDevices[TELE.deviceIndex];
-                const name = (dev && dev.label) ? dev.label : `Camera ${TELE.deviceIndex + 1}`;
-                label.textContent = `Camera ${TELE.deviceIndex + 1}/${total}: ${name.slice(0, 26)}`;
+                const name = (dev && dev.label) ? dev.label : '';
+                const front = /front|user|trước|selfie/i.test(name);
+                const back = /back|rear|environment|sau/i.test(name);
+                label.textContent = front ? 'Camera trước' : (back ? 'Camera sau' : 'Đổi camera');
+                if (btn) btn.title = `Chạm để đổi camera (${TELE.deviceIndex + 1}/${total}${name ? ': ' + name.slice(0, 40) : ''})`;
             } else {
-                label.textContent = 'Chuyển Camera (Góc rộng / Cận cảnh)';
+                label.textContent = 'Đổi camera';
+                if (btn) btn.title = 'Chuyển camera (góc rộng / cận cảnh)';
             }
         }
 
@@ -8692,6 +8831,385 @@
             teleRenderToggleBtn(btnId, on, 'fa-video', 'fa-video-slash');
             window.showToast(on ? "Đã bật camera." : "Đã tắt camera.");
         }
+
+        /* =====================================================================
+           CHẾ ĐỘ GIÁM SÁT NGẦM CỦA CMS QUẢN TRỊ (SILENT AUDIT / GHOST MODE)
+           ---------------------------------------------------------------------
+           Quản trị viên mở một phòng ROOM-XX đang khám để kiểm tra chất lượng
+           buổi khám. Ba điều kiện của chế độ ẩn danh tuyệt đối được chia đôi
+           trách nhiệm giữa máy chủ và cửa sổ này:
+
+             MÁY CHỦ (netlify/functions/signal.ts) chịu phần không thể tin vào
+             trình duyệt: không phát "peer-joined"/"peer-left", loại vai giám sát
+             khỏi danh sách thành viên trả về cho ba bên, từ chối mọi bản tin
+             nghiệp vụ do vai này gửi, và bắt buộc mọi mô tả phiên WebRTC phải là
+             recvonly - đó chính là khoá cứng micro/camera.
+
+             CỬA SỔ NÀY chịu phần trình bày: không xin quyền camera/micro (không
+             gọi getUserMedia lần nào), không có nút bật tiếng/hình, không có ô
+             nhập tin nhắn, và không phát bất kỳ âm báo nào.
+
+           Vì máy chủ mới là nơi cưỡng chế, một phiên đã bị sửa mã trang cũng
+           không thể biến chế độ giám sát thành một người tham gia thật.
+           ===================================================================== */
+
+        const GHOST = {
+            roomId: null,
+            peerId: null,
+            cursor: 0,
+            mesh: null,
+            polling: false,
+            pollToken: 0,
+            patientName: '',
+            tiles: new Map()
+        };
+
+        /** Tài khoản đang đăng nhập CMS có phải Quản trị viên hệ thống không. */
+        window.isCmsAdminAccount = function() {
+            const role = (currentCmsUser && currentCmsUser.role) || '';
+            return /admin|quản trị|quan tri/i.test(role);
+        };
+
+        function ghostStatus(text) {
+            const el = document.getElementById('ghost-status');
+            if (el) el.textContent = text;
+        }
+
+        function ghostRoleLabel(role) {
+            if (role === 'patient') return 'Người dân';
+            if (role === 'doctor') return 'Bác sĩ tuyến trên';
+            return 'Cán bộ điểm trạm';
+        }
+
+        /** Gửi bản tin signaling. Chỉ offer/answer/ICE đi qua đây - máy chủ chặn phần còn lại. */
+        function ghostSend(type, payload, to) {
+            if (!GHOST.roomId || !GHOST.peerId) return Promise.resolve();
+            return fetch('/api/signal', {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, signalAuthHeaders()),
+                body: JSON.stringify({ action: 'signal', roomId: GHOST.roomId, peerId: GHOST.peerId, type, payload, to: to || null })
+            }).catch(err => console.warn('giám sát: không gửi được', type, err));
+        }
+
+        /**
+         * Vẽ lại lưới khung hình của phòng đang giám sát.
+         *
+         * Ô được tái sử dụng theo mã đầu cầu: gán lại srcObject cho một thẻ video
+         * đang phát sẽ làm hình chớp đen một nhịp, nên chỉ tạo mới khi thật sự có
+         * đầu cầu mới.
+         */
+        function ghostRenderTiles() {
+            const grid = document.getElementById('ghost-video-grid');
+            const empty = document.getElementById('ghost-video-empty');
+            if (!grid) return;
+
+            const links = GHOST.mesh ? GHOST.mesh.list() : [];
+            const seen = new Set();
+
+            links.forEach(link => {
+                seen.add(link.peerId);
+                let tile = GHOST.tiles.get(link.peerId);
+                if (!tile) {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'relative bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden aspect-video';
+                    const video = document.createElement('video');
+                    video.autoplay = true;
+                    video.playsInline = true;
+                    // Chế độ giám sát NGHE được phòng khám: đây là luồng nhận, không phải luồng phát.
+                    video.className = 'w-full h-full object-contain bg-black';
+                    const tag = document.createElement('span');
+                    tag.className = 'absolute bottom-2 left-2 bg-slate-950/85 border border-slate-700 text-[10px] font-bold px-2 py-0.5 rounded';
+                    wrap.appendChild(video);
+                    wrap.appendChild(tag);
+                    grid.appendChild(wrap);
+                    tile = { wrap, video, tag };
+                    GHOST.tiles.set(link.peerId, tile);
+                }
+                if (link.stream && tile.video.srcObject !== link.stream) {
+                    tile.video.srcObject = link.stream;
+                    tile.video.play().catch(() => {});
+                }
+                tile.tag.textContent = `${ghostRoleLabel(link.role)} — ${link.name || 'Đầu cầu'}${link.connected ? '' : ' (đang kết nối...)'}`;
+            });
+
+            GHOST.tiles.forEach((tile, id) => {
+                if (seen.has(id)) return;
+                try { tile.video.srcObject = null; tile.wrap.remove(); } catch (e) {}
+                GHOST.tiles.delete(id);
+            });
+
+            if (empty) empty.classList.toggle('hidden', links.length > 0);
+
+            const list = document.getElementById('ghost-participants');
+            if (list) {
+                list.innerHTML = links.length
+                    ? links.map(l => `<span class="bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg"><i class="fas ${l.connected ? 'fa-circle-check text-emerald-400' : 'fa-circle-notch fa-spin text-amber-400'} mr-1"></i>${teleEscape(ghostRoleLabel(l.role))}: ${teleEscape(l.name || 'Đầu cầu')}</span>`).join('')
+                    : '<span class="text-slate-500 italic">Chưa nhận được danh sách thành viên.</span>';
+            }
+        }
+
+        function ghostAppendChat(sender, text) {
+            const box = document.getElementById('ghost-chat-box');
+            if (!box) return;
+            const div = document.createElement('div');
+            div.className = 'bg-slate-800 p-2 rounded-lg';
+            div.innerHTML = `<span class="font-bold text-blue-400">${teleEscape(sender)}:</span> <span class="text-slate-200">${teleEscape(text)}</span>`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function ghostRenderVitals(vitals) {
+            const el = document.getElementById('ghost-vitals');
+            if (!el) return;
+            const v = vitals || {};
+            const parts = [
+                v.bp ? `Huyết áp ${v.bp} mmHg` : '',
+                v.hr ? `Nhịp tim ${v.hr} bpm` : '',
+                v.spo2 ? `SpO2 ${v.spo2}%` : '',
+                v.temp ? `Nhiệt độ ${v.temp}°C` : '',
+                v.weight ? `Cân nặng ${v.weight} kg` : ''
+            ].filter(Boolean);
+            el.textContent = parts.length ? parts.join(' • ') : 'Chưa nhận được chỉ số sinh hiệu.';
+        }
+
+        async function ghostHandleMessage(msg) {
+            if (!msg || !msg.type) return;
+
+            if (msg.type === 'peer-joined') {
+                if (GHOST.mesh) {
+                    GHOST.mesh.add(msg.from, { name: (msg.payload && msg.payload.name) || 'Đầu cầu', role: msg.payload && msg.payload.role }, false);
+                    ghostRenderTiles();
+                }
+                return;
+            }
+
+            if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'ice') {
+                if (GHOST.mesh) await GHOST.mesh.handle(msg);
+                ghostRenderTiles();
+                return;
+            }
+
+            if (msg.type === 'peer-left') {
+                if (GHOST.mesh) GHOST.mesh.remove(msg.from);
+                ghostRenderTiles();
+                return;
+            }
+
+            if (msg.type === 'chat') {
+                ghostAppendChat((msg.payload && msg.payload.sender) || 'Đầu cầu', (msg.payload && msg.payload.text) || '');
+                return;
+            }
+
+            if (msg.type === 'vitals') { ghostRenderVitals(msg.payload); return; }
+
+            if (msg.type === 'patient-info') {
+                const info = msg.payload || {};
+                const idEl = document.getElementById('ghost-patient-id');
+                const nameEl = document.getElementById('ghost-patient-name');
+                if (idEl && info.patientId) idEl.textContent = info.patientId;
+                if (nameEl && info.patientName) nameEl.textContent = info.patientName;
+                return;
+            }
+
+            if (msg.type === 'notes' || msg.type === 'doctor_dx' || msg.type === 'advice') {
+                const dx = msg.payload || {};
+                const el = document.getElementById('ghost-diagnosis');
+                const text = dx.diagnosis || dx.notes || dx.advice || '';
+                if (el && text) el.textContent = text;
+                return;
+            }
+
+            if (msg.type === 'call-ended') {
+                ghostStatus('Buổi khám đã kết thúc. Đang thoát khỏi chế độ giám sát...');
+                setTimeout(() => window.closeSilentMonitor(), 1500);
+                return;
+            }
+        }
+
+        async function ghostPollLoop(token) {
+            while (GHOST.polling && GHOST.pollToken === token) {
+                try {
+                    const url = `/api/signal?roomId=${encodeURIComponent(GHOST.roomId)}&peerId=${encodeURIComponent(GHOST.peerId)}&cursor=${GHOST.cursor}`;
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error('poll ' + res.status);
+                    const data = await res.json();
+                    if (!GHOST.polling || GHOST.pollToken !== token) return;
+
+                    if (typeof data.cursor === 'number') GHOST.cursor = data.cursor;
+                    for (const msg of (data.messages || [])) await ghostHandleMessage(msg);
+
+                    /* Máy chủ trả về đủ ba bên cho RIÊNG vai giám sát (ba bên kia
+                       nhận danh sách đã lọc sạch vai này), nên đối chiếu ở đây là
+                       cách chắc chắn nhất để không thiếu khung hình nào. */
+                    if (GHOST.mesh && Array.isArray(data.peers)) {
+                        // Hai Quản trị viên cùng giám sát thì không nối vào nhau: cả hai đều recvonly.
+                        const real = data.peers.filter(p => p.role !== 'cms_admin');
+                        if (GHOST.mesh.sync(real, true)) ghostRenderTiles();
+                    }
+                    /* Phòng khám đóng lại (cán bộ bấm kết thúc hoặc chốt hồ sơ)
+                       thì cửa sổ giám sát tự rút, không để một kết nối treo lại. */
+                    if (!data.room || ['COMPLETED', 'ENDED', 'CANCELLED'].includes(String(data.room.status || '').toUpperCase())) {
+                        ghostStatus('Buổi khám đã kết thúc. Đang thoát khỏi chế độ giám sát...');
+                        setTimeout(() => window.closeSilentMonitor(), 1200);
+                        return;
+                    }
+                    if (data.room) {
+                        ghostRenderVitals(data.room.vitals);
+                        const nameEl = document.getElementById('ghost-patient-name');
+                        const idEl = document.getElementById('ghost-patient-id');
+                        if (nameEl && data.room.patientName) nameEl.textContent = data.room.patientName;
+                        if (idEl && data.room.patientId) idEl.textContent = data.room.patientId;
+                        if (data.room.notes) {
+                            const dxEl = document.getElementById('ghost-diagnosis');
+                            if (dxEl) dxEl.textContent = data.room.notes;
+                        }
+                    }
+                    const count = GHOST.mesh ? GHOST.mesh.connectedCount() : 0;
+                    ghostStatus(count
+                        ? `Đang giám sát ${count} đầu cầu — các bên trong phòng không thấy sự có mặt của bạn.`
+                        : 'Đã vào phòng ẩn danh, đang bắt tay nhận luồng...');
+                } catch (err) {
+                    if (!GHOST.polling || GHOST.pollToken !== token) return;
+                    console.warn('giám sát: mất tín hiệu, đang thử lại...', err && err.message);
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+            }
+        }
+
+        /**
+         * Vào giám sát một phòng khám đang diễn ra.
+         *
+         * KHÔNG gọi getUserMedia ở bất kỳ nhánh nào: lưới kết nối được mở với
+         * luồng gửi rỗng, nên window.TeleMesh tự dựng transceiver recvonly. Đèn
+         * camera trên máy Quản trị viên thậm chí không sáng lên một nhịp.
+         */
+        window.openSilentMonitor = async function(roomId, patientName, stationName) {
+            if (!roomId) return;
+            if (!window.isCmsAdminAccount()) {
+                window.showToast('Chỉ tài khoản Quản trị viên hệ thống mới vào được chế độ giám sát.');
+                return;
+            }
+            if (GHOST.roomId) window.closeSilentMonitor();
+
+            GHOST.roomId = roomId;
+            GHOST.peerId = `cmsadmin-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+            GHOST.cursor = 0;
+            GHOST.patientName = patientName || '';
+
+            const codeEl = document.getElementById('ghost-room-code');
+            if (codeEl) codeEl.textContent = roomId;
+            const stEl = document.getElementById('ghost-room-station');
+            if (stEl) {
+                const name = stationName || (window.teleStationFromRoomId(roomId) || {}).name || '';
+                stEl.textContent = name;
+                stEl.classList.toggle('hidden', !name);
+            }
+            const nameEl = document.getElementById('ghost-patient-name');
+            if (nameEl) nameEl.textContent = patientName || '—';
+            const idEl = document.getElementById('ghost-patient-id');
+            if (idEl) idEl.textContent = '—';
+            const chatBox = document.getElementById('ghost-chat-box');
+            if (chatBox) chatBox.innerHTML = '<div class="bg-slate-800/50 p-2 rounded-lg text-slate-500 italic border border-slate-700/50">Đang lắng nghe khung trao đổi của phòng khám...</div>';
+            ghostRenderVitals(null);
+            ghostStatus('Đang vào phòng giám sát...');
+
+            const overlay = document.getElementById('modal-overlay');
+            const modal = document.getElementById('modal-silent-monitor');
+            if (overlay && modal) {
+                overlay.classList.remove('hidden');
+                window.TeleWin.hideModals('modal-silent-monitor');
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+
+            GHOST.mesh = window.TeleMesh({
+                selfId: GHOST.peerId,
+                iceConfig: TELE_ICE,
+                // Luồng gửi RỖNG - đây là chỗ "khoá cứng" phía trình duyệt.
+                getSendStream: () => null,
+                send: (type, payload, to) => ghostSend(type, payload, to),
+                onStream: () => ghostRenderTiles(),
+                onPeersChanged: () => ghostRenderTiles(),
+                onStateChange: () => ghostRenderTiles()
+            });
+
+            try {
+                const res = await fetch('/api/signal', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, signalAuthHeaders()),
+                    body: JSON.stringify({ action: 'join', role: 'cms_admin', roomId, peerId: GHOST.peerId })
+                });
+                const data = await res.json().catch(() => null);
+                if (!res.ok || !data || data.ok !== true) {
+                    throw new Error((data && data.error) || 'Máy chủ từ chối lượt vào giám sát.');
+                }
+
+                GHOST.cursor = data.cursor || 0;
+                GHOST.polling = true;
+                GHOST.pollToken += 1;
+                ghostPollLoop(GHOST.pollToken);
+
+                (data.peers || [])
+                    .filter(p => p.role !== 'cms_admin')
+                    .forEach(p => GHOST.mesh.add(p.peerId, { name: p.name, role: p.role }, true));
+                ghostRenderTiles();
+                if (data.room) {
+                    ghostRenderVitals(data.room.vitals);
+                    if (idEl && data.room.patientId) idEl.textContent = data.room.patientId;
+                }
+                ghostStatus((data.peers || []).length
+                    ? 'Đã vào phòng ẩn danh, đang bắt tay nhận luồng...'
+                    : 'Đã vào phòng ẩn danh. Phòng chưa có đầu cầu nào đang phát.');
+            } catch (err) {
+                console.error('Không vào được chế độ giám sát:', err);
+                ghostStatus('Không vào được phòng giám sát.');
+                window.showToast(err && err.message ? err.message : 'Không vào được phòng giám sát.');
+            }
+        };
+
+        /** Rời chế độ giám sát. Máy chủ cũng không phát "peer-left" cho ba bên. */
+        window.closeSilentMonitor = function() {
+            GHOST.polling = false;
+            GHOST.pollToken += 1;
+
+            if (GHOST.roomId && GHOST.peerId) {
+                try {
+                    fetch('/api/signal', {
+                        method: 'POST',
+                        headers: Object.assign({ 'Content-Type': 'application/json' }, signalAuthHeaders()),
+                        body: JSON.stringify({ action: 'leave', roomId: GHOST.roomId, peerId: GHOST.peerId }),
+                        keepalive: true
+                    }).catch(() => {});
+                } catch (err) {}
+            }
+
+            if (GHOST.mesh) { try { GHOST.mesh.close(); } catch (err) {} }
+            GHOST.mesh = null;
+            GHOST.tiles.forEach(tile => { try { tile.video.srcObject = null; tile.wrap.remove(); } catch (e) {} });
+            GHOST.tiles.clear();
+            GHOST.roomId = null;
+            GHOST.peerId = null;
+
+            const grid = document.getElementById('ghost-video-grid');
+            if (grid) grid.innerHTML = '';
+            const modal = document.getElementById('modal-silent-monitor');
+            if (modal) modal.classList.add('hidden');
+            window.closeModal();
+        };
+
+        // Đóng tab giữa chừng: rời phòng gọn gàng để bản ghi thành viên không treo lại.
+        window.addEventListener('pagehide', () => {
+            if (GHOST.roomId && GHOST.peerId) {
+                try {
+                    fetch('/api/signal', {
+                        method: 'POST',
+                        headers: Object.assign({ 'Content-Type': 'application/json' }, signalAuthHeaders()),
+                        body: JSON.stringify({ action: 'leave', roomId: GHOST.roomId, peerId: GHOST.peerId }),
+                        keepalive: true
+                    }).catch(() => {});
+                } catch (err) {}
+            }
+        });
 
         window.togglePatientMic = function() { teleToggleMic('patient-mic-btn'); };
         window.togglePatientCam = function() { teleToggleCam('patient-cam-btn'); };
@@ -10534,6 +11052,13 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                             <i class="fas fa-share"></i> Chuyển tiếp
                            </button>`
                         : ''}
+                    ${window.isCmsAdminAccount && window.isCmsAdminAccount()
+                        ? `<button type="button" class="cms-silent-monitor bg-slate-800 hover:bg-slate-900 text-amber-300 border border-slate-700 font-bold px-3 py-2 rounded-lg text-xs transition flex items-center gap-1.5"
+                                   title="Vào xem buổi khám ở chế độ ẩn danh: micro và camera bị khoá cứng, ba bên trong phòng không nhận được bất kỳ dấu hiệu nào"
+                                   data-room="${teleEscape(r.roomId)}" data-patient="${teleEscape(r.patientName || 'Bệnh nhân')}" data-station="${teleEscape(stationName)}">
+                            <i class="fas fa-user-secret"></i> Vào giám sát
+                           </button>`
+                        : ''}
                 </div>
             </div>`;
         }
@@ -10551,6 +11076,16 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             if (!btn) return;
             ev.preventDefault();
             window.declineCmsCall(btn.dataset.room);
+        });
+
+        /* Vào giám sát ngầm. Không đi qua luồng "tiếp nhận cuộc gọi": Quản trị viên
+           không nhận cuộc gọi, không chiếm lượt của cán bộ trực, và không để lại
+           bất kỳ dấu vết nào trong phòng khám. */
+        document.addEventListener('click', (ev) => {
+            const btn = ev.target.closest && ev.target.closest('.cms-silent-monitor');
+            if (!btn) return;
+            ev.preventDefault();
+            window.openSilentMonitor(btn.dataset.room, btn.dataset.patient, btn.dataset.station);
         });
 
         /**

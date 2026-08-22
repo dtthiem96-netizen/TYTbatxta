@@ -2360,6 +2360,23 @@ CallAudio.onUpdate((state) => {
    Mô-đun không đụng tới giao diện: nó báo ra ngoài qua các hàm onStream /
    onPeersChanged / onStateChange, còn vẽ khung hình ở đâu là việc của từng màn
    hình (bảng điều khiển trạm, màn hình người dân, màn hình bác sĩ tuyến trên).
+
+   KẾT NỐI ẨN (giám sát ngầm của CMS Quản trị)
+   -------------------------------------------
+   Quản trị viên vào xem một buổi khám vẫn phải mở kết nối ngang hàng thật thì
+   mới nhận được hình và tiếng - không có cách nào nhận luồng mà không bắt tay.
+   Nên thay vì giấu kết nối, ta giấu SỰ TỒN TẠI của nó: kết nối được đánh dấu
+   `hidden`, và từ đó
+
+     - list() KHÔNG trả về nó, nên dải ô hình, số đếm "N bên trong phòng khám"
+       và ô hình lớn đều không thấy;
+     - onStream / onStateChange / onPeersChanged KHÔNG được gọi cho nó, nên
+       không có tiếng "toast", không có dòng trạng thái, không có gì nhấp nháy;
+     - connectedCount() không tính nó, nên một cuộc gọi chưa ai nghe không bao
+       giờ bị hiểu nhầm là "đã kết nối" chỉ vì Quản trị đang xem.
+
+   Dấu `hidden` chỉ được đặt từ cờ `ghost` do MÁY CHỦ đóng vào bản tin (xem
+   netlify/functions/signal.ts), không phải từ lời khai của bên gửi.
    ========================================================================== */
 window.TeleMesh = function createPeerMesh(config) {
   const cfg = Object.assign({
@@ -2426,6 +2443,8 @@ window.TeleMesh = function createPeerMesh(config) {
     if (known) {
       if (info && info.name) known.name = info.name;
       if (info && info.role) known.role = info.role;
+      // Đã ẩn thì ẩn vĩnh viễn: một bản tin sau đó thiếu cờ cũng không lộ ra được.
+      if (info && info.hidden) known.hidden = true;
       return known;
     }
 
@@ -2450,6 +2469,9 @@ window.TeleMesh = function createPeerMesh(config) {
       ignoreOffer: false,
       negotiationArmed: false,
       connected: false,
+      /* Kết nối của vai giám sát ngầm: vẫn nhận luồng, nhưng không xuất hiện ở
+         bất kỳ đâu trên giao diện của ba bên đang khám. */
+      hidden: !!(info && info.hidden),
       // Bên có mã nhỏ hơn là bên "lịch sự": nhường khi hai lời mời gặp nhau.
       polite: String(cfg.selfId) < String(peerId)
     };
@@ -2484,7 +2506,7 @@ window.TeleMesh = function createPeerMesh(config) {
       const incoming = (ev.streams && ev.streams[0]) ? ev.streams[0] : null;
       if (incoming) link.stream = incoming;
       else { try { link.stream.addTrack(ev.track); } catch (err) {} }
-      cfg.onStream(link);
+      notify(link, () => cfg.onStream(link));
     };
 
     pc.onnegotiationneeded = () => {
@@ -2500,14 +2522,14 @@ window.TeleMesh = function createPeerMesh(config) {
       const state = pc.connectionState;
       link.connected = state === 'connected';
       if (state === 'connected') link.negotiationArmed = true;
-      cfg.onStateChange(link, state);
+      notify(link, () => cfg.onStateChange(link, state));
       if (state === 'failed') {
         try { pc.restartIce(); } catch (err) {}
         if (link.negotiationArmed) offer(link, true);
       }
     };
 
-    cfg.onPeersChanged(list());
+    notify(link, () => cfg.onPeersChanged(list()));
     return link;
   }
 
@@ -2528,8 +2550,27 @@ window.TeleMesh = function createPeerMesh(config) {
     }
   }
 
-  function list() {
+  /** Mọi kết nối đang giữ, kể cả kết nối ẩn - chỉ dùng bên trong mô-đun. */
+  function all() {
     return Array.from(links.values());
+  }
+
+  /**
+   * Danh sách kết nối dành cho GIAO DIỆN: đã bỏ kết nối ẩn của vai giám sát.
+   * Mọi nơi vẽ khung hình, đếm số bên hay chọn ô hình lớn đều đi qua đây, nên
+   * chỉ cần lọc một chỗ là Quản trị viên biến mất khỏi toàn bộ màn hình.
+   */
+  function list() {
+    return all().filter(link => !link.hidden);
+  }
+
+  /**
+   * Gọi hàm báo ra giao diện, TRỪ khi sự kiện thuộc về một kết nối ẩn.
+   * Im lặng ở đây chính là "không âm báo, không thông báo vào phòng".
+   */
+  function notify(link, fn) {
+    if (link && link.hidden) return;
+    fn();
   }
 
   function remove(peerId) {
@@ -2544,7 +2585,7 @@ window.TeleMesh = function createPeerMesh(config) {
       link.pc.close();
     } catch (err) {}
     links.delete(peerId);
-    cfg.onPeersChanged(list());
+    notify(link, () => cfg.onPeersChanged(list()));
   }
 
   const api = {
@@ -2574,7 +2615,12 @@ window.TeleMesh = function createPeerMesh(config) {
         if (isNew) changed = true;
         this.add(id, { name: p.name, role: p.role }, isNew && shouldOfferToNew);
       });
-      list().forEach(link => {
+      all().forEach(link => {
+        /* Máy chủ cố tình KHÔNG kê vai giám sát trong danh sách thành viên trả
+           về cho ba bên đang khám. Nếu đối chiếu máy móc thì vòng này sẽ cắt
+           đúng kết nối ấy sau mỗi lượt quét, và Quản trị viên mất hình liên tục
+           - nên kết nối ẩn được miễn khỏi phép đối chiếu. */
+        if (link.hidden) return;
         if (!seen.has(link.peerId)) { remove(link.peerId); changed = true; }
       });
       return changed;
@@ -2590,9 +2636,14 @@ window.TeleMesh = function createPeerMesh(config) {
       if (type !== 'offer' && type !== 'answer' && type !== 'ice') return false;
       if (!supported) return true;
 
-      // Lời mời tới từ một mã lạ (bản tin peer-joined về muộn hoặc bị rơi) vẫn
-      // phải mở kết nối, nếu không bên đó sẽ không bao giờ lên hình.
-      const link = links.get(msg.from) || (type === 'offer' ? ensure(msg.from, null) : null);
+      /* Lời mời tới từ một mã lạ (bản tin peer-joined về muộn hoặc bị rơi) vẫn
+         phải mở kết nối, nếu không bên đó sẽ không bao giờ lên hình.
+
+         Với vai giám sát ngầm thì đây là lối vào DUY NHẤT: máy chủ không hề phát
+         bản tin "peer-joined" cho nó, nên máy này chỉ biết tới nó qua đúng lời
+         mời recvonly này - và mở ra ở dạng ẩn nhờ cờ `ghost` do máy chủ đóng. */
+      const link = links.get(msg.from)
+        || (type === 'offer' ? ensure(msg.from, { hidden: msg.ghost === true }) : null);
       if (!link || !link.pc) return true;
       const pc = link.pc;
 
@@ -2689,7 +2740,7 @@ window.TeleMesh = function createPeerMesh(config) {
     has(peerId) { return links.has(peerId); },
     list,
     remove,
-    size() { return links.size; },
+    size() { return list().length; },
     connectedCount() { return list().filter(l => l.connected).length; },
 
     /** Thành viên nào nên chiếm khung hình lớn: ưu tiên vai trò, rồi tới ai đã kết nối. */
@@ -2703,7 +2754,7 @@ window.TeleMesh = function createPeerMesh(config) {
     },
 
     close() {
-      list().forEach(link => remove(link.peerId));
+      all().forEach(link => remove(link.peerId));
     }
   };
 
