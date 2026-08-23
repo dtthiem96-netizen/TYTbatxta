@@ -34,6 +34,7 @@ Netlify Database (Postgres qua Drizzle ORM).
 |---|---|---|
 | R1.1 | Người dân bấm "GỌI CÁN BỘ Y TẾ NGAY" → hệ thống sinh phòng ảo `ROOM-XX` gắn với đúng điểm trạm | Đạt |
 | R1.2 | Cán bộ trạm và bác sĩ tuyến trên (đăng nhập CMS) cùng tiếp nhận và cùng vào một `ROOM-XX` đang diễn ra | Đạt |
+| R1.2b | Điểm trạm đang khám mời được bác sĩ tuyến trên vào **chính** `ROOM-XX` đó (`action:"consult"`), người dân không phải gọi lại và mã phòng không đổi | Đạt |
 | R1.3 | Cả ba bên trao đổi Video + Audio + khung "Trao đổi & Đính kèm tệp" | Đạt |
 | R1.4 | Định danh (họ tên, BHYT/CCCD) và Chỉ số sinh hiệu (HA, SpO2, nhịp tim, nhiệt độ, cân nặng) đồng bộ thời gian thực lên màn hình bác sĩ | Đạt |
 | R1.5 | Kết luận / chẩn đoán / đơn thuốc bác sĩ tuyến trên viết tự đẩy về giao diện người dân, xuất và in được đơn khổ A5 | Đạt |
@@ -85,13 +86,56 @@ Netlify Database (Postgres qua Drizzle ORM).
 
 ### UC-03 — Mời bác sĩ tuyến trên (phòng ba bên)
 
+Có **hai lối** dẫn bác sĩ tuyến trên vào phòng, và cả hai đều kết thúc ở cùng một
+`ROOM-XX` với người dân — không sinh phòng mới, không bắt người dân gọi lại.
+
+**Lối A — bậc leo thang (cuộc gọi chưa ai nhận)**
+
 1. Cuộc gọi chưa được nhận trong thời hạn, hoặc cán bộ bấm **Chuyển tiếp**, thì
    bậc leo thang tự lan sang danh sách tiếp nhận tuyến trên.
-2. Bác sĩ tuyến trên vào cùng `ROOM-XX`. Lưới kết nối tự dựng thêm một
-   `RTCPeerConnection` cho mỗi cặp — cả ba bên đều thấy và nghe được nhau.
-3. Sinh hiệu và định danh đã nhập hiện ngay trên màn hình bác sĩ (bản tin
-   `patient-info` phát lại khi có người mới vào, cộng với `room.vitals` trong mỗi
-   lượt long-poll).
+2. Bác sĩ tuyến trên bấm tiếp nhận và giành lượt như một cán bộ trạm.
+
+**Lối B — điểm trạm mời hội chẩn (cuộc gọi ĐANG diễn ra)**
+
+Đây là lối thường dùng trên thực tế: điểm trạm đã bắt máy rồi mới thấy ca khó.
+
+1. Cán bộ trạm bấm **Mời bác sĩ tuyến trên** trên thanh điều khiển cuộc gọi →
+   `POST {action:"consult", roomId, note}`. Lời mời ghi vào chính bản ghi phòng
+   khám (`consult_requested_at/by`, `consult_note`) chứ không phải hộp thư
+   signaling vốn bị dọn định kỳ, nên bác sĩ mở Module muộn hơn vài phút vẫn thấy.
+2. Máy chủ phát bản tin `consult-requested` cho những máy đang mở, rồi gõ cửa Web
+   Push (không nội dung) tới **mọi tài khoản có quyền `doctor_access`**.
+3. Hàng đợi của Module Bác sĩ tuyến trên hiện thẻ tím **"Mời hội chẩn"** và đẩy ca
+   đó lên đầu danh sách ưu tiên.
+4. Bác sĩ bấm **Nhận lời mời hội chẩn** → `POST {action:"accept"}`. Phòng đã
+   `ACCEPTED` nên lượt tiếp nhận không đổi chủ; máy chủ trả `{ok:true, consult:true}`
+   kèm tên cán bộ đang giữ máy và phát `consult-joining` để hai bên kia biết trước.
+5. Bác sĩ `join` vào đúng `ROOM-XX` đó. Ba cột lời mời được xoá trắng ngay khi có
+   bác sĩ tuyến trên thật sự vào phòng.
+
+**Chung cho cả hai lối**
+
+- Lưới kết nối tự dựng thêm một `RTCPeerConnection` cho mỗi cặp — cả ba bên đều
+  thấy và nghe được nhau.
+- Sinh hiệu và định danh đã nhập hiện ngay trên màn hình bác sĩ (bản tin
+  `patient-info` phát lại khi có người mới vào, cộng với `room.vitals` trong mỗi
+  lượt long-poll).
+- Module Bác sĩ tuyến trên gửi `action:"standby"` vào phòng sảnh `__lobby__` trong
+  mỗi lượt quét hàng đợi, nên phần còn lại của hệ thống đếm được có bao nhiêu
+  tuyến trên đang trực. Đăng xuất thì gửi `action:"leave"` để rời sảnh ngay.
+
+**"Đã có người nhận" không phải là "phòng đã đóng"**
+
+Lượt tiếp nhận độc quyền chỉ để **hai cán bộ điểm trạm** không cùng lao vào một
+bệnh nhân. Vì thế khi lệnh cập nhật có điều kiện không giành được lượt, máy chủ
+xét tiếp thay vì trả 409 ngay:
+
+| Người bấm | Trạng thái phòng | Kết quả |
+|---|---|---|
+| Chính cán bộ đã nhận cuộc này | chưa đóng | `{ok:true, rejoin:true}` — quay lại phòng của mình |
+| Tài khoản `doctor` / `admin` | chưa đóng | `{ok:true, consult:true}` — vào làm bên thứ ba |
+| Cán bộ điểm trạm khác | chưa đóng | `409 ALREADY_TAKEN` |
+| Bất kỳ ai | `ENDED`/`CANCELLED`/`MISSED` | `409 ALREADY_TAKEN` |
 
 ### UC-04 — Chốt kết luận và in đơn A5
 
@@ -146,6 +190,12 @@ giữ `n−1` kết nối, không tốn hạ tầng, và không có điểm hỏ
 băng thông tải lên nhân theo số bên — chấp nhận được ở quy mô một điểm trạm.
 
 ### 4.2. Tín hiệu trên nền serverless
+
+Các `action` của `POST /api/signal`: `join` · `leave` · `signal` · `vitals` ·
+`notes` · `complete` · `standby` · `accept` · `decline` · **`consult`** ·
+`ghost-join` · `ghost-leave`. Riêng `consult` **không** đụng tới cột
+`routing_state`: nó chỉ ghi lời mời lên bản ghi phòng khám, nên buổi khám đang
+diễn ra không bị gián đoạn.
 
 `POST /api/signal` đặt bản tin vào bảng; `GET /api/signal?roomId=&peerId=&cursor=`
 chờ tối đa 7 giây rồi trả về mọi bản tin có `seq > cursor`. Nhịp hỏi lại thích
@@ -220,6 +270,9 @@ Bốn điểm chặn còn lại:
 | `patient` vào phòng | — | `peer-joined` | `peer-joined` | `peer-joined` |
 | `station_staff` vào phòng | `peer-joined` | — | `peer-joined` | `peer-joined` |
 | `doctor` vào phòng | `peer-joined` | `peer-joined` | — | `peer-joined` |
+| `station_staff` mời hội chẩn (`consult`) | `consult-requested` | `consult-requested` | `consult-requested` + Web Push | `consult-requested` |
+| `station_staff` rút lời mời | `consult-cancelled` | `consult-cancelled` | `consult-cancelled` | `consult-cancelled` |
+| `doctor` nhận lời mời (chưa kịp `join`) | `consult-joining` | `consult-joining` | `consult-joining` | `consult-joining` |
 | **`cms_admin` vào phòng** | **—** | **—** | **—** | — |
 | `cms_admin` rời phòng | **—** | **—** | **—** | — |
 | `offer`/`answer`/`ice` của `cms_admin` | chỉ đúng bên nhận, có cờ `ghost:true` | nt. | nt. | — |
@@ -285,7 +338,7 @@ Quản trị luôn là bên gửi offer trước, và offer ấy luôn là `recv
 
 | Bảng | Vai trò |
 |---|---|
-| `telehealth_rooms` | Trạng thái phòng, định danh người bệnh, sinh hiệu (JSON), kết luận, bậc định tuyến (`routing_state`, `ringing_since`, `ringing_station`) |
+| `telehealth_rooms` | Trạng thái phòng, định danh người bệnh, sinh hiệu (JSON), kết luận, bậc định tuyến (`routing_state`, `ringing_since`, `ringing_station`), lời mời hội chẩn tuyến trên (`consult_requested_at`, `consult_requested_by`, `consult_note`) |
 | `telehealth_peers` | Thành viên đang có mặt: `id`, `room_id`, `role` (chuỗi tự do — `cms_admin` không cần thêm migration), `name`, `last_seen` |
 | `telehealth_messages` | Bản tin có số thứ tự `seq` cho long-poll theo con trỏ |
 
@@ -316,6 +369,19 @@ vậy màn hình người dân và hàng đợi của cán bộ luôn nói cùng
 3. Bác sĩ tuyến trên vào cùng phòng → cả ba khung hình cùng hiện, huy hiệu ghi "3 bên".
 4. Người dân nhập sinh hiệu → số hiện trên màn hình bác sĩ mà không cần tải lại.
 5. Bác sĩ chốt chẩn đoán → khối kết luận trên máy người dân đổi ngay; in thử đơn A5.
+
+**Mời hội chẩn giữa buổi khám**
+5a. Điểm trạm đang khám bấm **Mời bác sĩ tuyến trên** → nút đổi sang "Đã mời tuyến trên";
+    máy người dân hiện dòng "đang mời bác sĩ tuyến trên"; thẻ ca trong CMS hiện huy hiệu tím.
+5b. Mở Module Bác sĩ tuyến trên ở `/bacsi` (kể cả mở sau khi mời vài phút) → ca đó nằm
+    đầu hàng đợi với thẻ **"Mời hội chẩn"** và nút tím **"Nhận lời mời hội chẩn"**.
+5c. Bấm nút → bác sĩ vào **đúng** `ROOM-XX` đang khám: cả ba khung hình cùng hiện,
+    lượt tiếp nhận của cán bộ trạm không bị mất, thẻ "Mời hội chẩn" tự biến mất.
+5d. Ca đã có điểm trạm tiếp nhận nhưng **chưa** được mời vẫn vào được bằng nút tím
+    "Tham gia hội chẩn"; ca đã có một tuyến trên khác trong phòng thì nút bị khoá.
+5e. Bấm lại **Đã mời tuyến trên** để rút lời mời → thẻ tím biến mất ở cả ba màn hình.
+5f. Cán bộ đã tiếp nhận đóng nhầm bảng điều khiển rồi bấm **Vào lại phòng** trong CMS →
+    vào lại được phòng của chính mình thay vì báo "đã có người khác tiếp nhận".
 
 **Giám sát ngầm**
 6. Quản trị bấm "Vào giám sát" → thấy đủ ba khung hình, nghe được cả ba.

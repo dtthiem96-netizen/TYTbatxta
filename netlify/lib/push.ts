@@ -16,7 +16,7 @@
  * Chỉ ký VAPID (ES256) là bắt buộc, và làm được hoàn toàn bằng Web Crypto.
  */
 import { db } from "../../db/index.js";
-import { pushSubscriptions, stationReceivers } from "../../db/schema.js";
+import { pushSubscriptions, stationReceivers, users } from "../../db/schema.js";
 import { eq, inArray } from "drizzle-orm";
 
 const encoder = new TextEncoder();
@@ -195,6 +195,22 @@ export async function pushToStation(stationCode: string, maxPriority: number, no
     .filter((r) => Number(r.priority || 1) <= maxPriority)
     .filter((r) => String(r.notifyChannels || "").toUpperCase().includes("PUSH"))
     .map((r) => r.userId);
+
+  return pushToUsers(targets, now);
+}
+
+/**
+ * Gõ cửa toàn bộ Bác sĩ tuyến trên khi điểm trạm bấm "Mời hội chẩn".
+ *
+ * Tuyến trên không thuộc điểm trạm nào nên không nằm trong bảng người trực của
+ * trạm: danh sách lấy thẳng từ quyền `doctor_access` mà CMS Quản trị cấp - đúng
+ * tập tài khoản đăng nhập được vào Module Bác sĩ tuyến trên ở chân trang.
+ */
+export async function pushToDoctors(now: number): Promise<PushOutcome> {
+  const rows = await db.select({ id: users.id, doctorAccess: users.doctorAccess }).from(users);
+  const targets = rows
+    .filter((r) => String(r.doctorAccess || "").trim().toLowerCase() === "true")
+    .map((r) => r.id);
 
   return pushToUsers(targets, now);
 }

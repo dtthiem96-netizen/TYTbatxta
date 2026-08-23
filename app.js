@@ -113,6 +113,10 @@ const SIGNAL_URL = '/api/signal';
 // Sàn nghỉ tối thiểu giữa hai lượt long-poll, chống quay vòng không nghỉ.
 const POLL_MIN_GAP_MS = 500;
 let peerId = null;
+/* Mã đầu cầu ở "sảnh" (__lobby__) - chỉ Module Bác sĩ tuyến trên dùng.
+   Bảng điều khiển điểm trạm nằm trong trang chính, nơi CMS đã tự bật trực bằng
+   mã riêng của nó; bật thêm ở đây sẽ đếm đôi số người trực của cùng một người. */
+let dutyPeerId = null;
 let signalCursor = 0;
 let polling = false;
 let pollToken = 0;
@@ -298,6 +302,9 @@ async function startTeleconsultation(targetRoomId) {
   if (!roomId) roomId = defaultRoomForStation(stationCode);
 
   callActive = true;
+  // Lời mời hội chẩn của lượt khám trước không được dính sang bệnh nhân mới.
+  consultRequested = false;
+  consultRequestedBy = '';
   updateCallControlsUI();
   updateConnectionBadge(false, 'Đang mở camera và micro...');
   appendChatMessage('Hệ thống', 'Đang xin quyền camera và micro của thiết bị...');
@@ -326,6 +333,8 @@ function endTeleconsultation(options) {
   const silent = options && options.silent;
   const wasActive = callActive;
   callActive = false;
+  consultRequested = false;
+  consultRequestedBy = '';
 
   stopPolling();
   if (rejoinTimer) {
@@ -422,6 +431,9 @@ function updateCallControlsUI() {
 
   const idleCover = document.getElementById('local-media-idle');
   if (idleCover) idleCover.classList.toggle('hidden', callActive);
+
+  // Nút mời tuyến trên chỉ có nghĩa khi đang có bệnh nhân trong phòng.
+  updateConsultInviteButton();
 
   const camStatus = document.getElementById('camera-status-text');
   if (camStatus && !callActive) {
@@ -564,6 +576,19 @@ function stopQueuePolling() {
   queuePollInterval = null;
   queuePollToken += 1;
   queueLoopRunning = false;
+
+  /* Rời sảnh trực ngay thay vì đợi bản ghi hết hạn: bác sĩ tuyến trên đăng xuất
+     mà vẫn còn hiện "đang trực" thì điểm trạm sẽ mời hội chẩn vào chỗ trống. */
+  if (dutyPeerId) {
+    const leavingPeerId = dutyPeerId;
+    dutyPeerId = null;
+    fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'leave', roomId: '__lobby__', peerId: leavingPeerId }),
+      keepalive: true
+    }).catch(() => {});
+  }
 }
 
 /** Vòng chờ dài: mỗi lượt trả về là hàng đợi vừa có thay đổi thật. */
@@ -591,6 +616,12 @@ async function queueLoop(token) {
 
 /** Hàng đợi lần quét gần nhất - nút "Tiếp nhận nhanh" đọc lại từ đây. */
 let pendingCallQueue = [];
+
+/* Lời mời hội chẩn của CHÍNH phòng khám đang mở: điểm trạm bấm "Mời bác sĩ
+   tuyến trên" thì cờ này bật, và tắt khi tuyến trên đã vào phòng hoặc khi cán
+   bộ rút lời mời. Nút mời đọc cờ này để đổi nhãn. */
+let consultRequested = false;
+let consultRequestedBy = '';
 
 /** Bọc chuỗi để nhúng an toàn vào thuộc tính onclick trong chuỗi HTML. */
 function queueAttr(str) {
@@ -635,13 +666,20 @@ function updateQueueAcceptButton() {
   if (!label) return;
 
   if (!next) {
-    label.textContent = 'Chưa có cuộc gọi chờ';
+    label.textContent = IS_DOCTOR_MODULE ? 'Chưa có ca nào cần tuyến trên' : 'Chưa có cuộc gọi chờ';
     return;
   }
   const pName = next.patientName || 'Bệnh nhân';
-  label.textContent = next.roomId === roomId && callActive
-    ? `Đang kết nối với ${pName}`
-    : `Tiếp nhận cuộc gọi - ${pName}`;
+  const mode = queueCallMode(next);
+  if (mode === 'current') {
+    label.textContent = `Đang kết nối với ${pName}`;
+  } else if (mode === 'consult') {
+    label.textContent = next.consultRequested
+      ? `Điểm trạm mời hội chẩn - ${pName}`
+      : `Tham gia hội chẩn - ${pName}`;
+  } else {
+    label.textContent = `Tiếp nhận cuộc gọi - ${pName}`;
+  }
 }
 
 /** Điểm trạm đích của một cuộc gọi trong hàng đợi. */
@@ -671,17 +709,58 @@ function isCallForThisStation(r) {
 }
 
 /**
+ * Việc mà màn hình đang mở có thể làm với một cuộc gọi trong hàng đợi.
+ *
+ *   'current' - chính là phòng đang mở trên máy này.
+ *   'joined'  - đã có bác sĩ tuyến trên khác trong phòng (chỉ tuyến trên thấy).
+ *   'consult' - phòng đã có điểm trạm tiếp nhận, tuyến trên vào theo lối hội chẩn.
+ *   'accept'  - cuộc gọi còn trống, bấm là giành lượt tiếp nhận.
+ *
+ * Đây là chỗ sửa cái gốc của việc "Module Bác sĩ tuyến trên không vào chung
+ * phòng được": trước đây mọi phòng đã ACCEPTED đều bị loại khỏi tầm với của
+ * tuyến trên, mà đó lại đúng là lúc điểm trạm đang khám và cần hội chẩn nhất.
+ * Lượt tiếp nhận độc quyền chỉ để hai CÁN BỘ ĐIỂM TRẠM không cùng lao vào một
+ * bệnh nhân - tuyến trên là bên thứ ba của chính buổi khám đó.
+ */
+function queueCallMode(r) {
+  if (!r) return 'accept';
+  if (r.roomId === roomId && callActive) return 'current';
+  if (!IS_DOCTOR_MODULE) return 'accept';
+  if (r.hasDoctor) return 'joined';
+  if (r.routingState === 'ACCEPTED' || r.hasStation) return 'consult';
+  return 'accept';
+}
+
+/**
  * Cuộc gọi sẽ được nhận khi bấm nút tiếp nhận nhanh.
  *
  * Ưu tiên cuộc đã leo thang (người dân chờ lâu nhất và chưa ai nhận), sau đó
  * tới cuộc chờ lâu nhất - trong phạm vi điểm trạm của tài khoản.
+ *
+ * Với Module Bác sĩ tuyến trên, thứ tự khác hẳn: lời mời hội chẩn của điểm trạm
+ * đứng trên tất cả, vì đó là cuộc đang có người thật sự chờ tuyến trên trả lời.
  */
 function nextPendingCall() {
+  const byWait = (a, b) => Number(a.since || 0) - Number(b.since || 0);
+
+  if (IS_DOCTOR_MODULE) {
+    // Chỉ bỏ qua phòng đã có một bác sĩ tuyến trên khác ngồi trong đó.
+    const reachable = pendingCallQueue.filter(r => queueCallMode(r) !== 'joined');
+    if (!reachable.length) return null;
+
+    const invited = reachable.filter(r => r.consultRequested);
+    if (invited.length) return invited.slice().sort(byWait)[0];
+
+    const unattended = reachable.filter(r => queueCallMode(r) === 'accept');
+    const pool = unattended.length ? unattended : reachable;
+    const escalatedFirst = pool.filter(r => r.escalated || r.exhausted);
+    return (escalatedFirst.length ? escalatedFirst : pool).slice().sort(byWait)[0];
+  }
+
   const waiting = pendingCallQueue
     .filter(r => !r.hasDoctor && r.routingState !== 'ACCEPTED')
     .filter(isCallForThisStation);
   if (!waiting.length) return null;
-  const byWait = (a, b) => Number(a.since || 0) - Number(b.since || 0);
 
   const escalated = waiting.filter(r => r.escalated || r.exhausted);
   if (escalated.length) return escalated.slice().sort(byWait)[0];
@@ -700,16 +779,68 @@ function acceptNextPatientCall() {
     .catch(err => console.warn('Lỗi tiếp nhận cuộc gọi:', err && err.message));
 }
 
+/**
+ * Quét hàng đợi một lượt.
+ *
+ * Module Bác sĩ tuyến trên đi bằng lệnh "standby": một lượt gọi vừa báo "tôi
+ * đang trực" (ghi tên vào sảnh __lobby__ để màn hình người dân và điểm trạm đếm
+ * được số tuyến trên đang online), vừa lấy về hàng đợi. Trước đây module này chỉ
+ * GET danh sách phòng, nên với phần còn lại của hệ thống thì bác sĩ tuyến trên
+ * là vô hình - không ai biết có người bên kia để mà mời hội chẩn.
+ *
+ * Bảng điều khiển điểm trạm vẫn GET như cũ: nó nằm trong trang chính, nơi CMS đã
+ * bật trực bằng mã đầu cầu riêng, bật thêm lần nữa sẽ đếm đôi.
+ */
 async function refreshIncomingCallsQueue(wait) {
-  const params = new URLSearchParams({ action: 'rooms' });
-  // Chỉ chờ dài khi đã biết chữ ký lần trước, để lượt đầu luôn trả về tức thì.
-  if (wait && queueSignature !== null) {
-    params.set('wait', '1');
-    params.set('sig', queueSignature);
+  const token = (typeof window.getStationToken === 'function') ? window.getStationToken() : '';
+  const canWait = Boolean(wait) && queueSignature !== null;
+  let data = null;
+
+  if (IS_DOCTOR_MODULE && token) {
+    if (!dutyPeerId) dutyPeerId = 'duty-' + newPeerId();
+    const res = await fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: signalHeaders(),
+      body: JSON.stringify({
+        action: 'standby',
+        roomId: '__lobby__',
+        peerId: dutyPeerId,
+        name: `${operatorName} (Bác sĩ tuyến trên)`,
+        /* Tuyến trên không trực một điểm trạm nào: gửi mã rỗng để không bị cộng
+           nhầm vào số cán bộ đang trực của trạm nào cả, nhưng vẫn được tính vào
+           tổng số người trực toàn hệ thống. */
+        stationCode: '',
+        sig: canWait ? queueSignature : undefined
+      })
+    });
+    /* Phiếu phiên hết hạn: báo để bác sĩ đăng nhập lại, nhưng KHÔNG để hàng đợi
+       chết cứng - rơi xuống đường GET vô danh bên dưới thì màn hình vẫn thấy
+       người dân đang gọi thay vì đứng im không giải thích. */
+    if (res.status === 401 || res.status === 403) {
+      dutyPeerId = null;
+      if (typeof window.handleStationAuthFailure === 'function') {
+        const info = await res.json().catch(() => null);
+        window.handleStationAuthFailure((info && info.error) || 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.');
+      }
+    } else if (!res.ok) {
+      throw new Error('standby ' + res.status);
+    } else {
+      data = await res.json();
+    }
   }
-  const res = await fetch(`/api/signal?${params.toString()}`);
-  if (!res.ok) throw new Error('rooms ' + res.status);
-  const data = await res.json();
+
+  if (!data) {
+    const params = new URLSearchParams({ action: 'rooms' });
+    // Chỉ chờ dài khi đã biết chữ ký lần trước, để lượt đầu luôn trả về tức thì.
+    if (canWait) {
+      params.set('wait', '1');
+      params.set('sig', queueSignature);
+    }
+    const res = await fetch(`/api/signal?${params.toString()}`);
+    if (!res.ok) throw new Error('rooms ' + res.status);
+    data = await res.json();
+  }
+
   if (typeof data.sig === 'string') queueSignature = data.sig;
   /* Hàng đợi hiển thị đã cắt theo điểm trạm được chỉ định: cán bộ không nhìn
      thấy - và do đó không bấm nhầm vào - cuộc gọi của điểm trạm khác. */
@@ -760,6 +891,15 @@ async function refreshIncomingCallsQueue(wait) {
       if (r.routingState === 'ACCEPTED' && r.acceptedName) {
         routingBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-900/80 text-emerald-200"><i class="fa-solid fa-user-check"></i> ${queueText(r.acceptedName)} đã nhận</span>`;
       }
+
+      /* Lời mời hội chẩn nằm trong bản ghi phòng khám chứ không phải trong hộp
+         thư signaling, nên bác sĩ tuyến trên mở module sau đó vài phút vẫn thấy
+         nguyên lời mời - không phụ thuộc vào việc lúc mời máy có đang mở hay không. */
+      const consultBadge = r.consultRequested
+        ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-violet-900/80 text-violet-200 animate-pulse" title="${queueText(r.consultNote || 'Điểm trạm đề nghị bác sĩ tuyến trên cùng vào phòng')}"><i class="fa-solid fa-user-doctor"></i> Mời hội chẩn${r.consultRequestedBy ? ' · ' + queueText(r.consultRequestedBy) : ''}</span>`
+        : '';
+
+      const mode = queueCallMode(r);
       const waited = queueWaitedLabel(r.since);
       // Thẻ xếp dọc: tên bệnh nhân, triệu chứng rồi tới nút tiếp nhận chiếm trọn
       // bề ngang. Cách xếp ngang trước đây làm nút bị đẩy khuất khỏi cột hẹp của
@@ -772,19 +912,31 @@ async function refreshIncomingCallsQueue(wait) {
               <div class="font-bold text-white text-[12px] break-words">${queueText(pName)}</div>
               <div class="mt-0.5 flex flex-wrap items-center gap-1">
                 ${targetBadge}
+                ${consultBadge}
                 ${routingBadge}
                 ${waited ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-900/70 text-amber-200"><i class="fa-regular fa-clock"></i> Chờ ${waited}</span>` : ''}
-                ${r.hasDoctor ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-700 text-slate-300">Đã có cán bộ</span>' : ''}
+                ${r.hasDoctor ? '<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-700 text-slate-300"><i class="fa-solid fa-user-doctor"></i> Đã có tuyến trên</span>' : ''}
               </div>
               <div class="text-[10px] text-slate-400 mt-1 break-words">${queueText(r.symptoms || 'Khám sức khỏe tổng quát')}</div>
               ${r.patientId ? `<div class="text-[10px] text-cyan-300 font-mono mt-0.5 break-all"><i class="fa-solid fa-id-card"></i> ${queueText(r.patientId)}</div>` : ''}
             </div>
           </div>
           <button type="button"
-            onclick="acceptPatientCall('${queueAttr(r.roomId)}', '${queueAttr(pName)}', '${queueAttr(r.symptoms || '')}', '${queueAttr(r.patientId || '')}')"
-            title="Tiếp nhận cuộc gọi của ${queueText(pName)} - lúc này mới mở camera và micro của điểm trạm"
-            class="${isCurrent ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'} w-full text-white font-bold px-3 py-2 rounded-lg text-[11px] transition flex items-center justify-center gap-1.5">
-            <i class="fa-solid fa-headset"></i> ${isCurrent ? 'Đang kết nối' : 'Tiếp nhận cuộc gọi'}
+            ${mode === 'joined' ? 'disabled' : `onclick="acceptPatientCall('${queueAttr(r.roomId)}', '${queueAttr(pName)}', '${queueAttr(r.symptoms || '')}', '${queueAttr(r.patientId || '')}')"`}
+            title="${mode === 'consult'
+              ? `Vào chung phòng khám của ${queueText(pName)} cùng điểm trạm - không cắt ngang cuộc gọi đang diễn ra`
+              : (mode === 'joined'
+                  ? 'Đã có một bác sĩ tuyến trên khác trong phòng khám này'
+                  : `Tiếp nhận cuộc gọi của ${queueText(pName)} - lúc này mới mở camera và micro`)}"
+            class="${mode === 'current' ? 'bg-emerald-600 hover:bg-emerald-500'
+              : mode === 'consult' ? 'bg-violet-600 hover:bg-violet-500'
+              : mode === 'joined' ? 'bg-slate-700 cursor-not-allowed opacity-70'
+              : 'bg-blue-600 hover:bg-blue-500'} w-full text-white font-bold px-3 py-2 rounded-lg text-[11px] transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid ${mode === 'consult' ? 'fa-user-doctor' : mode === 'joined' ? 'fa-user-check' : 'fa-headset'}"></i> ${
+              mode === 'current' ? 'Đang kết nối'
+              : mode === 'consult' ? (r.consultRequested ? 'Nhận lời mời hội chẩn' : 'Tham gia hội chẩn')
+              : mode === 'joined' ? 'Đã có tuyến trên trong phòng'
+              : 'Tiếp nhận cuộc gọi'}
           </button>
         </div>
       `;
@@ -964,7 +1116,13 @@ async function claimPatientCall(targetRoomId) {
       }
       throw new Error((data && data.error) || 'accept ' + res.status);
     }
-    return { ok: true };
+    /* Máy chủ phân biệt ba lối vào cùng một phòng:
+         - lượt tiếp nhận vừa giành được (mặc định),
+         - `rejoin`  : chính cán bộ đã nhận cuộc này quay lại phòng của mình,
+         - `consult` : phòng đã có điểm trạm, người bấm là bác sĩ tuyến trên nên
+                       được vào làm bên thứ ba mà không đụng tới lượt tiếp nhận.
+       Cả ba đều đi tiếp vào phòng; chỉ khác câu thông báo hiện cho cán bộ. */
+    return { ok: true, consult: data.consult === true, rejoin: data.rejoin === true, acceptedName: data.acceptedName || '' };
   } catch (err) {
     if (denied) return { ok: false };
     /* Mất mạng đúng lúc bấm: vẫn cho vào phòng. Kết nối WebRTC không phụ thuộc
@@ -1022,9 +1180,115 @@ async function acceptPatientCall(targetRoomId, patientName, symptoms, patientIdC
   } else {
     startTeleconsultation(targetRoomId);
   }
-  showAlertBanner(`Đã tiếp nhận và kết nối với bệnh nhân: ${patientName}`);
+  if (claim.consult) {
+    showAlertBanner(`Đang vào phòng khám của ${patientName} cùng ${claim.acceptedName || 'điểm trạm'} để hội chẩn.`);
+  } else if (claim.rejoin) {
+    showAlertBanner(`Đã quay lại phòng khám của ${patientName}.`);
+  } else {
+    showAlertBanner(`Đã tiếp nhận và kết nối với bệnh nhân: ${patientName}`);
+  }
   // Nhãn nút tiếp nhận phải đổi ngay, không đợi tới nhịp quét hàng đợi kế tiếp.
   updateQueueAcceptButton();
+}
+
+/* ---------------------------------------------------------------------------
+   MỜI BÁC SĨ TUYẾN TRÊN VÀO CHÍNH PHÒNG KHÁM ĐANG MỞ
+
+   Trước đây hai bên chỉ gặp nhau nếu bác sĩ tuyến trên tình cờ giành được lượt
+   tiếp nhận trước điểm trạm - mà điểm trạm gần như luôn bấm trước, nên trên thực
+   tế tuyến trên không bao giờ vào chung phòng với người dân. Lời mời ở đây đảo
+   lại chiều: điểm trạm đang khám thấy ca khó thì kéo tuyến trên vào, người dân
+   không phải gọi lại lần nữa và cũng không đổi mã phòng.
+
+   Lời mời ghi thẳng vào bản ghi phòng khám (không phải hộp thư signaling vốn bị
+   dọn định kỳ) rồi mới gõ cửa Web Push, nên tuyến trên mở máy sau vẫn thấy.
+   --------------------------------------------------------------------------- */
+
+/** Ghi nhận trạng thái mời hội chẩn của phòng đang mở rồi vẽ lại nút. */
+function applyConsultState(requested, by) {
+  const next = Boolean(requested);
+  const changed = next !== consultRequested;
+  consultRequested = next;
+  consultRequestedBy = next ? String(by || '') : '';
+  updateConsultInviteButton();
+  return changed;
+}
+
+/** Nút "Mời bác sĩ tuyến trên" trên thanh điều khiển cuộc gọi của điểm trạm. */
+function updateConsultInviteButton() {
+  const btn = document.getElementById('station-invite-doctor-btn');
+  if (!btn) return;
+  // Module Bác sĩ tuyến trên không tự mời chính mình.
+  if (IS_DOCTOR_MODULE) {
+    btn.classList.add('hidden');
+    return;
+  }
+  /* Chỉ bật/tắt vài lớp thay vì viết đè className: bộ lớp gốc nằm trong HTML
+     cùng một khuôn với các nút khác của thanh điều khiển cuộc gọi. */
+  btn.classList.toggle('hidden', !callActive);
+  btn.disabled = !callActive || !roomId;
+  btn.title = consultRequested
+    ? `Đã mời bác sĩ tuyến trên${consultRequestedBy ? ' (' + consultRequestedBy + ')' : ''} - bấm để rút lời mời`
+    : 'Mời bác sĩ tuyến trên cùng vào phòng khám này để hội chẩn';
+  btn.classList.toggle('bg-violet-600', consultRequested);
+  btn.classList.toggle('hover:bg-violet-500', consultRequested);
+  btn.classList.toggle('animate-pulse', consultRequested);
+  btn.classList.toggle('bg-slate-800', !consultRequested);
+  btn.classList.toggle('hover:bg-slate-700', !consultRequested);
+
+  const label = document.getElementById('station-invite-doctor-label');
+  if (label) label.textContent = consultRequested ? 'Đã mời tuyến trên' : 'Mời bác sĩ tuyến trên';
+}
+
+/** Bấm nút: chưa mời thì mời, đã mời thì rút lời mời. */
+async function inviteSuperiorDoctor() {
+  if (!roomId || !callActive) {
+    showAlertBanner('Hãy tiếp nhận một cuộc gọi trước khi mời bác sĩ tuyến trên.');
+    return;
+  }
+  const cancel = consultRequested;
+  const note = cancel
+    ? ''
+    : String(document.getElementById('patient-symptoms')?.value || '').trim();
+
+  // Đổi nhãn ngay để cán bộ không bấm hai lần trong lúc chờ máy chủ trả lời.
+  applyConsultState(!cancel, cancel ? '' : operatorName);
+
+  try {
+    const res = await fetch(SIGNAL_URL, {
+      method: 'POST',
+      headers: signalHeaders(),
+      body: JSON.stringify({
+        action: 'consult',
+        roomId,
+        peerId: peerId || newPeerId(),
+        name: operatorName,
+        note,
+        cancel
+      })
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.ok !== true) {
+      applyConsultState(cancel, cancel ? operatorName : '');
+      showAlertBanner((data && data.error) || 'Không gửi được lời mời hội chẩn, vui lòng thử lại.');
+      return;
+    }
+    applyConsultState(data.consultRequested === true, data.consultRequested ? operatorName : '');
+    if (cancel) {
+      appendChatMessage('Hệ thống', 'Đã rút lời mời hội chẩn tuyến trên.');
+    } else {
+      appendChatMessage(
+        'Hệ thống',
+        data.notified
+          ? `Đã mời bác sĩ tuyến trên vào phòng khám (đã báo tới ${data.notified} thiết bị).`
+          : 'Đã mời bác sĩ tuyến trên vào phòng khám. Lời mời hiện trong hàng đợi của Module Bác sĩ tuyến trên.'
+      );
+    }
+  } catch (err) {
+    applyConsultState(cancel, cancel ? operatorName : '');
+    showAlertBanner('Mất kết nối tới máy chủ điều phối, chưa gửi được lời mời hội chẩn.');
+    console.warn('Lỗi mời hội chẩn:', err && err.message);
+  }
 }
 
 // Đồng bộ danh sách Bác sĩ tư vấn & được cấp quyền nhận cuộc gọi Video + Ký số
@@ -1186,6 +1450,10 @@ async function pollLoop(token) {
       backoff = 0;
       if (typeof data.cursor === 'number') signalCursor = data.cursor;
       if (data.room && data.room.patientId) applyPatientIdCard(data.room.patientId, 'Người dân tự nhập');
+      /* Lời mời hội chẩn nằm trong bản ghi phòng khám nên lượt hỏi tin nào cũng
+         mang về trạng thái đúng - kể cả khi người mời là máy khác, hoặc khi máy
+         này vừa tải lại trang giữa buổi khám. */
+      if (data.room) applyConsultState(data.room.consultRequested === true, data.room.consultRequestedBy || '');
 
       const messages = data.messages || [];
       for (const msg of messages) {
@@ -1341,6 +1609,37 @@ async function handleSignalMessage(msg) {
       } else {
         updateConnectionBadge(true, peerConnectionSummary());
       }
+      break;
+    }
+
+    /* Điểm trạm bấm "Mời bác sĩ tuyến trên". Bản tin này chỉ để hai đầu đang mở
+       máy biết ngay lập tức; bản lưu bền vẫn nằm ở bản ghi phòng khám, nên bác
+       sĩ tuyến trên mở module muộn hơn vẫn thấy lời mời trong hàng đợi. */
+    case 'consult-requested': {
+      const by = (msg.payload && msg.payload.by) || 'Điểm trạm';
+      const note = (msg.payload && msg.payload.note) || '';
+      applyConsultState(true, by);
+      appendChatMessage('Hệ thống', `${by} đề nghị mời bác sĩ tuyến trên cùng hội chẩn${note ? ': ' + note : '.'}`);
+      break;
+    }
+
+    case 'consult-cancelled': {
+      const by = (msg.payload && msg.payload.by) || 'Điểm trạm';
+      applyConsultState(false, '');
+      appendChatMessage('Hệ thống', `${by} đã rút lời mời hội chẩn tuyến trên.`);
+      break;
+    }
+
+    /* Bác sĩ tuyến trên vừa bấm vào phòng nhưng chưa kịp thiết lập WebRTC: báo
+       trước để điểm trạm và người dân không tưởng là bấm hụt.
+       Lượt "accept" gửi đi bằng một mã đầu cầu khác với mã dùng để hỏi tin (mã
+       hỏi tin chỉ sinh ra ở joinRoom), nên chính bác sĩ vừa bấm cũng nhận lại
+       bản tin này - bỏ qua để không tự báo mình đang vào phòng. */
+    case 'consult-joining': {
+      if (IS_DOCTOR_MODULE) break;
+      const by = (msg.payload && msg.payload.by) || 'Bác sĩ tuyến trên';
+      appendChatMessage('Hệ thống', `${by} đang vào phòng khám để hội chẩn...`);
+      updateConnectionBadge(isConnected, `${by} đang vào phòng...`);
       break;
     }
 
@@ -4559,6 +4858,9 @@ window.acceptPatientCall = (roomIdArg, patientName, symptoms, patientIdCardValue
   acceptPatientCallImpl(roomIdArg, patientName, symptoms, patientIdCardValue)
     .catch(err => console.warn('Lỗi tiếp nhận cuộc gọi:', err && err.message));
 window.acceptNextPatientCall = acceptNextPatientCall;
+const inviteSuperiorDoctorImpl = inviteSuperiorDoctor;
+window.inviteSuperiorDoctor = () => inviteSuperiorDoctorImpl()
+  .catch(err => console.warn('Lỗi mời hội chẩn tuyến trên:', err && err.message));
 window.onStationIdCardInput = onStationIdCardInput;
 window.copyStationIdCard = copyStationIdCard;
 window.syncStationIdCard = syncStationIdCard;
