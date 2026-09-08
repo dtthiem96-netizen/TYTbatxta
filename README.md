@@ -439,3 +439,119 @@ bắt buộc đăng nhập vì mỗi lượt ping là một lần gọi mô hìn
 | *Giấy tờ xác thực bị từ chối* | Khoá API sai, hết hạn, hoặc khoá tài khoản dịch vụ dán thiếu ký tự |
 | *Không đủ quyền gọi mô hình* | Chưa bật `aiplatform.googleapis.com`, hoặc tài khoản dịch vụ thiếu vai trò *Vertex AI User* |
 | *Quá tải hoặc hết hạn mức* | Chạm giới hạn số token mỗi phút; chờ ít phút hoặc đổi sang mô hình nhẹ hơn |
+
+---
+
+## 8. Giao Diện Đa Nền Tảng (Responsive) & Nút Gọi Khám Từ Xa Duy Nhất
+
+Cổng thông tin cho người dân (`index.html`, bản phân phối `public/index.html`)
+được tối ưu theo hướng **mobile-first**: phần lớn người dân ở tuyến xã mở trang
+bằng điện thoại, trên đường truyền 3G/4G, và không ít người là người cao tuổi.
+
+### 8.1. Ba mốc màn hình
+
+Mốc được dùng thống nhất giữa CSS tự viết và lớp tiện ích của Tailwind, để hai
+bên không nói ngược nhau:
+
+| Khổ màn hình | Bề rộng | Cách viết trong mã |
+| --- | --- | --- |
+| Điện thoại | `< 768px` | mặc định, không cần media query |
+| Máy tính bảng | `768px – 1023px` | `md:` |
+| Máy tính | `>= 1024px` | `lg:` và `@media (min-width: 1024px)` |
+
+Toàn bộ nhóm luật nằm trong khối `<style>` của `index.html`, dưới tiêu đề
+*"TẦNG GIAO DIỆN ĐA NỀN TẢNG (RESPONSIVE / MOBILE-FIRST)"*. Phần JavaScript kèm
+theo nằm ngay trước `window.changeFontSize`, dưới tiêu đề *"TẦNG GIAO DIỆN ĐA
+NỀN TẢNG - PHẦN JAVASCRIPT"*.
+
+### 8.2. Chỉ có MỘT nút "Gọi khám từ xa"
+
+Chức năng gọi khám từ xa chỉ có **đúng một lối vào cho mỗi khổ màn hình**:
+
+| Khổ màn hình | Lối vào duy nhất |
+| --- | --- |
+| Điện thoại, máy tính bảng | Nút nổi `#tyt-fab-telehealth` ghim cố định đáy màn hình (`lg:hidden`) |
+| Máy tính | Nút trên thanh tiêu đề, trong thanh điều hướng `hidden lg:flex` |
+
+Hai nút này loại trừ nhau tuyệt đối, nên không khổ nào nhìn thấy cả hai. Thẻ
+"Đặt lịch Khám từ xa" trong trang *Khoa & Phòng* là chức năng **khác** (đặt hẹn
+trước, không phải gọi ngay) nên vẫn còn, chỉ đổi nhãn và huy hiệu cho khỏi bị
+nhầm là nút gọi.
+
+**Khi cần thêm/bớt lối vào:** sửa đúng một trong hai chỗ trên. Đừng thêm nút gọi
+thứ ba - `window.openTelehealthQuickCall()` chỉ nên xuất hiện ở hai chỗ đó.
+
+### 8.3. Vùng bấm tối thiểu 44×44px
+
+Lớp `.tyt-tap` đặt `min-width`/`min-height` 44px cho các nút nhỏ, chỉ áp dụng ở
+khổ `< 1024px`. Ngoài ra các nút có `aria-label` bắt đầu bằng "Mở" hoặc "Đóng"
+cũng được nới tự động, nên **nút đóng cửa sổ mới không cần khai báo gì thêm** -
+chỉ cần đặt `aria-label="Đóng ..."` như các cửa sổ hiện có.
+
+> Lưu ý khi sửa `window.changeFontSize`: hàm này **ghi đè toàn bộ**
+> `btn.className` của bốn nút cỡ chữ, nên chuỗi lớp mới phải luôn giữ `tyt-tap`
+> ở đầu. Thiếu nó thì bấm A+ một lần là bốn nút teo lại dưới ngưỡng cảm ứng.
+
+### 8.4. Khoảng chừa cho thanh tiêu đề được ĐO, không phải đoán
+
+Thanh tiêu đề dùng `position: fixed`, nên nội dung bên dưới phải tự chừa khoảng
+trắng bằng đúng chiều cao của nó. Chiều cao này **không phải hằng số**: thanh hỗ
+trợ tiếp cận xuống 2-4 dòng trên màn hình hẹp, người dân bấm A+/A++ làm cỡ chữ
+gốc tăng tới 24px, và khẩu hiệu do CMS đặt có thể dài hơn một dòng.
+
+`window.measureHeaderHeight()` đo `#tyt-header` rồi ghi vào biến CSS
+`--tyt-header-h`; lớp `.tyt-below-header` đọc biến đó. Việc đo lại được kích
+hoạt bởi `ResizeObserver`, bởi `document.fonts.ready` (lúc phông chữ thật thay
+cho phông dự phòng) và bởi chính `changeFontSize`.
+
+**Khi thêm một trang/khối mới nằm ngay dưới thanh tiêu đề:** đặt lớp
+`tyt-below-header`, **đừng** dùng `pt-36` hay bất kỳ con số cứng nào - trên điện
+thoại 360px con số đó nhỏ hơn chiều cao thật và tiêu đề trang sẽ bị header đè.
+
+### 8.5. Menu thu gọn (Hamburger)
+
+`window.toggleMobileMenu()` / `window.closeMobileMenu()` giữ đồng bộ ba thứ ở
+một chỗ duy nhất: lớp `hidden` của `#mobile-menu`, thuộc tính `aria-expanded` +
+`aria-label` của nút mở, và biểu tượng ba gạch ↔ dấu X. Menu tự đóng khi bấm ra
+ngoài, khi nhấn `Esc`, và khi màn hình rộng ra tới khổ máy tính.
+
+**Khi thêm mục mới vào menu:** gọi `window.closeMobileMenu()` ở cuối `onclick`,
+đừng tự `classList.add('hidden')` - làm vậy thì nhãn và biểu tượng của nút mở
+menu sẽ lệch với thực tế.
+
+### 8.6. Thẻ nổi: một cột xác định, không chồng lấn
+
+Toạ độ của **tất cả** thẻ nổi được quy về một chỗ duy nhất là nhóm luật
+`#tyt-fab-*` trong `<style>`, tính từ vùng an toàn đáy màn hình
+(`env(safe-area-inset-bottom)`, cần `viewport-fit=cover` trong thẻ meta
+viewport - đã bật).
+
+- **Điện thoại:** góc dưới chỉ còn **một** nút - nút gọi khám từ xa. Thẻ Trợ lý
+  AI và Zalo được chuyển vào menu thu gọn (`hidden lg:flex`).
+- **Máy tính:** Zalo sát góc phải, Trợ lý AI kề bên trái; thẻ khôi phục cuộc gọi
+  `#tw-dock` được đẩy lên phía trên khung nhạc nền để hai thứ không đè nhau.
+
+**Khi thêm một thẻ nổi mới:** đặt toạ độ trong nhóm luật đó, đừng dùng lớp tiện
+ích `fixed bottom-* right-*` rải rác trong markup - đó chính là nguyên nhân bốn
+thẻ nổi từng vây kín góc màn hình điện thoại.
+
+### 8.7. Tải trang trên mạng yếu
+
+`assets/tram_music.mp3` nặng khoảng 4,2 MB. Khung nhạc nền chỉ được dựng ở khổ
+máy tính, khi trình duyệt không bật cờ tiết kiệm dữ liệu (`navigator.connection
+.saveData`) và kết nối không thuộc loại chậm (`effectiveType` là `2g`/`slow-2g`).
+Thẻ `<audio>` cũng đã bỏ `autoplay` và chuyển sang `preload="none"`, nên tệp chỉ
+được tải khi người dùng chủ động bấm phát.
+
+Ngoài ra `@media (prefers-reduced-motion: reduce)` tắt gần như toàn bộ hiệu ứng
+chuyển động - vừa tôn trọng thiết lập của người say chuyển động, vừa đỡ tốn điện
+trên máy yếu.
+
+### 8.8. Đồng bộ bản phân phối
+
+`index.html` và `public/index.html` phải **giống nhau từng byte**. Sau khi sửa:
+
+```bash
+cp index.html public/index.html
+npm run verify      # main.js - phải báo 0 lỗi, 0 cảnh báo
+```

@@ -9,7 +9,7 @@
   gtag('config', 'G-H76265037D');
 </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="theme-color" content="#0284c7">
 
@@ -414,6 +414,198 @@
             text-shadow: none;
         }
 
+        /* =====================================================================
+           TẦNG GIAO DIỆN ĐA NỀN TẢNG (RESPONSIVE / MOBILE-FIRST)
+
+           Ba mốc màn hình dùng chung cả trang, khớp với mốc của Tailwind để hai
+           bên không nói ngược nhau:
+             - điện thoại : < 768px   (mặc định, không cần media query)
+             - máy tính bảng: 768px - 1023px
+             - máy tính    : >= 1024px  (mốc "lg" của Tailwind)
+
+           Nhóm luật dưới đây giải quyết bốn việc mà lớp tiện ích của Tailwind
+           rải rác trong markup không làm được:
+             1. Chiều cao thanh tiêu đề CỐ ĐỊNH được đo bằng JavaScript (không
+                đoán theo pt-36) để nội dung không bao giờ nằm dưới header.
+             2. Vùng bấm tối thiểu 44x44px cho mọi nút nhỏ trên cảm ứng.
+             3. Xếp các thẻ nổi thành một cột xác định, không chồng lấn, có tính
+                cả vùng an toàn (safe-area) của máy có khuyết đỉnh/thanh gạt.
+             4. Trên điện thoại chỉ để lại DUY NHẤT một nút gọi khám từ xa.
+           ===================================================================== */
+
+        :root {
+            /* Giá trị dự phòng dùng cho lần vẽ đầu tiên, trước khi JavaScript đo
+               xong thanh tiêu đề thật. Cố ý đặt cao hơn thực tế: thừa khoảng
+               trắng thì chỉ hơi trống, còn thiếu thì chữ bị header đè lên. */
+            --tyt-header-h: 168px;
+            /* Lề an toàn dưới đáy màn hình (iPhone có thanh gạt, Android có thanh
+               điều hướng ảo). Bằng 0 trên máy không có khuyết. */
+            --tyt-safe-b: env(safe-area-inset-bottom, 0px);
+        }
+
+        /* ---------------------------------------------------------------------
+           1. NỘI DUNG KHÔNG BAO GIỜ NẰM DƯỚI THANH TIÊU ĐỀ
+
+           Thanh tiêu đề dùng position:fixed nên nó bị lấy ra khỏi luồng - phần
+           nội dung phải tự chừa khoảng trắng bằng đúng chiều cao của nó. Trước
+           đây khoảng này là hằng số pt-36 (144px), nhưng chiều cao thật thay đổi
+           theo ba yếu tố: thanh hỗ trợ tiếp cận xuống dòng trên màn hình hẹp,
+           người dân bấm A+/A++ làm chữ to lên, và độ dài khẩu hiệu do CMS đặt.
+           Trên điện thoại 360px, thanh hỗ trợ xuống 3-4 dòng làm header cao hơn
+           190px - chữ tiêu đề trang chủ bị đè mất. Nên khoảng chừa được lấy từ
+           biến CSS mà JavaScript ghi lại sau mỗi lần header đổi kích thước.
+           --------------------------------------------------------------------- */
+        .tyt-below-header {
+            padding-top: calc(var(--tyt-header-h) + 1.25rem);
+        }
+
+        /* ---------------------------------------------------------------------
+           2. VÙNG BẤM TỐI THIỂU 44x44px
+
+           Ngưỡng 44px là kích thước nhỏ nhất mà đầu ngón tay bấm trúng ổn định.
+           Chỉ áp trên màn hình cảm ứng (< 1024px) để giao diện máy tính giữ được
+           các nút gọn. Dùng min-width/min-height chứ không đặt width cứng, nên
+           nút nào đang rộng hơn vẫn giữ nguyên.
+           --------------------------------------------------------------------- */
+        @media (max-width: 1023px) {
+            .tyt-tap,
+            #mobile-menu > a,
+            #main-website [aria-label^="Đóng"],
+            #main-website [aria-label^="Mở"] {
+                min-width: 44px;
+                min-height: 44px;
+            }
+            /* Các nút nhỏ trong thanh hỗ trợ tiếp cận (A- A A+ A++, đọc thành
+               tiếng, tương phản cao) là nút chữ thuần, không có sẵn flex, nên
+               sau khi nới ra 44px thì chữ dạt lên góc trên bên trái nếu không
+               căn lại. Các nút biểu tượng khác đã có "flex items-center
+               justify-center" từ trước nên CỐ Ý không ghi đè display của chúng. */
+            .tyt-tap {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+            /* Các mục trong menu thu gọn là thẻ khối, căn giữa theo chiều dọc
+               thay vì biến thành inline-flex (sẽ làm mất chiều rộng 100%). */
+            #mobile-menu > a {
+                display: flex;
+                align-items: center;
+            }
+        }
+
+        /* ---------------------------------------------------------------------
+           3. THANH HỖ TRỢ TIẾP CẬN GỌN LẠI TRÊN ĐIỆN THOẠI
+
+           Bốn nút cỡ chữ cộng hai nút bật/tắt cùng nhãn dài thì trên màn hình
+           hẹp phải xuống 3-4 dòng, ăn hết phần trên màn hình. Trên điện thoại
+           các nhãn chữ được cất đi, chỉ còn biểu tượng và ký hiệu A- A A+ A++ -
+           vẫn đủ hiểu, mà thanh chỉ còn một dòng.
+           --------------------------------------------------------------------- */
+        @media (max-width: 767px) {
+            .tyt-a11y-label { display: none !important; }
+            .tyt-a11y-bar { row-gap: 0.25rem; }
+        }
+
+        /* ---------------------------------------------------------------------
+           4. CỘT THẺ NỔI GÓC PHẢI - KHÔNG CHỒNG LẤN
+
+           Trang có bốn thứ cùng bám góc dưới màn hình: nút gọi khám từ xa, nút
+           trợ lý AI, nút Zalo và khung nhạc nền. Trước đây mỗi thứ tự đặt toạ độ
+           riêng bằng lớp tiện ích (bottom-24 right-6, bottom-6 right-24, ...) nên
+           trên điện thoại chúng vây kín góc phải và khung nhạc thì đè lên thẻ
+           khôi phục cuộc gọi ở góc trái.
+
+           Cách xử lý: toạ độ của tất cả các thẻ nổi được quy về một chỗ duy nhất
+           là nhóm luật này, tính từ vùng an toàn đáy màn hình.
+           --------------------------------------------------------------------- */
+
+        /* Nút gọi khám từ xa - nút chính, luôn nằm sát đáy trong tầm ngón tay. */
+        #tyt-fab-telehealth {
+            position: fixed;
+            right: 1rem;
+            bottom: calc(1rem + var(--tyt-safe-b));
+            z-index: 45;
+            min-height: 56px;
+        }
+
+        /* Trợ lý AI và Zalo: trên MÁY TÍNH xếp thành hàng bên trái nút chính.
+           Trên ĐIỆN THOẠI hai nút này được ẩn khỏi tầng nổi (lớp hidden lg:flex
+           trong markup) và chuyển vào menu thu gọn, để góc dưới màn hình chỉ còn
+           đúng một nút bấm. */
+        @media (min-width: 1024px) {
+            /* Zalo sát góc, Trợ lý AI kề bên trái: 1.5rem + 4rem (w-16) + 1rem
+               khoảng cách = 6.5rem. Nút gọi khám từ xa KHÔNG có mặt ở khổ này
+               (lớp lg:hidden) vì thanh tiêu đề đã có nút gọi, nên không chừa chỗ
+               cho nó. */
+            #tyt-fab-zalo {
+                position: fixed;
+                right: 1.5rem;
+                bottom: 1.5rem;
+                z-index: 45;
+            }
+            #tyt-fab-ai {
+                position: fixed;
+                right: 6.5rem;
+                bottom: 1.5rem;
+                z-index: 45;
+            }
+            /* Thẻ khôi phục cuộc gọi đã ẩn (#tw-dock) và khung nhạc nền đều bám
+               góc dưới bên trái - trước đây hai thứ này đè lên nhau. Đẩy thẻ
+               khôi phục lên phía trên khung nhạc. */
+            #tw-dock { bottom: 6rem; }
+        }
+
+        /* Cửa sổ trò chuyện AI trên điện thoại: chiếm gần hết bề rộng, chừa chỗ
+           cho nút gọi khám từ xa bên dưới để hai thứ không đè nhau. */
+        @media (max-width: 1023px) {
+            #ai-chat-window {
+                left: 0.75rem;
+                right: 0.75rem;
+                width: auto;
+                max-width: none;
+                bottom: calc(5.5rem + var(--tyt-safe-b));
+                max-height: calc(100dvh - var(--tyt-header-h) - 7rem);
+            }
+            /* Khung nhạc nền không hiển thị trên điện thoại (xem thêm phần tối ưu
+               băng thông trong khối khởi tạo ở cuối trang). */
+            #bg-music-player { display: none !important; }
+        }
+
+        /* ---------------------------------------------------------------------
+           5. GIỮ NỘI DUNG TRONG KHUNG TRÊN MÀN HÌNH HẸP
+
+           Bảng biểu, chuỗi số dài (số BHYT, số điện thoại) và tiêu đề in hoa
+           không có dấu cách là ba thứ hay làm trang bị tràn ngang trên điện
+           thoại, kéo theo thanh cuộn ngang và làm mọi thứ lệch khung.
+           --------------------------------------------------------------------- */
+        body { overflow-x: clip; }
+        @media (max-width: 767px) {
+            /* Tiêu đề in hoa dài không có dấu cách (tên thôn bản, tên biểu mẫu)
+               là thứ hay đẩy rộng cả trang nhất trên màn hình hẹp. */
+            #main-website h1,
+            #main-website h2,
+            #main-website h3,
+            #main-website h4 {
+                overflow-wrap: anywhere;
+            }
+        }
+
+        /* ---------------------------------------------------------------------
+           6. GIẢM HIỆU ỨNG THEO Ý NGƯỜI DÙNG
+
+           Trang dùng nhiều animate-pulse/animate-bounce. Với người say chuyển
+           động (và cả máy yếu ở vùng cao) các hiệu ứng này vừa gây mệt vừa tốn
+           điện, nên tôn trọng thiết lập "giảm chuyển động" của hệ điều hành.
+           --------------------------------------------------------------------- */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
     </style>
 </head>
 <body class="bg-[#f4f6f9] text-gray-800 antialiased relative">
@@ -427,25 +619,25 @@
     <div id="main-website">
 
         <!-- HEADER -->
-        <header class="bg-[#0b416b] text-white fixed w-full top-0 z-40 shadow-lg border-b border-blue-900/50">
+        <header id="tyt-header" class="bg-[#0b416b] text-white fixed w-full top-0 z-40 shadow-lg border-b border-blue-900/50">
             <!-- ACCESSIBILITY TOOLBAR (Thanh hỗ trợ tiếp cận cho người dân) -->
             <div class="bg-[#083054] text-white py-1.5 px-4 text-xs font-semibold border-b border-white/10">
-                <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
+                <div class="tyt-a11y-bar max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
                     <div class="flex items-center gap-2">
-                        <span class="flex items-center gap-1 text-blue-200 font-bold"><i class="fas fa-universal-access"></i> HỖ TRỢ BÀ CON:</span>
-                        <span class="text-white/30">|</span>
+                        <span class="flex items-center gap-1 text-blue-200 font-bold"><i class="fas fa-universal-access"></i> <span class="tyt-a11y-label">HỖ TRỢ BÀ CON:</span></span>
+                        <span class="tyt-a11y-label text-white/30">|</span>
                         <span class="text-blue-200 font-bold">Cỡ chữ:</span>
-                        <button onclick="window.changeFontSize('small')" class="px-2 py-0.5 rounded hover:bg-white/10 text-[10px] font-bold border border-white/20 transition-all" id="font-btn-small" title="Cỡ chữ Nhỏ">A-</button>
-                        <button onclick="window.changeFontSize('normal')" class="bg-white/20 px-2 py-0.5 rounded text-white font-bold border border-white/30 transition-all" id="font-btn-normal" title="Cỡ chữ Bình thường">A</button>
-                        <button onclick="window.changeFontSize('large')" class="px-2 py-0.5 rounded hover:bg-white/10 text-sm font-bold border border-white/20 transition-all" id="font-btn-large" title="Cỡ chữ Lớn">A+</button>
-                        <button onclick="window.changeFontSize('xlarge')" class="px-2 py-0.5 rounded hover:bg-white/10 text-base font-extrabold border border-white/20 transition-all" id="font-btn-xlarge" title="Cỡ chữ Cực lớn">A++</button>
+                        <button onclick="window.changeFontSize('small')" class="tyt-tap px-2 py-0.5 rounded hover:bg-white/10 text-[10px] font-bold border border-white/20 transition-all" id="font-btn-small" title="Cỡ chữ Nhỏ">A-</button>
+                        <button onclick="window.changeFontSize('normal')" class="tyt-tap bg-white/20 px-2 py-0.5 rounded text-white font-bold border border-white/30 transition-all" id="font-btn-normal" title="Cỡ chữ Bình thường">A</button>
+                        <button onclick="window.changeFontSize('large')" class="tyt-tap px-2 py-0.5 rounded hover:bg-white/10 text-sm font-bold border border-white/20 transition-all" id="font-btn-large" title="Cỡ chữ Lớn">A+</button>
+                        <button onclick="window.changeFontSize('xlarge')" class="tyt-tap px-2 py-0.5 rounded hover:bg-white/10 text-base font-extrabold border border-white/20 transition-all" id="font-btn-xlarge" title="Cỡ chữ Cực lớn">A++</button>
                     </div>
                     <div class="flex items-center gap-3">
-                        <button onclick="window.toggleTextToSpeech()" id="tts-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm text-blue-100">
-                            <i class="fas fa-volume-up text-xs"></i> <span id="tts-btn-text">Đọc thành tiếng (Tắt)</span>
+                        <button onclick="window.toggleTextToSpeech()" id="tts-toggle-btn" class="tyt-tap bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm text-blue-100" aria-label="Bật hoặc tắt đọc thành tiếng">
+                            <i class="fas fa-volume-up text-xs"></i> <span class="tyt-a11y-label" id="tts-btn-text">Đọc thành tiếng (Tắt)</span>
                         </button>
-                        <button onclick="window.toggleHighContrast()" id="contrast-toggle-btn" class="bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm text-blue-100">
-                            <i class="fas fa-adjust text-xs"></i> <span id="contrast-btn-text">Độ tương phản cao (Tắt)</span>
+                        <button onclick="window.toggleHighContrast()" id="contrast-toggle-btn" class="tyt-tap bg-white/10 px-2.5 py-1 rounded-md hover:bg-white/20 font-bold flex items-center gap-1.5 transition-all border border-white/20 shadow-sm text-blue-100" aria-label="Bật hoặc tắt chế độ tương phản cao">
+                            <i class="fas fa-adjust text-xs"></i> <span class="tyt-a11y-label" id="contrast-btn-text">Độ tương phản cao (Tắt)</span>
                         </button>
                     </div>
                 </div>
@@ -478,27 +670,42 @@
                             <i class="fas fa-robot text-lg"></i> Tìm kiếm AI
                         </button>
 
-                        <button onclick="window.openTelehealthQuickCall()" class="bg-[#1976d2] hover:bg-[#1565c0] text-white font-bold transition text-[15px] flex items-center gap-2 px-5 py-2 rounded-full shadow-md border border-blue-400/40">
+                        <button onclick="window.openTelehealthQuickCall()" class="bg-[#1976d2] hover:bg-[#1565c0] text-white font-bold transition text-[15px] flex items-center gap-2 px-5 py-2 rounded-full shadow-md border border-blue-400/40" aria-label="Gọi khám từ xa với cán bộ y tế đang trực">
                             <i class="fas fa-video text-lg"></i> Gọi khám từ xa
                             <span id="nav-on-duty-dot" class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" title="Đang kiểm tra cán bộ trực"></span>
                         </button>
                     </nav>
 
-                    <div class="lg:hidden flex items-center gap-3">
-                        <button onclick="window.openTelehealthQuickCall()" class="text-white bg-[#1976d2] w-10 h-10 rounded-full shadow-md flex items-center justify-center" title="Gọi khám từ xa"><i class="fas fa-video"></i></button>
-                        <button onclick="window.openModal('modal-aisearch')" class="text-white bg-[#5e35b1] w-10 h-10 rounded-full flex items-center justify-center" aria-label="Mở tìm kiếm AI"><i class="fas fa-search"></i></button>
-                        <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="text-white text-2xl" aria-label="Mở menu di động" aria-expanded="false" aria-controls="mobile-menu"><i class="fas fa-bars"></i></button>
+                    <!-- Nhóm nút của bản điện thoại/máy tính bảng.
+                         CỐ Ý KHÔNG có nút "Gọi khám từ xa" ở đây: trên điện thoại
+                         chức năng đó chỉ có DUY NHẤT một lối vào là nút nổi ghim
+                         đáy màn hình (#tyt-fab-telehealth). Trước đây cùng một
+                         chức năng có tới năm nút - thanh tiêu đề, menu thu gọn,
+                         khối đầu trang, thẻ dịch vụ và nút nổi - làm người dân
+                         phải đoán xem nút nào mới đúng. -->
+                    <div class="lg:hidden flex items-center gap-2">
+                        <button onclick="window.openModal('modal-aisearch')" class="tyt-tap text-white bg-[#5e35b1] w-11 h-11 rounded-full flex items-center justify-center" aria-label="Mở tìm kiếm AI"><i class="fas fa-search text-lg"></i></button>
+                        <button id="mobile-menu-btn" onclick="window.toggleMobileMenu()" class="tyt-tap text-white text-2xl w-11 h-11 rounded-lg hover:bg-white/10 transition" aria-label="Mở menu điều hướng" aria-expanded="false" aria-controls="mobile-menu"><i id="mobile-menu-icon" class="fas fa-bars"></i></button>
                     </div>
                 </div>
             </div>
 
             <!-- Mobile Menu -->
-            <div id="mobile-menu" class="hidden lg:hidden bg-[#0b416b] border-t border-blue-800/80 px-4 pt-2 pb-4 space-y-1 shadow-2xl absolute w-full left-0 z-50 text-white">
-                <a href="#" onclick="window.switchPage('home'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-amber-300 bg-white/10 rounded-lg border-b border-blue-800/50">Trang chủ</a>
-                <a href="#" onclick="window.switchPage('dept'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Khoa & Phòng Chức năng</a>
-                <a href="#" onclick="window.switchPage('news'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Tin tức & Lịch tiêm</a>
-                <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); document.getElementById('mobile-menu').classList.add('hidden')" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Kho Tài liệu & Biểu mẫu</a>
-                <a href="#" onclick="window.openTelehealthQuickCall(); document.getElementById('mobile-menu').classList.add('hidden')" class="block mt-2 text-center px-4 py-3 text-white font-bold bg-[#1976d2] hover:bg-[#1565c0] rounded-xl shadow-md"><i class="fas fa-video mr-2"></i> Gọi khám từ xa với Cán bộ Y tế</a>
+            <!-- MENU THU GỌN (HAMBURGER)
+                 Mọi mục đều đóng menu qua window.closeMobileMenu() thay vì tự
+                 thêm lớp hidden, để trạng thái aria-expanded của nút mở menu và
+                 biểu tượng ba gạch / dấu X luôn khớp với thực tế.
+                 CỐ Ý KHÔNG có mục "Gọi khám từ xa": chức năng đó chỉ có một nút
+                 duy nhất là nút nổi ghim đáy màn hình. Hai mục cuối là số điện
+                 thoại thật - chức năng khác hẳn (gọi thoại thường, dùng được cả
+                 khi mạng yếu không kham nổi video) - nên không gộp vào nút gọi. -->
+            <div id="mobile-menu" class="hidden lg:hidden bg-[#0b416b] border-t border-blue-800/80 px-4 pt-2 pb-4 space-y-1 shadow-2xl absolute w-full left-0 z-50 text-white max-h-[70vh] overflow-y-auto">
+                <a href="#" onclick="window.switchPage('home'); window.closeMobileMenu()" class="block px-3 py-3 font-bold text-amber-300 bg-white/10 rounded-lg border-b border-blue-800/50">Trang chủ</a>
+                <a href="#" onclick="window.switchPage('dept'); window.closeMobileMenu()" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Khoa & Phòng Chức năng</a>
+                <a href="#" onclick="window.switchPage('news'); window.closeMobileMenu()" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Tin tức & Lịch tiêm</a>
+                <a href="#" onclick="window.openDocsModal('Biểu mẫu y tế'); window.closeMobileMenu()" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50">Kho Tài liệu & Biểu mẫu</a>
+                <a href="#" onclick="window.toggleAIChat(); window.closeMobileMenu()" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50"><i class="fas fa-sparkles mr-2 text-purple-300"></i> Hỏi Trợ lý Y tế AI</a>
+                <a href="https://zalo.me/0382103002" target="_blank" rel="noopener noreferrer" onclick="window.closeMobileMenu()" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50"><i class="fas fa-comment-sms mr-2 text-sky-300"></i> Tư vấn qua Zalo</a>
                 <a href="tel:115" class="btn-call-emergency block mt-2 text-center px-4 py-3 text-white font-bold bg-[#e53935] hover:bg-[#d32f2f] rounded-xl shadow-md"><i class="fas fa-truck-medical mr-2"></i> Gọi Cấp Cứu 115</a>
                 <a href="tel:0382103002" class="btn-call-station block mt-2 text-center px-4 py-3 text-white font-bold bg-emerald-600 rounded-xl shadow-md"><i class="fas fa-phone-volume mr-2"></i> Gọi Trạm Y tế Bát Xát: 0382.103.002</a>
             </div>
@@ -506,7 +713,7 @@
 
         <!-- KHOẢNG TRANG CHỦ -->
         <div id="trang-chu-container" class="block animate-[fadeIn_0.3s_ease-in-out]">
-            <section class="pt-36 pb-12 bg-gradient-to-br from-[#e0f2fe] via-[#f4f6f9] to-white relative overflow-hidden">
+            <section class="tyt-below-header pb-12 bg-gradient-to-br from-[#e0f2fe] via-[#f4f6f9] to-white relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-20">
                     <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-300 blur-3xl"></div>
                     <div class="absolute top-1/2 -left-24 w-72 h-72 rounded-full bg-indigo-200 blur-3xl"></div>
@@ -526,9 +733,6 @@
                             <div class="flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-2">
                                 <button onclick="window.switchPage('dept')" class="w-full sm:w-auto bg-[#1976d2] hover:bg-[#1565c0] text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
                                     <i class="fas fa-hospital text-xl"></i> Khám phá Khoa & Phòng
-                                </button>
-                                <button onclick="window.openTelehealthQuickCall()" class="w-full sm:w-auto bg-gradient-to-r from-[#1976d2] to-blue-700 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
-                                    <i class="fas fa-video text-xl"></i> Gọi khám từ xa ngay
                                 </button>
                                 <button onclick="window.openModal('modal-datlich')" class="w-full sm:w-auto bg-white text-[#0b416b] border-2 border-blue-200 px-8 py-4 rounded-2xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg hover:bg-blue-50">
                                     <i class="fas fa-calendar-check text-xl text-[#1976d2]"></i> Đặt lịch khám BHYT
@@ -650,7 +854,7 @@
         </div>
 
         <!-- ================= KHU VỰC KHOA PHÒNG & CHỨC NĂNG (TÁCH BIỆT) ================= -->
-        <div id="khoa-phong-container" class="hidden pt-36 pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
+        <div id="khoa-phong-container" class="hidden tyt-below-header pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-10">
                     <h2 data-cms-id="dept-section-title" class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide">Dịch Vụ & Khoa Phòng</h2>
@@ -677,7 +881,12 @@
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             <div onclick="window.openModal('modal-datlich')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-user-md text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Đăng ký khám</h4></div>
-                            <div onclick="window.openTelehealthDirectModal()" class="service-card bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border-2 border-blue-400 cursor-pointer text-center relative overflow-hidden shadow-sm hover:shadow-md transition transform hover:-translate-y-1"><div class="absolute -right-2 -top-2 bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-bl-xl font-black flex items-center gap-1"><i class="fas fa-video"></i> CALL</div><i class="fas fa-headset text-3xl text-blue-600 mb-3 animate-pulse"></i><h4 class="font-bold text-blue-900 text-sm md:text-base">Khám Từ Xa Telehealth</h4></div>
+                            <!-- Thẻ này mở PHIẾU ĐẶT LỊCH với hình thức "khám từ xa" chọn sẵn - đặt hẹn
+                                 trước, khác hẳn nút "Gọi khám từ xa" là gọi thẳng cán bộ đang trực. Trước
+                                 đây nó gắn nhãn "CALL", biểu tượng tai nghe nhấp nháy và viền xanh dày nên
+                                 trông y như một nút gọi thứ hai; nhãn và huy hiệu đã được đổi cho đúng việc
+                                 nó làm, để chức năng gọi chỉ còn một nút duy nhất trên toàn trang. -->
+                            <div onclick="window.openTelehealthDirectModal()" class="service-card bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border border-blue-300 cursor-pointer text-center relative overflow-hidden shadow-sm hover:shadow-md transition transform hover:-translate-y-1"><div class="absolute -right-2 -top-2 bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-bl-xl font-black flex items-center gap-1"><i class="fas fa-calendar-check"></i> ĐẶT HẸN</div><i class="fas fa-laptop-medical text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base">Đặt lịch Khám từ xa</h4></div>
                             <div onclick="window.openModal('modal-tiemchung')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-syringe text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Tiêm chủng mở rộng</h4></div>
                             <div onclick="window.openSupportModal('Chăm sóc Sức khỏe Sinh sản')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-baby-carriage text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Sức khỏe sinh sản</h4></div>
                             <div onclick="window.openSupportModal('Chăm sóc Người cao tuổi')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-person-cane text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Người cao tuổi</h4></div>
@@ -759,7 +968,7 @@
         </div>
 
         <!-- ================= KHU VỰC TIN TỨC & LỊCH TIÊM (TÁCH BIỆT) ================= -->
-        <div id="tin-tuc-container" class="hidden pt-36 pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
+        <div id="tin-tuc-container" class="hidden tyt-below-header pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-10">
                     <h2 class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide"><i class="fas fa-newspaper text-medical-600 mr-2"></i>Tin tức & Lịch tiêm</h2>
@@ -927,25 +1136,44 @@
             </div>
         </footer>
 
-        <!-- ================= NÚT GỌI KHÁM TỪ XA NỔI (LUÔN HIỂN THỊ) ================= -->
-        <button onclick="window.openTelehealthQuickCall()" class="fixed bottom-24 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white h-16 px-5 rounded-full shadow-[0_10px_25px_-5px_rgba(37,99,235,0.6)] flex items-center gap-3 transition z-40 border-2 border-white/20 hover:scale-105 duration-300">
+        <!-- =============== NÚT GỌI KHÁM TỪ XA (CTA DUY NHẤT) ===============
+             Đây là lối vào DUY NHẤT của chức năng gọi khám từ xa trên điện thoại
+             và máy tính bảng, được ghim cố định ở đáy màn hình - trong tầm ngón
+             tay cái, không phải cuộn tìm.
+
+             Trên máy tính (>= 1024px) nút này được ẩn: ở khổ đó thanh tiêu đề
+             luôn nằm trong tầm mắt và đã có nút "Gọi khám từ xa" ở đó, để thêm
+             nút nổi thì lại quay về đúng cái sai cần sửa - hai nút cho một việc.
+
+             Nhãn chữ hiển thị ở MỌI khổ màn hình (trước đây "hidden sm:flex" làm
+             máy dưới 640px chỉ thấy biểu tượng máy quay, không đọc được nút này
+             để làm gì). Toạ độ và chiều cao tối thiểu 56px do CSS
+             #tyt-fab-telehealth quyết định. -->
+        <button id="tyt-fab-telehealth" onclick="window.openTelehealthQuickCall()" class="lg:hidden bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white pl-5 pr-4 py-3 rounded-full shadow-[0_10px_25px_-5px_rgba(37,99,235,0.6)] flex items-center gap-3 transition border-2 border-white/20 hover:scale-105 duration-300" aria-label="Gọi khám từ xa với cán bộ y tế đang trực">
             <i class="fas fa-video text-2xl"></i>
-            <span class="hidden sm:flex flex-col items-start leading-tight text-left">
-                <span class="text-sm font-black">Gọi khám từ xa</span>
+            <span class="flex flex-col items-start leading-tight text-left">
+                <span class="text-base font-black">Gọi khám từ xa</span>
                 <span id="fab-on-duty-text" class="text-[11px] font-bold text-blue-100">Đang kiểm tra cán bộ trực...</span>
             </span>
             <span id="fab-on-duty-dot" class="w-3 h-3 rounded-full bg-emerald-300 animate-pulse"></span>
         </button>
     </div> <!-- KẾT THÚC #main-website -->
 
-    <!-- ================= CHATBOT AI NỔI ================= -->
-    <button onclick="window.toggleAIChat()" class="fixed bottom-6 right-24 bg-gradient-to-r from-purple-600 to-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_10px_25px_-5px_rgba(147,51,234,0.5)] flex items-center justify-center text-3xl hover:from-purple-700 hover:to-indigo-700 transition z-40 group hover:scale-110 duration-300 border-2 border-white/20">
+    <!-- ================= CHATBOT AI NỔI (CHỈ TRÊN MÁY TÍNH) =================
+         hidden lg:flex - trên điện thoại thẻ nổi này được dọn đi để góc dưới màn
+         hình chỉ còn đúng một nút bấm; đường vào chuyển sang mục "Hỏi Trợ lý Y
+         tế AI" trong menu thu gọn. -->
+    <button id="tyt-fab-ai" onclick="window.toggleAIChat()" class="hidden lg:flex bg-gradient-to-r from-purple-600 to-indigo-600 text-white w-16 h-16 rounded-full shadow-[0_10px_25px_-5px_rgba(147,51,234,0.5)] items-center justify-center text-3xl hover:from-purple-700 hover:to-indigo-700 transition group hover:scale-110 duration-300 border-2 border-white/20" aria-label="Mở trò chuyện với Trợ lý Y tế AI">
         <i class="fas fa-sparkles"></i>
         <span class="absolute -top-12 right-0 bg-gray-900 text-white text-sm font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl">Hỏi Trợ Lý AI</span>
     </button>
 
-    <!-- ================= NÚT CHAT ZALO NỔI (FLOATING WIDGET) ================= -->
-    <a href="https://zalo.me/0382103002" target="_blank" rel="noopener noreferrer" class="fixed bottom-6 right-6 bg-blue-500 hover:bg-blue-600 text-white w-16 h-16 rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center text-3xl transition z-40 group hover:scale-110 duration-300 border-2 border-white/20 animate-bounce">
+    <!-- ============ NÚT CHAT ZALO NỔI (CHỈ TRÊN MÁY TÍNH) ============
+         Cũng chỉ còn trên máy tính, cùng lý do với thẻ Trợ lý AI; trên điện thoại
+         đường vào là mục "Tư vấn qua Zalo" trong menu thu gọn.
+         Đã bỏ animate-bounce: một thẻ nhảy liên tục ngay cạnh nút gọi khám khiến
+         người cao tuổi bấm trượt sang Zalo trong khi muốn gọi cán bộ y tế. -->
+    <a id="tyt-fab-zalo" href="https://zalo.me/0382103002" target="_blank" rel="noopener noreferrer" class="hidden lg:flex bg-blue-500 hover:bg-blue-600 text-white w-16 h-16 rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] items-center justify-center text-3xl transition group hover:scale-110 duration-300 border-2 border-white/20">
         <i class="fas fa-comment-sms"></i>
         <span class="absolute -top-12 right-0 bg-blue-950 text-white text-sm font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl">Tư vấn qua Zalo</span>
     </a>
@@ -4036,6 +4264,111 @@
         let ttsEnabled = false;
         let highContrastEnabled = false;
 
+        /* =====================================================================
+           TẦNG GIAO DIỆN ĐA NỀN TẢNG - PHẦN JAVASCRIPT
+
+           Hai việc mà CSS một mình không làm được:
+             1. Đo chiều cao thật của thanh tiêu đề fixed rồi ghi vào biến CSS.
+             2. Quản lý trạng thái menu thu gọn (mở/đóng) sao cho biểu tượng nút
+                và thuộc tính aria-expanded không bao giờ lệch với thực tế.
+           ===================================================================== */
+
+        /* --- 1. ĐO CHIỀU CAO THANH TIÊU ĐỀ ---------------------------------
+           Thanh tiêu đề dùng position:fixed nên nội dung bên dưới phải tự chừa
+           khoảng trắng bằng đúng chiều cao của nó (lớp .tyt-below-header đọc
+           biến --tyt-header-h). Chiều cao này KHÔNG phải hằng số:
+             - thanh hỗ trợ tiếp cận xuống 2-4 dòng trên màn hình hẹp,
+             - người dân bấm A+/A++ làm cỡ chữ gốc tăng lên tới 24px,
+             - khẩu hiệu do CMS đặt có thể dài hơn một dòng.
+           Nên nó được đo lại mỗi khi header đổi kích thước, thay vì đoán bằng
+           một con số cứng như pt-36 (144px) trước đây - con số đó nhỏ hơn chiều
+           cao thật trên điện thoại 360px, khiến tiêu đề trang chủ bị header đè. */
+        window.measureHeaderHeight = function() {
+            const header = document.getElementById('tyt-header');
+            if (!header) return;
+            const h = Math.ceil(header.getBoundingClientRect().height);
+            if (h > 0) document.documentElement.style.setProperty('--tyt-header-h', h + 'px');
+        };
+
+        /* ResizeObserver bắt được cả ba nguyên nhân ở trên bằng một cơ chế duy
+           nhất, kể cả khi header cao lên vì lý do sau này chưa lường tới. Máy
+           không hỗ trợ (trình duyệt rất cũ) thì lùi về nghe sự kiện resize. */
+        (function watchHeaderHeight() {
+            const start = () => {
+                window.measureHeaderHeight();
+                const header = document.getElementById('tyt-header');
+                if (!header) return;
+                if (typeof ResizeObserver === 'function') {
+                    new ResizeObserver(() => window.measureHeaderHeight()).observe(header);
+                } else {
+                    window.addEventListener('resize', window.measureHeaderHeight);
+                    window.addEventListener('orientationchange', window.measureHeaderHeight);
+                }
+                /* Phông chữ Inter và Font Awesome tải sau HTML; lúc chúng thay
+                   cho phông dự phòng thì chiều cao header nhảy một nhịp nữa. */
+                if (document.fonts && document.fonts.ready) {
+                    document.fonts.ready.then(() => window.measureHeaderHeight());
+                }
+            };
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', start);
+            } else {
+                start();
+            }
+        })();
+
+        /* --- 2. MENU THU GỌN (HAMBURGER) -----------------------------------
+           Trước đây nút menu gọi thẳng classList.toggle('hidden') trong thuộc
+           tính onclick. Cách đó có ba chỗ hỏng: aria-expanded mãi là "false" nên
+           trình đọc màn hình luôn báo menu đang đóng; biểu tượng ba gạch không
+           đổi thành dấu X nên không thấy được là menu đang mở; và menu chỉ đóng
+           được bằng cách bấm lại đúng nút đó. Ba hàm dưới đây giữ mọi thứ khớp
+           nhau ở một chỗ duy nhất. */
+        function setMobileMenuState(open) {
+            const menu = document.getElementById('mobile-menu');
+            const btn = document.getElementById('mobile-menu-btn');
+            const icon = document.getElementById('mobile-menu-icon');
+            if (!menu) return;
+            menu.classList.toggle('hidden', !open);
+            if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (btn) btn.setAttribute('aria-label', open ? 'Đóng menu điều hướng' : 'Mở menu điều hướng');
+            if (icon) icon.className = open ? 'fas fa-times' : 'fas fa-bars';
+        }
+
+        window.toggleMobileMenu = function() {
+            const menu = document.getElementById('mobile-menu');
+            if (!menu) return;
+            setMobileMenuState(menu.classList.contains('hidden'));
+        };
+
+        window.closeMobileMenu = function() {
+            setMobileMenuState(false);
+        };
+
+        /* Bấm ra ngoài, nhấn Esc, hoặc màn hình rộng ra tới khổ máy tính đều là
+           những lúc menu phải tự đóng - nếu không nó nằm lại che nội dung. */
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('mobile-menu');
+            if (!menu || menu.classList.contains('hidden')) return;
+            if (e.target.closest('#mobile-menu') || e.target.closest('#mobile-menu-btn')) return;
+            window.closeMobileMenu();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            const menu = document.getElementById('mobile-menu');
+            if (menu && !menu.classList.contains('hidden')) window.closeMobileMenu();
+        });
+
+        if (window.matchMedia) {
+            const wide = window.matchMedia('(min-width: 1024px)');
+            const onWide = (ev) => { if (ev.matches) window.closeMobileMenu(); };
+            /* addListener là bản cũ, cần cho Safari trước 14 - vẫn còn nhiều máy
+               dùng ở tuyến xã. */
+            if (wide.addEventListener) wide.addEventListener('change', onWide);
+            else if (wide.addListener) wide.addListener(onWide);
+        }
+
         window.changeFontSize = function(size) {
             let px = '16px';
             if (size === 'small') px = '14px';
@@ -4051,12 +4384,15 @@
                 const btn = document.getElementById(`font-btn-${b}`);
                 if (btn) {
                     if (b === size) {
-                        btn.className = "bg-white/20 px-2 py-0.5 rounded text-white font-bold border border-white/30 transition-all";
+                        btn.className = "tyt-tap bg-white/20 px-2 py-0.5 rounded text-white font-bold border border-white/30 transition-all";
                     } else {
-                        btn.className = "px-2 py-0.5 rounded hover:bg-white/10 font-bold border border-white/20 transition-all " + (b === 'small' ? 'text-[10px]' : b === 'normal' ? 'text-xs' : b === 'large' ? 'text-sm' : 'text-base font-extrabold');
+                        btn.className = "tyt-tap px-2 py-0.5 rounded hover:bg-white/10 font-bold border border-white/20 transition-all " + (b === 'small' ? 'text-[10px]' : b === 'normal' ? 'text-xs' : b === 'large' ? 'text-sm' : 'text-base font-extrabold');
                     }
                 }
             });
+            // Cỡ chữ gốc vừa đổi thì thanh tiêu đề cũng cao/thấp theo, phải đo
+            // lại ngay để nội dung không bị header đè lên hoặc trống một khoảng.
+            try { window.measureHeaderHeight(); } catch (e) {}
             window.showToast("Đã điều chỉnh cỡ chữ màn hình!");
         };
 
@@ -7139,7 +7475,7 @@
             const hero = document.getElementById('hero-on-duty');
             if (hero) {
                 hero.innerHTML = online
-                    ? `<span class="text-emerald-600"><i class="fas fa-circle-check mr-1"></i> ${label} - bấm "Gọi khám từ xa ngay" để kết nối.</span>`
+                    ? `<span class="text-emerald-600"><i class="fas fa-circle-check mr-1"></i> ${label} - bấm nút <b>Gọi khám từ xa</b> để kết nối.</span>`
                     : `<span class="text-amber-600"><i class="fas fa-circle-exclamation mr-1"></i> ${label}. Bạn vẫn có thể gọi để đổ chuông, hoặc để lại lịch khám.</span>`;
             }
 
@@ -7203,7 +7539,7 @@
 
             const hero = document.getElementById('hero-on-duty');
             if (hero) {
-                hero.innerHTML = '<span class="text-gray-600"><i class="fas fa-circle-info mr-1"></i> Bấm "Gọi khám từ xa ngay" để kiểm tra cán bộ đang trực và bắt đầu cuộc gọi.</span>';
+                hero.innerHTML = '<span class="text-gray-600"><i class="fas fa-circle-info mr-1"></i> Bấm nút <b>Gọi khám từ xa</b> để kiểm tra cán bộ đang trực và bắt đầu cuộc gọi.</span>';
             }
         };
 
@@ -11936,106 +12272,132 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
 
             // KHỞI TẠO VÀ CHẠY NHẠC NỀN TRẠM Y TẾ BÁT XÁT
             try {
-                const audioContainer = document.createElement('div');
-                audioContainer.id = 'bg-music-player';
-                audioContainer.className = 'fixed bottom-6 left-6 z-[9999] bg-white/90 backdrop-blur border border-medical-200 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-3 transition-transform duration-300 hover:scale-105';
-                audioContainer.innerHTML = `
-                    <audio id="station-bg-audio" src="assets/tram_music.mp3" autoplay loop></audio>
-                    <div class="flex items-center justify-center w-8 h-8 bg-medical-100 text-medical-600 rounded-full animate-pulse" id="music-wave">
-                        <i class="fas fa-music text-xs"></i>
-                    </div>
-                    <div class="flex flex-col">
-                        <span class="text-[11px] font-black text-gray-800 leading-none">Bản nhạc truyền thống</span>
-                        <span class="text-[9px] text-gray-500 font-bold">Trạm Y Tế Bát Xát</span>
-                    </div>
-                    <div class="flex items-center gap-1 ml-2">
-                        <button onclick="window.toggleMusic()" id="btn-music-play" class="w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md" title="Phát/Tạm dừng">
-                            <i class="fas fa-pause"></i>
-                        </button>
-                        <button onclick="window.toggleMusicLoop()" id="btn-music-loop" class="w-7 h-7 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs transition border border-gray-200" title="Bật/Tắt Lặp lại">
-                            <i class="fas fa-redo text-[10px]"></i>
-                        </button>
-                    </div>
-                `;
-                document.body.appendChild(audioContainer);
+                /* --- KHÔNG TẢI NHẠC NỀN TRÊN ĐIỆN THOẠI / MẠNG YẾU ---------
+                   assets/tram_music.mp3 nặng khoảng 4,2 MB. Trước đây thẻ <audio>
+                   có thuộc tính autoplay, nên trình duyệt tải trọn tệp ngay khi mở
+                   trang - tranh băng thông với đúng những thứ người dân cần trước:
+                   chữ, hình và mã của nút gọi khám từ xa. Trên 3G ở vùng cao đây là
+                   phần tải nặng nhất của cả trang mà lại ít cần nhất, và trên điện
+                   thoại thì chính sách trình duyệt cũng chặn autoplay nên 4,2 MB đó
+                   tải về chỉ để nằm im.
 
-                const audio = document.getElementById('station-bg-audio');
-                const playBtn = document.getElementById('btn-music-play');
-                const loopBtn = document.getElementById('btn-music-loop');
-                const musicWave = document.getElementById('music-wave');
+                   Nên khung nhạc chỉ được dựng ở khổ máy tính, khi không có cờ tiết
+                   kiệm dữ liệu và kết nối không thuộc loại chậm. Thẻ <audio> cũng đã
+                   đổi sang preload="none": tệp chỉ tải khi người dùng chủ động bấm
+                   phát, thay vì tải sẵn cho mọi người. */
+                const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                const skipMusic = !!(conn && conn.saveData)
+                    || !!(conn && /^(slow-)?2g$/.test(conn.effectiveType || ''))
+                    || !!(window.matchMedia && window.matchMedia('(max-width: 1023px)').matches);
 
-                // State persistence
-                let isMuted = localStorage.getItem('bg_music_muted') === 'true';
-                let isLooping = localStorage.getItem('bg_music_loop') !== 'false'; // Default to loop is true
+                if (skipMusic) {
+                    /* Markup có thể gọi tới hai hàm này, nên chúng vẫn phải tồn tại
+                       dù khung nhạc không được dựng - nếu không thì nút "bấm không
+                       phản hồi" kèm lỗi trong console. */
+                    window.toggleMusic = function() {};
+                    window.toggleMusicLoop = function() {};
+                } else {
+                    const audioContainer = document.createElement('div');
+                    audioContainer.id = 'bg-music-player';
+                    audioContainer.className = 'fixed bottom-6 left-6 z-[9999] bg-white/90 backdrop-blur border border-medical-200 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-3 transition-transform duration-300 hover:scale-105';
+                    audioContainer.innerHTML = `
+                        <audio id="station-bg-audio" src="assets/tram_music.mp3" preload="none" loop></audio>
+                        <div class="flex items-center justify-center w-8 h-8 bg-medical-100 text-medical-600 rounded-full animate-pulse" id="music-wave">
+                            <i class="fas fa-music text-xs"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[11px] font-black text-gray-800 leading-none">Bản nhạc truyền thống</span>
+                            <span class="text-[9px] text-gray-500 font-bold">Trạm Y Tế Bát Xát</span>
+                        </div>
+                        <div class="flex items-center gap-1 ml-2">
+                            <button onclick="window.toggleMusic()" id="btn-music-play" class="w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md" title="Phát/Tạm dừng">
+                                <i class="fas fa-pause"></i>
+                            </button>
+                            <button onclick="window.toggleMusicLoop()" id="btn-music-loop" class="w-7 h-7 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs transition border border-gray-200" title="Bật/Tắt Lặp lại">
+                                <i class="fas fa-redo text-[10px]"></i>
+                            </button>
+                        </div>
+                    `;
+                    document.body.appendChild(audioContainer);
 
-                audio.loop = isLooping;
-                if (isLooping) {
-                    loopBtn.classList.remove('bg-gray-100', 'text-gray-600');
-                    loopBtn.classList.add('bg-amber-100', 'text-amber-700', 'border-amber-300');
-                }
+                    const audio = document.getElementById('station-bg-audio');
+                    const playBtn = document.getElementById('btn-music-play');
+                    const loopBtn = document.getElementById('btn-music-loop');
+                    const musicWave = document.getElementById('music-wave');
 
-                window.toggleMusic = function() {
-                    if (audio.paused) {
-                        audio.play().then(() => {
-                            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                            playBtn.className = 'w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md';
-                            musicWave.classList.add('animate-pulse');
-                            localStorage.setItem('bg_music_muted', 'false');
-                        }).catch(e => console.log("Không thể tự động phát nhạc do chính sách bảo mật trình duyệt:", e));
-                    } else {
-                        audio.pause();
-                        playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
-                        playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
-                        musicWave.classList.remove('animate-pulse');
-                        localStorage.setItem('bg_music_muted', 'true');
-                    }
-                };
+                    // State persistence
+                    let isMuted = localStorage.getItem('bg_music_muted') === 'true';
+                    let isLooping = localStorage.getItem('bg_music_loop') !== 'false'; // Default to loop is true
 
-                window.toggleMusicLoop = function() {
-                    audio.loop = !audio.loop;
-                    localStorage.setItem('bg_music_loop', audio.loop);
-                    if (audio.loop) {
+                    audio.loop = isLooping;
+                    if (isLooping) {
                         loopBtn.classList.remove('bg-gray-100', 'text-gray-600');
                         loopBtn.classList.add('bg-amber-100', 'text-amber-700', 'border-amber-300');
-                        window.showToast("Đã bật lặp lại bản nhạc");
-                    } else {
-                        loopBtn.classList.add('bg-gray-100', 'text-gray-600');
-                        loopBtn.classList.remove('bg-amber-100', 'text-amber-700', 'border-amber-300');
-                        window.showToast("Đã tắt lặp lại bản nhạc");
                     }
-                };
 
-                // Play music on interaction if blocked by autoplay policy
-                const startAudioOnInteraction = () => {
+                    window.toggleMusic = function() {
+                        if (audio.paused) {
+                            audio.play().then(() => {
+                                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                                playBtn.className = 'w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md';
+                                musicWave.classList.add('animate-pulse');
+                                localStorage.setItem('bg_music_muted', 'false');
+                            }).catch(e => console.log("Không thể tự động phát nhạc do chính sách bảo mật trình duyệt:", e));
+                        } else {
+                            audio.pause();
+                            playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
+                            playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
+                            musicWave.classList.remove('animate-pulse');
+                            localStorage.setItem('bg_music_muted', 'true');
+                        }
+                    };
+
+                    window.toggleMusicLoop = function() {
+                        audio.loop = !audio.loop;
+                        localStorage.setItem('bg_music_loop', audio.loop);
+                        if (audio.loop) {
+                            loopBtn.classList.remove('bg-gray-100', 'text-gray-600');
+                            loopBtn.classList.add('bg-amber-100', 'text-amber-700', 'border-amber-300');
+                            window.showToast("Đã bật lặp lại bản nhạc");
+                        } else {
+                            loopBtn.classList.add('bg-gray-100', 'text-gray-600');
+                            loopBtn.classList.remove('bg-amber-100', 'text-amber-700', 'border-amber-300');
+                            window.showToast("Đã tắt lặp lại bản nhạc");
+                        }
+                    };
+
+                    // Play music on interaction if blocked by autoplay policy
+                    const startAudioOnInteraction = () => {
+                        if (!isMuted) {
+                            audio.play().then(() => {
+                                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                                playBtn.className = 'w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md';
+                                musicWave.classList.add('animate-pulse');
+                            }).catch(e => console.log("Autoplay policy still active", e));
+                        } else {
+                            audio.pause();
+                            playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
+                            playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
+                            musicWave.classList.remove('animate-pulse');
+                        }
+                        document.removeEventListener('click', startAudioOnInteraction);
+                        document.removeEventListener('scroll', startAudioOnInteraction);
+                    };
+
+                    document.addEventListener('click', startAudioOnInteraction);
+                    document.addEventListener('scroll', startAudioOnInteraction);
+
+                    // Initial load
                     if (!isMuted) {
-                        audio.play().then(() => {
-                            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                            playBtn.className = 'w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md';
-                            musicWave.classList.add('animate-pulse');
-                        }).catch(e => console.log("Autoplay policy still active", e));
+                        audio.play().catch(err => {
+                            console.log("Trình duyệt yêu cầu tương tác của người dùng để bắt đầu phát nhạc.", err);
+                        });
                     } else {
                         audio.pause();
                         playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
                         playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
                         musicWave.classList.remove('animate-pulse');
                     }
-                    document.removeEventListener('click', startAudioOnInteraction);
-                    document.removeEventListener('scroll', startAudioOnInteraction);
-                };
-
-                document.addEventListener('click', startAudioOnInteraction);
-                document.addEventListener('scroll', startAudioOnInteraction);
-
-                // Initial load
-                if (!isMuted) {
-                    audio.play().catch(err => {
-                        console.log("Trình duyệt yêu cầu tương tác của người dùng để bắt đầu phát nhạc.", err);
-                    });
-                } else {
-                    audio.pause();
-                    playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
-                    playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
-                    musicWave.classList.remove('animate-pulse');
                 }
             } catch (err) {
                 console.error("Lỗi thiết lập nhạc nền:", err);
