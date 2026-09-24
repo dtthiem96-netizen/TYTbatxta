@@ -7,7 +7,7 @@
    Lớp vỏ luôn lấy bản mới từ mạng trước, chỉ dùng bản lưu khi mạng hỏng, nên
    sửa giao diện xong cán bộ nhận được ngay ở lần mở kế tiếp.
    ============================================================================= */
-var CACHE = 'tyt-chamcong-shell-v1';
+var CACHE = 'tyt-chamcong-shell-v2';
 var SHELL = ['/chamcong', '/chamcong.js', '/logo.png'];
 
 self.addEventListener('install', function (event) {

@@ -14,6 +14,7 @@
  *   POST /api/attendance  { action: ... }
  *        punch              chấm công vào/ra
  *        duty_check_in      nhận ca trực
+ *        duty_self_check_in tự chấm trực: chọn ca, máy chủ tự sinh suất trực
  *        duty_check_out     kết ca trực
  *        request_adjust     xin điều chỉnh chấm công
  *        request_swap       xin đổi ca trực
@@ -74,6 +75,7 @@ import {
   requireOwnEmployee,
   shiftHours,
   str,
+  toMinutes,
   todayContext,
   vnDate,
   vnTime,
@@ -186,6 +188,8 @@ async function todayState(employee: EmployeeRow) {
     })
     .filter((card) => card.dutyDate === today || card.actionable);
 
+  const selfDuty = selfDutyOptions(shifts, duties, dayType, today, settings.workHours.earliestPunchMin);
+
   return {
     today,
     period,
@@ -211,7 +215,83 @@ async function todayState(employee: EmployeeRow) {
     openSession,
     nextPunch: openSession ? "OUT" : "IN",
     duties: dutyCards,
+    // Chấm trực tự động: bật mặc định, Quản trị chỉ tắt khi muốn quay về phân lịch.
+    selfDuty: {
+      enabled: !settings.workHours.requireDutyAssignment,
+      options: selfDuty,
+    },
   };
+}
+
+type ShiftList = Awaited<ReturnType<typeof listShifts>>;
+
+function shiftCrossesMidnight(shift: ShiftList[number]): boolean {
+  if (String(shift.crossesMidnight || "false") === "true") return true;
+  const start = toMinutes(shift.startTime);
+  const end = toMinutes(shift.endTime);
+  return start !== null && end !== null && end <= start;
+}
+
+/**
+ * Khung giờ được TỰ nhận một ca trong ngày hôm nay: từ trước giờ bắt đầu
+ * earliestPunchMin phút tới giờ kết thúc (ca qua đêm thì tới hết ngày).
+ */
+function selfDutyWindow(shift: ShiftList[number], earliestMin: number) {
+  const start = toMinutes(shift.startTime) ?? 0;
+  const end = toMinutes(shift.endTime) ?? 1440;
+  const opensAt = Math.max(0, start - earliestMin);
+  const closesAt = shiftCrossesMidnight(shift) ? 1440 : end;
+  return { opensAt, closesAt };
+}
+
+function nowMinutesVN(): number {
+  return toMinutes(vnTime().slice(0, 5)) ?? 0;
+}
+
+/**
+ * Các ca cán bộ có thể TỰ nhận hôm nay, kèm ca được gợi ý tự động theo giờ
+ * hiện tại (ca đang mở có giờ bắt đầu gần nhất).
+ */
+function selfDutyOptions(
+  shifts: ShiftList,
+  duties: (typeof attDutyAssignments.$inferSelect)[],
+  dayType: string,
+  today: string,
+  earliestMin: number
+) {
+  const nowMin = nowMinutesVN();
+  const taken = new Set(
+    duties
+      .filter((d) => d.dutyDate === today && String(d.status || "PLANNED").toUpperCase() !== "CANCELLED")
+      .map((d) => d.shiftId)
+  );
+  const options = shifts
+    .filter((s) => {
+      const scope = String(s.dayScope || "ANY").toUpperCase();
+      return (scope === "ANY" || scope === dayType) && !taken.has(s.id);
+    })
+    .map((s) => {
+      const win = selfDutyWindow(s, earliestMin);
+      return {
+        shiftId: s.id,
+        shiftName: s.name,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        crossesMidnight: shiftCrossesMidnight(s),
+        hours: s.hours ?? shiftHours(s.startTime, s.endTime),
+        color: s.color || "#0284c7",
+        open: nowMin >= win.opensAt && nowMin <= win.closesAt,
+        opensAt: `${String(Math.floor(win.opensAt / 60)).padStart(2, "0")}:${String(win.opensAt % 60).padStart(2, "0")}`,
+        suggested: false,
+      };
+    });
+  let best: (typeof options)[number] | null = null;
+  for (const o of options) {
+    if (!o.open) continue;
+    if (!best || (toMinutes(o.startTime) ?? 0) > (toMinutes(best.startTime) ?? 0)) best = o;
+  }
+  if (best) best.suggested = true;
+  return options;
 }
 
 /** Dữ liệu khởi động màn hình: một lượt gọi duy nhất cho cả trang. */
@@ -587,9 +667,8 @@ async function handlePunch(actor: ActorContext, body: Record<string, unknown>) {
 /**
  * NHẬN CA TRỰC.
  *
- * Phải có suất trực được phân sẵn mới nhận được ca (trừ khi Quản trị tắt yêu cầu
- * đó trong cấu hình). Đây là điểm tách bạch giữa chấm công và chấm trực: trực là
- * việc được phân công theo lịch, không phải việc tự nhận.
+ * Nhận ca cho một suất trực đã có sẵn (do Quản trị phân, hoặc do
+ * handleDutySelfCheckIn vừa tự sinh khi người trực tự chấm).
  */
 async function handleDutyCheckIn(actor: ActorContext, body: Record<string, unknown>) {
   const employee = requireOwnEmployee(actor);
@@ -648,6 +727,98 @@ async function handleDutyCheckIn(actor: ActorContext, body: Record<string, unkno
     message: `Đã nhận ca trực lúc ${vnTime(now)}.`,
     today: await todayState(employee),
   });
+}
+
+/**
+ * TỰ CHẤM TRỰC.
+ *
+ * Người trực tự chọn ca (hoặc để máy tự gợi ý theo giờ hiện tại) và bấm nhận
+ * ca. Máy chủ tự sinh suất trực cho chính người đó rồi ghi nhận ca luôn, nên
+ * Quản trị không phải phân lịch từng người trước. Mọi kiểm tra vẫn ở máy chủ:
+ * ca phải hợp loại ngày, phải đang trong khung giờ nhận ca, kỳ chưa khoá.
+ */
+async function handleDutySelfCheckIn(actor: ActorContext, body: Record<string, unknown>) {
+  const employee = requireOwnEmployee(actor);
+  const settings = await getSettings();
+  if (settings.workHours.requireDutyAssignment) {
+    return json(
+      { success: false, error: "Trạm đang yêu cầu phân lịch trực trước. Liên hệ Phụ trách để được phân ca." },
+      403
+    );
+  }
+  const shiftId = str(body.shiftId);
+  if (!shiftId) return json({ success: false, error: "Chưa chọn ca trực." }, 400);
+
+  const { today } = todayContext();
+  await assertPeriodOpen(today);
+
+  const [shifts, holidays] = await Promise.all([listShifts(true), listHolidays()]);
+  const shift = shifts.find((s) => s.id === shiftId);
+  if (!shift) return json({ success: false, error: "Không tìm thấy ca trực." }, 404);
+
+  const dayType = classifyDay(today, buildHolidayMap(holidays), settings.workHours);
+  const scope = String(shift.dayScope || "ANY").toUpperCase();
+  if (scope !== "ANY" && scope !== dayType) {
+    return json({ success: false, error: `${shift.name} không áp dụng cho ngày hôm nay.` }, 400);
+  }
+  const win = selfDutyWindow(shift, settings.workHours.earliestPunchMin);
+  const nowMin = nowMinutesVN();
+  if (nowMin < win.opensAt || nowMin > win.closesAt) {
+    return json({ success: false, error: `Ngoài khung giờ nhận ${shift.name} (${shift.startTime} - ${shift.endTime}).` }, 400);
+  }
+
+  const now = Date.now();
+  const existing = await db
+    .select()
+    .from(attDutyAssignments)
+    .where(
+      and(
+        eq(attDutyAssignments.dutyDate, today),
+        eq(attDutyAssignments.shiftId, shiftId),
+        eq(attDutyAssignments.employeeId, employee.id)
+      )
+    );
+  let assignmentId: string;
+  if (existing.length) {
+    assignmentId = existing[0].id;
+    if (String(existing[0].status || "PLANNED").toUpperCase() === "CANCELLED") {
+      await db
+        .update(attDutyAssignments)
+        .set({ status: "PLANNED", note: "Tự chấm trực", updatedAt: now })
+        .where(eq(attDutyAssignments.id, assignmentId));
+    }
+  } else {
+    assignmentId = newId("duty");
+    await db.insert(attDutyAssignments).values({
+      id: assignmentId,
+      dutyDate: today,
+      shiftId,
+      employeeId: employee.id,
+      dayType,
+      status: "PLANNED",
+      note: "Tự chấm trực",
+      createdBy: actor.user.id,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await writeAudit(actor, {
+      entity: "duty_assignment",
+      entityId: assignmentId,
+      action: "SELF_CREATE",
+      newValue: { dutyDate: today, shiftId, employeeId: employee.id, dayType },
+    });
+  }
+
+  const response = await handleDutyCheckIn(actor, { ...body, assignmentId });
+  if (response.status === 200) {
+    await notifyApprovers(
+      employee,
+      "Cán bộ tự nhận ca trực",
+      `${employee.fullName} đã tự nhận ${shift.name} ngày ${today} lúc ${vnTime(now)}.`,
+      assignmentId
+    );
+  }
+  return response;
 }
 
 /** KẾT CA TRỰC. Chấp nhận kết ca sang ngày hôm sau cho ca qua đêm. */
@@ -1028,6 +1199,8 @@ export default async (req: Request) => {
         return await handlePunch(actor, body);
       case "duty_check_in":
         return await handleDutyCheckIn(actor, body);
+      case "duty_self_check_in":
+        return await handleDutySelfCheckIn(actor, body);
       case "duty_check_out":
         return await handleDutyCheckOut(actor, body);
       case "request_adjust":

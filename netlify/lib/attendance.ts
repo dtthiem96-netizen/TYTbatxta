@@ -222,7 +222,7 @@ export type WorkHours = {
   halfDayValue: number;
   /** Cho phép chấm công vào ngày không phải ngày làm việc (T7/CN/lễ). */
   allowPunchOnNonWorkday: boolean;
-  /** Bắt buộc phải có suất trực được phân mới chấm trực được. */
+  /** Bắt buộc phải có suất trực được phân mới chấm trực được. Mặc định tắt: người trực tự chấm. */
   requireDutyAssignment: boolean;
   /** Cho phép cán bộ tự gửi yêu cầu điều chỉnh chấm công. */
   allowAdjustRequest: boolean;
@@ -240,7 +240,7 @@ export const DEFAULT_WORK_HOURS: WorkHours = {
   latestPunchMin: 180,
   halfDayValue: 0.5,
   allowPunchOnNonWorkday: true,
-  requireDutyAssignment: true,
+  requireDutyAssignment: false,
   allowAdjustRequest: true,
   allowSwapRequest: true,
 };
