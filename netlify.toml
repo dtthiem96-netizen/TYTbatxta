@@ -64,6 +64,31 @@
   to = "/bacsi.html"
   status = 200
 
+# Phân hệ Chấm công - Chấm trực (nội bộ). Trang có cổng đăng nhập riêng: tài
+# khoản phải được CMS Quản trị cấp quyền attendance_access, và mọi lệnh gọi
+# /api/attendance* đều kiểm tra lại phiếu phiên + quyền ở máy chủ.
+# /chamcong là đường dẫn chuẩn vì Service Worker của phân hệ đăng ký phạm vi
+# /chamcong; /cham-cong (dễ gõ, dễ đọc qua điện thoại) chuyển hẳn sang đó.
+[[redirects]]
+  from = "/cham-cong"
+  to = "/chamcong"
+  status = 301
+
+[[redirects]]
+  from = "/cham-cong/*"
+  to = "/chamcong"
+  status = 301
+
+[[redirects]]
+  from = "/chamcong"
+  to = "/chamcong.html"
+  status = 200
+
+[[redirects]]
+  from = "/chamcong/*"
+  to = "/chamcong.html"
+  status = 200
+
 # Thư mục gốc được publish nguyên trạng, nên chặn các tệp chỉ dùng cho máy chủ
 # nội bộ để chúng không tải về được từ trang công khai.
 [[redirects]]
@@ -310,6 +335,19 @@
 
 [[headers]]
   for = "/public/doctor.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+# Phân hệ Chấm công: /chamcong.js không có vân tay nội dung trong tên, và
+# /chamcong-sw.js là Service Worker (trình duyệt chỉ thay bản mới khi tải được
+# tệp khác byte) - cả hai phải luôn kiểm tra lại với máy chủ như /app.js, /sw.js.
+[[headers]]
+  for = "/chamcong.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, must-revalidate"
+
+[[headers]]
+  for = "/chamcong-sw.js"
   [headers.values]
     Cache-Control = "public, max-age=0, no-cache, must-revalidate"
 

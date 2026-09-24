@@ -1,0 +1,16 @@
+{
+  "name": "Chấm công - Chấm trực | Trạm Y tế Bát Xát",
+  "short_name": "Chấm công TYT",
+  "description": "Phân hệ Chấm công và Chấm trực điện tử nội bộ của Trạm Y tế Bát Xát.",
+  "id": "/chamcong",
+  "start_url": "/chamcong",
+  "scope": "/chamcong",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#0284c7",
+  "lang": "vi",
+  "icons": [
+    { "src": "/logo.png", "type": "image/png", "sizes": "any", "purpose": "any" }
+  ]
+}
