@@ -69,7 +69,7 @@
     REJECTED: 'bg-red-100 text-red-800', CANCELLED: 'bg-slate-100 text-slate-600'
   };
   var KIND_LABEL = { ADJUST_PUNCH: 'Điều chỉnh chấm công', SWAP_DUTY: 'Đổi ca trực' };
-  var ROLE_LABEL = { STAFF: 'Cán bộ / nhân viên',LEADER: 'Phụ trách khoa/phòng', DEPUTY DIRECTOR: 'Phó giám đốc', MANAGER: 'Giám đốc', ADMIN: 'Quản trị hệ thống' };
+  var ROLE_LABEL = { STAFF: 'Cán bộ / nhân viên', LEADER: 'Phụ trách khoa/phòng', DEPUTY_DIRECTOR: 'Phó giám đốc', MANAGER: 'Giám đốc', ADMIN: 'Quản trị hệ thống' };
 
   // -------------------------------------------------------------------------
   //  Tiện ích chung

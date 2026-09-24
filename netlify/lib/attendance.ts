@@ -301,7 +301,7 @@ export type OrgInfo = {
 
 export const DEFAULT_ORG: OrgInfo = {
   name: "TRẠM Y TẾ BÁT XÁT",
-  parentName: "TRUNG TÂM Y TẾ HUYỆN BÁT XÁT - SỞ Y TẾ LÀO CAI",
+  parentName: "UBND XÃ BÁT XÁT",
   address: "Thị trấn Bát Xát, huyện Bát Xát, tỉnh Lào Cai",
   preparedByTitle: "NGƯỜI LẬP BIỂU",
   checkedByTitle: "NGƯỜI KIỂM TRA",
