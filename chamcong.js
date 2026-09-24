@@ -771,8 +771,10 @@
 
     // Ca trực hôm nay
     var duties = t.duties || [];
-    el('ccTodayDuties').innerHTML = duties.length ? duties.map(dutyCardHtml).join('') :
-      emptyBox('Hôm nay bạn không có ca trực theo lịch.');
+    var selfDuty = t.selfDuty || {};
+    el('ccTodayDuties').innerHTML = (duties.length ? duties.map(dutyCardHtml).join('') :
+      (selfDuty.enabled ? '' : emptyBox('Hôm nay bạn không có ca trực theo lịch.'))) +
+      (selfDuty.enabled && !t.locked && S.me && S.me.employee ? selfDutyHtml(selfDuty.options || []) : '');
 
     renderWorkHoursInfo();
 
@@ -826,6 +828,55 @@
       '<div class="flex flex-wrap items-center gap-2">' + badge(stateText, stateClass) + '</div>' +
       (actions ? '<div class="mt-3">' + actions + '</div>' : '') +
       '</div>';
+  }
+
+  /* Chấm trực tự động: người trực tự chọn ca và bấm nhận, máy chủ tự sinh
+     suất trực. Ca phù hợp giờ hiện tại được chọn sẵn. */
+  function selfDutyHtml(options) {
+    if (!options.length) return '';
+    var open = options.filter(function (o) { return o.open; });
+    var suggested = open.filter(function (o) { return o.suggested; })[0] || open[0];
+    var radios = options.map(function (o) {
+      return '<label class="flex items-center gap-3 p-2 rounded-lg border border-slate-200 ' +
+        (o.open ? 'cursor-pointer hover:bg-slate-50' : 'opacity-50 cursor-not-allowed') +
+        '" style="border-left:4px solid ' + esc(o.color) + '">' +
+        '<input type="radio" name="ccSelfDutyShift" value="' + esc(o.shiftId) + '"' +
+        (o.open ? '' : ' disabled') + (suggested && suggested.shiftId === o.shiftId ? ' checked' : '') + '>' +
+        '<span class="flex-1 min-w-0"><span class="block text-sm font-semibold text-slate-800">' + esc(o.shiftName) +
+        (o.suggested ? ' <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 rounded px-1">GỢI Ý</span>' : '') +
+        '</span><span class="block text-xs text-slate-500">' + esc(o.startTime) + ' - ' + esc(o.endTime) +
+        (o.crossesMidnight ? ' (hôm sau)' : '') + ' · ' + esc(fmtNum(o.hours)) + ' giờ' +
+        (o.open ? '' : ' · mở nhận ca từ ' + esc(o.opensAt)) + '</span></span></label>';
+    }).join('');
+    return '<div class="border border-dashed border-medical-300 rounded-xl p-3 bg-medical-50/40">' +
+      '<p class="text-sm font-bold text-slate-700 mb-1"><i class="fas fa-bolt text-medical-600 mr-1"></i>Tự chấm trực</p>' +
+      '<p class="text-xs text-slate-500 mb-2">Chọn ca bạn đang trực rồi bấm nhận ca. Không cần chờ phân lịch.</p>' +
+      '<div class="space-y-2">' + radios + '</div>' +
+      '<button type="button" data-cc-act="duty-self"' + (open.length ? '' : ' disabled') +
+      ' class="mt-3 px-4 py-2 bg-medical-600 hover:bg-medical-700 disabled:opacity-50 text-white rounded-lg text-sm font-bold w-full md:w-auto">' +
+      '<i class="fas fa-user-check mr-1"></i>NHẬN CA TRỰC</button>' +
+      (open.length ? '' : '<p class="text-xs text-slate-500 mt-2">Hiện chưa đến khung giờ nhận ca nào.</p>') +
+      '</div>';
+  }
+
+  function doSelfDutyCheck(button) {
+    var picked = document.querySelector('input[name="ccSelfDutyShift"]:checked');
+    if (!picked) { toast('Chọn ca trực trước khi nhận ca.', 'warn'); return; }
+    button.disabled = true;
+    api('staff', {
+      body: {
+        action: 'duty_self_check_in',
+        shiftId: picked.value,
+        device: navigator.platform || (navigator.userAgentData && navigator.userAgentData.platform) || 'web'
+      }
+    }).then(function (data) {
+      S.today = data.today;
+      renderHome();
+      toast(data.message, 'success');
+    }).catch(function (err) {
+      button.disabled = false;
+      fail(err);
+    });
   }
 
   function hhmm(ms) {
@@ -2029,7 +2080,7 @@
         field('Giá trị một nửa ngày công', input('halfDayValue', wh.halfDayValue, 'number', 'step="0.1" min="0" max="1"')) +
         '<div class="mt-2">' +
         checkbox('allowPunchOnNonWorkday', 'Cho phép chấm công vào ngày không phải ngày làm việc (T7, CN, lễ)', wh.allowPunchOnNonWorkday) +
-        checkbox('requireDutyAssignment', 'Chỉ nhận ca trực khi đã được phân lịch', wh.requireDutyAssignment) +
+        checkbox('requireDutyAssignment', 'Bắt buộc phân lịch trước (tắt = người trực tự chấm trực)', wh.requireDutyAssignment) +
         checkbox('allowAdjustRequest', 'Cho phép cán bộ gửi yêu cầu điều chỉnh chấm công', wh.allowAdjustRequest) +
         checkbox('allowSwapRequest', 'Cho phép cán bộ gửi yêu cầu đổi ca trực', wh.allowSwapRequest) +
         '</div>' +
@@ -3797,6 +3848,7 @@
 
     // Trang chủ
     'duty-in': function (node) { doDutyCheck(node.getAttribute('data-id'), 'in'); },
+    'duty-self': function (node) { doSelfDutyCheck(node); },
     'duty-out': function (node) { doDutyCheck(node.getAttribute('data-id'), 'out'); },
 
     // Yêu cầu của cán bộ
