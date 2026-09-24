@@ -91,7 +91,7 @@ for (const file of [...MAIN_PAGES, ...ADMIN_PAGES]) {
   }
 }
 
-for (const file of ['app.js', 'public/app.js', 'doctor.js', 'public/doctor.js']) {
+for (const file of ['app.js', 'public/app.js', 'doctor.js', 'public/doctor.js', 'chamcong.js', 'public/chamcong.js']) {
   const code = read(file);
   if (code === null) {
     warn('Không tìm thấy tệp.', file);
@@ -105,7 +105,13 @@ for (const file of ['app.js', 'public/app.js', 'doctor.js', 'public/doctor.js'])
 // Không chỉ index.html/app.js: mọi tài sản tĩnh dùng chung phải khớp nhau, vì
 // một tệp thiếu trong public/ sẽ bị luật bắt-tất-cả trả về trang chủ với status
 // 200 - trông như tải được nhưng thực ra là sai nội dung, khó phát hiện hơn 404.
-const SYNC_TARGETS = ['index.html', 'app.js', 'bacsi.html', 'doctor.js', 'logo.png', 'admin', 'assets'];
+// Phân hệ Chấm công (chamcong.*) cũng phải có mặt trong public/: thư mục publish
+// thực tế của site là public/ (cài trong giao diện Netlify), nên tệp chỉ nằm ở
+// thư mục gốc sẽ không bao giờ được triển khai - /chamcong trả 404.
+const SYNC_TARGETS = [
+  'index.html', 'app.js', 'bacsi.html', 'doctor.js', 'logo.png', 'admin', 'assets',
+  'chamcong.html', 'chamcong.js', 'chamcong-sw.js', 'chamcong.webmanifest'
+];
 
 /** Liệt kê đường dẫn tương đối của mọi tệp trong một thư mục. */
 function walk(dir, base = dir) {
