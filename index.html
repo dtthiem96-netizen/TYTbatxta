@@ -738,6 +738,11 @@
                                     <i class="fas fa-calendar-check text-xl text-[#1976d2]"></i> Đặt lịch khám BHYT
                                 </button>
                             </div>
+                            <!-- ===== BẢNG TRỰC HÔM NAY (lấy từ Phân hệ Chấm công - Chấm trực) =====
+                                 Đọc /api/attendance/public: chỉ có họ tên, chức danh và ca trực,
+                                 không có thông tin liên hệ. Lịch trực do Quản trị xếp ở /cham-cong,
+                                 trạng thái "đã nhận ca" do cán bộ tự bấm khi vào ca. -->
+                            <div id="hero-duty-roster" aria-live="polite" class="text-sm font-bold text-gray-500 pt-1"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang kiểm tra cán bộ y tế trực trực tuyến...</div>
                             <p id="hero-on-duty" class="text-sm font-bold text-gray-500 pt-1"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang kiểm tra cán bộ y tế trực trực tuyến...</p>
                         </div>
                         <div class="md:w-2/5 flex justify-center mt-8 md:mt-0">
@@ -1123,6 +1128,14 @@
                         </button>
 
                         <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ CMS</a>
+
+                        <!-- ===== PHÂN HỆ CHẤM CÔNG - CHẤM TRỰC (nội bộ) =====
+                             Lối vào cho cán bộ của trạm. Trang /cham-cong có cổng đăng nhập riêng;
+                             chỉ tài khoản được CMS Quản trị cấp ô "Phân hệ Chấm công - Chấm trực"
+                             mới vào được, và máy chủ kiểm tra lại quyền ở từng lệnh gọi API. -->
+                        <a href="/cham-cong" rel="nofollow" title="Phân hệ nội bộ: chấm công hành chính, nhận/kết ca trực, bảng công tháng - chỉ dành cho cán bộ Trạm Y tế, yêu cầu tài khoản được cấp quyền" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-sky-300 tracking-wide inline-flex items-center gap-1.5">
+                            <i class="fas fa-user-clock text-[11px]"></i> CHẤM CÔNG - CHẤM TRỰC <i class="fas fa-lock text-[9px] text-blue-300"></i>
+                        </a>
 
                         <!-- ===== MODULE BÁC SĨ TUYẾN TRÊN =====
                              Module riêng, có trang và cổng đăng nhập riêng (/bacsi). Chỉ tài khoản
@@ -7543,6 +7556,74 @@
             }
         };
 
+        /* ===== BẢNG TRỰC HÔM NAY (Phân hệ Chấm công - Chấm trực) =====
+           Khác với kênh gọi ở trên: đây chỉ là một lệnh đọc lịch trực công khai
+           (/api/attendance/public), không mở kênh tín hiệu nào sang điểm trạm, nên
+           chạy ngay lúc vào trang. Làm mới mỗi 2 phút và dừng khi thẻ bị ẩn. */
+        let heroRosterTimer = null;
+
+        function renderHeroDutyRoster(data) {
+            const box = document.getElementById('hero-duty-roster');
+            if (!box) return;
+            if (!data || data.available === false) {
+                box.innerHTML = '';
+                box.classList.add('hidden');
+                return;
+            }
+            box.classList.remove('hidden');
+            const onDuty = Array.isArray(data.onDuty) ? data.onDuty : [];
+            const working = Array.isArray(data.working) ? data.working : [];
+
+            if (!onDuty.length && !working.length) {
+                box.innerHTML = '<span class="text-gray-600"><i class="fas fa-user-clock mr-1 text-amber-500"></i> Lịch trực lúc này chưa có cán bộ nào. Liên hệ số điện thoại của trạm khi cần cấp cứu.</span>';
+                return;
+            }
+
+            const chip = (p, dot, suffix = '') => `<li class="inline-flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-3 py-1.5 shadow-sm">`
+                + dot
+                + `<span class="text-[#0b416b]">${teleEscape(p.fullName)}</span>`
+                + (p.position ? `<span class="text-xs font-semibold text-gray-500">${teleEscape(p.position)}</span>` : '')
+                + suffix
+                + `</li>`;
+
+            let html = '';
+            if (onDuty.length) {
+                html += `<p class="text-emerald-700 mb-1.5"><i class="fas fa-user-nurse mr-1"></i> Cán bộ đang trực (${onDuty.length}) · cập nhật ${teleEscape(data.time || '')}</p>`;
+                html += '<ul class="flex flex-wrap gap-2 justify-center md:justify-start">' + onDuty.map(p => chip(p,
+                    `<span class="w-2.5 h-2.5 rounded-full ${p.checkedIn ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}" title="${p.checkedIn ? 'Đã nhận ca' : 'Theo lịch, chưa nhận ca'}"></span>`,
+                    `<span class="text-[11px] font-semibold" style="color:${/^#[0-9a-f]{3,8}$/i.test(p.color) ? p.color : '#0284c7'}">${teleEscape(p.shiftName)} ${teleEscape(p.startTime)}–${teleEscape(p.endTime)}</span>`
+                )).join('') + '</ul>';
+            }
+            if (working.length) {
+                html += `<p class="text-blue-700 mt-2 mb-1.5"><i class="fas fa-briefcase-medical mr-1"></i> Cán bộ đang làm việc hành chính (${working.length})</p>`;
+                html += '<ul class="flex flex-wrap gap-2 justify-center md:justify-start">' + working.map(p => chip(p,
+                    '<span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>'
+                )).join('') + '</ul>';
+            }
+            box.innerHTML = html;
+        }
+
+        window.refreshHeroDutyRoster = async function() {
+            try {
+                const res = await fetch('/api/attendance/public');
+                if (!res.ok) throw new Error('attendance-public ' + res.status);
+                renderHeroDutyRoster(await res.json());
+            } catch (err) {
+                renderHeroDutyRoster(null);
+            }
+        };
+
+        window.startHeroDutyRoster = function() {
+            window.refreshHeroDutyRoster();
+            if (heroRosterTimer) return;
+            heroRosterTimer = setInterval(() => {
+                if (document.visibilityState === 'visible') window.refreshHeroDutyRoster();
+            }, 120000);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') window.refreshHeroDutyRoster();
+            });
+        };
+
         window.startQuickTelehealthCall = function(e) {
             e.preventDefault();
             const name = (document.getElementById('quick-call-name').value || '').trim();
@@ -12225,6 +12306,9 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             // lời mời bấm nút. Kênh gọi sang điểm trạm chỉ mở khi người dân chủ động
             // mở cửa sổ "Gọi khám từ xa".
             try { window.renderDutyIdleState(); } catch (e) { console.warn('Không dựng được trạng thái chờ gọi:', e); }
+
+            // Bảng trực hôm nay chỉ là lệnh đọc lịch công khai, không mở kênh gọi, nên nạp ngay.
+            try { window.startHeroDutyRoster(); } catch (e) { console.warn('Không nạp được bảng trực hôm nay:', e); }
 
             // Tự động tìm kiếm và làm nổi bật tin tức được chia sẻ
             try {
