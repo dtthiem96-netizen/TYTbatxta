@@ -40,6 +40,7 @@ import {
   attHolidays,
   attNotifications,
   attPeriods,
+  attRoles,
   attSettings,
   attShifts,
   users,
@@ -51,6 +52,7 @@ export type EmployeeRow = typeof attEmployees.$inferSelect;
 export type DepartmentRow = typeof attDepartments.$inferSelect;
 export type ShiftRow = typeof attShifts.$inferSelect;
 export type HolidayRow = typeof attHolidays.$inferSelect;
+export type RoleRow = typeof attRoles.$inferSelect;
 
 /** Múi giờ của trạm. Bát Xát thuộc Lào Cai - UTC+7, không có giờ mùa hè. */
 export const TZ = "Asia/Ho_Chi_Minh";
@@ -1003,12 +1005,141 @@ function dateIsFuture(dateStr: string): boolean {
 
 export type AttendanceRole = "STAFF" | "MANAGER" | "ADMIN";
 
+/** Phạm vi dữ liệu của một vai trò: chính mình, bộ phận của mình, hay toàn đơn vị. */
+export type RoleScope = "SELF" | "DEPARTMENT" | "ALL";
+export const ROLE_SCOPES: RoleScope[] = ["SELF", "DEPARTMENT", "ALL"];
+
+/**
+ * Danh mục quyền chức năng. Mỗi vai trò tuỳ chỉnh là một tập con của danh mục
+ * này. Quản lý vai trò KHÔNG nằm trong danh mục: chỉ Quản trị hệ thống mới được
+ * tạo/sửa vai trò, nếu không ai giữ quyền đó cũng tự nâng quyền cho mình được.
+ */
+export const PERMISSIONS = [
+  { code: "manage.view", group: "Điều hành", label: "Xem bảng điều hành, danh sách cán bộ, lịch trực và trạng thái kỳ" },
+  { code: "approvals.decide", group: "Điều hành", label: "Duyệt yêu cầu điều chỉnh, đổi ca và đơn nghỉ phép" },
+  { code: "leave.record", group: "Điều hành", label: "Ghi nhận nghỉ phép thay cán bộ" },
+  { code: "employees.manage", group: "Danh mục", label: "Thêm, sửa, xoá hồ sơ cán bộ và bộ phận" },
+  { code: "accounts.manage", group: "Danh mục", label: "Quản lý tài khoản đăng nhập (tạo, gán, cấp quyền, đặt lại mật khẩu)" },
+  { code: "worktime.manage", group: "Cấu hình", label: "Cấu hình thời gian làm việc, ký hiệu và loại nghỉ" },
+  { code: "shifts.manage", group: "Cấu hình", label: "Quản lý danh mục ca trực và ngày nghỉ lễ" },
+  { code: "roster.manage", group: "Lịch trực", label: "Lập, sửa, sao chép, nhập lịch trực tháng" },
+  { code: "timedata.edit", group: "Dữ liệu công", label: "Sửa, xoá lượt chấm công và giờ trực" },
+  { code: "periods.lock", group: "Dữ liệu công", label: "Khoá / mở kỳ bảng công" },
+  { code: "audits.view", group: "Giám sát", label: "Xem lịch sử thao tác" },
+] as const;
+
+export type Permission = (typeof PERMISSIONS)[number]["code"];
+const PERMISSION_CODES = new Set<string>(PERMISSIONS.map((p) => p.code));
+
+/** Ba vai trò hệ thống - cố định trong mã, không sửa/xoá được. */
+export const BUILTIN_ROLES: Record<AttendanceRole, { name: string; description: string; scope: RoleScope; permissions: Permission[] }> = {
+  STAFF: {
+    name: "Cán bộ / nhân viên",
+    description: "Tự chấm công, xem lịch trực, bảng công của mình và gửi yêu cầu.",
+    scope: "SELF",
+    permissions: [],
+  },
+  MANAGER: {
+    name: "Phụ trách khoa / bộ phận",
+    description: "Theo dõi và duyệt yêu cầu của cán bộ trong bộ phận mình phụ trách.",
+    scope: "DEPARTMENT",
+    permissions: ["manage.view", "approvals.decide", "leave.record"],
+  },
+  ADMIN: {
+    name: "Quản trị hệ thống chấm công",
+    description: "Toàn quyền trong phân hệ, kể cả tạo và phân vai trò.",
+    scope: "ALL",
+    permissions: PERMISSIONS.map((p) => p.code),
+  },
+};
+
+export const isBuiltinRole = (code: string): code is AttendanceRole =>
+  Object.prototype.hasOwnProperty.call(BUILTIN_ROLES, code);
+
+/** Chuẩn hoá danh sách quyền đọc từ cơ sở dữ liệu / từ giao diện gửi lên. */
+export function parsePermissions(value: unknown): Permission[] {
+  let list: unknown = value;
+  if (typeof value === "string") {
+    try {
+      list = JSON.parse(value);
+    } catch {
+      list = [];
+    }
+  }
+  if (!Array.isArray(list)) return [];
+  return [...new Set(list.map((x) => String(x)).filter((x) => PERMISSION_CODES.has(x)))] as Permission[];
+}
+
+export const parseScope = (value: unknown): RoleScope => {
+  const v = String(value || "").toUpperCase();
+  return (ROLE_SCOPES as string[]).includes(v) ? (v as RoleScope) : "SELF";
+};
+
+/** Bản chiếu vai trò (hệ thống hoặc tuỳ chỉnh) trả ra giao diện. */
+export function publicRole(row: RoleRow, employeeCount = 0) {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    description: row.description || "",
+    scope: parseScope(row.scope),
+    permissions: parsePermissions(row.permissions),
+    displayOrder: row.displayOrder ?? 0,
+    status: String(row.status || "ACTIVE").toUpperCase(),
+    system: false,
+    employeeCount,
+  };
+}
+
+export function builtinRoleList(counts: Map<string, number> = new Map()) {
+  return (Object.keys(BUILTIN_ROLES) as AttendanceRole[]).map((code, i) => ({
+    id: code,
+    code,
+    name: BUILTIN_ROLES[code].name,
+    description: BUILTIN_ROLES[code].description,
+    scope: BUILTIN_ROLES[code].scope,
+    permissions: [...BUILTIN_ROLES[code].permissions],
+    displayOrder: -10 + i,
+    status: "ACTIVE",
+    system: true,
+    employeeCount: counts.get(code) || 0,
+  }));
+}
+
+/** Toàn bộ vai trò: ba vai trò hệ thống trước, rồi vai trò tuỳ chỉnh theo thứ tự hiển thị. */
+export async function listRoles(includeInactive = true) {
+  const [rows, emps] = await Promise.all([
+    db.select().from(attRoles),
+    db.select({ role: attEmployees.attendanceRole }).from(attEmployees),
+  ]);
+  const counts = new Map<string, number>();
+  for (const e of emps) {
+    const code = String(e.role || "STAFF").toUpperCase();
+    counts.set(code, (counts.get(code) || 0) + 1);
+  }
+  const custom = rows
+    .map((r) => publicRole(r, counts.get(r.code) || 0))
+    .filter((r) => includeInactive || r.status === "ACTIVE")
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "vi"));
+  return [...builtinRoleList(counts), ...custom];
+}
+
 export type ActorContext = {
   user: UserRow;
   auth: AuthContext;
   /** Hồ sơ cán bộ gắn với tài khoản. Null với tài khoản quản trị thuần. */
   employee: EmployeeRow | null;
+  /**
+   * Bậc truy cập dùng để dựng giao diện: ADMIN là Quản trị hệ thống (toàn
+   * quyền), MANAGER là bất kỳ vai trò nào có ít nhất một quyền quản lý (kể cả
+   * vai trò tuỳ chỉnh), STAFF là cán bộ thường.
+   */
   role: AttendanceRole;
+  /** Mã vai trò thật được gán (STAFF/MANAGER/ADMIN hoặc mã vai trò tuỳ chỉnh). */
+  roleCode: string;
+  roleName: string;
+  permissions: Set<Permission>;
+  scope: RoleScope;
   ip: string;
   /** Thiết bị gọi, lưu kèm lượt chấm công để đối chiếu khi có khiếu nại. */
   userAgent: string;
@@ -1027,21 +1158,44 @@ export function clientIp(req: Request): string {
  * Xác thực rồi dựng ngữ cảnh người thao tác.
  *
  * Vai trò được đọc lại từ cơ sở dữ liệu ở MỌI lần gọi, không lấy từ phiếu phiên:
- * Quản trị hạ quyền một người phụ trách là có hiệu lực ngay lập tức. Tài khoản
- * có vai trò Quản trị viên hệ thống ở cổng thông tin luôn là ADMIN trong phân hệ
- * - nếu không, một cơ sở dữ liệu còn trắng sẽ không có ai đủ quyền tạo hồ sơ
- * cán bộ đầu tiên.
+ * Quản trị hạ quyền một người phụ trách, hay bớt quyền của một vai trò tuỳ
+ * chỉnh, là có hiệu lực ngay lập tức. Tài khoản có vai trò Quản trị viên hệ
+ * thống ở cổng thông tin luôn là ADMIN trong phân hệ - nếu không, một cơ sở dữ
+ * liệu còn trắng sẽ không có ai đủ quyền tạo hồ sơ cán bộ đầu tiên.
+ *
+ * Vai trò tuỳ chỉnh đã ngừng dùng hoặc đã bị xoá thì người mang nó chỉ còn
+ * quyền của cán bộ thường, không bao giờ rơi lên quyền cao hơn.
  */
 export async function resolveActor(req: Request): Promise<ActorContext> {
   const auth = await requireScope(req, "attendance");
   const found = await db.select().from(attEmployees).where(eq(attEmployees.userId, auth.user.id));
   const employee = found.length ? found[0] : null;
 
+  let roleCode = "STAFF";
+  if (isAdminRole(auth.user.role)) roleCode = "ADMIN";
+  else if (employee) roleCode = String(employee.attendanceRole || "STAFF").toUpperCase();
+
   let role: AttendanceRole = "STAFF";
-  if (isAdminRole(auth.user.role)) role = "ADMIN";
-  else if (employee) {
-    const raw = String(employee.attendanceRole || "STAFF").toUpperCase();
-    role = raw === "ADMIN" || raw === "MANAGER" ? (raw as AttendanceRole) : "STAFF";
+  let roleName = BUILTIN_ROLES.STAFF.name;
+  let permissions: Permission[] = [];
+  let scope: RoleScope = "SELF";
+
+  if (isBuiltinRole(roleCode)) {
+    role = roleCode;
+    roleName = BUILTIN_ROLES[roleCode].name;
+    permissions = BUILTIN_ROLES[roleCode].permissions;
+    scope = BUILTIN_ROLES[roleCode].scope;
+  } else {
+    const rows = await db.select().from(attRoles).where(eq(attRoles.code, roleCode));
+    const custom = rows[0];
+    if (custom && String(custom.status || "ACTIVE").toUpperCase() === "ACTIVE") {
+      roleName = custom.name;
+      permissions = parsePermissions(custom.permissions);
+      scope = parseScope(custom.scope);
+      role = permissions.length ? "MANAGER" : "STAFF";
+    } else {
+      roleCode = "STAFF";
+    }
   }
 
   if (employee && String(employee.status || "ACTIVE").toUpperCase() !== "ACTIVE" && role === "STAFF") {
@@ -1053,9 +1207,26 @@ export async function resolveActor(req: Request): Promise<ActorContext> {
     auth,
     employee,
     role,
+    roleCode,
+    roleName,
+    permissions: new Set(permissions),
+    scope,
     ip: clientIp(req),
     userAgent: (req.headers.get("user-agent") || "").slice(0, 250),
   };
+}
+
+/** Người thao tác có giữ quyền chức năng này không. Quản trị hệ thống luôn có. */
+export function hasPermission(actor: ActorContext, permission: Permission): boolean {
+  return actor.role === "ADMIN" || actor.permissions.has(permission);
+}
+
+/** Bắt buộc một quyền chức năng cụ thể. */
+export function requirePermission(actor: ActorContext, permission: Permission): void {
+  if (!hasPermission(actor, permission)) {
+    const label = PERMISSIONS.find((p) => p.code === permission)?.label || permission;
+    throw new AuthError(403, "FORBIDDEN", `Vai trò của bạn không có quyền: ${label}.`);
+  }
 }
 
 /** Bắt buộc vai trò Quản trị phân hệ. */
@@ -1065,7 +1236,7 @@ export function requireAdmin(actor: ActorContext): void {
   }
 }
 
-/** Bắt buộc vai trò Quản trị hoặc Phụ trách bộ phận. */
+/** Bắt buộc vai trò có quyền quản lý (Quản trị, Phụ trách hoặc vai trò tuỳ chỉnh có quyền). */
 export function requireManager(actor: ActorContext): void {
   if (actor.role === "STAFF") {
     throw new AuthError(403, "FORBIDDEN", "Chức năng này dành cho Phụ trách bộ phận hoặc Quản trị hệ thống.");
@@ -1087,12 +1258,13 @@ export function requireOwnEmployee(actor: ActorContext): EmployeeRow {
 /**
  * Phạm vi cán bộ mà người thao tác được xem/sửa.
  *
- * ADMIN: toàn trạm. MANAGER: bộ phận của mình (cộng thêm những bộ phận mà mình
- * là người phụ trách). STAFF: chỉ chính mình. Trả null nghĩa là không giới hạn.
+ * Theo phạm vi dữ liệu của vai trò. ALL: toàn trạm. DEPARTMENT: bộ phận của
+ * mình (cộng thêm những bộ phận mà mình là người phụ trách). SELF: chỉ chính
+ * mình. Trả null nghĩa là không giới hạn.
  */
 export async function visibleEmployeeIds(actor: ActorContext): Promise<string[] | null> {
-  if (actor.role === "ADMIN") return null;
-  if (actor.role === "MANAGER") {
+  if (actor.role === "ADMIN" || actor.scope === "ALL") return null;
+  if (actor.scope === "DEPARTMENT") {
     const deptIds = new Set<string>();
     if (actor.employee?.departmentId) deptIds.add(actor.employee.departmentId);
     if (actor.employee) {

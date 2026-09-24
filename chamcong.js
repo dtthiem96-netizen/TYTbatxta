@@ -38,6 +38,8 @@
     session: null,
     me: null,
     role: 'STAFF',
+    permissions: [],     // mã quyền của vai trò đang đăng nhập; ['*'] = Quản trị hệ thống
+    roles: [],           // danh mục vai trò (hệ thống + tuỳ chỉnh) để hiện nhãn
     settings: null,
     shifts: [],
     holidays: [],
@@ -69,7 +71,20 @@
     REJECTED: 'bg-red-100 text-red-800', CANCELLED: 'bg-slate-100 text-slate-600'
   };
   var KIND_LABEL = { ADJUST_PUNCH: 'Điều chỉnh chấm công', SWAP_DUTY: 'Đổi ca trực' };
-  var ROLE_LABEL = { STAFF: 'Cán bộ / nhân viên', LEADER: 'Phụ trách khoa/phòng', DEPUTY_DIRECTOR: 'Phó giám đốc', MANAGER: 'Giám đốc', ADMIN: 'Quản trị hệ thống' };
+  var ROLE_LABEL = { STAFF: 'Cán bộ / nhân viên', LEADER: 'Phụ trách khoa/phòng', DEPUTY_DIRECTOR: 'Phó giám đốc', MANAGER: 'Phụ trách khoa / bộ phận', ADMIN: 'Quản trị hệ thống' };
+  var SCOPE_LABEL = { SELF: 'Chỉ bản thân', DEPARTMENT: 'Bộ phận của mình', ALL: 'Toàn đơn vị' };
+
+  /** Vai trò đang đăng nhập có quyền chức năng này không (máy chủ vẫn kiểm tra lại). */
+  function can(permission) {
+    return S.role === 'ADMIN' || (S.permissions || []).indexOf('*') !== -1 ||
+      (S.permissions || []).indexOf(permission) !== -1;
+  }
+
+  /** Nạp nhãn vai trò (kể cả vai trò tuỳ chỉnh) từ dữ liệu khởi động. */
+  function applyRoles(roles) {
+    S.roles = roles || [];
+    S.roles.forEach(function (r) { ROLE_LABEL[r.code] = r.name; });
+  }
 
   // -------------------------------------------------------------------------
   //  Tiện ích chung
@@ -492,8 +507,8 @@
   function allowedViews() {
     return VIEWS.filter(function (v) {
       if (v.roles === 'all') return true;
-      if (v.roles === 'manager') return S.role === 'MANAGER' || S.role === 'ADMIN';
-      if (v.roles === 'admin') return S.role === 'ADMIN';
+      if (v.roles === 'manager') return can('manage.view') || can('approvals.decide');
+      if (v.roles === 'admin') return allowedAdminTabs().length > 0;
       return true;
     });
   }
@@ -564,12 +579,16 @@
     if (VIEW_LOADERS[viewKey]) VIEW_LOADERS[viewKey]();
   }
 
+  function currentRoleName() {
+    return (S.me && S.me.roleName) || ROLE_LABEL[(S.me && S.me.roleCode) || S.role] || S.role;
+  }
+
   function subtitleFor(viewKey) {
     var emp = S.me && S.me.employee;
     if (viewKey === 'home') {
       return emp ? (emp.fullName + (emp.departmentName ? ' - ' + emp.departmentName : '')) : (S.me ? S.me.name : '');
     }
-    if (viewKey === 'manage') return 'Vai trò: ' + (ROLE_LABEL[S.role] || S.role);
+    if (viewKey === 'manage') return 'Vai trò: ' + currentRoleName();
     if (viewKey === 'admin') return 'Cấu hình và danh mục của phân hệ';
     if (viewKey === 'reports') return 'Bảng chấm công, bảng chấm trực và tổng hợp';
     return periodLabel(currentPeriod());
@@ -583,6 +602,8 @@
     return api('staff', { query: { view: 'bootstrap' } }).then(function (data) {
       S.me = data.me;
       S.role = data.me.role;
+      S.permissions = data.me.permissions || [];
+      applyRoles(data.roles);
       S.settings = data.settings;
       S.shifts = data.shifts || [];
       S.holidays = data.holidays || [];
@@ -598,7 +619,7 @@
       el('ccSidebarOrg').textContent = orgName;
       el('ccLoginOrg').textContent = orgName;
       el('ccSidebarName').textContent = (S.me.employee && S.me.employee.fullName) || S.me.name;
-      el('ccSidebarRole').textContent = (ROLE_LABEL[S.role] || S.role) +
+      el('ccSidebarRole').textContent = currentRoleName() +
         (S.me.employee && S.me.employee.code ? ' - ' + S.me.employee.code : '');
 
       renderNav();
@@ -667,6 +688,8 @@
     api('staff', { query: { view: 'bootstrap' } }).then(function (data) {
       S.me = data.me;
       S.role = data.me.role;
+      S.permissions = data.me.permissions || [];
+      applyRoles(data.roles);
       S.settings = data.settings;
       S.shifts = data.shifts || [];
       S.holidays = data.holidays || [];
@@ -1263,6 +1286,11 @@
   // =========================================================================
 
   function loadOverview() {
+    if (!can('manage.view')) {
+      el('ccManageSummary').innerHTML = '';
+      el('ccManageTable').innerHTML = emptyBox('Vai trò của bạn không có quyền xem bảng điều hành.');
+      return;
+    }
     el('ccManageTable').innerHTML = spinner();
     api('admin', { query: { view: 'overview' } }).then(function (data) {
       var s = data.summary;
@@ -1338,6 +1366,10 @@
   }
 
   function loadApprovals() {
+    if (!can('approvals.decide')) {
+      el('ccApprovalList').innerHTML = emptyBox('Vai trò của bạn không có quyền duyệt yêu cầu.');
+      return;
+    }
     var status = el('ccApprovalStatus').value;
     el('ccApprovalList').innerHTML = spinner();
     api('admin', { query: { view: 'approvals', status: status } }).then(function (data) {
@@ -1457,7 +1489,7 @@
               '<td class="px-2 py-1 text-center">' + esc({ ON_TIME: 'Đúng giờ', LATE: 'Muộn', EARLY_LEAVE: 'Về sớm', OUTSIDE: 'Ngoài giờ' }[p.status] || p.status) + '</td>' +
               '<td class="px-2 py-1 text-center">' + esc({ SELF: 'Tự bấm', ADMIN: 'Quản trị', REQUEST: 'Duyệt đơn' }[p.source] || p.source) + '</td>' +
               '<td class="px-2 py-1 text-center">' +
-              (S.role === 'ADMIN' ? '<button type="button" data-cc-act="punch-delete" data-id="' + esc(p.id) +
+              (can('timedata.edit') ? '<button type="button" data-cc-act="punch-delete" data-id="' + esc(p.id) +
                 '" class="text-red-600 hover:underline">Xoá</button>' : '') + '</td></tr>';
           }).join('') + '</tbody></table></div>'
         : emptyBox('Không có lượt chấm công nào trong kỳ.');
@@ -1490,12 +1522,12 @@
         }).join('') + '</div>'
         : emptyBox('Không có đơn nghỉ nào trong kỳ.');
 
-      if (S.role === 'ADMIN' || S.role === 'MANAGER') {
+      if (can('timedata.edit') || can('leave.record')) {
         html += '<div class="flex flex-wrap gap-2 pt-3 border-t border-slate-200 mt-3">' +
-          '<button type="button" data-cc-act="punch-add" data-id="' + esc(employeeId) + '" data-period="' + esc(wanted) +
-          '" class="px-3 py-1.5 bg-medical-600 text-white rounded-lg text-xs font-semibold">Bổ sung lượt chấm</button>' +
-          '<button type="button" data-cc-act="leave-add" data-id="' + esc(employeeId) +
-          '" class="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold">Ghi nhận nghỉ phép</button>' +
+          (can('timedata.edit') ? '<button type="button" data-cc-act="punch-add" data-id="' + esc(employeeId) + '" data-period="' + esc(wanted) +
+          '" class="px-3 py-1.5 bg-medical-600 text-white rounded-lg text-xs font-semibold">Bổ sung lượt chấm</button>' : '') +
+          (can('leave.record') ? '<button type="button" data-cc-act="leave-add" data-id="' + esc(employeeId) +
+          '" class="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold">Ghi nhận nghỉ phép</button>' : '') +
           '<button type="button" data-cc-act="modal-cancel" class="px-3 py-1.5 bg-slate-100 rounded-lg text-xs">Đóng</button></div>';
       }
       el('ccModalBody').innerHTML = html;
@@ -1568,21 +1600,31 @@
   //  QUẢN TRỊ HỆ THỐNG (nhóm người dùng thứ ba)
   // =========================================================================
 
+  // perm: quyền cần có để thấy tab. 'admin' = chỉ Quản trị hệ thống.
   var ADMIN_TABS = [
-    { key: 'employees', label: 'Cán bộ', icon: 'fa-users' },
-    { key: 'departments', label: 'Bộ phận', icon: 'fa-sitemap' },
-    { key: 'accounts', label: 'Tài khoản', icon: 'fa-id-badge' },
-    { key: 'worktime', label: 'Thời gian làm việc', icon: 'fa-clock' },
-    { key: 'shifts', label: 'Ca trực', icon: 'fa-user-nurse' },
-    { key: 'holidays', label: 'Ngày nghỉ, lễ', icon: 'fa-calendar-xmark' },
-    { key: 'symbols', label: 'Ký hiệu & loại nghỉ', icon: 'fa-hashtag' },
-    { key: 'roster', label: 'Lịch trực tháng', icon: 'fa-calendar-plus' },
-    { key: 'periods', label: 'Khoá bảng công', icon: 'fa-lock' },
-    { key: 'audits', label: 'Lịch sử thao tác', icon: 'fa-clock-rotate-left' }
+    { key: 'employees', label: 'Cán bộ', icon: 'fa-users', perm: 'employees.manage' },
+    { key: 'departments', label: 'Bộ phận', icon: 'fa-sitemap', perm: 'employees.manage' },
+    { key: 'roles', label: 'Vai trò phân hệ', icon: 'fa-user-shield', perm: 'admin' },
+    { key: 'accounts', label: 'Tài khoản', icon: 'fa-id-badge', perm: 'accounts.manage' },
+    { key: 'worktime', label: 'Thời gian làm việc', icon: 'fa-clock', perm: 'worktime.manage' },
+    { key: 'shifts', label: 'Ca trực', icon: 'fa-user-nurse', perm: 'shifts.manage' },
+    { key: 'holidays', label: 'Ngày nghỉ, lễ', icon: 'fa-calendar-xmark', perm: 'shifts.manage' },
+    { key: 'symbols', label: 'Ký hiệu & loại nghỉ', icon: 'fa-hashtag', perm: 'worktime.manage' },
+    { key: 'roster', label: 'Lịch trực tháng', icon: 'fa-calendar-plus', perm: 'roster.manage' },
+    { key: 'periods', label: 'Khoá bảng công', icon: 'fa-lock', perm: 'periods.lock' },
+    { key: 'audits', label: 'Lịch sử thao tác', icon: 'fa-clock-rotate-left', perm: 'audits.view' }
   ];
 
+  function allowedAdminTabs() {
+    return ADMIN_TABS.filter(function (t) {
+      return t.perm === 'admin' ? S.role === 'ADMIN' : can(t.perm);
+    });
+  }
+
   function renderAdmin() {
-    el('ccAdminTabs').innerHTML = ADMIN_TABS.map(function (t) {
+    var tabs = allowedAdminTabs();
+    if (!tabs.some(function (t) { return t.key === S.adminTab; }) && tabs.length) S.adminTab = tabs[0].key;
+    el('ccAdminTabs').innerHTML = tabs.map(function (t) {
       return '<button type="button" data-cc-tab="' + t.key + '" class="px-3 py-2 rounded-xl text-xs md:text-sm font-semibold transition ' +
         (S.adminTab === t.key ? 'bg-medical-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100') + '">' +
         '<i class="fas ' + t.icon + ' mr-1"></i>' + esc(t.label) + '</button>';
@@ -1667,11 +1709,9 @@
       field('Họ và tên', input('fullName', e.fullName || '', 'text', 'required')) +
       field('Chức vụ', input('position', e.position || '')) +
       field('Bộ phận', select('departmentId', deptOptions, e.departmentId || '')) +
-      field('Vai trò trong phân hệ', select('attendanceRole', [
-        { value: 'STAFF', label: 'Cán bộ / nhân viên' },
-        { value: 'MANAGER', label: 'Phụ trách khoa / bộ phận' },
-        { value: 'ADMIN', label: 'Quản trị hệ thống chấm công' }
-      ], e.attendanceRole || 'STAFF')) +
+      field('Vai trò trong phân hệ', select('attendanceRole', roleOptions(e.attendanceRole || 'STAFF'),
+        e.attendanceRole || 'STAFF', S.role === 'ADMIN' ? '' : 'disabled'),
+        S.role === 'ADMIN' ? 'Tạo thêm vai trò ở thẻ "Vai trò phân hệ".' : 'Chỉ Quản trị hệ thống được phân vai trò.') +
       field('Ngày bắt đầu làm việc', input('startDate', e.startDate || '', 'date'), 'Người vào làm sau kỳ báo cáo sẽ không xuất hiện trên bảng công kỳ đó.') +
       field('Số điện thoại', input('phone', e.phone || '')) +
       field('Thư điện tử', input('email', e.email || '', 'email')) +
@@ -1780,6 +1820,113 @@
       var v = modalValues();
       v.action = 'department_save';
       if (id) v.id = id;
+      api('admin', { body: v }).then(function (data) {
+        closeModal();
+        toast(data.message, 'success');
+        renderAdmin();
+      }).catch(fail);
+    });
+  }
+
+  // --- Vai trò phân hệ -----------------------------------------------------
+
+  /** Danh sách chọn vai trò: vai trò đang dùng, cộng vai trò hiện tại dù đã ngừng. */
+  function roleOptions(current) {
+    var list = (S.roles || []).filter(function (r) { return r.status === 'ACTIVE' || r.code === current; });
+    if (!list.length) list = [{ code: 'STAFF', name: ROLE_LABEL.STAFF }, { code: 'MANAGER', name: ROLE_LABEL.MANAGER }, { code: 'ADMIN', name: ROLE_LABEL.ADMIN }];
+    return list.map(function (r) {
+      return { value: r.code, label: r.name + (r.system === false ? ' (tuỳ chỉnh)' : '') + (r.status === 'INACTIVE' ? ' - ngừng dùng' : '') };
+    });
+  }
+
+  function loadAdminRoles(host) {
+    api('admin', { query: { view: 'roles' } }).then(function (data) {
+      S.roleCatalog = data.roles || [];
+      S.permissionCatalog = data.permissions || [];
+      applyRoles(S.roleCatalog.map(function (r) { return { code: r.code, name: r.name, system: r.system, status: r.status }; }));
+      var labelOf = {};
+      S.permissionCatalog.forEach(function (p) { labelOf[p.code] = p.label; });
+      var rows = S.roleCatalog.map(function (r) {
+        var perms = r.code === 'ADMIN'
+          ? '<span class="text-xs text-slate-600">Toàn quyền, kể cả phân vai trò</span>'
+          : r.permissions.length
+            ? '<div class="flex flex-wrap gap-1">' + r.permissions.map(function (c) {
+              return '<span title="' + esc(labelOf[c] || c) + '" class="px-1.5 py-0.5 rounded bg-medical-50 text-medical-800 text-[10px]">' + esc(c) + '</span>';
+            }).join('') + '</div>'
+            : '<span class="text-xs text-slate-400 italic">Chỉ chức năng cá nhân</span>';
+        return '<tr class="border-t border-slate-100 align-top' + (r.status === 'INACTIVE' ? ' opacity-60' : '') + '">' +
+          '<td class="px-2 py-2 text-xs text-slate-500 font-mono">' + esc(r.code) + '</td>' +
+          '<td class="px-2 py-2"><span class="font-medium text-slate-800">' + esc(r.name) + '</span> ' +
+          (r.system ? badge('Hệ thống', 'bg-slate-100 text-slate-600') : badge('Tuỳ chỉnh', 'bg-indigo-100 text-indigo-800')) +
+          (r.status === 'INACTIVE' ? ' ' + badge('Ngừng dùng', 'bg-slate-200 text-slate-600') : '') +
+          (r.description ? '<span class="block text-[11px] text-slate-500 mt-0.5">' + esc(r.description) + '</span>' : '') + '</td>' +
+          '<td class="px-2 py-2 text-xs">' + esc(SCOPE_LABEL[r.scope] || r.scope) + '</td>' +
+          '<td class="px-2 py-2">' + perms + '</td>' +
+          '<td class="px-2 py-2 text-center">' + r.employeeCount + '</td>' +
+          (r.system
+            ? '<td class="px-2 py-2 text-right text-[11px] text-slate-400 whitespace-nowrap">Cố định</td>'
+            : rowActions('role-edit', 'role-delete', r.id)) +
+          '</tr>';
+      }).join('');
+      host.innerHTML = adminCard('Vai trò trong phân hệ (' + S.roleCatalog.length + ')',
+        '<button type="button" data-cc-act="role-new" class="px-3 py-2 bg-medical-600 hover:bg-medical-700 text-white rounded-lg text-xs font-semibold">' +
+        '<i class="fas fa-plus mr-1"></i>Thêm vai trò</button>',
+        tableWrap([
+          { label: 'Mã' }, { label: 'Tên vai trò' }, { label: 'Phạm vi dữ liệu' }, { label: 'Quyền chức năng' },
+          { label: 'Số cán bộ', align: 'text-center' }, { label: '', align: 'text-right' }
+        ], rows, 900) +
+        '<p class="text-[11px] text-slate-400 mt-3">Ba vai trò hệ thống cố định. Vai trò tuỳ chỉnh là một tập quyền chức năng cộng với phạm vi dữ liệu; ' +
+        'gán vai trò cho cán bộ ở thẻ "Cán bộ". Thay đổi quyền có hiệu lực ngay ở thao tác kế tiếp của người mang vai trò. ' +
+        'Chỉ Quản trị hệ thống được tạo, sửa vai trò và phân vai trò.</p>');
+    }).catch(function (err) {
+      host.innerHTML = emptyBox(err.message || 'Không tải được danh mục vai trò.');
+      fail(err);
+    });
+  }
+
+  function openRoleForm(id) {
+    var r = (S.roleCatalog || []).filter(function (x) { return x.id === id; })[0] || { scope: 'DEPARTMENT', permissions: [], status: 'ACTIVE' };
+    var groups = {};
+    var order = [];
+    (S.permissionCatalog || []).forEach(function (p) {
+      if (!groups[p.group]) { groups[p.group] = []; order.push(p.group); }
+      groups[p.group].push(p);
+    });
+    var permHtml = order.map(function (g) {
+      return '<div class="mb-2"><p class="text-[11px] font-bold uppercase text-slate-500 mb-1">' + esc(g) + '</p>' +
+        groups[g].map(function (p) {
+          return '<label class="flex items-start gap-2 mb-1 text-sm text-slate-700">' +
+            '<input type="checkbox" data-cc-perm="' + esc(p.code) + '" class="w-4 h-4 mt-0.5 rounded border-slate-300 text-medical-600"' +
+            (r.permissions.indexOf(p.code) !== -1 ? ' checked' : '') + '><span>' + esc(p.label) + '</span></label>';
+        }).join('') + '</div>';
+    }).join('');
+    var html =
+      '<div class="grid md:grid-cols-2 gap-3">' +
+      field('Mã vai trò', id
+        ? input('code', r.code, 'text', 'disabled')
+        : input('code', '', 'text', 'required placeholder="VD: THU_KY"'), id ? 'Mã không đổi được sau khi tạo.' : 'Chữ in hoa không dấu, số, gạch dưới. Không trùng STAFF, MANAGER, ADMIN.') +
+      field('Tên vai trò', input('name', r.name || '', 'text', 'required placeholder="VD: Thư ký bảng công"')) +
+      field('Phạm vi dữ liệu', select('scope', [
+        { value: 'SELF', label: SCOPE_LABEL.SELF },
+        { value: 'DEPARTMENT', label: SCOPE_LABEL.DEPARTMENT },
+        { value: 'ALL', label: SCOPE_LABEL.ALL }
+      ], r.scope), 'Quyết định cán bộ nào người mang vai trò được xem trong điều hành và báo cáo.') +
+      field('Trạng thái', select('status', [
+        { value: 'ACTIVE', label: 'Đang dùng' }, { value: 'INACTIVE', label: 'Ngừng dùng' }
+      ], r.status), 'Vai trò ngừng dùng: người mang nó chỉ còn quyền cán bộ thường.') +
+      field('Thứ tự hiển thị', input('displayOrder', r.displayOrder || 0, 'number')) +
+      '</div>' +
+      field('Mô tả', textarea('description', r.description || '', 2)) +
+      '<div class="mb-3"><p class="block text-xs font-semibold text-slate-600 mb-2">Quyền chức năng</p>' +
+      '<div class="p-3 rounded-xl border border-slate-200 bg-slate-50 max-h-72 overflow-y-auto">' + permHtml + '</div></div>' +
+      submitRow(id ? 'Lưu thay đổi' : 'Tạo vai trò');
+    openModal(id ? 'Sửa vai trò' : 'Thêm vai trò', html, function () {
+      var v = modalValues();
+      v.permissions = qsa('[data-cc-perm]', el('ccModalBody'))
+        .filter(function (box) { return box.checked; })
+        .map(function (box) { return box.getAttribute('data-cc-perm'); });
+      v.action = 'role_save';
+      if (id) { v.id = id; delete v.code; }
       api('admin', { body: v }).then(function (data) {
         closeModal();
         toast(data.message, 'success');
@@ -2448,6 +2595,7 @@
   var ADMIN_LOADERS = {
     employees: loadAdminEmployees,
     departments: loadAdminDepartments,
+    roles: loadAdminRoles,
     accounts: loadAdminAccounts,
     worktime: loadAdminWorkTime,
     shifts: loadAdminShifts,
@@ -3713,6 +3861,20 @@
       var id = node.getAttribute('data-id');
       confirmBox('Xoá bộ phận này? Bộ phận còn cán bộ sẽ không xoá được.', function () {
         api('admin', { body: { action: 'department_delete', id: id } }).then(function (data) {
+          closeModal();
+          toast(data.message, 'success');
+          renderAdmin();
+        }).catch(fail);
+      }, 'Xoá');
+    },
+
+    // Vai trò
+    'role-new': function () { openRoleForm(null); },
+    'role-edit': function (node) { openRoleForm(node.getAttribute('data-id')); },
+    'role-delete': function (node) {
+      var id = node.getAttribute('data-id');
+      confirmBox('Xoá vai trò này? Vai trò còn cán bộ đang mang sẽ không xoá được - hãy đổi vai trò của họ hoặc chuyển vai trò sang Ngừng dùng.', function () {
+        api('admin', { body: { action: 'role_delete', id: id } }).then(function (data) {
           closeModal();
           toast(data.message, 'success');
           renderAdmin();
