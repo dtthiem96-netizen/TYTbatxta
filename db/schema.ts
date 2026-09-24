@@ -59,6 +59,11 @@ export const users = pgTable(
     // kèm quyền điểm trạm: bác sĩ tuyến trên hội chẩn từ xa nhưng không thao
     // tác trên bảng điều khiển của trạm.
     doctorAccess: text("doctor_access").default("false"),
+    /* Quyền đăng nhập Phân hệ Chấm công - Chấm trực (/chamcong). Cũng là quyền
+       cấp riêng: một cán bộ có thể chỉ chấm công mà không hề tham gia khám từ
+       xa, và ngược lại. Vai trò TRONG phân hệ (cán bộ / phụ trách bộ phận /
+       quản trị) nằm ở att_employees.attendance_role, không nằm ở đây. */
+    attendanceAccess: text("attendance_access").default("false"),
     /* Mật khẩu KHÔNG bao giờ lưu dạng rõ: chỉ giữ chuỗi băm bcrypt ($2b$...).
        Tài khoản tạo trước tính năng này còn để trống, xem netlify/lib/auth.ts
        để biết luồng đặt mật khẩu lần đầu. */
@@ -374,4 +379,377 @@ export const examinationReports = pgTable(
     ts: bigint("ts", { mode: "number" }).notNull(),
   },
   (table) => [index("examination_reports_room_idx").on(table.roomId)]
+);
+
+/* ===========================================================================
+   HỆ THỐNG CHẤM CÔNG - CHẤM TRỰC ĐIỆN TỬ NỘI BỘ (Mô-đun /chamcong)
+
+   Mười ba bảng dưới đây là toàn bộ kho dữ liệu của phân hệ chấm công. Tất cả
+   đều mang tiền tố "att_" để không bao giờ lẫn với các bảng của cổng thông tin
+   và của phòng khám từ xa.
+
+   HAI NGUYÊN TẮC CHI PHỐI CẢ SƠ ĐỒ NÀY:
+
+   1. KHÔNG CỐ ĐỊNH QUY ĐỊNH TRONG MÃ NGUỒN. Giờ hành chính, ca trực, ký hiệu
+      bảng công, ngày nghỉ lễ, loại nghỉ phép - không giá trị nào nằm trong mã.
+      Chúng là DỮ LIỆU: att_settings, att_shifts, att_holidays. Quản trị đổi
+      trong giao diện là có hiệu lực ngay, không cần triển khai lại.
+
+   2. CÔNG HÀNH CHÍNH VÀ CÔNG TRỰC LÀ HAI SỔ RIÊNG. att_punches ghi giờ hành
+      chính, att_duty_assignments + att_duty_logs ghi ca trực. Không có đường
+      nào để một ca trực tự biến thành một ngày công hành chính: muốn quy đổi
+      thì Quản trị phải bật tường minh trên từng ca trực (countsAsAdminDay +
+      adminDayValue), và ngay cả khi ấy hai con số vẫn được báo cáo tách nhau.
+   =========================================================================== */
+
+/* Khoa/bộ phận. Người phụ trách được trỏ tới một cán bộ (att_employees.id) chứ
+   không phải một tài khoản: phụ trách bộ phận là một chức trách trong sơ đồ tổ
+   chức, còn tài khoản chỉ là phương tiện đăng nhập. */
+export const attDepartments = pgTable(
+  "att_departments",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    headEmployeeId: text("head_employee_id"),
+    note: text("note"),
+    displayOrder: integer("display_order").default(0),
+    // ACTIVE | ARCHIVED - bộ phận đã giải thể vẫn phải giữ lại để tra cứu
+    // bảng công của những tháng trước đó.
+    status: text("status").default("ACTIVE"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [uniqueIndex("att_departments_code_uidx").on(table.code)]
+);
+
+/* Hồ sơ cán bộ - đối tượng được chấm công.
+
+   TÁCH KHỎI BẢNG users LÀ CỐ Ý. Một cán bộ vẫn phải có mặt trong bảng công dù
+   chưa được cấp tài khoản đăng nhập (người mới về trạm, người không dùng điện
+   thoại thông minh - Quản trị chấm hộ và hệ thống ghi rõ nguồn là ADMIN). Ngược
+   lại, một tài khoản CMS thuần quản trị không phải là một cán bộ được chấm công.
+   Cột user_id là mối nối tuỳ chọn giữa hai thế giới đó.
+
+   Khoá duy nhất trên user_id chặn việc hai hồ sơ cán bộ dùng chung một tài
+   khoản. PostgreSQL coi các giá trị NULL là khác nhau trong khoá duy nhất, nên
+   số hồ sơ chưa gắn tài khoản không bị giới hạn. */
+export const attEmployees = pgTable(
+  "att_employees",
+  {
+    id: text("id").primaryKey(),
+    // Mã cán bộ do trạm tự quy định, in trên bảng công.
+    code: text("code").notNull(),
+    fullName: text("full_name").notNull(),
+    position: text("position"),
+    departmentId: text("department_id"),
+    userId: text("user_id"),
+    // STAFF | MANAGER | ADMIN - quyền trong phân hệ chấm công, độc lập với
+    // vai trò ở cổng thông tin.
+    attendanceRole: text("attendance_role").default("STAFF"),
+    phone: text("phone"),
+    email: text("email"),
+    startDate: text("start_date"),
+    // ACTIVE | INACTIVE - thôi việc/chuyển công tác thì ngừng xuất hiện trong
+    // bảng công của các tháng sau, nhưng tháng cũ vẫn nguyên.
+    status: text("status").default("ACTIVE"),
+    note: text("note"),
+    displayOrder: integer("display_order").default(0),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [
+    uniqueIndex("att_employees_code_uidx").on(table.code),
+    uniqueIndex("att_employees_user_uidx").on(table.userId),
+    index("att_employees_department_idx").on(table.departmentId),
+  ]
+);
+
+/* Cấu hình dạng khoá - giá trị JSON: thời gian làm việc, ký hiệu bảng công,
+   danh mục loại nghỉ phép, quy tắc quy đổi. Xem netlify/lib/attendance.ts để
+   biết khoá nào mang nội dung gì và giá trị mặc định ra sao. */
+export const attSettings = pgTable("att_settings", {
+  id: text("id").primaryKey(),
+  value: text("value").notNull(),
+  updatedBy: text("updated_by"),
+  updatedAt: bigint("updated_at", { mode: "number" }),
+});
+
+/* Danh mục ca trực. Trạm đặt bao nhiêu ca cũng được, với giờ bắt đầu/kết thúc
+   bất kỳ - ca qua đêm chỉ là ca có end_time nhỏ hơn start_time. */
+export const attShifts = pgTable(
+  "att_shifts",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    // Ca kết thúc sang ngày hôm sau (16:30 -> 07:30). Được suy ra từ giờ nhưng
+    // vẫn lưu lại để báo cáo không phải đoán.
+    crossesMidnight: text("crosses_midnight").default("false"),
+    // Số giờ trực được tính cho một ca. Lưu riêng thay vì luôn lấy hiệu hai mốc
+    // giờ, vì trạm có thể quy định một ca 24 giờ chỉ tính 16 giờ trực.
+    hours: real("hours"),
+    // ANY | WEEKDAY | WEEKEND | HOLIDAY - ca này được dùng cho loại ngày nào.
+    dayScope: text("day_scope").default("ANY"),
+    // Hệ số quy đổi khi tính phụ cấp, chỉ để báo cáo.
+    coefficient: real("coefficient").default(1),
+    /* QUY ĐỔI SANG CÔNG HÀNH CHÍNH - mặc định TẮT.
+       Chừng nào Quản trị chưa bật cờ này trên chính ca đó thì một ca trực không
+       bao giờ được cộng vào ngày công hành chính (mục VIII của yêu cầu nghiệp
+       vụ). Khi bật, admin_day_value quyết định cộng bao nhiêu ngày công. */
+    countsAsAdminDay: text("counts_as_admin_day").default("false"),
+    adminDayValue: real("admin_day_value").default(0),
+    color: text("color"),
+    note: text("note"),
+    displayOrder: integer("display_order").default(0),
+    status: text("status").default("ACTIVE"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [uniqueIndex("att_shifts_code_uidx").on(table.code)]
+);
+
+/* Danh mục ngày nghỉ lễ. Khoảng ngày (start_date..end_date) chứ không phải một
+   ngày, để nghỉ Tết nhiều ngày chỉ cần một bản ghi. */
+export const attHolidays = pgTable(
+  "att_holidays",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    // HOLIDAY (lễ) | TET (tết) | OTHER (ngày nghỉ khác do cấp trên cho)
+    dayType: text("day_type").default("HOLIDAY"),
+    note: text("note"),
+    createdBy: text("created_by"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [index("att_holidays_range_idx").on(table.startDate, table.endDate)]
+);
+
+/* SỔ CHẤM CÔNG HÀNH CHÍNH - mỗi lần bấm CHẤM VÀO / CHẤM RA là một bản ghi.
+
+   Bản ghi chỉ THÊM, không sửa: một lượt chấm sai được xử lý bằng yêu cầu điều
+   chỉnh (att_requests), và khi được duyệt thì hệ thống ghi thêm một lượt chấm
+   mới với source = REQUEST kèm con trỏ về yêu cầu gốc. Nhờ vậy dữ liệu gốc do
+   cán bộ tạo ra không bao giờ bị ghi đè mất. */
+export const attPunches = pgTable(
+  "att_punches",
+  {
+    id: serial("id").primaryKey(),
+    employeeId: text("employee_id").notNull(),
+    // Ngày làm việc dạng YYYY-MM-DD theo giờ Việt Nam, KHÔNG phải theo giờ máy
+    // chủ: máy chủ Netlify chạy theo UTC nên một lượt chấm lúc 07:30 sáng ở Lào
+    // Cai sẽ bị xếp sang ngày hôm trước nếu lấy ngày từ dấu thời gian UTC.
+    workDate: text("work_date").notNull(),
+    // IN | OUT
+    punchType: text("punch_type").notNull(),
+    punchAt: bigint("punch_at", { mode: "number" }).notNull(),
+    // MORNING | AFTERNOON | OUTSIDE - buổi làm việc mà lượt chấm này thuộc về.
+    session: text("session"),
+    // ON_TIME | LATE | EARLY_LEAVE | OUTSIDE - kết luận của hệ thống tại thời
+    // điểm chấm, lưu lại để bảng công tháng cũ không đổi khi Quản trị sửa giờ
+    // hành chính về sau.
+    status: text("status"),
+    // Số phút lệch so với mốc giờ quy định: dương là muộn/về sớm.
+    minutesDelta: integer("minutes_delta").default(0),
+    device: text("device"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    // SELF (cán bộ tự chấm) | ADMIN (Quản trị chấm hộ) | REQUEST (sinh ra từ
+    // yêu cầu điều chỉnh đã được duyệt)
+    source: text("source").default("SELF"),
+    requestId: text("request_id"),
+    note: text("note"),
+    createdBy: text("created_by"),
+    createdAt: bigint("created_at", { mode: "number" }),
+  },
+  (table) => [
+    index("att_punches_employee_date_idx").on(table.employeeId, table.workDate),
+    index("att_punches_date_idx").on(table.workDate),
+  ]
+);
+
+/* LỊCH TRỰC - ai trực ca nào, ngày nào. Một bản ghi là một suất trực.
+
+   day_type được chốt lại ngay lúc phân lịch thay vì luôn tính lại từ danh mục
+   ngày lễ. Lý do: danh mục ngày lễ có thể được bổ sung muộn (cấp trên cho nghỉ
+   bù), mà bảng tổng hợp của tháng đã chốt thì không được tự đổi số liệu. Khi
+   Quản trị muốn áp lại, có hành động "tính lại loại ngày" tường minh. */
+export const attDutyAssignments = pgTable(
+  "att_duty_assignments",
+  {
+    id: text("id").primaryKey(),
+    dutyDate: text("duty_date").notNull(),
+    shiftId: text("shift_id").notNull(),
+    employeeId: text("employee_id").notNull(),
+    // WEEKDAY | WEEKEND | HOLIDAY
+    dayType: text("day_type").default("WEEKDAY"),
+    // PLANNED | CANCELLED
+    status: text("status").default("PLANNED"),
+    // Suất trực này có được từ một lần đổi ca đã duyệt.
+    swappedFromEmployeeId: text("swapped_from_employee_id"),
+    note: text("note"),
+    createdBy: text("created_by"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [
+    uniqueIndex("att_duty_unique_idx").on(table.dutyDate, table.shiftId, table.employeeId),
+    index("att_duty_date_idx").on(table.dutyDate),
+    index("att_duty_employee_idx").on(table.employeeId),
+  ]
+);
+
+/* SỔ CHẤM TRỰC - cán bộ bấm nhận ca và kết ca trên suất trực đã được phân.
+   Tách khỏi att_punches để không có phép cộng nào trộn lẫn hai loại công. */
+export const attDutyLogs = pgTable(
+  "att_duty_logs",
+  {
+    id: serial("id").primaryKey(),
+    assignmentId: text("assignment_id").notNull(),
+    employeeId: text("employee_id").notNull(),
+    dutyDate: text("duty_date").notNull(),
+    shiftId: text("shift_id").notNull(),
+    checkInAt: bigint("check_in_at", { mode: "number" }),
+    checkOutAt: bigint("check_out_at", { mode: "number" }),
+    // Số giờ trực được ghi nhận. Lấy theo định mức của ca, không lấy hiệu giờ
+    // thực bấm: cán bộ kết ca muộn 10 phút không làm tăng giờ trực của trạm.
+    hours: real("hours"),
+    device: text("device"),
+    ip: text("ip"),
+    // OPEN (đã nhận ca, chưa kết) | DONE | ADMIN (Quản trị ghi nhận thay)
+    status: text("status").default("OPEN"),
+    source: text("source").default("SELF"),
+    note: text("note"),
+    createdBy: text("created_by"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [
+    index("att_duty_logs_employee_date_idx").on(table.employeeId, table.dutyDate),
+    index("att_duty_logs_assignment_idx").on(table.assignmentId),
+  ]
+);
+
+/* Đơn nghỉ phép. Loại nghỉ là MÃ tự do khớp với danh mục trong att_settings
+   (khoá "leave_types"), nhờ đó trạm thêm loại nghỉ mới mà không phải di trú
+   cơ sở dữ liệu. */
+export const attLeaves = pgTable(
+  "att_leaves",
+  {
+    id: text("id").primaryKey(),
+    employeeId: text("employee_id").notNull(),
+    leaveType: text("leave_type").notNull(),
+    fromDate: text("from_date").notNull(),
+    toDate: text("to_date").notNull(),
+    // Số ngày nghỉ quy đổi (0.5 cho nửa ngày).
+    days: real("days"),
+    // FULL | MORNING | AFTERNOON
+    session: text("session").default("FULL"),
+    reason: text("reason"),
+    attachment: text("attachment"),
+    // PENDING | APPROVED | REJECTED | CANCELLED
+    status: text("status").default("PENDING"),
+    decidedBy: text("decided_by"),
+    decidedByName: text("decided_by_name"),
+    decidedAt: bigint("decided_at", { mode: "number" }),
+    decisionNote: text("decision_note"),
+    createdBy: text("created_by"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [
+    index("att_leaves_employee_idx").on(table.employeeId),
+    index("att_leaves_range_idx").on(table.fromDate, table.toDate),
+    index("att_leaves_status_idx").on(table.status),
+  ]
+);
+
+/* Yêu cầu của cán bộ cần người phụ trách duyệt: điều chỉnh chấm công và đổi ca
+   trực. Nội dung cụ thể nằm trong payload JSON vì hai loại yêu cầu có hình
+   dạng khác nhau, nhưng luồng duyệt thì giống nhau hoàn toàn. */
+export const attRequests = pgTable(
+  "att_requests",
+  {
+    id: text("id").primaryKey(),
+    // ADJUST_PUNCH | SWAP_DUTY
+    kind: text("kind").notNull(),
+    employeeId: text("employee_id").notNull(),
+    targetDate: text("target_date"),
+    payload: text("payload"),
+    reason: text("reason"),
+    // PENDING | APPROVED | REJECTED | CANCELLED
+    status: text("status").default("PENDING"),
+    decidedBy: text("decided_by"),
+    decidedByName: text("decided_by_name"),
+    decidedAt: bigint("decided_at", { mode: "number" }),
+    decisionNote: text("decision_note"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [
+    index("att_requests_status_idx").on(table.status),
+    index("att_requests_employee_idx").on(table.employeeId),
+  ]
+);
+
+/* Kỳ bảng công tháng. Khoá kỳ (status = LOCKED) là chốt cuối cùng: mọi đường
+   ghi dữ liệu của tháng đó đều bị máy chủ từ chối, kể cả đường của Quản trị. */
+export const attPeriods = pgTable("att_periods", {
+  // Dạng YYYY-MM.
+  id: text("id").primaryKey(),
+  // OPEN | LOCKED
+  status: text("status").default("OPEN"),
+  lockedBy: text("locked_by"),
+  lockedByName: text("locked_by_name"),
+  lockedAt: bigint("locked_at", { mode: "number" }),
+  note: text("note"),
+  updatedAt: bigint("updated_at", { mode: "number" }),
+});
+
+/* Thông báo trong phân hệ: yêu cầu được duyệt/từ chối, lịch trực mới, nhắc
+   chưa chấm công. Gắn theo cán bộ chứ không theo tài khoản, để người được cấp
+   tài khoản muộn vẫn đọc được thông báo cũ của mình. */
+export const attNotifications = pgTable(
+  "att_notifications",
+  {
+    id: serial("id").primaryKey(),
+    employeeId: text("employee_id").notNull(),
+    title: text("title").notNull(),
+    body: text("body"),
+    kind: text("kind").default("INFO"),
+    refId: text("ref_id"),
+    readAt: bigint("read_at", { mode: "number" }),
+    ts: bigint("ts", { mode: "number" }).notNull(),
+  },
+  (table) => [index("att_notifications_employee_ts_idx").on(table.employeeId, table.ts)]
+);
+
+/* LỊCH SỬ THAO TÁC. Mọi đường ghi của phân hệ đều đi qua đây - không có ngoại
+   lệ cho Quản trị. Đây là điều kiện để bảng công có giá trị đối chiếu: một con
+   số bị sửa mà không ai biết ai sửa thì cả bảng mất tin cậy. */
+export const attAudits = pgTable(
+  "att_audits",
+  {
+    id: serial("id").primaryKey(),
+    entity: text("entity").notNull(),
+    entityId: text("entity_id"),
+    action: text("action").notNull(),
+    field: text("field"),
+    oldValue: text("old_value"),
+    newValue: text("new_value"),
+    actorId: text("actor_id"),
+    actorName: text("actor_name"),
+    actorUsername: text("actor_username"),
+    ip: text("ip"),
+    ts: bigint("ts", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("att_audits_entity_ts_idx").on(table.entity, table.ts),
+    index("att_audits_ts_idx").on(table.ts),
+  ]
 );

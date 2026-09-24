@@ -105,6 +105,7 @@ async function handleCreate(body: Record<string, any>) {
     canReceiveVideo: flag(body.canReceiveVideo, "true"),
     stationAccess: flag(body.stationAccess, "false"),
     doctorAccess: flag(body.doctorAccess, "false"),
+    attendanceAccess: flag(body.attendanceAccess, "false"),
     status: VALID_STATUS.has(text(body.status).toUpperCase()) ? text(body.status).toUpperCase() : "ACTIVE",
     passwordHash: await hashPassword(password),
     mustChangePassword: flag(body.mustChangePassword, "true"),
@@ -153,6 +154,7 @@ async function handleUpdate(body: Record<string, any>) {
     canReceiveVideo: flag(body.canReceiveVideo, (target.canReceiveVideo as "true" | "false") || "true"),
     stationAccess: flag(body.stationAccess, (target.stationAccess as "true" | "false") || "false"),
     doctorAccess: flag(body.doctorAccess, (target.doctorAccess as "true" | "false") || "false"),
+    attendanceAccess: flag(body.attendanceAccess, (target.attendanceAccess as "true" | "false") || "false"),
     status,
     updatedAt: Date.now()
   };
@@ -227,13 +229,16 @@ async function handleSetPermission(body: Record<string, any>) {
   const permission = text(body.permission);
   const granted = flag(body.granted, "false");
 
-  const columns: Record<string, "stationAccess" | "doctorAccess" | "canReceiveVideo"> = {
+  const columns: Record<string, "stationAccess" | "doctorAccess" | "attendanceAccess" | "canReceiveVideo"> = {
     // "Quyền truy cập Mod Bảng điều khiển điểm trạm"
     station: "stationAccess",
     stationAccess: "stationAccess",
     // "Quyền truy cập Module Bác sĩ tuyến trên" - cấp tách khỏi quyền điểm trạm.
     doctor: "doctorAccess",
     doctorAccess: "doctorAccess",
+    // "Quyền truy cập Phân hệ Chấm công - Chấm trực" (/chamcong).
+    attendance: "attendanceAccess",
+    attendanceAccess: "attendanceAccess",
     video: "canReceiveVideo",
     canReceiveVideo: "canReceiveVideo"
   };
@@ -245,6 +250,7 @@ async function handleSetPermission(body: Record<string, any>) {
   const labels: Record<string, string> = {
     stationAccess: "Mod Bảng điều khiển điểm trạm",
     doctorAccess: "Module Bác sĩ tuyến trên",
+    attendanceAccess: "Phân hệ Chấm công - Chấm trực",
     canReceiveVideo: "nhận cuộc gọi Video"
   };
   const label = labels[column];
