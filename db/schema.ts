@@ -753,3 +753,28 @@ export const attAudits = pgTable(
     index("att_audits_ts_idx").on(table.ts),
   ]
 );
+
+/* VAI TRÒ TUỲ CHỈNH của phân hệ chấm công. Ba vai trò hệ thống (STAFF, MANAGER,
+   ADMIN) được định nghĩa trong mã và không lưu ở đây; bảng này chứa những vai
+   trò Quản trị tự tạo thêm (ví dụ "Thư ký bảng công", "Điều dưỡng trưởng"),
+   mỗi vai trò là một tập quyền chức năng cộng với phạm vi dữ liệu.
+   att_employees.attendance_role trỏ tới cột code của bảng này. */
+export const attRoles = pgTable(
+  "att_roles",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    // SELF (chỉ chính mình) | DEPARTMENT (bộ phận của mình) | ALL (toàn đơn vị)
+    scope: text("scope").default("SELF"),
+    // Mảng JSON các mã quyền, ví dụ ["approvals.decide","roster.manage"].
+    permissions: text("permissions").default("[]"),
+    displayOrder: integer("display_order").default(0),
+    status: text("status").default("ACTIVE"),
+    createdBy: text("created_by"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [uniqueIndex("att_roles_code_uidx").on(table.code)]
+);

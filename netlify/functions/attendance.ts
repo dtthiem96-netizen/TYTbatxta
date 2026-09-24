@@ -36,6 +36,7 @@ import {
   attDutyAssignments,
   attDutyLogs,
   attEmployees,
+  attRoles,
   attLeaves,
   attNotifications,
   attPunches,
@@ -59,6 +60,8 @@ import {
   isValidPeriod,
   json,
   listHolidays,
+  listRoles,
+  parsePermissions,
   listShifts,
   newId,
   notify,
@@ -241,6 +244,10 @@ async function handleBootstrap(actor: ActorContext) {
       username: actor.user.username,
       name: actor.user.name,
       role: actor.role,
+      roleCode: actor.roleCode,
+      roleName: actor.roleName,
+      scope: actor.scope,
+      permissions: actor.role === "ADMIN" ? ["*"] : [...actor.permissions],
       mustChangePassword: String(actor.user.mustChangePassword || "false") === "true",
       employee: employee ? publicEmployee(employee, deptNames.get(employee.departmentId || "") || "") : null,
     },
@@ -255,6 +262,8 @@ async function handleBootstrap(actor: ActorContext) {
       note: h.note || "",
     })),
     today,
+    // Tên các vai trò để giao diện hiển thị nhãn cho cả vai trò tuỳ chỉnh.
+    roles: (await listRoles(true)).map((r) => ({ code: r.code, name: r.name, system: r.system, status: r.status })),
     counters: { unreadNotifications: unread, pendingRequests: pending },
     serverTime: Date.now(),
   });
@@ -950,19 +959,27 @@ async function handleReadNotifications(actor: ActorContext) {
 
 /**
  * Thông báo tới những người có quyền duyệt yêu cầu của một cán bộ: phụ trách bộ
- * phận của người đó, và những cán bộ giữ vai trò MANAGER/ADMIN trong phân hệ.
+ * phận của người đó, những cán bộ giữ vai trò MANAGER/ADMIN trong phân hệ, và
+ * những cán bộ mang vai trò tuỳ chỉnh có quyền duyệt (theo phạm vi của vai trò).
  */
 async function notifyApprovers(employee: EmployeeRow, title: string, bodyText: string, refId: string) {
   try {
+    const customRoles = (await db.select().from(attRoles)).filter(
+      (r) =>
+        String(r.status || "ACTIVE").toUpperCase() === "ACTIVE" &&
+        parsePermissions(r.permissions).includes("approvals.decide") &&
+        String(r.scope || "SELF").toUpperCase() !== "SELF"
+    );
+    const allScope = new Set(["ADMIN", ...customRoles.filter((r) => String(r.scope).toUpperCase() === "ALL").map((r) => r.code)]);
     const rows = await db
       .select()
       .from(attEmployees)
-      .where(inArray(attEmployees.attendanceRole, ["MANAGER", "ADMIN"]));
+      .where(inArray(attEmployees.attendanceRole, ["MANAGER", "ADMIN", ...customRoles.map((r) => r.code)]));
     const ids = rows
       .filter((r) => r.id !== employee.id)
       .filter(
         (r) =>
-          String(r.attendanceRole || "").toUpperCase() === "ADMIN" ||
+          allScope.has(String(r.attendanceRole || "").toUpperCase()) ||
           !employee.departmentId ||
           r.departmentId === employee.departmentId
       )

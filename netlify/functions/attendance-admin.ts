@@ -18,11 +18,13 @@
  *        not_punched     ai chưa chấm công trong một ngày
  *        periods         trạng thái khoá các kỳ
  *        audits          lịch sử thao tác
+ *        roles           vai trò hệ thống + vai trò tuỳ chỉnh và danh mục quyền
  *
  *   POST /api/attendance/admin  { action: ... }
  *        Danh mục:   department_save | department_delete | employee_save |
  *                    employee_delete | shift_save | shift_delete |
  *                    holiday_save | holiday_delete | settings_save
+ *        Vai trò:    role_save | role_delete (chỉ Quản trị hệ thống)
  *        Tài khoản:  account_link | account_unlink | account_grant |
  *                    account_create | account_reset_password
  *        Lịch trực:  roster_assign | roster_remove | roster_copy_previous |
@@ -33,7 +35,9 @@
  *
  * PHÂN QUYỀN: Phụ trách bộ phận chỉ xem được bộ phận mình và chỉ duyệt được
  * yêu cầu của người trong bộ phận mình (visibleEmployeeIds + assertCanManage).
- * Mọi hành động sửa danh mục, cấu hình, lịch trực và khoá kỳ là của Quản trị.
+ * Mọi hành động sửa danh mục, cấu hình, lịch trực và khoá kỳ là của Quản trị,
+ * hoặc của vai trò tuỳ chỉnh được Quản trị cấp đúng quyền đó (requirePermission).
+ * Tạo/sửa vai trò và phân vai trò cho cán bộ thì chỉ Quản trị hệ thống làm được.
  */
 import { db } from "../../db/index.js";
 import {
@@ -49,6 +53,7 @@ import {
   attRequests,
   attShifts,
   attAudits,
+  attRoles,
   users,
 } from "../../db/schema.js";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
@@ -80,10 +85,16 @@ import {
   ensureSeedData,
   evaluatePunch,
   getSettings,
+  hasPermission,
+  isBuiltinRole,
   isValidDate,
   isValidPeriod,
   json,
   listHolidays,
+  listRoles,
+  parsePermissions,
+  parseScope,
+  PERMISSIONS,
   listShifts,
   newId,
   notify,
@@ -95,6 +106,7 @@ import {
   publicShift,
   requireAdmin,
   requireManager,
+  requirePermission,
   resolveActor,
   saveSetting,
   shiftHours,
@@ -113,7 +125,8 @@ import {
   type ShiftRow,
 } from "../lib/attendance.js";
 
-const ROLES = new Set(["STAFF", "MANAGER", "ADMIN"]);
+/** Mã vai trò tuỳ chỉnh: chữ in hoa, số và gạch dưới, 2-30 ký tự. */
+const ROLE_CODE_RE = /^[A-Z][A-Z0-9_]{1,29}$/;
 const DAY_SCOPES = new Set(["ANY", "WEEKDAY", "WEEKEND", "HOLIDAY"]);
 const DAY_TYPES = new Set(["HOLIDAY", "TET", "OTHER"]);
 const flag = (value: unknown, fallback: "true" | "false" = "false"): "true" | "false" => {
@@ -224,7 +237,7 @@ async function handleOverview(actor: ActorContext) {
   const pendingRequests = await db.select().from(attRequests).where(eq(attRequests.status, "PENDING"));
   const pendingLeaves = await db.select().from(attLeaves).where(eq(attLeaves.status, "PENDING"));
   const scope = new Set(ids);
-  const mine = (employeeId: string) => actor.role === "ADMIN" || scope.has(employeeId);
+  const mine = (employeeId: string) => actor.role === "ADMIN" || actor.scope === "ALL" || scope.has(employeeId);
 
   return json({
     success: true,
@@ -281,7 +294,7 @@ async function handleEmployees(actor: ActorContext) {
 
 /** Tài khoản hệ thống, để Quản trị gán vào hồ sơ cán bộ. */
 async function handleAccounts(actor: ActorContext) {
-  requireAdmin(actor);
+  requirePermission(actor, "accounts.manage");
   const rows = await db.select().from(users).orderBy(asc(users.name));
   const employees = await db.select().from(attEmployees);
   const empByUser = new Map(employees.filter((e) => e.userId).map((e) => [e.userId as string, e]));
@@ -306,7 +319,7 @@ async function handleAccounts(actor: ActorContext) {
 async function handleShifts(actor: ActorContext) {
   // Lần đầu Quản trị mở danh mục trên cơ sở dữ liệu còn trắng thì gieo ca mẫu,
   // để có cái sửa thay vì một danh sách rỗng. Không gieo ở đường đọc của cán bộ.
-  if (actor.role === "ADMIN") await ensureSeedData();
+  if (hasPermission(actor, "shifts.manage")) await ensureSeedData();
   const rows = await listShifts(true);
   return json({ success: true, shifts: rows.map(publicShift) });
 }
@@ -416,7 +429,7 @@ async function handleRoster(period: string) {
 
 /** Việc đang chờ duyệt, đã lọc theo tầm nhìn của người duyệt. */
 async function handleApprovals(actor: ActorContext, status: string) {
-  requireManager(actor);
+  requirePermission(actor, "approvals.decide");
   const want = ["PENDING", "APPROVED", "REJECTED", "CANCELLED", "ALL"].includes(status.toUpperCase())
     ? status.toUpperCase()
     : "PENDING";
@@ -495,7 +508,7 @@ async function handleApprovals(actor: ActorContext, status: string) {
 
 /** Ai chưa chấm công trong một ngày cụ thể. */
 async function handleNotPunched(actor: ActorContext, date: string) {
-  requireManager(actor);
+  requirePermission(actor, "manage.view");
   if (!isValidDate(date)) return json({ success: false, error: "Ngày không hợp lệ." }, 400);
   const employees = (await scopedEmployees(actor)).filter(
     (e) => String(e.status || "ACTIVE").toUpperCase() === "ACTIVE"
@@ -566,7 +579,7 @@ async function handlePeriods() {
 }
 
 async function handleAudits(actor: ActorContext, url: URL) {
-  requireAdmin(actor);
+  requirePermission(actor, "audits.view");
   const entity = str(url.searchParams.get("entity"));
   const entityId = str(url.searchParams.get("entityId"));
   const limit = Math.min(Math.max(num(url.searchParams.get("limit"), 100), 1), 500);
@@ -599,7 +612,7 @@ async function handleAudits(actor: ActorContext, url: URL) {
 // ---------------------------------------------------------------------------
 
 async function saveDepartment(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "employees.manage");
   const id = str(body.id);
   const name = str(body.name);
   const code = str(body.code).toUpperCase();
@@ -637,7 +650,7 @@ async function saveDepartment(actor: ActorContext, body: Record<string, unknown>
 }
 
 async function deleteDepartment(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "employees.manage");
   const id = str(body.id);
   const used = await db.select().from(attEmployees).where(eq(attEmployees.departmentId, id));
   if (used.length) {
@@ -652,7 +665,7 @@ async function deleteDepartment(actor: ActorContext, body: Record<string, unknow
 }
 
 async function saveEmployee(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "employees.manage");
   const id = str(body.id);
   const code = str(body.code).toUpperCase();
   const fullName = str(body.fullName);
@@ -664,7 +677,22 @@ async function saveEmployee(actor: ActorContext, body: Record<string, unknown>) 
     return json({ success: false, error: `Mã cán bộ "${code}" đã tồn tại.` }, 409);
   }
 
-  const role = ROLES.has(str(body.attendanceRole).toUpperCase()) ? str(body.attendanceRole).toUpperCase() : "STAFF";
+  const existingRows = id ? await db.select().from(attEmployees).where(eq(attEmployees.id, id)) : [];
+  if (id && !existingRows.length) return json({ success: false, error: "Không tìm thấy cán bộ." }, 404);
+  const currentRole = existingRows.length ? String(existingRows[0].attendanceRole || "STAFF").toUpperCase() : "STAFF";
+  assertCanTouchRole(actor, currentRole);
+
+  // Chỉ Quản trị hệ thống được phân vai trò. Người khác giữ quyền quản lý hồ sơ
+  // vẫn sửa được thông tin cán bộ nhưng vai trò giữ nguyên - nếu không, họ tự
+  // nâng quyền cho mình hoặc người thân quen được.
+  let role = currentRole;
+  if (actor.role === "ADMIN") {
+    const requested = str(body.attendanceRole).toUpperCase() || "STAFF";
+    if (!(await roleExists(requested))) {
+      return json({ success: false, error: `Vai trò "${requested}" không tồn tại hoặc đã ngừng dùng.` }, 400);
+    }
+    role = requested;
+  }
   const startDate = str(body.startDate);
   if (startDate && !isValidDate(startDate)) return json({ success: false, error: "Ngày bắt đầu làm việc không hợp lệ." }, 400);
 
@@ -685,10 +713,8 @@ async function saveEmployee(actor: ActorContext, body: Record<string, unknown>) 
   };
 
   if (id) {
-    const existing = await db.select().from(attEmployees).where(eq(attEmployees.id, id));
-    if (!existing.length) return json({ success: false, error: "Không tìm thấy cán bộ." }, 404);
     await db.update(attEmployees).set(patch).where(eq(attEmployees.id, id));
-    await writeAudit(actor, { entity: "employee", entityId: id, action: "UPDATE", oldValue: existing[0], newValue: patch });
+    await writeAudit(actor, { entity: "employee", entityId: id, action: "UPDATE", oldValue: existingRows[0], newValue: patch });
     return json({ success: true, message: "Đã cập nhật hồ sơ cán bộ.", id });
   }
 
@@ -706,10 +732,11 @@ async function saveEmployee(actor: ActorContext, body: Record<string, unknown>) 
  * liệu thì chuyển sang trạng thái INACTIVE.
  */
 async function deleteEmployee(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "employees.manage");
   const id = str(body.id);
   const existing = await db.select().from(attEmployees).where(eq(attEmployees.id, id));
   if (!existing.length) return json({ success: false, error: "Không tìm thấy cán bộ." }, 404);
+  assertCanTouchRole(actor, String(existing[0].attendanceRole || "STAFF").toUpperCase());
 
   const [punches, duties, leaves] = await Promise.all([
     db.select({ id: attPunches.id }).from(attPunches).where(eq(attPunches.employeeId, id)).limit(1),
@@ -734,7 +761,7 @@ async function deleteEmployee(actor: ActorContext, body: Record<string, unknown>
 }
 
 async function saveShift(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "shifts.manage");
   const id = str(body.id);
   const code = str(body.code).toUpperCase();
   const name = str(body.name);
@@ -790,7 +817,7 @@ async function saveShift(actor: ActorContext, body: Record<string, unknown>) {
 }
 
 async function deleteShift(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "shifts.manage");
   const id = str(body.id);
   const used = await db.select({ id: attDutyAssignments.id }).from(attDutyAssignments).where(eq(attDutyAssignments.shiftId, id)).limit(1);
   if (used.length) {
@@ -809,7 +836,7 @@ async function deleteShift(actor: ActorContext, body: Record<string, unknown>) {
 }
 
 async function saveHoliday(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "shifts.manage");
   const id = str(body.id);
   const name = str(body.name);
   const startDate = str(body.startDate);
@@ -845,7 +872,7 @@ async function saveHoliday(actor: ActorContext, body: Record<string, unknown>) {
 }
 
 async function deleteHoliday(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "shifts.manage");
   const id = str(body.id);
   await db.delete(attHolidays).where(eq(attHolidays.id, id));
   await writeAudit(actor, { entity: "holiday", entityId: id, action: "DELETE" });
@@ -860,7 +887,7 @@ async function deleteHoliday(actor: ActorContext, body: Record<string, unknown>)
  * cấu hình sai ở đây sẽ làm sai toàn bộ bảng công của tháng.
  */
 async function saveSettings(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "worktime.manage");
   const key = str(body.key);
   const value = body.value;
   if (value === null || typeof value !== "object") {
@@ -963,18 +990,122 @@ async function saveSettings(actor: ActorContext, body: Record<string, unknown>) 
 }
 
 // ---------------------------------------------------------------------------
+//  Vai trò tuỳ chỉnh
+// ---------------------------------------------------------------------------
+
+/** Mã vai trò có dùng được để gán không: vai trò hệ thống, hoặc vai trò tuỳ chỉnh đang dùng. */
+async function roleExists(code: string): Promise<boolean> {
+  if (isBuiltinRole(code)) return true;
+  const rows = await db.select().from(attRoles).where(eq(attRoles.code, code));
+  return rows.length > 0 && String(rows[0].status || "ACTIVE").toUpperCase() === "ACTIVE";
+}
+
+/** Người không phải Quản trị hệ thống không được đụng tới hồ sơ mang vai trò Quản trị. */
+function assertCanTouchRole(actor: ActorContext, roleCode: string): void {
+  if (actor.role !== "ADMIN" && roleCode === "ADMIN") {
+    throw new AuthError(403, "FORBIDDEN", "Chỉ Quản trị hệ thống mới được sửa hồ sơ hoặc tài khoản của Quản trị.");
+  }
+}
+
+/**
+ * Tài khoản đặc quyền (Quản trị cổng thông tin, hoặc gắn với hồ sơ vai trò
+ * ADMIN) chỉ Quản trị hệ thống được đặt lại mật khẩu / cấp quyền - nếu không,
+ * người giữ quyền quản lý tài khoản chiếm được tài khoản Quản trị.
+ */
+async function assertCanTouchAccount(actor: ActorContext, account: UserRow): Promise<void> {
+  if (actor.role === "ADMIN") return;
+  if (isAdminRole(account.role)) assertCanTouchRole(actor, "ADMIN");
+  const linked = await db.select().from(attEmployees).where(eq(attEmployees.userId, account.id));
+  if (linked.length) assertCanTouchRole(actor, String(linked[0].attendanceRole || "STAFF").toUpperCase());
+}
+
+async function handleRoles() {
+  return json({
+    success: true,
+    roles: await listRoles(true),
+    permissions: PERMISSIONS,
+  });
+}
+
+/**
+ * Tạo / sửa vai trò tuỳ chỉnh. Mã vai trò không đổi được sau khi tạo vì hồ sơ
+ * cán bộ trỏ tới nó bằng mã.
+ */
+async function saveRole(actor: ActorContext, body: Record<string, unknown>) {
+  requireAdmin(actor);
+  const id = str(body.id);
+  const name = str(body.name);
+  if (!name) return json({ success: false, error: "Tên vai trò là bắt buộc." }, 400);
+  const permissions = parsePermissions(body.permissions);
+  const now = Date.now();
+  const patch = {
+    name,
+    description: str(body.description) || null,
+    scope: parseScope(body.scope),
+    permissions: JSON.stringify(permissions),
+    displayOrder: num(body.displayOrder, 0),
+    status: str(body.status).toUpperCase() === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+    updatedAt: now,
+  };
+
+  if (id) {
+    const existing = await db.select().from(attRoles).where(eq(attRoles.id, id));
+    if (!existing.length) return json({ success: false, error: "Không tìm thấy vai trò." }, 404);
+    await db.update(attRoles).set(patch).where(eq(attRoles.id, id));
+    await writeAudit(actor, { entity: "role", entityId: id, action: "UPDATE", oldValue: existing[0], newValue: patch });
+    return json({ success: true, message: `Đã cập nhật vai trò "${name}".`, id });
+  }
+
+  const code = str(body.code).toUpperCase();
+  if (!ROLE_CODE_RE.test(code)) {
+    return json({
+      success: false,
+      error: "Mã vai trò phải bắt đầu bằng chữ cái, chỉ gồm chữ in hoa không dấu, số và dấu gạch dưới (2-30 ký tự).",
+    }, 400);
+  }
+  if (isBuiltinRole(code)) return json({ success: false, error: `"${code}" là mã vai trò hệ thống, hãy chọn mã khác.` }, 409);
+  const clash = await db.select().from(attRoles).where(eq(attRoles.code, code));
+  if (clash.length) return json({ success: false, error: `Mã vai trò "${code}" đã tồn tại.` }, 409);
+
+  const newRoleId = newId("role");
+  await db.insert(attRoles).values({ id: newRoleId, code, ...patch, createdBy: actor.user.id, createdAt: now });
+  await writeAudit(actor, { entity: "role", entityId: newRoleId, action: "CREATE", newValue: { code, ...patch } });
+  return json({ success: true, message: `Đã tạo vai trò "${name}".`, id: newRoleId });
+}
+
+/** Xoá vai trò tuỳ chỉnh. Vai trò đang có người mang thì chỉ cho ngừng dùng. */
+async function deleteRole(actor: ActorContext, body: Record<string, unknown>) {
+  requireAdmin(actor);
+  const id = str(body.id);
+  const existing = await db.select().from(attRoles).where(eq(attRoles.id, id));
+  if (!existing.length) return json({ success: false, error: "Không tìm thấy vai trò." }, 404);
+  const holders = await db.select({ id: attEmployees.id }).from(attEmployees).where(eq(attEmployees.attendanceRole, existing[0].code));
+  if (holders.length) {
+    return json({
+      success: false,
+      error: `Vai trò đang được gán cho ${holders.length} cán bộ. Hãy đổi vai trò của họ trước, hoặc chuyển vai trò sang Ngừng dùng.`,
+    }, 409);
+  }
+  await db.delete(attRoles).where(eq(attRoles.id, id));
+  await writeAudit(actor, { entity: "role", entityId: id, action: "DELETE", oldValue: existing[0] });
+  return json({ success: true, message: `Đã xoá vai trò "${existing[0].name}".` });
+}
+
+// ---------------------------------------------------------------------------
 //  Tài khoản đăng nhập
 // ---------------------------------------------------------------------------
 
 /** Gán một tài khoản hệ thống vào hồ sơ cán bộ và cấp quyền vào phân hệ. */
 async function linkAccount(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "accounts.manage");
   const employeeId = str(body.employeeId);
   const userId = str(body.userId);
   const employee = await db.select().from(attEmployees).where(eq(attEmployees.id, employeeId));
   if (!employee.length) return json({ success: false, error: "Không tìm thấy cán bộ." }, 404);
   const account = await db.select().from(users).where(eq(users.id, userId));
   if (!account.length) return json({ success: false, error: "Không tìm thấy tài khoản." }, 404);
+  assertCanTouchRole(actor, String(employee[0].attendanceRole || "STAFF").toUpperCase());
+  await assertCanTouchAccount(actor, account[0]);
 
   const taken = await db.select().from(attEmployees).where(eq(attEmployees.userId, userId));
   if (taken.length && taken[0].id !== employeeId) {
@@ -993,7 +1124,7 @@ async function linkAccount(actor: ActorContext, body: Record<string, unknown>) {
 }
 
 async function unlinkAccount(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "accounts.manage");
   const employeeId = str(body.employeeId);
   const employee = await db.select().from(attEmployees).where(eq(attEmployees.id, employeeId));
   if (!employee.length) return json({ success: false, error: "Không tìm thấy cán bộ." }, 404);
@@ -1005,11 +1136,12 @@ async function unlinkAccount(actor: ActorContext, body: Record<string, unknown>)
 
 /** Cấp hoặc thu hồi quyền vào phân hệ của một tài khoản. */
 async function grantAccess(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "accounts.manage");
   const userId = str(body.userId);
   const granted = flag(body.granted, "false");
   const account = await db.select().from(users).where(eq(users.id, userId));
   if (!account.length) return json({ success: false, error: "Không tìm thấy tài khoản." }, 404);
+  await assertCanTouchAccount(actor, account[0]);
   await db.update(users).set({ attendanceAccess: granted, updatedAt: Date.now() }).where(eq(users.id, userId));
   await writeAudit(actor, {
     entity: "account",
@@ -1031,7 +1163,7 @@ async function grantAccess(actor: ActorContext, body: Record<string, unknown>) {
  * bộ tự đổi ở lần đăng nhập đầu tiên.
  */
 async function createAccount(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "accounts.manage");
   const employeeId = str(body.employeeId);
   const username = str(body.username).toLowerCase();
   const employee = await db.select().from(attEmployees).where(eq(attEmployees.id, employeeId));
@@ -1084,10 +1216,11 @@ async function createAccount(actor: ActorContext, body: Record<string, unknown>)
 }
 
 async function resetAccountPassword(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "accounts.manage");
   const userId = str(body.userId);
   const account = await db.select().from(users).where(eq(users.id, userId));
   if (!account.length) return json({ success: false, error: "Không tìm thấy tài khoản." }, 404);
+  await assertCanTouchAccount(actor, account[0]);
   const password = str(body.password) || generateTemporaryPassword();
   const weak = validatePasswordStrength(password);
   if (weak) return json({ success: false, error: weak }, 400);
@@ -1114,7 +1247,7 @@ function shiftFitsDay(shift: ShiftRow, dayType: DayType): boolean {
 }
 
 async function assignDuty(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "roster.manage");
   const dutyDate = str(body.dutyDate);
   const shiftId = str(body.shiftId);
   const employeeId = str(body.employeeId);
@@ -1185,7 +1318,7 @@ async function assignDuty(actor: ActorContext, body: Record<string, unknown>) {
 }
 
 async function removeDuty(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "roster.manage");
   const id = str(body.id);
   const found = await db.select().from(attDutyAssignments).where(eq(attDutyAssignments.id, id));
   if (!found.length) return json({ success: false, error: "Không tìm thấy suất trực." }, 404);
@@ -1216,7 +1349,7 @@ async function removeDuty(actor: ActorContext, body: Record<string, unknown>) {
  * khác. Bỏ qua các suất đã tồn tại nên bấm hai lần cũng không sinh trùng.
  */
 async function copyPreviousRoster(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "roster.manage");
   const period = str(body.period);
   if (!isValidPeriod(period)) return json({ success: false, error: "Kỳ không hợp lệ." }, 400);
   await assertPeriodOpen(period);
@@ -1318,7 +1451,7 @@ async function copyPreviousRoster(actor: ActorContext, body: Record<string, unkn
  * thì giữ nguyên - lịch do Quản trị đặt tay luôn thắng.
  */
 async function autoAssignRoster(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "roster.manage");
   const period = str(body.period);
   if (!isValidPeriod(period)) return json({ success: false, error: "Kỳ không hợp lệ." }, 400);
   await assertPeriodOpen(period);
@@ -1439,7 +1572,7 @@ async function autoAssignRoster(actor: ActorContext, body: Record<string, unknow
  * Toàn bộ dòng lỗi được trả về kèm số dòng, không dừng ở dòng lỗi đầu tiên.
  */
 async function importRoster(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "roster.manage");
   const period = str(body.period);
   if (!isValidPeriod(period)) return json({ success: false, error: "Kỳ không hợp lệ." }, 400);
   await assertPeriodOpen(period);
@@ -1556,7 +1689,7 @@ async function importRoster(actor: ActorContext, body: Record<string, unknown>) 
  * source = ADMIN và lưu giá trị cũ vào lịch sử, không ghi đè im lặng.
  */
 async function savePunch(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "timedata.edit");
   const employeeId = str(body.employeeId);
   const workDate = str(body.workDate);
   const punchType = str(body.punchType).toUpperCase() === "OUT" ? "OUT" : "IN";
@@ -1625,7 +1758,7 @@ async function savePunch(actor: ActorContext, body: Record<string, unknown>) {
 }
 
 async function deletePunch(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "timedata.edit");
   const id = num(body.id, 0);
   const existing = await db.select().from(attPunches).where(eq(attPunches.id, id));
   if (!existing.length) return json({ success: false, error: "Không tìm thấy lượt chấm công." }, 404);
@@ -1642,7 +1775,7 @@ async function deletePunch(actor: ActorContext, body: Record<string, unknown>) {
 
 /** Quản trị ghi nhận một ca trực đã hoàn thành (cán bộ quên bấm). */
 async function saveDutyLog(actor: ActorContext, body: Record<string, unknown>) {
-  requireAdmin(actor);
+  requirePermission(actor, "timedata.edit");
   const assignmentId = str(body.assignmentId);
   const found = await db.select().from(attDutyAssignments).where(eq(attDutyAssignments.id, assignmentId));
   if (!found.length) return json({ success: false, error: "Không tìm thấy suất trực." }, 404);
@@ -1718,7 +1851,7 @@ async function saveDutyLog(actor: ActorContext, body: Record<string, unknown>) {
 
 /** Quản trị/Phụ trách ghi trực tiếp một kỳ nghỉ cho cán bộ (đã duyệt sẵn). */
 async function saveLeave(actor: ActorContext, body: Record<string, unknown>) {
-  requireManager(actor);
+  requirePermission(actor, "leave.record");
   const employeeId = str(body.employeeId);
   const employee = await assertCanManage(actor, employeeId);
   const settings = await getSettings();
@@ -1786,7 +1919,7 @@ async function saveLeave(actor: ActorContext, body: Record<string, unknown>) {
  * trên bảng công về tận lá đơn.
  */
 async function decideRequest(actor: ActorContext, body: Record<string, unknown>) {
-  requireManager(actor);
+  requirePermission(actor, "approvals.decide");
   const id = str(body.id);
   const approve = str(body.decision).toUpperCase() !== "REJECT";
   const note = str(body.note);
@@ -1929,7 +2062,7 @@ async function decideRequest(actor: ActorContext, body: Record<string, unknown>)
 }
 
 async function decideLeave(actor: ActorContext, body: Record<string, unknown>) {
-  requireManager(actor);
+  requirePermission(actor, "approvals.decide");
   const id = str(body.id);
   const approve = str(body.decision).toUpperCase() !== "REJECT";
   const note = str(body.note);
@@ -1986,7 +2119,7 @@ async function decideLeave(actor: ActorContext, body: Record<string, unknown>) {
  * Mở lại được phép nhưng để lại dấu trong lịch sử thao tác.
  */
 async function setPeriodLock(actor: ActorContext, body: Record<string, unknown>, lock: boolean) {
-  requireAdmin(actor);
+  requirePermission(actor, "periods.lock");
   const period = str(body.period);
   if (!isValidPeriod(period)) return json({ success: false, error: "Kỳ không hợp lệ." }, 400);
 
@@ -2033,7 +2166,7 @@ export default async (req: Request) => {
       const period = str(url.searchParams.get("period")) || periodOf(vnDate());
       switch (view) {
         case "overview":
-          requireManager(actor);
+          requirePermission(actor, "manage.view");
           return await handleOverview(actor);
         case "departments":
           requireManager(actor);
@@ -2043,6 +2176,9 @@ export default async (req: Request) => {
           return await handleEmployees(actor);
         case "accounts":
           return await handleAccounts(actor);
+        case "roles":
+          requireManager(actor);
+          return await handleRoles();
         case "shifts":
           return await handleShifts(actor);
         case "holidays":
@@ -2092,10 +2228,16 @@ export default async (req: Request) => {
       case "settings_save":
         return await saveSettings(actor, body);
       case "seed_defaults":
-        requireAdmin(actor);
+        requirePermission(actor, "shifts.manage");
         await ensureSeedData();
         await writeAudit(actor, { entity: "settings", entityId: "seed", action: "SEED_DEFAULTS" });
         return json({ success: true, message: "Đã nạp danh mục ca trực mẫu.", shifts: (await listShifts(true)).map(publicShift) });
+
+      // Vai trò
+      case "role_save":
+        return await saveRole(actor, body);
+      case "role_delete":
+        return await deleteRole(actor, body);
 
       // Tài khoản
       case "account_link":
