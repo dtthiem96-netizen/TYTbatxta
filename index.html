@@ -3891,7 +3891,7 @@
                         <div class="mb-6 pb-4 border-b border-gray-100 flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <h2 class="text-2xl font-black text-gray-900">Quản lý tài khoản &amp; Phân quyền hệ thống</h2>
-                                <p class="text-sm text-gray-500 mt-1">Tạo tài khoản cấp cho nhân sự / điểm trạm, cấp hoặc thu hồi <strong>Quyền truy cập Mod Bảng điều khiển điểm trạm</strong> và <strong>Quyền truy cập Module Bác sĩ tuyến trên</strong>, đặt lại mật khẩu và khoá / mở khoá tài khoản. Mật khẩu được lưu dưới dạng băm bcrypt, hệ thống không giữ bản rõ.</p>
+                                <p class="text-sm text-gray-500 mt-1">Tạo tài khoản cấp cho nhân sự / điểm trạm, cấp hoặc thu hồi <strong>Quyền truy cập Mod Bảng điều khiển điểm trạm</strong>, <strong>Quyền truy cập Module Bác sĩ tuyến trên</strong> và <strong>Quyền truy cập Phân hệ Chấm công - Chấm trực</strong>, đặt lại mật khẩu và khoá / mở khoá tài khoản. Mật khẩu được lưu dưới dạng băm bcrypt, hệ thống không giữ bản rõ.</p>
                             </div>
                             <button type="button" onclick="window.refreshAccounts()" class="bg-white border border-gray-300 text-gray-700 font-bold px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm whitespace-nowrap"><i class="fas fa-rotate mr-1"></i> Tải lại danh sách</button>
                         </div>
@@ -3983,6 +3983,13 @@
                                         <span class="block text-[11px] text-gray-500">Quyền cấp RIÊNG, tách khỏi quyền điểm trạm. Chỉ tài khoản được tích chọn mới đăng nhập được vào Module Bác sĩ tuyến trên (lối vào /bacsi ở chân trang) để hội chẩn từ xa.</span>
                                     </span>
                                 </label>
+                                <label class="flex items-start gap-3 cursor-pointer mb-3">
+                                    <input type="checkbox" id="cfg-user-attendance" class="mt-0.5 w-4 h-4 accent-sky-600">
+                                    <span>
+                                        <span class="block text-sm font-bold text-gray-900">Quyền truy cập Phân hệ Chấm công - Chấm trực</span>
+                                        <span class="block text-[11px] text-gray-500">Quyền cấp RIÊNG cho mọi cán bộ phải chấm công, kể cả người không tham gia khám từ xa. Chỉ tài khoản được tích chọn mới đăng nhập được vào phân hệ (lối vào "CHẤM CÔNG - CHẤM TRỰC" ở chân trang). Quản trị viên hệ thống luôn vào được để thiết lập phân hệ.</span>
+                                    </span>
+                                </label>
                                 <label class="flex items-start gap-3 cursor-pointer">
                                     <input type="checkbox" id="cfg-user-video" class="mt-0.5 w-4 h-4 accent-emerald-600" checked>
                                     <span>
@@ -4010,6 +4017,7 @@
                                         <th class="p-3 font-bold text-center">Quyền Video Call</th>
                                         <th class="p-3 font-bold text-center">Quyền Mod Bảng điều khiển</th>
                                         <th class="p-3 font-bold text-center">Quyền Mod Bác sĩ tuyến trên</th>
+                                        <th class="p-3 font-bold text-center">Quyền Chấm công - Chấm trực</th>
                                         <th class="p-3 font-bold text-center">Trạng thái</th>
                                         <th class="p-3 font-bold text-center">Thao tác</th>
                                     </tr>
@@ -5414,6 +5422,10 @@
                     const doctorBadge = canDoctor
                         ? `<span class="px-2.5 py-1 bg-purple-100 text-purple-800 border border-purple-300 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserDoctorPermission('${u.id}')" title="Nhấn để đổi quyền truy cập Module Bác sĩ tuyến trên"><i class="fas fa-user-doctor text-purple-600"></i> Được phép</span>`
                         : `<span class="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserDoctorPermission('${u.id}')" title="Nhấn để đổi quyền truy cập Module Bác sĩ tuyến trên"><i class="fas fa-lock text-gray-400"></i> Khóa quyền</span>`;
+                    const canAttendance = window.hasAttendanceAccess(u);
+                    const attendanceBadge = canAttendance
+                        ? `<span class="px-2.5 py-1 bg-sky-100 text-sky-800 border border-sky-300 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserAttendancePermission('${u.id}')" title="Nhấn để đổi quyền truy cập Phân hệ Chấm công - Chấm trực"><i class="fas fa-user-clock text-sky-600"></i> Được phép</span>`
+                        : `<span class="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer" onclick="window.toggleUserAttendancePermission('${u.id}')" title="Nhấn để đổi quyền truy cập Phân hệ Chấm công - Chấm trực"><i class="fas fa-lock text-gray-400"></i> Khóa quyền</span>`;
                     const isDisabled = (u.status || 'ACTIVE').toUpperCase() === 'DISABLED';
                     const statusBadge = isDisabled
                         ? `<span class="px-2.5 py-1 bg-rose-100 text-rose-800 border border-rose-300 rounded-full text-xs font-bold inline-flex items-center gap-1"><i class="fas fa-user-lock"></i> Đã khóa</span>`
@@ -5433,6 +5445,7 @@
                         <td class="p-3 text-center">${videoBadge}</td>
                         <td class="p-3 text-center">${stationBadge}</td>
                         <td class="p-3 text-center">${doctorBadge}</td>
+                        <td class="p-3 text-center">${attendanceBadge}</td>
                         <td class="p-3 text-center">${statusBadge}</td>
                         <td class="p-3 text-center whitespace-nowrap">
                             <button type="button" onclick="window.editAccount('${u.id}')" class="text-blue-600 hover:text-blue-800 p-1.5" title="Chỉnh sửa thông tin"><i class="fas fa-user-pen"></i></button>
@@ -5443,7 +5456,7 @@
                     </tr>`;
                 }).join('');
                 if (!adminUsers.length) {
-                    usrAdm.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-400 font-medium"><i class="fas fa-users-slash text-3xl mb-2 block"></i>Chưa có tài khoản nào. Hãy tạo tài khoản đầu tiên ở biểu mẫu bên trên.</td></tr>`;
+                    usrAdm.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-gray-400 font-medium"><i class="fas fa-users-slash text-3xl mb-2 block"></i>Chưa có tài khoản nào. Hãy tạo tài khoản đầu tiên ở biểu mẫu bên trên.</td></tr>`;
                 }
             }
 
@@ -5907,6 +5920,7 @@
             set('cfg-user-status', 'ACTIVE');
             check('cfg-user-station', false);
             check('cfg-user-doctor', false);
+            check('cfg-user-attendance', false);
             check('cfg-user-video', true);
 
             const title = document.getElementById('acc-form-title');
@@ -5940,6 +5954,7 @@
             set('cfg-user-status', (user.status || 'ACTIVE').toUpperCase() === 'DISABLED' ? 'DISABLED' : 'ACTIVE');
             check('cfg-user-station', window.hasStationAccess(user));
             check('cfg-user-doctor', window.hasDoctorAccess(user));
+            check('cfg-user-attendance', window.hasAttendanceAccess(user));
             check('cfg-user-video', user.canReceiveVideo !== 'false');
 
             const title = document.getElementById('acc-form-title');
@@ -5985,6 +6000,7 @@
                 status: value('cfg-user-status'),
                 stationAccess: checked('cfg-user-station') ? 'true' : 'false',
                 doctorAccess: checked('cfg-user-doctor') ? 'true' : 'false',
+                attendanceAccess: checked('cfg-user-attendance') ? 'true' : 'false',
                 canReceiveVideo: checked('cfg-user-video') ? 'true' : 'false'
             };
             if (password) payload.password = password;
@@ -6084,6 +6100,38 @@
             if (user.doctorAccess === 'false') return false;
             const role = user.role || '';
             return /bác s|bac s|doctor|tuyến trên|tuyen tren|admin|quản trị|quan tri/i.test(role);
+        };
+
+        /* Quyền truy cập Phân hệ Chấm công - Chấm trực (lối vào /cham-cong ở chân trang).
+           Cột attendanceAccess là nguồn quyết định; Quản trị viên hệ thống luôn được vào
+           để còn thiết lập phân hệ. Quy tắc trùng khít với hasAttendanceAccess() trong
+           netlify/lib/auth.ts - sửa một nơi phải sửa cả hai. */
+        window.hasAttendanceAccess = function(user) {
+            if (!user) return false;
+            if (String(user.attendanceAccess || '').trim().toLowerCase() === 'true') return true;
+            const role = user.role || '';
+            return /admin|quản trị|quan tri/i.test(role);
+        };
+
+        /** Cấp / thu hồi "Quyền truy cập Phân hệ Chấm công - Chấm trực" ngay trên bảng. */
+        window.toggleUserAttendancePermission = async function(userId) {
+            const user = adminUsers.find(u => u.id === userId);
+            if (!user) return;
+            const granted = window.hasAttendanceAccess(user) ? 'false' : 'true';
+
+            try {
+                const data = await window.cmsAdminRequest({
+                    action: 'set_permission',
+                    id: userId,
+                    permission: 'attendance',
+                    granted: granted
+                });
+                await window.refreshAccounts();
+                window.showToast(data.message || 'Đã cập nhật quyền truy cập Phân hệ Chấm công - Chấm trực.');
+            } catch (err) {
+                window.setAccountFormStatus(err.message, 'error');
+                window.showToast(err.message);
+            }
         };
 
         /** Cấp / thu hồi "Quyền truy cập Module Bác sĩ tuyến trên" ngay trên bảng. */

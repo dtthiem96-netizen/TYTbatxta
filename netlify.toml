@@ -69,6 +69,10 @@
 # /api/attendance* đều kiểm tra lại phiếu phiên + quyền ở máy chủ.
 # /chamcong là đường dẫn chuẩn vì Service Worker của phân hệ đăng ký phạm vi
 # /chamcong; /cham-cong (dễ gõ, dễ đọc qua điện thoại) chuyển hẳn sang đó.
+# LƯU Ý: bản triển khai thực tế phục vụ tệp tĩnh từ thư mục public/ (cài trong
+# giao diện Netlify), nên chamcong.html, chamcong.js, chamcong-sw.js và
+# chamcong.webmanifest phải có bản sao trong public/ (main.js kiểm tra đồng bộ).
+# Thiếu bản sao thì /chamcong trả 404 dù tệp ở thư mục gốc vẫn còn.
 [[redirects]]
   from = "/cham-cong"
   to = "/chamcong"
