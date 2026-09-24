@@ -53,7 +53,7 @@ export type TokenClaims = {
   username: string;
   name: string;
   role: string;
-  /** Phạm vi được cấp trong phiếu: "station", "doctor", "admin", "video". */
+  /** Phạm vi được cấp trong phiếu: "station", "doctor", "admin", "video", "attendance". */
   scopes: string[];
   stationCode: string | null;
   iat: number;
@@ -318,11 +318,31 @@ export function hasDoctorAccess(user: Pick<UserRow, "doctorAccess" | "role">): b
   return /bác s|bac s|doctor|tuyến trên|tuyen tren|admin|quản trị|quan tri/i.test(String(user.role || ""));
 }
 
+/**
+ * Quyền vào Phân hệ Chấm công - Chấm trực (/chamcong).
+ *
+ * Quyền cấp RIÊNG như hai quyền trên: gần như mọi cán bộ của trạm đều phải chấm
+ * công, kể cả người không bao giờ tham gia khám từ xa. Cột attendance_access là
+ * nguồn quyết định; Quản trị viên hệ thống luôn vào được để còn thiết lập được
+ * kỳ bảng công đầu tiên (nếu không, một cơ sở dữ liệu trắng sẽ không có ai đủ
+ * quyền tạo hồ sơ cán bộ - phân hệ tự khoá chính nó ngoài cửa).
+ *
+ * Lưu ý: quyền này chỉ mở CỬA VÀO phân hệ. Vào rồi làm được gì thì do vai trò
+ * trong att_employees.attendance_role quyết định (xem netlify/lib/attendance.ts).
+ */
+export function hasAttendanceAccess(user: Pick<UserRow, "attendanceAccess" | "role">): boolean {
+  const granted = String(user.attendanceAccess || "").trim().toLowerCase();
+  if (granted === "true") return true;
+  if (isAdminRole(user.role)) return true;
+  return false;
+}
+
 /** Danh sách phạm vi mà tài khoản đang thực sự được hưởng. */
 export function scopesFor(user: UserRow): string[] {
   const scopes: string[] = [];
   if (hasStationAccess(user)) scopes.push("station");
   if (hasDoctorAccess(user)) scopes.push("doctor");
+  if (hasAttendanceAccess(user)) scopes.push("attendance");
   if (isAdminRole(user.role)) scopes.push("admin");
   if (String(user.canReceiveVideo || "true") !== "false") scopes.push("video");
   return scopes;
@@ -341,6 +361,7 @@ export function publicUser(user: UserRow) {
     canReceiveVideo: user.canReceiveVideo || "true",
     stationAccess: hasStationAccess(user) ? "true" : "false",
     doctorAccess: hasDoctorAccess(user) ? "true" : "false",
+    attendanceAccess: hasAttendanceAccess(user) ? "true" : "false",
     status: String(user.status || "ACTIVE").toUpperCase(),
     hasPassword: Boolean(user.passwordHash),
     mustChangePassword: String(user.mustChangePassword || "false") === "true",
@@ -386,14 +407,15 @@ export function readBearerToken(req: Request): string | null {
  * ở đầu mọi tuyến đường thuộc Module Bảng điều khiển điểm trạm để việc gõ thẳng
  * URL cũng không đi vòng qua được rào chắn của giao diện.
  */
-export type AuthScope = "station" | "doctor" | "admin" | "video";
+export type AuthScope = "station" | "doctor" | "admin" | "video" | "attendance";
 
 /** Thông báo từ chối tương ứng với từng phạm vi. */
 const SCOPE_DENIED_MESSAGES: Record<AuthScope, string> = {
   station: "Tài khoản chưa được CMS Quản trị cấp quyền truy cập Mod Bảng điều khiển điểm trạm.",
   doctor: "Tài khoản chưa được CMS Quản trị cấp quyền truy cập Module Bác sĩ tuyến trên.",
   admin: "Chỉ Quản trị viên hệ thống mới được thao tác trên chức năng này.",
-  video: "Tài khoản chưa được cấp quyền nhận cuộc gọi video."
+  video: "Tài khoản chưa được cấp quyền nhận cuộc gọi video.",
+  attendance: "Tài khoản chưa được cấp quyền truy cập Phân hệ Chấm công - Chấm trực."
 };
 
 export async function requireScope(req: Request, scope: AuthScope): Promise<AuthContext> {
