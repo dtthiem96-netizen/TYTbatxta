@@ -10,9 +10,12 @@
  *   GET  /api/attendance?view=duty_schedule&period=     lịch trực tháng (của mình hoặc toàn trạm)
  *   GET  /api/attendance?view=requests                  yêu cầu và đơn nghỉ của mình
  *   GET  /api/attendance?view=notifications             thông báo
+ *   GET  /api/attendance?view=device&deviceHash=        thiết bị chấm công của mình
  *
  *   POST /api/attendance  { action: ... }
- *        punch              chấm công vào/ra
+ *        challenge          xin thử thách xác minh dùng một lần (nonce + động tác)
+ *        device_register    đăng ký thiết bị (chờ Quản trị duyệt)
+ *        punch              chấm công vào/ra (có xác minh hiện diện)
  *        duty_check_in      nhận ca trực
  *        duty_self_check_in tự chấm trực: chọn ca, máy chủ tự sinh suất trực
  *        duty_check_out     kết ca trực
@@ -22,6 +25,13 @@
  *        submit_leave       gửi đơn nghỉ phép
  *        cancel_leave       thu hồi đơn nghỉ chưa được duyệt
  *        read_notifications đánh dấu đã đọc
+ *        offline_sync       chuyển lượt chấm lúc mất mạng thành đề nghị điều chỉnh
+ *        logout             thu hồi phiên đăng nhập
+ *
+ * Mỗi lượt chấm công / chấm trực đi qua verifyPresence() (netlify/lib/presence.ts):
+ * nonce một lần + thiết bị đã duyệt ký số + GPS do máy chủ tính khoảng cách +
+ * selfie trực tiếp có kiểm tra người thật + QR động (nếu bật). Mọi lượt thử -
+ * kể cả bị từ chối - được ghi vào sổ bằng chứng att_attempts (chỉ ghi thêm).
  *
  * BA RÀO CHẮN ĐƯỢC ĐẶT Ở MÁY CHỦ, KHÔNG PHẢI Ở GIAO DIỆN:
  *   - Mọi tuyến đi qua resolveActor(), tức là phải có phiếu phiên còn hiệu lực
@@ -40,12 +50,15 @@ import {
   attRoles,
   attLeaves,
   attNotifications,
+  attDevices,
   attPunches,
   attRequests,
 } from "../../db/schema.js";
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { authErrorResponse } from "../lib/auth.js";
 import {
+  ACTIVE_DUTY_LOG,
+  ACTIVE_PUNCH,
   AuthError,
   JSON_HEADERS,
   addDays,
@@ -53,6 +66,7 @@ import {
   buildTimesheet,
   classifyDay,
   buildHolidayMap,
+  csrfCheck,
   departmentNameMap,
   evaluatePunch,
   findEmployee,
@@ -66,6 +80,7 @@ import {
   listShifts,
   newId,
   notify,
+  notifyApprovers,
   periodDates,
   periodOf,
   periodStatus,
@@ -84,6 +99,43 @@ import {
   type ActorContext,
   type EmployeeRow,
 } from "../lib/attendance.js";
+import {
+  checkInAllowed,
+  checkOutAllowed,
+  combineLevel,
+  deviceHashOf,
+  pickChallenge,
+  reason,
+  signingPayload,
+  verifyDeviceSignature,
+  type RiskReason,
+  type SecuritySettings,
+} from "../lib/antifraud.js";
+import {
+  alertForAttempt,
+  analyzeSelfie,
+  checkAdjustmentVolume,
+  consumeNonce,
+  decodeImageBase64,
+  findDevice,
+  getSecurity,
+  issueNonce,
+  otherAccountsOnDevice,
+  raiseAlert,
+  recordAttempt,
+  storeSelfie,
+  type DeviceRow,
+} from "../lib/security.js";
+import {
+  finalizeAttempt,
+  ipCountryOf,
+  isUniqueViolation,
+  publicReasons,
+  verifyPresence,
+  type PresenceKind,
+  type PresenceResult,
+} from "../lib/presence.js";
+import { rateLimit, revokeSession } from "../lib/sessions.js";
 
 // ---------------------------------------------------------------------------
 //  Đọc dữ liệu
@@ -104,12 +156,12 @@ async function dutiesOf(employeeId: string, fromDate: string, toDate: string) {
     .orderBy(asc(attDutyAssignments.dutyDate));
 }
 
-/** Lượt chấm công của một cán bộ trong một ngày. */
+/** Lượt chấm công CÒN HIỆU LỰC của một cán bộ trong một ngày. */
 async function punchesOf(employeeId: string, workDate: string) {
   return db
     .select()
     .from(attPunches)
-    .where(and(eq(attPunches.employeeId, employeeId), eq(attPunches.workDate, workDate)))
+    .where(and(eq(attPunches.employeeId, employeeId), eq(attPunches.workDate, workDate), ACTIVE_PUNCH))
     .orderBy(asc(attPunches.punchAt));
 }
 
@@ -155,7 +207,8 @@ async function todayState(employee: EmployeeRow) {
         and(
           eq(attDutyLogs.employeeId, employee.id),
           gte(attDutyLogs.dutyDate, yesterday),
-          lte(attDutyLogs.dutyDate, today)
+          lte(attDutyLogs.dutyDate, today),
+          ACTIVE_DUTY_LOG
         )
       ),
   ]);
@@ -184,6 +237,15 @@ async function todayState(employee: EmployeeRow) {
         checkInAt: log?.checkInAt || null,
         checkOutAt: log?.checkOutAt || null,
         logStatus: log ? String(log.status || "OPEN").toUpperCase() : null,
+        approvalStatus: log ? String(log.approvalStatus || "APPROVED").toUpperCase() : null,
+        riskLevel: log?.riskLevel || null,
+        // Khung nhận ca theo giờ máy chủ, để giao diện hiển thị trước.
+        checkInWindow: shift
+          ? (() => {
+              const w = checkInAllowed(Date.now(), d.dutyDate, shift.startTime, shift.endTime, settings.workHours.earliestPunchMin);
+              return { open: w.ok, opensAt: w.openAt, closesAt: w.closeAt };
+            })()
+          : null,
       };
     })
     .filter((card) => card.dutyDate === today || card.actionable);
@@ -210,6 +272,7 @@ async function todayState(employee: EmployeeRow) {
       source: String(p.source || "SELF").toUpperCase(),
       note: p.note || "",
       device: p.device || "",
+      riskLevel: p.riskLevel || null,
     })),
     sessionsDone,
     openSession,
@@ -233,22 +296,6 @@ function shiftCrossesMidnight(shift: ShiftList[number]): boolean {
 }
 
 /**
- * Khung giờ được TỰ nhận một ca trong ngày hôm nay: từ trước giờ bắt đầu
- * earliestPunchMin phút tới giờ kết thúc (ca qua đêm thì tới hết ngày).
- */
-function selfDutyWindow(shift: ShiftList[number], earliestMin: number) {
-  const start = toMinutes(shift.startTime) ?? 0;
-  const end = toMinutes(shift.endTime) ?? 1440;
-  const opensAt = Math.max(0, start - earliestMin);
-  const closesAt = shiftCrossesMidnight(shift) ? 1440 : end;
-  return { opensAt, closesAt };
-}
-
-function nowMinutesVN(): number {
-  return toMinutes(vnTime().slice(0, 5)) ?? 0;
-}
-
-/**
  * Các ca cán bộ có thể TỰ nhận hôm nay, kèm ca được gợi ý tự động theo giờ
  * hiện tại (ca đang mở có giờ bắt đầu gần nhất).
  */
@@ -259,7 +306,7 @@ function selfDutyOptions(
   today: string,
   earliestMin: number
 ) {
-  const nowMin = nowMinutesVN();
+  const now = Date.now();
   const taken = new Set(
     duties
       .filter((d) => d.dutyDate === today && String(d.status || "PLANNED").toUpperCase() !== "CANCELLED")
@@ -271,7 +318,8 @@ function selfDutyOptions(
       return (scope === "ANY" || scope === dayType) && !taken.has(s.id);
     })
     .map((s) => {
-      const win = selfDutyWindow(s, earliestMin);
+      // Cùng một hàm với máy chủ khi nhận ca, để "đang mở" trên giao diện khớp với kiểm tra thật.
+      const win = checkInAllowed(now, today, s.startTime, s.endTime, earliestMin);
       return {
         shiftId: s.id,
         shiftName: s.name,
@@ -280,8 +328,9 @@ function selfDutyOptions(
         crossesMidnight: shiftCrossesMidnight(s),
         hours: s.hours ?? shiftHours(s.startTime, s.endTime),
         color: s.color || "#0284c7",
-        open: nowMin >= win.opensAt && nowMin <= win.closesAt,
-        opensAt: `${String(Math.floor(win.opensAt / 60)).padStart(2, "0")}:${String(win.opensAt % 60).padStart(2, "0")}`,
+        open: win.ok,
+        opensAt: vnTime(win.openAt).slice(0, 5),
+        closesAt: vnTime(win.closeAt).slice(0, 5),
         suggested: false,
       };
     });
@@ -345,6 +394,7 @@ async function handleBootstrap(actor: ActorContext) {
     // Tên các vai trò để giao diện hiển thị nhãn cho cả vai trò tuỳ chỉnh.
     roles: (await listRoles(true)).map((r) => ({ code: r.code, name: r.name, system: r.system, status: r.status })),
     counters: { unreadNotifications: unread, pendingRequests: pending },
+    security: publicRequirements(await getSecurity()),
     serverTime: Date.now(),
   });
 }
@@ -364,7 +414,9 @@ async function handleMyTimesheet(actor: ActorContext, period: string) {
     db
       .select()
       .from(attPunches)
-      .where(and(eq(attPunches.employeeId, employee.id), gte(attPunches.workDate, from), lte(attPunches.workDate, to))),
+      .where(
+        and(eq(attPunches.employeeId, employee.id), gte(attPunches.workDate, from), lte(attPunches.workDate, to), ACTIVE_PUNCH)
+      ),
     dutiesOf(employee.id, from, to),
     db
       .select()
@@ -558,120 +610,627 @@ async function handleNotifications(actor: ActorContext) {
 // ---------------------------------------------------------------------------
 
 /**
- * CHẤM VÀO / CHẤM RA.
- *
- * Bốn điều kiện phải qua, theo đúng thứ tự này:
- *   1. Kỳ bảng công của hôm nay chưa bị khoá.
- *   2. Hôm nay là ngày làm việc, hoặc Quản trị cho phép chấm ngoài ngày làm việc.
- *   3. Giờ hiện tại nằm trong khung được phép chấm (evaluatePunch).
- *   4. Không trùng với một lượt chấm cùng loại đã có trong cùng buổi, và chấm
- *      RA phải có chấm VÀO đứng trước.
- *
- * Điều kiện 4 là thứ giữ cho dữ liệu sạch mà không cần khoá cứng: cán bộ bấm
- * hai lần vì mạng chậm sẽ nhận thông báo "đã chấm rồi" kèm giờ đã ghi, thay vì
- * tạo ra hai bản ghi và một bảng công sai.
+ * Giới hạn tần suất các thao tác ghi của một tài khoản (chống bấm dồn / gọi API
+ * tự động). Vượt ngưỡng → 429 và cảnh báo VÀNG.
  */
-async function handlePunch(actor: ActorContext, body: Record<string, unknown>) {
-  const employee = requireOwnEmployee(actor);
-  const punchType = str(body.type).toUpperCase() === "OUT" ? "OUT" : "IN";
-  const { today, period } = todayContext();
-  await assertPeriodOpen(period);
-
-  const settings = await getSettings();
-  const holidays = await listHolidays();
-  const dayType = classifyDay(today, buildHolidayMap(holidays), settings.workHours);
-  if (dayType !== "WEEKDAY" && !settings.workHours.allowPunchOnNonWorkday) {
-    return json(
-      {
-        success: false,
-        error:
-          dayType === "HOLIDAY"
-            ? "Hôm nay là ngày nghỉ lễ, cấu hình hiện tại không cho phép chấm công hành chính."
-            : "Hôm nay không phải ngày làm việc hành chính theo cấu hình của Trạm.",
-      },
-      409
-    );
+async function assertWriteRate(actor: ActorContext) {
+  const rl = await rateLimit(`att-write:${actor.user.id}`, 30, 60000);
+  if (!rl.allowed) {
+    await raiseAlert({
+      level: "YELLOW",
+      category: "RATE_LIMIT",
+      employeeId: actor.employee?.id || null,
+      userId: actor.user.id,
+      title: "Gọi API chấm công dồn dập",
+      cause: `${rl.count} thao tác ghi trong 1 phút từ IP ${actor.ip || "?"}.`,
+      evidence: { count: rl.count, ip: actor.ip, userAgent: actor.userAgent },
+    });
+    throw new AuthError(429, "TOO_MANY_REQUESTS", "Thao tác quá nhanh. Vui lòng chờ một phút rồi thử lại.");
   }
+}
 
-  const now = Date.now();
-  const timeStr = vnTime(now);
-  const evaluation = evaluatePunch(punchType, timeStr, settings.workHours);
-  if (evaluation.status === "OUTSIDE") {
-    return json(
-      {
-        success: false,
-        error: `${evaluation.message} Nếu chấm công ngoài giờ, hãy gửi yêu cầu điều chỉnh để Phụ trách bộ phận duyệt.`,
-        canRequestAdjust: settings.workHours.allowAdjustRequest,
-      },
-      409
-    );
-  }
-
-  const existing = await punchesOf(employee.id, today);
-  const sameSession = existing.filter(
-    (p) =>
-      String(p.session || "").toUpperCase() === evaluation.session &&
-      String(p.punchType).toUpperCase() === punchType
+/** Phản hồi chung cho một lượt chấm bị từ chối: có mã lượt thử để đối chiếu khi khiếu nại. */
+function rejected(message: string, final: { attemptId: number; level: string; reasons: RiskReason[] }, extra: Record<string, unknown> = {}) {
+  return json(
+    {
+      success: false,
+      error: message,
+      attemptId: final.attemptId,
+      riskLevel: final.level,
+      reasons: publicReasons(final.reasons),
+      canRequestAdjust: true,
+      ...extra,
+    },
+    409
   );
-  if (sameSession.length) {
-    return json(
-      {
-        success: false,
-        error: `Buổi ${evaluation.session === "MORNING" ? "sáng" : "chiều"} đã chấm ${
-          punchType === "IN" ? "vào" : "ra"
-        } lúc ${vnTime(sameSession[0].punchAt)}.`,
-        alreadyPunched: true,
-      },
-      409
-    );
-  }
-  if (punchType === "OUT") {
-    const hasIn = existing.some((p) => String(p.punchType).toUpperCase() === "IN");
-    if (!hasIn) {
-      return json({ success: false, error: "Chưa có lượt chấm vào nào trong hôm nay để chấm ra." }, 409);
-    }
-  }
+}
 
-  await db.insert(attPunches).values({
-    employeeId: employee.id,
-    workDate: today,
-    punchType,
-    punchAt: now,
-    session: evaluation.session,
-    status: evaluation.status,
-    minutesDelta: evaluation.minutesDelta,
-    device: str(body.device).slice(0, 120) || null,
-    ip: actor.ip || null,
-    userAgent: actor.userAgent || null,
-    source: "SELF",
-    note: null,
-    createdBy: actor.user.id,
-    createdAt: now,
-  });
+/** Thông báo gọn cho lượt chấm bị chặn bởi lý do ĐỎ. */
+function redMessage(reasons: RiskReason[]) {
+  const reds = reasons.filter((r) => r.level === "RED");
+  return `Lượt chấm KHÔNG được ghi nhận: ${reds.map((r) => r.message).join(" ")} Nếu bạn thực sự có mặt, hãy gửi đề nghị điều chỉnh để được xem xét.`;
+}
 
-  await writeAudit(actor, {
-    entity: "punch",
-    entityId: `${employee.id}/${today}`,
-    action: `PUNCH_${punchType}`,
-    newValue: { time: timeStr, session: evaluation.session, status: evaluation.status },
-  });
-
+/**
+ * THỬ THÁCH XÁC MINH.
+ *
+ * Trước mỗi lượt chấm, giao diện xin một thử thách dùng một lần: mã nonce (để
+ * thiết bị ký), động tác ngẫu nhiên cho khung hình thứ hai và các yêu cầu hiện
+ * hành (selfie, QR, vùng chấm công). Nonce hết hạn sau challengeTtlSec giây.
+ */
+async function handleChallenge(actor: ActorContext, body: Record<string, unknown>) {
+  requireOwnEmployee(actor);
+  await assertWriteRate(actor);
+  const security = await getSecurity();
+  const purpose = str(body.purpose).toUpperCase() === "DEVICE" ? "DEVICE" : "PRESENCE";
+  const challenge = pickChallenge();
+  const nonce = await issueNonce(actor, purpose, security.challengeTtlSec, challenge.code);
+  const deviceHash = str(body.deviceHash).toLowerCase().slice(0, 64);
+  const device = deviceHash ? await findDevice(actor.user.id, deviceHash) : null;
   return json({
     success: true,
-    message: `Đã ${punchType === "IN" ? "chấm vào" : "chấm ra"} lúc ${timeStr}. ${evaluation.message}`,
-    punch: { punchType, time: timeStr, session: evaluation.session, status: evaluation.status },
-    today: await todayState(employee),
+    nonce: nonce.id,
+    expiresAt: nonce.expiresAt,
+    serverTime: Date.now(),
+    challenge: { code: challenge.code, label: challenge.label },
+    requirements: publicRequirements(security),
+    device: device ? publicDevice(device) : null,
+  });
+}
+
+/** Phần cấu hình an toàn mà giao diện cán bộ cần biết (không có bí mật nào). */
+function publicRequirements(security: SecuritySettings) {
+  return {
+    requireDevice: security.requireDevice,
+    selfieMode: security.selfieMode,
+    qrMode: security.qrMode,
+    challengeTtlSec: security.challengeTtlSec,
+    geofence: {
+      enabled: security.geofence.enabled,
+      configured: security.geofence.lat !== null && security.geofence.lng !== null,
+      lat: security.geofence.lat,
+      lng: security.geofence.lng,
+      radiusM: security.geofence.radiusM,
+      maxAccuracyM: security.geofence.maxAccuracyM,
+    },
+  };
+}
+
+function publicDevice(d: DeviceRow) {
+  return {
+    id: d.id,
+    deviceHash: d.deviceHash,
+    label: d.label || "",
+    platform: d.platform || "",
+    status: String(d.status || "PENDING").toUpperCase(),
+    createdAt: d.createdAt,
+    lastSeenAt: d.lastSeenAt,
+    decidedByName: d.decidedByName || "",
+    decidedAt: d.decidedAt,
+    decisionNote: d.decisionNote || "",
+  };
+}
+
+/** Thiết bị của chính mình. */
+async function handleMyDevices(actor: ActorContext, deviceHash: string) {
+  const rows = await db
+    .select()
+    .from(attDevices)
+    .where(eq(attDevices.userId, actor.user.id))
+    .orderBy(desc(attDevices.createdAt));
+  const current = rows.find((d) => d.deviceHash === deviceHash.toLowerCase()) || null;
+  return json({
+    success: true,
+    current: current ? publicDevice(current) : null,
+    devices: rows.map(publicDevice),
+    requirements: publicRequirements(await getSecurity()),
   });
 }
 
 /**
- * NHẬN CA TRỰC.
+ * ĐĂNG KÝ THIẾT BỊ (yêu cầu 3).
  *
- * Nhận ca cho một suất trực đã có sẵn (do Quản trị phân, hoặc do
- * handleDutySelfCheckIn vừa tự sinh khi người trực tự chấm).
+ * Trình duyệt tự sinh cặp khoá ECDSA P-256 KHÔNG xuất được (khoá riêng không
+ * bao giờ rời máy), gửi khoá công khai + chữ ký lên thử thách DEVICE + một ảnh
+ * selfie trực tiếp. Máy chủ:
+ *   - kiểm chữ ký (chứng minh máy đang giữ khoá riêng),
+ *   - chặn ĐỎ nếu cùng khoá đang gắn với một tài khoản khác (chấm hộ),
+ *   - ghi thiết bị ở trạng thái PENDING - chỉ dùng được sau khi Quản trị duyệt,
+ *   - giữ ảnh selfie làm ứng viên ảnh mẫu khuôn mặt khi duyệt.
  */
-async function handleDutyCheckIn(actor: ActorContext, body: Record<string, unknown>) {
+async function handleDeviceRegister(req: Request, actor: ActorContext, body: Record<string, unknown>) {
   const employee = requireOwnEmployee(actor);
+  await assertWriteRate(actor);
+  const security = await getSecurity();
+  const now = Date.now();
+  const publicKey = typeof body.publicKey === "string" ? body.publicKey : JSON.stringify(body.publicKey || null);
+  if (publicKey.length > 1000) return json({ success: false, error: "Khoá thiết bị không hợp lệ." }, 400);
+  const deviceHash = await deviceHashOf(publicKey);
+  if (!deviceHash) return json({ success: false, error: "Khoá thiết bị không hợp lệ." }, 400);
+
+  const reasons: RiskReason[] = [];
+  const nonce = await consumeNonce(str(body.nonce).slice(0, 80), actor.user.id, "DEVICE");
+  if (!nonce) reasons.push(reason("NONCE_INVALID", "RED", "Phiên đăng ký đã hết hạn. Vui lòng thử lại."));
+
+  const selfieBytes = decodeImageBase64(body.selfie);
+  const analyzed = selfieBytes ? await analyzeSelfie(selfieBytes) : null;
+  const selfie = analyzed && !("error" in analyzed) ? analyzed : null;
+  if (security.selfieMode !== "OFF") {
+    if (!analyzed) reasons.push(reason("SELFIE_MISSING", "RED", "Cần chụp một ảnh selfie trực tiếp để đăng ký thiết bị."));
+    else if ("error" in analyzed) reasons.push(analyzed.error);
+  }
+
+  let signatureOk = false;
+  if (nonce) {
+    signatureOk = await verifyDeviceSignature(
+      publicKey,
+      signingPayload({ nonce: nonce.id, action: "DEVICE_REGISTER", type: deviceHash, selfieSha256: selfie?.sha256 || null }),
+      str(body.signature)
+    );
+    if (!signatureOk) reasons.push(reason("DEVICE_SIGNATURE", "RED", "Chữ ký thiết bị không hợp lệ."));
+  }
+
+  const others = await otherAccountsOnDevice(actor.user.id, deviceHash);
+  if (others.length) {
+    reasons.push(
+      reason("SHARED_DEVICE", "RED", "Thiết bị này đã được đăng ký cho một tài khoản khác. Mỗi thiết bị chỉ dùng chấm công cho một người.")
+    );
+  }
+
+  const existing = await findDevice(actor.user.id, deviceHash);
+  if (existing) {
+    const status = String(existing.status || "PENDING").toUpperCase();
+    if (status === "APPROVED") return json({ success: true, message: "Thiết bị đã được duyệt.", device: publicDevice(existing) });
+    if (status === "PENDING") {
+      return json({ success: true, message: "Thiết bị đang chờ Quản trị duyệt.", device: publicDevice(existing) });
+    }
+    reasons.push(reason("DEVICE_REVOKED", "RED", "Thiết bị đã bị từ chối/thu hồi. Liên hệ Quản trị viên."));
+  }
+
+  let selfieKey: string | null = null;
+  if (selfie && nonce) {
+    // Ảnh đăng ký là ứng viên ảnh mẫu: lưu ngoài vùng tự xoá theo thời hạn (att/).
+    selfieKey = `ref/${employee.id}/${now}-${selfie.sha256.slice(0, 12)}.jpg`;
+    await storeSelfie(selfieKey, selfie.bytes, { employeeId: employee.id, kind: "DEVICE_REGISTER", ts: now, frame: "neutral" });
+  }
+  const accepted = combineLevel(reasons) !== "RED";
+  const attemptId = await recordAttempt({
+    userId: actor.user.id,
+    employeeId: employee.id,
+    kind: "DEVICE_REGISTER",
+    serverTs: now,
+    workDate: vnDate(now),
+    result: accepted ? "ACCEPTED" : "REJECTED",
+    riskLevel: accepted ? "YELLOW" : "RED",
+    reasons: accepted ? [...reasons, reason("DEVICE_PENDING", "YELLOW", "Thiết bị mới chờ Quản trị duyệt.")] : reasons,
+    rejectMessage: accepted ? null : reasons.filter((r) => r.level === "RED").map((r) => r.message).join(" "),
+    deviceHash,
+    deviceSignatureOk: signatureOk ? "true" : "false",
+    sessionId: actor.sessionId,
+    ip: actor.ip || null,
+    userAgent: actor.userAgent || null,
+    ipGeo: ipCountryOf(req),
+    selfieKey,
+    selfieSha256: selfie?.sha256 || null,
+    selfieDhash: selfie?.dhash || null,
+    nonceId: nonce?.id || null,
+    refType: "device",
+  });
+
+  if (!accepted) {
+    await alertForAttempt({
+      attemptId,
+      level: "RED",
+      reasons,
+      employeeId: employee.id,
+      userId: actor.user.id,
+      deviceHash,
+      kindLabel: "Đăng ký thiết bị",
+      evidence: { otherAccounts: others.map((o) => o.userId), ip: actor.ip },
+    });
+    return json(
+      { success: false, error: reasons.filter((r) => r.level === "RED").map((r) => r.message).join(" "), reasons: publicReasons(reasons) },
+      409
+    );
+  }
+
+  const id = newId("dev");
+  try {
+    await db.insert(attDevices).values({
+      id,
+      userId: actor.user.id,
+      employeeId: employee.id,
+      deviceHash,
+      publicKey,
+      label: str(body.label).slice(0, 80) || "Thiết bị chấm công",
+      platform: str(body.platform).slice(0, 80) || null,
+      userAgent: actor.userAgent || null,
+      status: "PENDING",
+      requestReason: str(body.reason).slice(0, 300) || null,
+      registrationAttemptId: attemptId,
+      firstIp: actor.ip || null,
+      lastIp: actor.ip || null,
+      createdAt: now,
+      lastSeenAt: now,
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) return json({ success: true, message: "Thiết bị đang chờ Quản trị duyệt." });
+    throw err;
+  }
+  const approved = await db
+    .select({ id: attDevices.id })
+    .from(attDevices)
+    .where(and(eq(attDevices.userId, actor.user.id), eq(attDevices.status, "APPROVED")));
+  await raiseAlert({
+    level: "YELLOW",
+    category: "DEVICE_PENDING",
+    employeeId: employee.id,
+    userId: actor.user.id,
+    deviceHash,
+    attemptId,
+    title: approved.length ? "Cán bộ xin đổi / thêm thiết bị chấm công" : "Thiết bị mới chờ duyệt",
+    cause: `${employee.fullName} đăng ký thiết bị "${str(body.label) || "không tên"}"${
+      approved.length ? ` trong khi đã có ${approved.length} thiết bị được duyệt` : ""
+    }.`,
+    evidence: { deviceId: id, ip: actor.ip, userAgent: actor.userAgent, reason: str(body.reason) },
+    dedupeKey: `DEVICE_PENDING|${id}`,
+  });
+  await writeAudit(actor, {
+    entity: "device",
+    entityId: id,
+    action: "DEVICE_REGISTER",
+    newValue: { deviceHash, label: str(body.label), status: "PENDING" },
+    reason: str(body.reason) || null,
+  });
+  await notifyApprovers(employee, "Thiết bị chấm công chờ duyệt", `${employee.fullName} đăng ký thiết bị chấm công mới.`, id);
+  const rows = await db.select().from(attDevices).where(eq(attDevices.id, id));
+  return json({ success: true, message: "Đã gửi đăng ký thiết bị. Vui lòng chờ Quản trị viên duyệt.", device: publicDevice(rows[0]) });
+}
+
+/**
+ * CHẤM VÀO / CHẤM RA.
+ *
+ * Thứ tự kiểm tra, tất cả ở máy chủ (yêu cầu 1, 2, 8):
+ *   1. Kỳ chưa khoá, hôm nay được phép chấm, giờ MÁY CHỦ nằm trong khung chấm.
+ *   2. Xác minh hiện diện (verifyPresence): nonce, thiết bị + chữ ký, GPS,
+ *      selfie + người thật, QR.
+ *   3. Nghiệp vụ: không trùng lượt cùng buổi, chấm RA phải có chấm VÀO đang mở.
+ * Có lý do ĐỎ → không ghi lượt chấm, chỉ ghi bằng chứng + cảnh báo. Chỉ có lý
+ * do VÀNG → ghi lượt chấm kèm mức rủi ro để người phụ trách xem lại.
+ * Chống trùng cuối cùng là chỉ mục duy nhất dedupe_key: hai yêu cầu đồng thời
+ * thì chỉ một bản ghi được chèn.
+ */
+async function handlePunch(req: Request, actor: ActorContext, body: Record<string, unknown>) {
+  const employee = requireOwnEmployee(actor);
+  await assertWriteRate(actor);
+  const punchType = str(body.type).toUpperCase() === "OUT" ? "OUT" : "IN";
+  const kind: PresenceKind = punchType === "IN" ? "PUNCH_IN" : "PUNCH_OUT";
+  const security = await getSecurity();
+  const presence = await verifyPresence(req, actor, { ...body, type: punchType }, kind, security);
+  // Giờ chấm là giờ MÁY CHỦ tại thời điểm nhận yêu cầu, không bao giờ lấy giờ máy khách.
+  const now = presence.serverTs;
+  const today = vnDate(now);
+  await assertPeriodOpen(today);
+
+  const settings = await getSettings();
+  const holidays = await listHolidays();
+  const dayType = classifyDay(today, buildHolidayMap(holidays), settings.workHours);
+  const extra: RiskReason[] = [];
+  if (dayType !== "WEEKDAY" && !settings.workHours.allowPunchOnNonWorkday) {
+    extra.push(
+      reason(
+        "OUTSIDE_SHIFT",
+        "RED",
+        dayType === "HOLIDAY"
+          ? "Hôm nay là ngày nghỉ lễ, cấu hình hiện tại không cho phép chấm công hành chính."
+          : "Hôm nay không phải ngày làm việc hành chính theo cấu hình của Trạm."
+      )
+    );
+  }
+
+  const timeStr = vnTime(now);
+  const evaluation = evaluatePunch(punchType, timeStr, settings.workHours);
+  if (evaluation.status === "OUTSIDE") extra.push(reason("OUTSIDE_SHIFT", "RED", evaluation.message));
+
+  const existing = await punchesOf(employee.id, today);
+  const sameSession = existing.filter(
+    (p) => String(p.session || "").toUpperCase() === evaluation.session && String(p.punchType).toUpperCase() === punchType
+  );
+  if (sameSession.length) {
+    extra.push(
+      reason(
+        "DUPLICATE",
+        "RED",
+        `Buổi ${evaluation.session === "MORNING" ? "sáng" : "chiều"} đã chấm ${punchType === "IN" ? "vào" : "ra"} lúc ${vnTime(
+          sameSession[0].punchAt
+        )}.`
+      )
+    );
+  }
+  if (punchType === "OUT") {
+    const ins = existing.filter((p) => String(p.punchType).toUpperCase() === "IN").length;
+    const outs = existing.filter((p) => String(p.punchType).toUpperCase() === "OUT").length;
+    if (ins <= outs) extra.push(reason("NO_OPEN_IN", "RED", "Chưa có lượt chấm VÀO đang mở để chấm RA."));
+  }
+
+  const all = [...presence.reasons, ...extra];
+  if (combineLevel(all) === "RED") {
+    const final = await finalizeAttempt({ actor, kind, presence, extraReasons: extra, accepted: false, rejectMessage: redMessage(all), workDate: today });
+    return rejected(redMessage(all), final, { alreadyPunched: extra.some((r) => r.code === "DUPLICATE") });
+  }
+
+  // Khoá chống trùng: người | ngày | buổi | loại. Nếu lượt cũ đã bị huỷ hiệu lực
+  // qua điều chỉnh, khoá được nối thêm id lượt cũ để vẫn chấm lại được (và vẫn
+  // xác định, nên hai yêu cầu đồng thời vẫn đụng nhau).
+  const baseKey = `${employee.id}|${today}|${evaluation.session}|${punchType}`;
+  const inactive = await db
+    .select({ id: attPunches.id })
+    .from(attPunches)
+    .where(and(eq(attPunches.dedupeKey, baseKey), sql`coalesce(${attPunches.state}, 'ACTIVE') <> 'ACTIVE'`));
+  const dedupeKey = inactive.length ? `${baseKey}|after:${Math.max(...inactive.map((r) => r.id))}` : baseKey;
+
+  let punchId: number;
+  try {
+    const rows = await db
+      .insert(attPunches)
+      .values({
+        employeeId: employee.id,
+        workDate: today,
+        punchType,
+        punchAt: now,
+        session: evaluation.session,
+        status: evaluation.status,
+        minutesDelta: evaluation.minutesDelta,
+        device: presence.device ? `${presence.device.id} ${presence.device.label || ""}`.trim().slice(0, 120) : null,
+        ip: actor.ip || null,
+        userAgent: actor.userAgent || null,
+        source: "SELF",
+        note: null,
+        createdBy: actor.user.id,
+        createdAt: now,
+        dedupeKey,
+      })
+      .returning({ id: attPunches.id });
+    punchId = rows[0].id;
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    const dup = [reason("DUPLICATE", "RED", "Lượt chấm này vừa được ghi nhận từ một yêu cầu khác (bấm trùng).")];
+    const final = await finalizeAttempt({ actor, kind, presence, extraReasons: [...extra, ...dup], accepted: false, rejectMessage: dup[0].message, workDate: today });
+    return rejected(dup[0].message, final, { alreadyPunched: true });
+  }
+
+  let final;
+  try {
+    final = await finalizeAttempt({ actor, kind, presence, extraReasons: extra, accepted: true, workDate: today, refType: "punch", refId: String(punchId) });
+  } catch (err) {
+    // Không có bằng chứng thì lượt chấm không có hiệu lực.
+    await db.update(attPunches).set({ state: "VOIDED" }).where(eq(attPunches.id, punchId)).catch(() => undefined);
+    throw err;
+  }
+  await db
+    .update(attPunches)
+    .set({ attemptId: final.attemptId, riskLevel: final.level })
+    .where(and(eq(attPunches.id, punchId), isNull(attPunches.attemptId)));
+
+  await writeAudit(actor, {
+    entity: "punch",
+    entityId: String(punchId),
+    action: `PUNCH_${punchType}`,
+    newValue: {
+      employeeId: employee.id,
+      workDate: today,
+      time: timeStr,
+      session: evaluation.session,
+      status: evaluation.status,
+      attemptId: final.attemptId,
+      riskLevel: final.level,
+      distanceM: presence.distanceM,
+    },
+  });
+
+  const flagged = final.level === "YELLOW";
+  return json({
+    success: true,
+    message: `Đã ${punchType === "IN" ? "chấm vào" : "chấm ra"} lúc ${timeStr}. ${evaluation.message}${
+      flagged ? " Lượt chấm có điểm cần xác minh thêm, người phụ trách sẽ xem lại." : ""
+    }`,
+    punch: { id: punchId, punchType, time: timeStr, session: evaluation.session, status: evaluation.status },
+    attemptId: final.attemptId,
+    riskLevel: final.level,
+    reasons: publicReasons(final.reasons),
+    today: await todayState(employee),
+  });
+}
+
+/** Định mức giờ của ca (không lấy hiệu giờ thực bấm). */
+const normHours = (shift: ShiftList[number] | undefined) => (shift ? shift.hours ?? shiftHours(shift.startTime, shift.endTime) : 0);
+
+/**
+ * Lõi NHẬN CA: dùng chung cho nhận ca theo lịch và tự nhận ca.
+ *
+ * Luôn đòi một suất trực hợp lệ (yêu cầu 9) và giờ máy chủ nằm trong khung nhận
+ * ca: từ trước giờ bắt đầu earliestPunchMin phút tới nửa thời lượng ca. Ca qua
+ * đêm (vd 17:00 - 07:00) được tính trên mốc thời gian tuyệt đối nên không nhầm
+ * ngày.
+ */
+async function dutyCheckInCore(
+  actor: ActorContext,
+  target: { assignment?: typeof attDutyAssignments.$inferSelect; selfShift?: ShiftList[number]; dayType?: string },
+  presence: PresenceResult
+) {
+  const employee = requireOwnEmployee(actor);
+  const settings = await getSettings();
+  const shifts = await listShifts(true);
+  const now = presence.serverTs;
+  const shiftId = target.assignment ? target.assignment.shiftId : target.selfShift!.id;
+  const dutyDate = target.assignment ? target.assignment.dutyDate : vnDate(now);
+  const shift = shifts.find((s) => s.id === shiftId);
+  const extra: RiskReason[] = [];
+  const selfDuty = !target.assignment;
+
+  if (!shift) extra.push(reason("NO_ROSTER", "RED", "Ca trực không còn trong danh mục."));
+  else {
+    const win = checkInAllowed(now, dutyDate, shift.startTime, shift.endTime, settings.workHours.earliestPunchMin);
+    if (!win.ok) {
+      extra.push(
+        reason(
+          "OUTSIDE_SHIFT",
+          "RED",
+          `Ngoài khung nhận ${shift.name}: được nhận ca từ ${vnTime(win.openAt).slice(0, 5)} ${vnDate(win.openAt)} đến ${vnTime(win.closeAt).slice(0, 5)} ${vnDate(win.closeAt)}.`
+        )
+      );
+    }
+  }
+  if (target.assignment) {
+    const existing = await db
+      .select()
+      .from(attDutyLogs)
+      .where(and(eq(attDutyLogs.assignmentId, target.assignment.id), ACTIVE_DUTY_LOG));
+    if (existing.length && existing[0].checkInAt) {
+      extra.push(reason("DUPLICATE", "RED", `Đã nhận ca lúc ${vnTime(existing[0].checkInAt)}.`));
+    }
+  }
+  if (selfDuty) {
+    extra.push(reason("SELF_DUTY_PENDING", "YELLOW", "Ca tự nhận (không có trong lịch trực) - chỉ được tính giờ sau khi người duyệt xác nhận."));
+  }
+
+  const all = [...presence.reasons, ...extra];
+  if (combineLevel(all) === "RED") {
+    const final = await finalizeAttempt({ actor, kind: "DUTY_IN", presence, extraReasons: extra, accepted: false, rejectMessage: redMessage(all), workDate: dutyDate });
+    return rejected(redMessage(all), final, { alreadyPunched: extra.some((r) => r.code === "DUPLICATE") });
+  }
+
+  // Tự nhận ca: chỉ sinh suất trực SAU KHI qua mọi kiểm tra.
+  let assignmentId = target.assignment?.id || "";
+  if (selfDuty) {
+    const found = await db
+      .select()
+      .from(attDutyAssignments)
+      .where(and(eq(attDutyAssignments.dutyDate, dutyDate), eq(attDutyAssignments.shiftId, shiftId), eq(attDutyAssignments.employeeId, employee.id)));
+    if (found.length) {
+      assignmentId = found[0].id;
+      if (String(found[0].status || "PLANNED").toUpperCase() === "CANCELLED") {
+        await db.update(attDutyAssignments).set({ status: "PLANNED", note: "Tự chấm trực (chờ duyệt)", updatedAt: now }).where(eq(attDutyAssignments.id, assignmentId));
+      }
+    } else {
+      assignmentId = newId("duty");
+      try {
+        await db.insert(attDutyAssignments).values({
+          id: assignmentId,
+          dutyDate,
+          shiftId,
+          employeeId: employee.id,
+          dayType: target.dayType || "WEEKDAY",
+          status: "PLANNED",
+          note: "Tự chấm trực (chờ duyệt)",
+          createdBy: actor.user.id,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+        const again = await db
+          .select()
+          .from(attDutyAssignments)
+          .where(and(eq(attDutyAssignments.dutyDate, dutyDate), eq(attDutyAssignments.shiftId, shiftId), eq(attDutyAssignments.employeeId, employee.id)));
+        assignmentId = again[0]?.id || assignmentId;
+      }
+      await writeAudit(actor, {
+        entity: "duty_assignment",
+        entityId: assignmentId,
+        action: "SELF_CREATE",
+        newValue: { dutyDate, shiftId, employeeId: employee.id, approvalStatus: "PENDING" },
+      });
+    }
+  }
+
+  let logId: number;
+  try {
+    const rows = await db
+      .insert(attDutyLogs)
+      .values({
+        assignmentId,
+        employeeId: employee.id,
+        dutyDate,
+        shiftId,
+        checkInAt: now,
+        // Giờ trực lấy theo ĐỊNH MỨC của ca, không lấy hiệu giờ thực bấm.
+        hours: normHours(shift),
+        device: presence.device ? `${presence.device.id} ${presence.device.label || ""}`.trim().slice(0, 120) : null,
+        ip: actor.ip || null,
+        status: "OPEN",
+        source: "SELF",
+        createdBy: actor.user.id,
+        createdAt: now,
+        updatedAt: now,
+        approvalStatus: selfDuty ? "PENDING" : "APPROVED",
+        dedupeKey: assignmentId,
+      })
+      .returning({ id: attDutyLogs.id });
+    logId = rows[0].id;
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    const dup = [reason("DUPLICATE", "RED", "Suất trực này đã được nhận ca (bấm trùng hoặc đã có nhật ký trực).")];
+    const final = await finalizeAttempt({ actor, kind: "DUTY_IN", presence, extraReasons: [...extra, ...dup], accepted: false, rejectMessage: dup[0].message, workDate: dutyDate });
+    return rejected(dup[0].message, final, { alreadyPunched: true });
+  }
+
+  let final;
+  try {
+    final = await finalizeAttempt({ actor, kind: "DUTY_IN", presence, extraReasons: extra, accepted: true, workDate: dutyDate, refType: "duty_log", refId: String(logId) });
+  } catch (err) {
+    await db.update(attDutyLogs).set({ state: "VOIDED" }).where(eq(attDutyLogs.id, logId)).catch(() => undefined);
+    throw err;
+  }
+  await db
+    .update(attDutyLogs)
+    .set({ checkInAttemptId: final.attemptId, riskLevel: final.level })
+    .where(and(eq(attDutyLogs.id, logId), isNull(attDutyLogs.checkInAttemptId)));
+
+  await writeAudit(actor, {
+    entity: "duty_log",
+    entityId: String(logId),
+    action: selfDuty ? "DUTY_SELF_CHECK_IN" : "DUTY_CHECK_IN",
+    newValue: { assignmentId, dutyDate, shiftId, time: vnTime(now), attemptId: final.attemptId, riskLevel: final.level, approvalStatus: selfDuty ? "PENDING" : "APPROVED" },
+  });
+
+  if (selfDuty) {
+    await raiseAlert({
+      level: "YELLOW",
+      category: "SELF_DUTY_PENDING",
+      employeeId: employee.id,
+      userId: actor.user.id,
+      attemptId: final.attemptId,
+      title: "Ca tự nhận chờ duyệt",
+      cause: `${employee.fullName} tự nhận ${shift?.name || shiftId} ngày ${dutyDate} lúc ${vnTime(now)} - không có trong lịch trực.`,
+      evidence: { assignmentId, logId, dutyDate, shiftId, attemptId: final.attemptId },
+      dedupeKey: `SELF_DUTY_PENDING|${assignmentId}`,
+    });
+    await notifyApprovers(
+      employee,
+      "Ca trực tự nhận chờ duyệt",
+      `${employee.fullName} đã tự nhận ${shift?.name || shiftId} ngày ${dutyDate} lúc ${vnTime(now)}. Cần xác nhận để tính giờ trực.`,
+      assignmentId
+    );
+  }
+
+  return json({
+    success: true,
+    message: selfDuty
+      ? `Đã ghi nhận ca tự nhận lúc ${vnTime(now)}. Ca này CHỜ DUYỆT, chỉ được tính giờ trực sau khi người duyệt xác nhận.`
+      : `Đã nhận ca trực lúc ${vnTime(now)}.${final.level === "YELLOW" ? " Lượt nhận ca có điểm cần xác minh thêm." : ""}`,
+    attemptId: final.attemptId,
+    riskLevel: final.level,
+    reasons: publicReasons(final.reasons),
+    approvalStatus: selfDuty ? "PENDING" : "APPROVED",
+    today: await todayState(employee),
+  });
+}
+
+/** NHẬN CA TRỰC theo lịch đã phân. */
+async function handleDutyCheckIn(req: Request, actor: ActorContext, body: Record<string, unknown>) {
+  const employee = requireOwnEmployee(actor);
+  await assertWriteRate(actor);
   const assignmentId = str(body.assignmentId);
   if (!assignmentId) return json({ success: false, error: "Thiếu suất trực cần nhận ca." }, 400);
 
@@ -685,60 +1244,22 @@ async function handleDutyCheckIn(actor: ActorContext, body: Record<string, unkno
     return json({ success: false, error: "Suất trực đã bị huỷ." }, 409);
   }
   await assertPeriodOpen(duty.dutyDate);
-
-  const existing = await db.select().from(attDutyLogs).where(eq(attDutyLogs.assignmentId, assignmentId));
-  if (existing.length && existing[0].checkInAt) {
-    return json(
-      { success: false, error: `Đã nhận ca lúc ${vnTime(existing[0].checkInAt)}.`, alreadyPunched: true },
-      409
-    );
-  }
-
-  const shifts = await listShifts(true);
-  const shift = shifts.find((s) => s.id === duty.shiftId);
-  const now = Date.now();
-  await db.insert(attDutyLogs).values({
-    assignmentId,
-    employeeId: employee.id,
-    dutyDate: duty.dutyDate,
-    shiftId: duty.shiftId,
-    checkInAt: now,
-    // Giờ trực lấy theo ĐỊNH MỨC của ca, không lấy hiệu giờ thực bấm: kết ca
-    // muộn 10 phút không được làm tăng giờ trực trên bảng tổng hợp của trạm.
-    hours: shift ? shift.hours ?? shiftHours(shift.startTime, shift.endTime) : 0,
-    device: str(body.device).slice(0, 120) || null,
-    ip: actor.ip || null,
-    status: "OPEN",
-    source: "SELF",
-    createdBy: actor.user.id,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  await writeAudit(actor, {
-    entity: "duty_log",
-    entityId: assignmentId,
-    action: "DUTY_CHECK_IN",
-    newValue: { dutyDate: duty.dutyDate, shiftId: duty.shiftId, time: vnTime(now) },
-  });
-
-  return json({
-    success: true,
-    message: `Đã nhận ca trực lúc ${vnTime(now)}.`,
-    today: await todayState(employee),
-  });
+  const security = await getSecurity();
+  const presence = await verifyPresence(req, actor, { ...body, type: assignmentId }, "DUTY_IN", security);
+  return dutyCheckInCore(actor, { assignment: duty }, presence);
 }
 
 /**
- * TỰ CHẤM TRỰC.
+ * TỰ CHẤM TRỰC (giữ lại theo quyết định của Trạm, nhưng CHỜ DUYỆT).
  *
- * Người trực tự chọn ca (hoặc để máy tự gợi ý theo giờ hiện tại) và bấm nhận
- * ca. Máy chủ tự sinh suất trực cho chính người đó rồi ghi nhận ca luôn, nên
- * Quản trị không phải phân lịch từng người trước. Mọi kiểm tra vẫn ở máy chủ:
- * ca phải hợp loại ngày, phải đang trong khung giờ nhận ca, kỳ chưa khoá.
+ * Người trực chọn ca khi không có trong lịch. Máy chủ vẫn kiểm tra đầy đủ: ca
+ * hợp loại ngày, đúng khung giờ, xác minh hiện diện. Nhật ký trực được ghi với
+ * approval_status = PENDING, mức VÀNG, và KHÔNG được tính vào bảng công cho tới
+ * khi Người duyệt xác nhận ở màn hình An toàn chấm công.
  */
-async function handleDutySelfCheckIn(actor: ActorContext, body: Record<string, unknown>) {
-  const employee = requireOwnEmployee(actor);
+async function handleDutySelfCheckIn(req: Request, actor: ActorContext, body: Record<string, unknown>) {
+  requireOwnEmployee(actor);
+  await assertWriteRate(actor);
   const settings = await getSettings();
   if (settings.workHours.requireDutyAssignment) {
     return json(
@@ -749,7 +1270,7 @@ async function handleDutySelfCheckIn(actor: ActorContext, body: Record<string, u
   const shiftId = str(body.shiftId);
   if (!shiftId) return json({ success: false, error: "Chưa chọn ca trực." }, 400);
 
-  const { today } = todayContext();
+  const today = vnDate();
   await assertPeriodOpen(today);
 
   const [shifts, holidays] = await Promise.all([listShifts(true), listHolidays()]);
@@ -761,97 +1282,160 @@ async function handleDutySelfCheckIn(actor: ActorContext, body: Record<string, u
   if (scope !== "ANY" && scope !== dayType) {
     return json({ success: false, error: `${shift.name} không áp dụng cho ngày hôm nay.` }, 400);
   }
-  const win = selfDutyWindow(shift, settings.workHours.earliestPunchMin);
-  const nowMin = nowMinutesVN();
-  if (nowMin < win.opensAt || nowMin > win.closesAt) {
-    return json({ success: false, error: `Ngoài khung giờ nhận ${shift.name} (${shift.startTime} - ${shift.endTime}).` }, 400);
-  }
-
-  const now = Date.now();
-  const existing = await db
-    .select()
-    .from(attDutyAssignments)
-    .where(
-      and(
-        eq(attDutyAssignments.dutyDate, today),
-        eq(attDutyAssignments.shiftId, shiftId),
-        eq(attDutyAssignments.employeeId, employee.id)
-      )
-    );
-  let assignmentId: string;
-  if (existing.length) {
-    assignmentId = existing[0].id;
-    if (String(existing[0].status || "PLANNED").toUpperCase() === "CANCELLED") {
-      await db
-        .update(attDutyAssignments)
-        .set({ status: "PLANNED", note: "Tự chấm trực", updatedAt: now })
-        .where(eq(attDutyAssignments.id, assignmentId));
-    }
-  } else {
-    assignmentId = newId("duty");
-    await db.insert(attDutyAssignments).values({
-      id: assignmentId,
-      dutyDate: today,
-      shiftId,
-      employeeId: employee.id,
-      dayType,
-      status: "PLANNED",
-      note: "Tự chấm trực",
-      createdBy: actor.user.id,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await writeAudit(actor, {
-      entity: "duty_assignment",
-      entityId: assignmentId,
-      action: "SELF_CREATE",
-      newValue: { dutyDate: today, shiftId, employeeId: employee.id, dayType },
-    });
-  }
-
-  const response = await handleDutyCheckIn(actor, { ...body, assignmentId });
-  if (response.status === 200) {
-    await notifyApprovers(
-      employee,
-      "Cán bộ tự nhận ca trực",
-      `${employee.fullName} đã tự nhận ${shift.name} ngày ${today} lúc ${vnTime(now)}.`,
-      assignmentId
-    );
-  }
-  return response;
+  const security = await getSecurity();
+  const presence = await verifyPresence(req, actor, { ...body, type: `shift:${shiftId}` }, "DUTY_IN", security);
+  return dutyCheckInCore(actor, { selfShift: shift, dayType }, presence);
 }
 
-/** KẾT CA TRỰC. Chấp nhận kết ca sang ngày hôm sau cho ca qua đêm. */
-async function handleDutyCheckOut(actor: ActorContext, body: Record<string, unknown>) {
+/**
+ * KẾT CA TRỰC. Ca qua đêm kết vào sáng hôm sau là bình thường. Kết ca sớm hơn
+ * giờ kết thúc quá 30 phút → VÀNG; quá muộn (sau giờ kết thúc 4 giờ) → phải đi
+ * luồng điều chỉnh. Giờ kết ca chỉ ghi một lần (UPDATE ... WHERE check_out_at
+ * IS NULL, được trigger CSDL bảo vệ thêm).
+ */
+async function handleDutyCheckOut(req: Request, actor: ActorContext, body: Record<string, unknown>) {
   const employee = requireOwnEmployee(actor);
+  await assertWriteRate(actor);
   const assignmentId = str(body.assignmentId);
   if (!assignmentId) return json({ success: false, error: "Thiếu suất trực cần kết ca." }, 400);
 
   const logs = await db
     .select()
     .from(attDutyLogs)
-    .where(and(eq(attDutyLogs.assignmentId, assignmentId), eq(attDutyLogs.employeeId, employee.id)));
-  if (!logs.length) return json({ success: false, error: "Chưa nhận ca nên không thể kết ca." }, 409);
+    .where(and(eq(attDutyLogs.assignmentId, assignmentId), eq(attDutyLogs.employeeId, employee.id), ACTIVE_DUTY_LOG));
+  if (!logs.length || !logs[0].checkInAt) return json({ success: false, error: "Chưa nhận ca nên không thể kết ca." }, 409);
   const log = logs[0];
   if (log.checkOutAt) {
     return json({ success: false, error: `Ca trực đã kết lúc ${vnTime(log.checkOutAt)}.`, alreadyPunched: true }, 409);
   }
   await assertPeriodOpen(log.dutyDate);
 
-  const now = Date.now();
+  const security = await getSecurity();
+  const presence = await verifyPresence(req, actor, { ...body, type: assignmentId }, "DUTY_OUT", security);
+  const now = presence.serverTs;
+  const shift = (await listShifts(true)).find((s) => s.id === log.shiftId);
+  const extra: RiskReason[] = [];
+  if (shift) {
+    const win = checkOutAllowed(now, log.dutyDate, shift.startTime, shift.endTime);
+    if (!win.ok) {
+      extra.push(reason("OUTSIDE_SHIFT", "RED", `Đã quá hạn kết ${shift.name} (kết thúc ${vnTime(win.window.endAt).slice(0, 5)} ${vnDate(win.window.endAt)}). Hãy gửi đề nghị điều chỉnh.`));
+    } else if (win.early) {
+      extra.push(reason("EARLY_CHECKOUT", "YELLOW", `Kết ca sớm so với giờ kết thúc ${vnTime(win.window.endAt).slice(0, 5)}.`));
+    }
+  }
+  const all = [...presence.reasons, ...extra];
+  if (combineLevel(all) === "RED") {
+    const final = await finalizeAttempt({ actor, kind: "DUTY_OUT", presence, extraReasons: extra, accepted: false, rejectMessage: redMessage(all), workDate: log.dutyDate });
+    return rejected(redMessage(all), final);
+  }
+
+  const updated = await db
+    .update(attDutyLogs)
+    .set({ checkOutAt: now, status: "DONE", note: str(body.note).slice(0, 500) || log.note, updatedAt: now })
+    .where(and(eq(attDutyLogs.id, log.id), isNull(attDutyLogs.checkOutAt)))
+    .returning({ id: attDutyLogs.id });
+  if (!updated.length) {
+    const dup = [reason("DUPLICATE", "RED", "Ca trực vừa được kết từ một yêu cầu khác.")];
+    const final = await finalizeAttempt({ actor, kind: "DUTY_OUT", presence, extraReasons: [...extra, ...dup], accepted: false, rejectMessage: dup[0].message, workDate: log.dutyDate });
+    return rejected(dup[0].message, final, { alreadyPunched: true });
+  }
+  const final = await finalizeAttempt({ actor, kind: "DUTY_OUT", presence, extraReasons: extra, accepted: true, workDate: log.dutyDate, refType: "duty_log", refId: String(log.id) });
+  const rank: Record<string, number> = { GREEN: 0, YELLOW: 1, RED: 2 };
+  const worst = (rank[String(log.riskLevel)] ?? 0) > rank[final.level] ? String(log.riskLevel) : final.level;
   await db
     .update(attDutyLogs)
-    .set({ checkOutAt: now, status: "DONE", note: str(body.note) || log.note, updatedAt: now })
-    .where(eq(attDutyLogs.id, log.id));
+    .set({ checkOutAttemptId: final.attemptId, riskLevel: worst })
+    .where(and(eq(attDutyLogs.id, log.id), isNull(attDutyLogs.checkOutAttemptId)));
 
   await writeAudit(actor, {
     entity: "duty_log",
-    entityId: assignmentId,
+    entityId: String(log.id),
     action: "DUTY_CHECK_OUT",
-    newValue: { time: vnTime(now) },
+    newValue: { assignmentId, time: vnTime(now), attemptId: final.attemptId, riskLevel: final.level },
   });
 
-  return json({ success: true, message: `Đã kết ca trực lúc ${vnTime(now)}.`, today: await todayState(employee) });
+  return json({
+    success: true,
+    message: `Đã kết ca trực lúc ${vnTime(now)}.${final.level === "YELLOW" ? " Lượt kết ca có điểm cần xác minh thêm." : ""}`,
+    attemptId: final.attemptId,
+    riskLevel: final.level,
+    reasons: publicReasons(final.reasons),
+    today: await todayState(employee),
+  });
+}
+
+/**
+ * ĐỒNG BỘ LƯỢT CHẤM NGOẠI TUYẾN.
+ *
+ * Khi mất mạng, giao diện chỉ lưu tạm "ý định chấm" kèm giờ máy khách. Giờ máy
+ * khách KHÔNG được tin (yêu cầu 2), nên các lượt này KHÔNG bao giờ thành lượt
+ * chấm trực tiếp: máy chủ chuyển chúng thành đề nghị điều chỉnh chờ duyệt, và
+ * sinh cảnh báo VÀNG để người duyệt đối chiếu.
+ */
+async function handleOfflineSync(actor: ActorContext, body: Record<string, unknown>) {
+  const employee = requireOwnEmployee(actor);
+  await assertWriteRate(actor);
+  const items = (Array.isArray(body.items) ? body.items : []).slice(0, 10) as Record<string, unknown>[];
+  const now = Date.now();
+  const byDate = new Map<string, { type: string; time: string }[]>();
+  for (const item of items) {
+    const ts = Number(item.clientTs);
+    if (!Number.isFinite(ts) || ts > now + 5 * 60000 || ts < now - 7 * 24 * 3600 * 1000) continue;
+    const date = vnDate(ts);
+    const list = byDate.get(date) || [];
+    list.push({ type: str(item.type).toUpperCase() === "OUT" ? "OUT" : "IN", time: vnTime(ts).slice(0, 5) });
+    byDate.set(date, list);
+  }
+  if (!byDate.size) return json({ success: false, error: "Không có lượt chấm ngoại tuyến hợp lệ để đồng bộ." }, 400);
+  const created: string[] = [];
+  for (const [date, punches] of byDate) {
+    try {
+      await assertPeriodOpen(date);
+    } catch {
+      continue;
+    }
+    const id = newId("req");
+    await db.insert(attRequests).values({
+      id,
+      kind: "ADJUST_PUNCH",
+      employeeId: employee.id,
+      targetDate: date,
+      payload: JSON.stringify({ punches, offline: true }),
+      reason: `Chấm khi mất kết nối (giờ theo máy khách, chưa được máy chủ xác minh). ${str(body.reason).slice(0, 200)}`.trim(),
+      status: "PENDING",
+      createdAt: now,
+      updatedAt: now,
+    });
+    created.push(id);
+    await writeAudit(actor, { entity: "request", entityId: id, action: "OFFLINE_SYNC", newValue: { targetDate: date, punches } });
+  }
+  if (created.length) {
+    await raiseAlert({
+      level: "YELLOW",
+      category: "OFFLINE_SYNC",
+      employeeId: employee.id,
+      userId: actor.user.id,
+      title: "Lượt chấm ngoại tuyến cần duyệt",
+      cause: `${employee.fullName} đồng bộ ${items.length} lượt chấm khi mất mạng; đã chuyển thành ${created.length} đề nghị điều chỉnh.`,
+      evidence: { requests: created, ip: actor.ip },
+    });
+    await notifyApprovers(employee, "Lượt chấm ngoại tuyến", `${employee.fullName} có lượt chấm khi mất kết nối cần duyệt.`, created[0]);
+    await checkAdjustmentVolume(employee.id, actor.user.id, (await getSecurity()).maxAdjustmentsPerMonth);
+  }
+  return json({
+    success: true,
+    message: created.length
+      ? `Đã chuyển ${created.length} ngày chấm ngoại tuyến thành đề nghị điều chỉnh chờ duyệt.`
+      : "Các ngày này đã khoá kỳ, không đồng bộ được.",
+    requests: created,
+  });
+}
+
+/** ĐĂNG XUẤT: thu hồi phiên ngay ở máy chủ. */
+async function handleLogout(actor: ActorContext) {
+  if (actor.sessionId) await revokeSession(actor.sessionId, "LOGOUT");
+  await writeAudit(actor, { entity: "session", entityId: actor.sessionId, action: "LOGOUT" });
+  return json({ success: true });
 }
 
 /**
@@ -863,6 +1447,7 @@ async function handleDutyCheckOut(actor: ActorContext, body: Record<string, unkn
  */
 async function handleRequestAdjust(actor: ActorContext, body: Record<string, unknown>) {
   const employee = requireOwnEmployee(actor);
+  await assertWriteRate(actor);
   const settings = await getSettings();
   if (!settings.workHours.allowAdjustRequest) {
     return json({ success: false, error: "Trạm đang tắt chức năng gửi yêu cầu điều chỉnh chấm công." }, 403);
@@ -873,7 +1458,7 @@ async function handleRequestAdjust(actor: ActorContext, body: Record<string, unk
   if (targetDate > vnDate()) return json({ success: false, error: "Không điều chỉnh cho ngày chưa tới." }, 400);
   await assertPeriodOpen(targetDate);
 
-  const reason = str(body.reason);
+  const reason = str(body.reason).slice(0, 1000);
   if (reason.length < 5) return json({ success: false, error: "Vui lòng nêu lý do điều chỉnh (tối thiểu 5 ký tự)." }, 400);
 
   const rawPunches = Array.isArray(body.punches) ? body.punches : [];
@@ -884,7 +1469,8 @@ async function handleRequestAdjust(actor: ActorContext, body: Record<string, unk
       const time = str(entry.time);
       return { type, time };
     })
-    .filter((p) => /^\d{1,2}:\d{2}$/.test(p.time));
+    .filter((p) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(p.time))
+    .slice(0, 8);
   if (!wanted.length) {
     return json({ success: false, error: "Vui lòng nhập ít nhất một mốc giờ cần ghi nhận (dạng HH:MM)." }, 400);
   }
@@ -910,6 +1496,7 @@ async function handleRequestAdjust(actor: ActorContext, body: Record<string, unk
     newValue: { targetDate, punches: wanted, reason },
   });
   await notifyApprovers(employee, "Yêu cầu điều chỉnh chấm công", `${employee.fullName} xin điều chỉnh chấm công ngày ${targetDate}.`, id);
+  await checkAdjustmentVolume(employee.id, actor.user.id, (await getSecurity()).maxAdjustmentsPerMonth);
 
   return json({ success: true, message: "Đã gửi yêu cầu điều chỉnh, chờ Phụ trách bộ phận duyệt.", id });
 }
@@ -917,6 +1504,7 @@ async function handleRequestAdjust(actor: ActorContext, body: Record<string, unk
 /** YÊU CẦU ĐỔI CA TRỰC với một cán bộ khác. */
 async function handleRequestSwap(actor: ActorContext, body: Record<string, unknown>) {
   const employee = requireOwnEmployee(actor);
+  await assertWriteRate(actor);
   const settings = await getSettings();
   if (!settings.workHours.allowSwapRequest) {
     return json({ success: false, error: "Trạm đang tắt chức năng gửi yêu cầu đổi ca trực." }, 403);
@@ -935,6 +1523,12 @@ async function handleRequestSwap(actor: ActorContext, body: Record<string, unkno
   if (duty.employeeId !== employee.id) return json({ success: false, error: "Suất trực này không phải của bạn." }, 403);
   if (duty.dutyDate < vnDate()) return json({ success: false, error: "Không đổi ca cho ngày đã qua." }, 400);
   await assertPeriodOpen(duty.dutyDate);
+  // Ca đã nhận thì người trực thật đã được ghi bằng chứng - không đổi người được nữa.
+  const started = await db
+    .select({ id: attDutyLogs.id })
+    .from(attDutyLogs)
+    .where(and(eq(attDutyLogs.assignmentId, assignmentId), ACTIVE_DUTY_LOG));
+  if (started.length) return json({ success: false, error: "Ca trực đã được nhận, không thể đổi người." }, 409);
 
   const target = await findEmployee(toEmployeeId);
   if (!target || String(target.status || "ACTIVE").toUpperCase() !== "ACTIVE") {
@@ -984,6 +1578,7 @@ async function handleRequestSwap(actor: ActorContext, body: Record<string, unkno
     id
   );
   await notifyApprovers(employee, "Yêu cầu đổi ca trực", `${employee.fullName} xin đổi ca trực ngày ${duty.dutyDate}.`, id);
+  await checkAdjustmentVolume(employee.id, actor.user.id, (await getSecurity()).maxAdjustmentsPerMonth);
 
   return json({ success: true, message: "Đã gửi yêu cầu đổi ca, chờ Phụ trách bộ phận duyệt.", id });
 }
@@ -1128,38 +1723,6 @@ async function handleReadNotifications(actor: ActorContext) {
 //  Tiện ích nội bộ
 // ---------------------------------------------------------------------------
 
-/**
- * Thông báo tới những người có quyền duyệt yêu cầu của một cán bộ: phụ trách bộ
- * phận của người đó, những cán bộ giữ vai trò MANAGER/ADMIN trong phân hệ, và
- * những cán bộ mang vai trò tuỳ chỉnh có quyền duyệt (theo phạm vi của vai trò).
- */
-async function notifyApprovers(employee: EmployeeRow, title: string, bodyText: string, refId: string) {
-  try {
-    const customRoles = (await db.select().from(attRoles)).filter(
-      (r) =>
-        String(r.status || "ACTIVE").toUpperCase() === "ACTIVE" &&
-        parsePermissions(r.permissions).includes("approvals.decide") &&
-        String(r.scope || "SELF").toUpperCase() !== "SELF"
-    );
-    const allScope = new Set(["ADMIN", ...customRoles.filter((r) => String(r.scope).toUpperCase() === "ALL").map((r) => r.code)]);
-    const rows = await db
-      .select()
-      .from(attEmployees)
-      .where(inArray(attEmployees.attendanceRole, ["MANAGER", "ADMIN", ...customRoles.map((r) => r.code)]));
-    const ids = rows
-      .filter((r) => r.id !== employee.id)
-      .filter(
-        (r) =>
-          allScope.has(String(r.attendanceRole || "").toUpperCase()) ||
-          !employee.departmentId ||
-          r.departmentId === employee.departmentId
-      )
-      .map((r) => r.id);
-    await notify(ids, title, bodyText, "REQUEST", refId);
-  } catch (err) {
-    console.warn("[attendance] Không thông báo được tới người duyệt:", err);
-  }
-}
 
 export default async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: JSON_HEADERS, status: 204 });
@@ -1184,25 +1747,39 @@ export default async (req: Request) => {
           return await handleMyRequests(actor);
         case "notifications":
           return await handleNotifications(actor);
+        case "device":
+          return await handleMyDevices(actor, str(url.searchParams.get("deviceHash")));
         default:
           return json({ success: false, error: "Yêu cầu xem dữ liệu không hợp lệ." }, 400);
       }
     }
 
     if (req.method !== "POST") return json({ success: false, error: "Method not allowed" }, 405);
+    // Chống CSRF: API chỉ nhận JSON (trình duyệt không gửi được JSON chéo trang
+    // mà không qua preflight CORS - và API không bật CORS) và từ chối Origin lạ.
+    const csrf = csrfCheck(req);
+    if (csrf) return csrf;
 
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     if (!body) return json({ success: false, error: "Nội dung yêu cầu không hợp lệ." }, 400);
 
     switch (str(body.action)) {
+      case "challenge":
+        return await handleChallenge(actor, body);
+      case "device_register":
+        return await handleDeviceRegister(req, actor, body);
       case "punch":
-        return await handlePunch(actor, body);
+        return await handlePunch(req, actor, body);
       case "duty_check_in":
-        return await handleDutyCheckIn(actor, body);
+        return await handleDutyCheckIn(req, actor, body);
       case "duty_self_check_in":
-        return await handleDutySelfCheckIn(actor, body);
+        return await handleDutySelfCheckIn(req, actor, body);
       case "duty_check_out":
-        return await handleDutyCheckOut(actor, body);
+        return await handleDutyCheckOut(req, actor, body);
+      case "offline_sync":
+        return await handleOfflineSync(actor, body);
+      case "logout":
+        return await handleLogout(actor);
       case "request_adjust":
         return await handleRequestAdjust(actor, body);
       case "request_swap":

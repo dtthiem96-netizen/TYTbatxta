@@ -11,7 +11,8 @@
     "verify": "node main.js",
     "test:vitals": "node tools/vitals-parity.mjs",
     "test:media": "node tools/media-consent-check.mjs",
-    "test:smoke": "node tools/smoke-test.mjs"
+    "test:smoke": "node tools/smoke-test.mjs",
+    "test:antifraud": "node tools/anti-fraud-tests.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
@@ -20,6 +21,7 @@
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "beta",
     "express": "^4.19.2",
+    "jpeg-js": "^0.4.4",
     "jsonwebtoken": "^9.0.3",
     "ws": "^8.17.0"
   },
