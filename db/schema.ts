@@ -566,10 +566,27 @@ export const attPunches = pgTable(
     note: text("note"),
     createdBy: text("created_by"),
     createdAt: bigint("created_at", { mode: "number" }),
+    // --- Chống gian lận (bản di trú add_attendance_antifraud) ---------------
+    // ACTIVE | SUPERSEDED (đã có bản điều chỉnh thay thế) | VOIDED (bị huỷ hiệu
+    // lực qua điều chỉnh đã duyệt). Bản ghi KHÔNG BAO GIỜ bị xoá hay sửa giá trị
+    // gốc: trigger att_punches_guard ở cơ sở dữ liệu chặn mọi UPDATE vào các
+    // cột gốc và mọi DELETE, kể cả khi gọi từ mã của Quản trị.
+    state: text("state").default("ACTIVE"),
+    supersededBy: integer("superseded_by"),
+    adjustmentId: text("adjustment_id"),
+    // Lượt xác thực (att_attempts) sinh ra lượt chấm này: GPS, thiết bị, selfie, QR.
+    attemptId: integer("attempt_id"),
+    // GREEN | YELLOW | RED - kết luận kỹ thuật lúc chấm, không phải kết luận gian lận.
+    riskLevel: text("risk_level"),
+    // Khoá chống chấm trùng: "<cán bộ>|<ngày>|<buổi>|<IN/OUT>" cho lượt tự chấm.
+    // Chỉ mục duy nhất trên cột này là chốt chặn cuối cùng khi hai yêu cầu tới
+    // cùng lúc (bấm đúp, gửi lại khi mạng chập chờn). Bản ghi cũ để trống.
+    dedupeKey: text("dedupe_key"),
   },
   (table) => [
     index("att_punches_employee_date_idx").on(table.employeeId, table.workDate),
     index("att_punches_date_idx").on(table.workDate),
+    uniqueIndex("att_punches_dedupe_uidx").on(table.dedupeKey),
   ]
 );
 
@@ -628,10 +645,29 @@ export const attDutyLogs = pgTable(
     createdBy: text("created_by"),
     createdAt: bigint("created_at", { mode: "number" }),
     updatedAt: bigint("updated_at", { mode: "number" }),
+    // --- Chống gian lận ------------------------------------------------------
+    // ACTIVE | SUPERSEDED | VOIDED - như att_punches. Trigger att_duty_logs_guard
+    // chỉ cho ghi giờ kết ca MỘT LẦN (từ trống sang có giá trị) và không cho sửa
+    // giờ nhận ca, người trực, suất trực hay xoá bản ghi.
+    state: text("state").default("ACTIVE"),
+    supersededBy: integer("superseded_by"),
+    adjustmentId: text("adjustment_id"),
+    checkInAttemptId: integer("check_in_attempt_id"),
+    checkOutAttemptId: integer("check_out_attempt_id"),
+    riskLevel: text("risk_level"),
+    // APPROVED | PENDING | REJECTED. Ca TỰ NHẬN không có lịch trực là PENDING và
+    // chưa được tính công cho tới khi Người duyệt phê duyệt.
+    approvalStatus: text("approval_status").default("APPROVED"),
+    approvedBy: text("approved_by"),
+    approvedByName: text("approved_by_name"),
+    approvedAt: bigint("approved_at", { mode: "number" }),
+    // Khoá chống nhận ca trùng: mã suất trực, cho lượt tự nhận ca.
+    dedupeKey: text("dedupe_key"),
   },
   (table) => [
     index("att_duty_logs_employee_date_idx").on(table.employeeId, table.dutyDate),
     index("att_duty_logs_assignment_idx").on(table.assignmentId),
+    uniqueIndex("att_duty_logs_dedupe_uidx").on(table.dedupeKey),
   ]
 );
 
@@ -746,11 +782,25 @@ export const attAudits = pgTable(
     actorName: text("actor_name"),
     actorUsername: text("actor_username"),
     ip: text("ip"),
+    // Thời gian SERVER. Trigger att_audits_chain ghi đè bằng đồng hồ của cơ sở
+    // dữ liệu, nên mã ứng dụng có truyền gì vào cũng không đổi được.
     ts: bigint("ts", { mode: "number" }).notNull(),
+    // --- Nhật ký bất biến ----------------------------------------------------
+    userAgent: text("user_agent"),
+    deviceId: text("device_id"),
+    reason: text("reason"),
+    approverId: text("approver_id"),
+    approverName: text("approver_name"),
+    // Chuỗi băm liên hoàn: hash = sha256(prev_hash | nội dung dòng). Sửa hay xoá
+    // một dòng ở giữa (nếu có ai vượt được trigger) sẽ làm đứt chuỗi từ đó trở đi.
+    seq: bigint("seq", { mode: "number" }),
+    prevHash: text("prev_hash"),
+    hash: text("hash"),
   },
   (table) => [
     index("att_audits_entity_ts_idx").on(table.entity, table.ts),
     index("att_audits_ts_idx").on(table.ts),
+    index("att_audits_seq_idx").on(table.seq),
   ]
 );
 
@@ -778,3 +828,261 @@ export const attRoles = pgTable(
   },
   (table) => [uniqueIndex("att_roles_code_uidx").on(table.code)]
 );
+
+/* =============================================================================
+   CHỐNG GIAN LẬN CHẤM CÔNG - CHẤM TRỰC
+
+   Nguyên tắc chung của nhóm bảng dưới đây:
+     - Mọi lượt chấm (kể cả lượt bị từ chối) để lại một dòng bằng chứng trong
+       att_attempts: giờ server, IP, thiết bị, GPS, khoảng cách, selfie, QR,
+       danh sách tín hiệu và mức GREEN / YELLOW / RED.
+     - GREEN = hợp lệ, YELLOW = cần người kiểm tra, RED = từ chối kỹ thuật. Hệ
+       thống KHÔNG kết luận gian lận; người xử lý cảnh báo mới kết luận.
+     - att_attempts, att_adjustments, att_audits là sổ bất biến: trigger ở cơ sở
+       dữ liệu chặn UPDATE / DELETE / TRUNCATE.
+   ========================================================================== */
+
+/* Thiết bị đã đăng ký của từng tài khoản. Khoá của thiết bị là cặp khoá ECDSA
+   P-256 sinh trong trình duyệt ở dạng KHÔNG XUẤT ĐƯỢC (non-extractable): sao
+   chép localStorage hay dùng DevTools cũng không mang được khoá riêng sang máy
+   khác. Máy chủ chỉ giữ khoá công khai và dấu vân tay (device_hash). */
+export const attDevices = pgTable(
+  "att_devices",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    employeeId: text("employee_id"),
+    // sha256 của khoá công khai - định danh thiết bị, không phải dữ liệu cá nhân.
+    deviceHash: text("device_hash").notNull(),
+    publicKey: text("public_key").notNull(),
+    label: text("label"),
+    platform: text("platform"),
+    userAgent: text("user_agent"),
+    // PENDING | APPROVED | REJECTED | REVOKED
+    status: text("status").default("PENDING"),
+    requestReason: text("request_reason"),
+    registrationAttemptId: integer("registration_attempt_id"),
+    firstIp: text("first_ip"),
+    lastIp: text("last_ip"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    lastSeenAt: bigint("last_seen_at", { mode: "number" }),
+    decidedBy: text("decided_by"),
+    decidedByName: text("decided_by_name"),
+    decidedAt: bigint("decided_at", { mode: "number" }),
+    decisionNote: text("decision_note"),
+  },
+  (table) => [
+    uniqueIndex("att_devices_user_hash_uidx").on(table.userId, table.deviceHash),
+    index("att_devices_hash_idx").on(table.deviceHash),
+    index("att_devices_status_idx").on(table.status),
+  ]
+);
+
+/* Phiên đăng nhập. Mỗi phiếu JWT mang một jti trỏ về đây, nhờ vậy phiên thu
+   hồi được ngay (đăng xuất, đăng nhập nơi khác, nghi bị đánh cắp phiếu) thay vì
+   phải chờ hết hạn 8 giờ. */
+export const authSessions = pgTable(
+  "auth_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    deviceHash: text("device_hash"),
+    lastIp: text("last_ip"),
+    ipChanges: integer("ip_changes").default(0),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+    lastSeenAt: bigint("last_seen_at", { mode: "number" }),
+    expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+    revokedAt: bigint("revoked_at", { mode: "number" }),
+    revokedReason: text("revoked_reason"),
+  },
+  (table) => [index("auth_sessions_user_idx").on(table.userId, table.createdAt)]
+);
+
+/* Bộ đếm giới hạn tần suất (rate limit) theo cửa sổ cố định. */
+export const authRateLimits = pgTable("auth_rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: bigint("window_start", { mode: "number" }).notNull(),
+  count: integer("count").notNull().default(0),
+});
+
+/* Thử thách dùng MỘT LẦN do máy chủ phát trước mỗi lượt chấm: chống phát lại
+   yêu cầu (replay), buộc lượt chấm phải diễn ra trực tiếp trong vài chục giây,
+   và mang theo động tác liveness mà người chấm phải làm trước camera. */
+export const attNonces = pgTable(
+  "att_nonces",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    employeeId: text("employee_id"),
+    purpose: text("purpose").notNull(),
+    challenge: text("challenge"),
+    issuedAt: bigint("issued_at", { mode: "number" }).notNull(),
+    expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+    usedAt: bigint("used_at", { mode: "number" }),
+    ip: text("ip"),
+  },
+  (table) => [index("att_nonces_expires_idx").on(table.expiresAt)]
+);
+
+/* Mã QR động hiển thị tại Trạm. Chỉ lưu dấu băm của mã, không lưu mã rõ. */
+export const attQrTokens = pgTable(
+  "att_qr_tokens",
+  {
+    id: text("id").primaryKey(),
+    codeHash: text("code_hash").notNull(),
+    issuedBy: text("issued_by"),
+    issuedAt: bigint("issued_at", { mode: "number" }).notNull(),
+    expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+    usedAt: bigint("used_at", { mode: "number" }),
+    usedByEmployeeId: text("used_by_employee_id"),
+  },
+  (table) => [
+    uniqueIndex("att_qr_tokens_code_uidx").on(table.codeHash),
+    index("att_qr_tokens_expires_idx").on(table.expiresAt),
+  ]
+);
+
+/* SỔ BẰNG CHỨNG - mọi lượt chấm công / chấm trực / đăng ký thiết bị, được chấp
+   nhận hay bị từ chối. Bất biến. */
+export const attAttempts = pgTable(
+  "att_attempts",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    employeeId: text("employee_id"),
+    // PUNCH_IN | PUNCH_OUT | DUTY_IN | DUTY_OUT | DEVICE_REGISTER
+    kind: text("kind").notNull(),
+    // Giờ SERVER - nguồn duy nhất quyết định giờ chấm.
+    serverTs: bigint("server_ts", { mode: "number" }).notNull(),
+    workDate: text("work_date"),
+    // ACCEPTED | REJECTED
+    result: text("result").notNull(),
+    riskLevel: text("risk_level").notNull(),
+    // Mảng JSON [{code, level, message}] - lý do của mức rủi ro.
+    reasons: text("reasons"),
+    rejectMessage: text("reject_message"),
+    deviceId: text("device_id"),
+    deviceHash: text("device_hash"),
+    deviceSignatureOk: text("device_signature_ok"),
+    sessionId: text("session_id"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    // Vị trí chỉ được lấy MỘT LẦN tại thời điểm chấm, không theo dõi liên tục.
+    lat: real("lat"),
+    lng: real("lng"),
+    accuracyM: real("accuracy_m"),
+    distanceM: real("distance_m"),
+    geofenceOk: text("geofence_ok"),
+    locationAgeMs: integer("location_age_ms"),
+    ipGeo: text("ip_geo"),
+    clientTs: bigint("client_ts", { mode: "number" }),
+    clockSkewMs: integer("clock_skew_ms"),
+    // Khoá ảnh selfie trong Netlify Blobs (kho riêng tư) + dấu băm để phát hiện
+    // dùng lại ảnh cũ.
+    selfieKey: text("selfie_key"),
+    selfieSha256: text("selfie_sha256"),
+    selfieDhash: text("selfie_dhash"),
+    livenessResult: text("liveness_result"),
+    faceScore: real("face_score"),
+    aiVerdict: text("ai_verdict"),
+    qrTokenId: text("qr_token_id"),
+    nonceId: text("nonce_id"),
+    refType: text("ref_type"),
+    refId: text("ref_id"),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("att_attempts_employee_ts_idx").on(table.employeeId, table.serverTs),
+    index("att_attempts_ts_idx").on(table.serverTs),
+    index("att_attempts_device_idx").on(table.deviceHash),
+    index("att_attempts_sha_idx").on(table.selfieSha256),
+  ]
+);
+
+/* BẢN GHI ĐIỀU CHỈNH - đầy đủ luồng: người đề nghị → lý do → người phê duyệt
+   → thời gian phê duyệt → dữ liệu trước → dữ liệu sau. Bản gốc được giữ
+   nguyên và chỉ chuyển trạng thái SUPERSEDED/VOIDED. Bất biến. */
+export const attAdjustments = pgTable(
+  "att_adjustments",
+  {
+    id: text("id").primaryKey(),
+    // PUNCH | DUTY_LOG
+    targetType: text("target_type").notNull(),
+    // CREATE (bổ sung) | REPLACE (thay thế) | VOID (huỷ hiệu lực)
+    operation: text("operation").notNull(),
+    originalId: integer("original_id"),
+    newRecordId: integer("new_record_id"),
+    employeeId: text("employee_id").notNull(),
+    workDate: text("work_date"),
+    requestId: text("request_id"),
+    beforeData: text("before_data"),
+    afterData: text("after_data"),
+    reason: text("reason").notNull(),
+    requestedBy: text("requested_by"),
+    requestedByName: text("requested_by_name"),
+    requestedAt: bigint("requested_at", { mode: "number" }),
+    approvedBy: text("approved_by"),
+    approvedByName: text("approved_by_name"),
+    approvedAt: bigint("approved_at", { mode: "number" }),
+    selfApproved: text("self_approved").default("false"),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    index("att_adjustments_employee_idx").on(table.employeeId, table.workDate),
+    index("att_adjustments_created_idx").on(table.createdAt),
+  ]
+);
+
+/* CẢNH BÁO AN TOÀN CHẤM CÔNG. Mỗi cảnh báo có: mức độ, người liên quan, thời
+   gian, nguyên nhân, dữ liệu chứng minh, trạng thái xử lý, người xử lý, kết quả. */
+export const attAlerts = pgTable(
+  "att_alerts",
+  {
+    id: serial("id").primaryKey(),
+    // YELLOW | RED
+    level: text("level").notNull(),
+    category: text("category").notNull(),
+    employeeId: text("employee_id"),
+    userId: text("user_id"),
+    deviceHash: text("device_hash"),
+    attemptId: integer("attempt_id"),
+    title: text("title").notNull(),
+    cause: text("cause"),
+    evidence: text("evidence"),
+    day: text("day").notNull(),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+    // OPEN | REVIEWING | RESOLVED | DISMISSED
+    status: text("status").default("OPEN"),
+    handledBy: text("handled_by"),
+    handledByName: text("handled_by_name"),
+    handledAt: bigint("handled_at", { mode: "number" }),
+    // VALID (hợp lệ, không vi phạm) | VIOLATION (xác nhận vi phạm) | TECHNICAL (lỗi kỹ thuật) | OTHER
+    resolution: text("resolution"),
+    resolutionNote: text("resolution_note"),
+    // Chống sinh cảnh báo lặp cho cùng một hiện tượng trong cùng ngày.
+    dedupeKey: text("dedupe_key"),
+  },
+  (table) => [
+    index("att_alerts_day_idx").on(table.day),
+    index("att_alerts_status_idx").on(table.status),
+    index("att_alerts_employee_idx").on(table.employeeId),
+    uniqueIndex("att_alerts_dedupe_uidx").on(table.dedupeKey),
+  ]
+);
+
+/* Mẫu đối chiếu khuôn mặt của cán bộ: vector đặc trưng tính ở MÁY CHỦ từ ảnh
+   selfie tham chiếu (được duyệt cùng thiết bị), cùng khoá ảnh tham chiếu trong
+   Blobs. Chỉ Quản trị xem được ảnh; vector không bao giờ trả ra giao diện. */
+export const attFaceTemplates = pgTable("att_face_templates", {
+  employeeId: text("employee_id").primaryKey(),
+  vector: text("vector").notNull(),
+  dhash: text("dhash"),
+  referenceKey: text("reference_key"),
+  sourceAttemptId: integer("source_attempt_id"),
+  enrolledBy: text("enrolled_by"),
+  enrolledByName: text("enrolled_by_name"),
+  enrolledAt: bigint("enrolled_at", { mode: "number" }),
+  status: text("status").default("ACTIVE"),
+});

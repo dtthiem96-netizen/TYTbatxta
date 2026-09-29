@@ -16,7 +16,7 @@
 import { db } from "../../db/index.js";
 import { attDutyAssignments, attDutyLogs, attEmployees, attPunches } from "../../db/schema.js";
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
-import { addDays, listShifts, sortEmployees, vnDate, vnEpoch, vnTime } from "../lib/attendance.js";
+import { ACTIVE_DUTY_LOG, ACTIVE_PUNCH, addDays, listShifts, sortEmployees, vnDate, vnEpoch, vnTime } from "../lib/attendance.js";
 
 const HEADERS = {
   "Content-Type": "application/json",
@@ -66,12 +66,12 @@ export default async (req: Request) => {
       ? await db
           .select()
           .from(attDutyLogs)
-          .where(inArray(attDutyLogs.assignmentId, active.map((a) => a.id)))
+          .where(and(inArray(attDutyLogs.assignmentId, active.map((a) => a.id)), ACTIVE_DUTY_LOG))
       : [];
     const checkedIn = new Set(openLogs.filter((l) => l.checkInAt && !l.checkOutAt).map((l) => l.assignmentId));
 
     // Cán bộ hành chính: lượt chấm cuối cùng hôm nay là VÀO nghĩa là đang ở trạm.
-    const punches = await db.select().from(attPunches).where(eq(attPunches.workDate, today));
+    const punches = await db.select().from(attPunches).where(and(eq(attPunches.workDate, today), ACTIVE_PUNCH));
     const lastPunch = new Map<string, (typeof punches)[number]>();
     for (const p of punches) {
       const prev = lastPunch.get(p.employeeId);

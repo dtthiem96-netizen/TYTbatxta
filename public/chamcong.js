@@ -49,11 +49,19 @@
     counters: { unreadNotifications: 0, pendingRequests: 0 },
     view: 'home',
     adminTab: 'employees',
+    secTab: 'dashboard',
     clockOffset: 0,      // lệch giữa đồng hồ máy chủ và đồng hồ thiết bị
     report: null,        // dữ liệu báo cáo đang xem, dùng cho Excel và bản in
     rosterData: null,
     detail: null,        // ngữ cảnh hộp thoại chi tiết đang mở
     installEvent: null
+  };
+
+  /* Trạng thái của lớp xác minh hiện diện (khoá thiết bị, camera, thiết bị hiện tại). */
+  var SEC = {
+    keyPromise: null, keyPair: null, publicJwk: null, deviceHash: '',
+    device: null, deviceError: '', requirements: null,
+    stream: null, scanTimer: null, pendingReject: null, busy: false, retry: null
   };
 
   var WEEKDAY_NAMES = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
@@ -70,7 +78,7 @@
     PENDING: 'bg-amber-100 text-amber-800', APPROVED: 'bg-emerald-100 text-emerald-800',
     REJECTED: 'bg-red-100 text-red-800', CANCELLED: 'bg-slate-100 text-slate-600'
   };
-  var KIND_LABEL = { ADJUST_PUNCH: 'Điều chỉnh chấm công', SWAP_DUTY: 'Đổi ca trực' };
+  var KIND_LABEL = { ADJUST_PUNCH: 'Điều chỉnh chấm công', SWAP_DUTY: 'Đổi ca trực', ADMIN_ADJUST: 'Điều chỉnh do Quản trị lập (chờ người thứ hai duyệt)' };
   var ROLE_LABEL = { STAFF: 'Cán bộ / nhân viên', LEADER: 'Phụ trách khoa/phòng', DEPUTY_DIRECTOR: 'Phó giám đốc', MANAGER: 'Phụ trách khoa / bộ phận', ADMIN: 'Quản trị hệ thống' };
   var SCOPE_LABEL = { SELF: 'Chỉ bản thân', DEPARTMENT: 'Bộ phận của mình', ALL: 'Toàn đơn vị' };
 
@@ -229,6 +237,7 @@
   }
 
   function closeModal() {
+    stopCamera(true);
     el('ccModal').classList.add('hidden');
     el('ccModalBody').innerHTML = '';
     modalSubmit = null;
@@ -329,12 +338,13 @@
 
   /**
    * Một cửa duy nhất để nói chuyện với máy chủ.
-   * base: 'staff' | 'admin' | 'reports'
+   * base: 'staff' | 'admin' | 'reports' | 'security'
    */
   function api(base, options) {
     var opts = options || {};
     var url = base === 'admin' ? '/api/attendance/admin'
-      : base === 'reports' ? '/api/attendance/reports' : '/api/attendance';
+      : base === 'reports' ? '/api/attendance/reports'
+      : base === 'security' ? '/api/attendance/security' : '/api/attendance';
     var query = opts.query || null;
     if (query) {
       var parts = [];
@@ -350,6 +360,9 @@
       cache: 'no-store'
     };
     if (S.session && S.session.token) init.headers.Authorization = 'Bearer ' + S.session.token;
+    /* Dấu vân tay khoá thiết bị chỉ để máy chủ ghi nhật ký; quyết định luôn dựa
+       vào chữ ký trong từng lượt chấm, không dựa vào tiêu đề này. */
+    if (SEC.deviceHash) init.headers['X-Device-Id'] = SEC.deviceHash;
     if (opts.body) init.body = JSON.stringify(opts.body);
 
     return fetch(url, init).then(function (res) {
@@ -381,6 +394,7 @@
   // -------------------------------------------------------------------------
 
   function forceLogin(message) {
+    closeKiosk();
     S.session = null;
     writeSession(null);
     el('ccApp').classList.add('hidden');
@@ -445,9 +459,13 @@
   function doLogout() {
     confirmBox('Đăng xuất khỏi phân hệ Chấm công trên thiết bị này?', function () {
       closeModal();
-      forceLogin('');
-      el('ccLoginError').classList.add('hidden');
-      toast('Đã đăng xuất.', 'info');
+      /* Thu hồi phiên ở máy chủ trước: phiếu cũ bị lộ cũng không dùng lại được. */
+      var finish = function () {
+        forceLogin('');
+        el('ccLoginError').classList.add('hidden');
+        toast('Đã đăng xuất.', 'info');
+      };
+      api('staff', { body: { action: 'logout' } }).then(finish, finish);
     }, 'Đăng xuất');
   }
 
@@ -500,6 +518,7 @@
     { key: 'requests', label: 'Yêu cầu & nghỉ phép', short: 'Yêu cầu', icon: 'fa-file-signature', panel: 'ccViewRequests', title: 'Yêu cầu và đơn nghỉ phép', roles: 'all' },
     { key: 'manage', label: 'Điều hành bộ phận', short: 'Điều hành', icon: 'fa-users-gear', panel: 'ccViewManage', title: 'Điều hành bộ phận', roles: 'manager' },
     { key: 'reports', label: 'Báo cáo tháng', short: 'Báo cáo', icon: 'fa-file-excel', panel: 'ccViewReports', title: 'Báo cáo tháng', roles: 'all' },
+    { key: 'security', label: 'An toàn chấm công', short: 'An toàn', icon: 'fa-shield-halved', panel: 'ccViewSecurity', title: 'An toàn chấm công', roles: 'security' },
     { key: 'admin', label: 'Quản trị hệ thống', short: 'Quản trị', icon: 'fa-sliders', panel: 'ccViewAdmin', title: 'Quản trị hệ thống', roles: 'admin' },
     { key: 'notifications', label: 'Thông báo', short: 'Thông báo', icon: 'fa-bell', panel: 'ccViewNotifications', title: 'Thông báo', roles: 'all' }
   ];
@@ -509,6 +528,7 @@
       if (v.roles === 'all') return true;
       if (v.roles === 'manager') return can('manage.view') || can('approvals.decide');
       if (v.roles === 'admin') return allowedAdminTabs().length > 0;
+      if (v.roles === 'security') return canSecurity();
       return true;
     });
   }
@@ -545,6 +565,8 @@
       return '<button type="button" data-cc-act="go-view" data-view="' + v.key + '" class="w-full text-left px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-medium flex items-center gap-3">' +
         '<i class="fas ' + v.icon + ' text-medical-600 w-5"></i>' + esc(v.label) + '</button>';
     }).join('') +
+      (can('kiosk.qr') ? '<button type="button" data-cc-act="kiosk-open" class="w-full text-left px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-medium flex items-center gap-3">' +
+        '<i class="fas fa-qrcode text-medical-600 w-5"></i>Màn hình QR tại Trạm</button>' : '') +
       '<button type="button" data-cc-act="go-change-password" class="w-full text-left px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-medium flex items-center gap-3">' +
       '<i class="fas fa-key text-medical-600 w-5"></i>Đổi mật khẩu</button>' +
       '<button type="button" data-cc-act="go-logout" class="w-full text-left px-4 py-3 rounded-xl border border-red-200 text-red-700 hover:bg-red-50 text-sm font-medium flex items-center gap-3">' +
@@ -560,6 +582,7 @@
     manage: function () { loadOverview(); loadApprovals(); },
     reports: function () { loadReports(); },
     admin: function () { renderAdmin(); },
+    security: function () { renderSecurity(); },
     notifications: function () { loadNotifications(); }
   };
 
@@ -591,6 +614,7 @@
     if (viewKey === 'manage') return 'Vai trò: ' + currentRoleName();
     if (viewKey === 'admin') return 'Cấu hình và danh mục của phân hệ';
     if (viewKey === 'reports') return 'Bảng chấm công, bảng chấm trực và tổng hợp';
+    if (viewKey === 'security') return 'Bằng chứng, cảnh báo và kết luận của người xử lý';
     return periodLabel(currentPeriod());
   }
 
@@ -627,6 +651,8 @@
       renderLockedBanner();
       go(S.view || 'home');
       startClock();
+      loadDeviceStatus();
+      syncOffline();
 
       if (!S.me.employee) {
         /* Có quyền vào phân hệ nhưng chưa được gắn hồ sơ cán bộ: chấm công cần
@@ -766,6 +792,7 @@
         (p.source !== 'SELF' ? '<p class="text-[11px] text-slate-500">Nguồn: ' +
           esc(p.source === 'REQUEST' ? 'do duyệt yêu cầu điều chỉnh' : 'do Quản trị nhập') + '</p>' : '') +
         (p.note ? '<p class="text-[11px] text-slate-500">' + esc(p.note) + '</p>' : '') +
+        (p.riskLevel && p.riskLevel !== 'GREEN' ? '<p class="mt-1">' + riskBadge(p.riskLevel) + '</p>' : '') +
         '</div>' + badge(statusText, statusClass) + '</div>';
     }).join('') : emptyBox('Hôm nay chưa có lượt chấm công nào.');
 
@@ -825,7 +852,10 @@
       '</div>' +
       '<p class="text-xs text-slate-500 mb-2">Ngày trực ' + esc(fmtDateVN(d.dutyDate)) +
       ' - định mức ' + esc(fmtNum(d.hours)) + ' giờ</p>' +
-      '<div class="flex flex-wrap items-center gap-2">' + badge(stateText, stateClass) + '</div>' +
+      '<div class="flex flex-wrap items-center gap-2">' + badge(stateText, stateClass) +
+      (d.approvalStatus === 'PENDING' ? badge('Tự nhận ca - chờ xác nhận, chưa tính giờ', 'bg-amber-100 text-amber-800') : '') +
+      (d.approvalStatus === 'REJECTED' ? badge('Không được xác nhận', 'bg-red-100 text-red-800') : '') +
+      (d.riskLevel && d.riskLevel !== 'GREEN' ? riskBadge(d.riskLevel) : '') + '</div>' +
       (actions ? '<div class="mt-3">' + actions + '</div>' : '') +
       '</div>';
   }
@@ -859,26 +889,6 @@
       '</div>';
   }
 
-  function doSelfDutyCheck(button) {
-    var picked = document.querySelector('input[name="ccSelfDutyShift"]:checked');
-    if (!picked) { toast('Chọn ca trực trước khi nhận ca.', 'warn'); return; }
-    button.disabled = true;
-    api('staff', {
-      body: {
-        action: 'duty_self_check_in',
-        shiftId: picked.value,
-        device: navigator.platform || (navigator.userAgentData && navigator.userAgentData.platform) || 'web'
-      }
-    }).then(function (data) {
-      S.today = data.today;
-      renderHome();
-      toast(data.message, 'success');
-    }).catch(function (err) {
-      button.disabled = false;
-      fail(err);
-    });
-  }
-
   function hhmm(ms) {
     if (!ms) return '';
     try {
@@ -905,43 +915,625 @@
       '<p class="text-[11px] text-slate-400 mt-2">Giờ hành chính do Quản trị đặt trong Quản trị → Thời gian làm việc, không cố định trong mã nguồn.</p>';
   }
 
+  // =========================================================================
+  //  XÁC MINH HIỆN DIỆN - lớp chống gian lận phía trình duyệt
+  //
+  //  Trình duyệt chỉ THU THẬP bằng chứng; mọi kết luận do máy chủ đưa ra:
+  //    1. Xin thử thách một lần (nonce + động tác ngẫu nhiên) từ máy chủ.
+  //    2. Quét / nhập mã QR động tại Trạm (nếu cấu hình yêu cầu).
+  //    3. Chụp 2 khung hình trực tiếp từ camera: nhìn thẳng, rồi làm động tác.
+  //    4. Lấy vị trí ĐÚNG lúc chấm (không theo dõi nền, không lưu ở máy).
+  //    5. Ký "nonce|thao tác|đối tượng|vĩ độ|kinh độ|sha256 ảnh" bằng khoá riêng
+  //       của thiết bị (ECDSA P-256, không xuất được, nằm trong IndexedDB).
+  //  Giờ chấm luôn là giờ máy chủ; giờ máy khách chỉ gửi kèm để phát hiện lệch.
+  // =========================================================================
+
+  var KIND_TITLE = {
+    PUNCH_IN: 'Chấm vào', PUNCH_OUT: 'Chấm ra', DUTY_IN: 'Nhận ca trực', DUTY_OUT: 'Kết ca trực'
+  };
+  var RISK_CLASS = {
+    GREEN: 'bg-emerald-100 text-emerald-800', YELLOW: 'bg-amber-100 text-amber-800', RED: 'bg-red-100 text-red-800'
+  };
+  var RISK_LABEL = { GREEN: 'XANH - hợp lệ', YELLOW: 'VÀNG - cần xem lại', RED: 'ĐỎ - bị chặn' };
+  var DEVICE_STATUS_LABEL = {
+    APPROVED: 'Đã duyệt', PENDING: 'Chờ duyệt', REJECTED: 'Bị từ chối', REVOKED: 'Đã thu hồi'
+  };
+  var OFFLINE_KEY = 'tyt-chamcong-offline';
+
+  function riskBadge(level) {
+    var key = String(level || '').toUpperCase();
+    if (!key) return '';
+    return badge(RISK_LABEL[key] || key, RISK_CLASS[key] || 'bg-slate-100 text-slate-600');
+  }
+
+  // --- Tiện ích mã hoá ------------------------------------------------------
+
+  function bytesToB64u(buffer) {
+    var arr = new Uint8Array(buffer);
+    var bin = '';
+    for (var i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function sha256Hex(bytes) {
+    return crypto.subtle.digest('SHA-256', bytes).then(function (hash) {
+      var arr = new Uint8Array(hash);
+      var s = '';
+      for (var i = 0; i < arr.length; i++) s += ('0' + arr[i].toString(16)).slice(-2);
+      return s;
+    });
+  }
+
+  function dataUrlBytes(dataUrl) {
+    var b64 = String(dataUrl || '').split(',')[1] || '';
+    var bin = atob(b64);
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  // --- Khoá thiết bị --------------------------------------------------------
+
+  function deviceStore(mode, work) {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) {
+        reject(new Error('Trình duyệt không hỗ trợ lưu khoá thiết bị. Hãy dùng Chrome, Edge hoặc Safari bản mới.'));
+        return;
+      }
+      var open = indexedDB.open('tyt-chamcong-device', 1);
+      open.onupgradeneeded = function () { open.result.createObjectStore('keys'); };
+      open.onerror = function () { reject(new Error('Không mở được kho khoá thiết bị của trình duyệt.')); };
+      open.onsuccess = function () {
+        var db = open.result;
+        var tx = db.transaction('keys', mode);
+        var req = work(tx.objectStore('keys'));
+        tx.oncomplete = function () { db.close(); resolve(req ? req.result : undefined); };
+        tx.onerror = function () { db.close(); reject(tx.error || new Error('Lỗi kho khoá thiết bị.')); };
+      };
+    });
+  }
+
+  /**
+   * Một khoá cho mỗi trình duyệt (không theo tài khoản): nhờ vậy máy chủ nhận ra
+   * "một thiết bị dùng cho nhiều tài khoản". Khoá riêng sinh với extractable =
+   * false nên không đọc ra được để chép sang máy khác.
+   */
+  function ensureDeviceKey() {
+    if (SEC.keyPromise) return SEC.keyPromise;
+    if (!window.crypto || !crypto.subtle) {
+      return Promise.reject(new Error('Cần mở phân hệ qua kết nối an toàn (HTTPS) để dùng khoá thiết bị.'));
+    }
+    SEC.keyPromise = deviceStore('readonly', function (store) { return store.get('device'); }).then(function (stored) {
+      if (stored && stored.privateKey && stored.publicKey) return stored;
+      return crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify'])
+        .then(function (pair) {
+          var record = { privateKey: pair.privateKey, publicKey: pair.publicKey, createdAt: Date.now() };
+          return deviceStore('readwrite', function (store) { return store.put(record, 'device'); })
+            .then(function () { return record; });
+        });
+    }).then(function (record) {
+      return crypto.subtle.exportKey('jwk', record.publicKey).then(function (jwk) {
+        SEC.keyPair = record;
+        SEC.publicJwk = { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y };
+        return sha256Hex(new TextEncoder().encode(jwk.x + '|' + jwk.y));
+      }).then(function (hash) {
+        SEC.deviceHash = hash;
+        return record;
+      });
+    });
+    SEC.keyPromise.catch(function () { SEC.keyPromise = null; });
+    return SEC.keyPromise;
+  }
+
+  /** Bỏ khoá cũ (bị từ chối / thu hồi) để đăng ký lại - vẫn phải chờ Quản trị duyệt. */
+  function resetDeviceKey() {
+    SEC.keyPromise = null;
+    SEC.keyPair = null;
+    SEC.deviceHash = '';
+    SEC.device = null;
+    return deviceStore('readwrite', function (store) { return store.delete('device'); });
+  }
+
+  function signText(text) {
+    return ensureDeviceKey().then(function (record) {
+      return crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, record.privateKey, new TextEncoder().encode(text));
+    }).then(bytesToB64u);
+  }
+
+  function devicePlatform() {
+    return (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || 'web';
+  }
+
+  function clientFlags() {
+    return {
+      webdriver: navigator.webdriver === true,
+      touch: Number(navigator.maxTouchPoints || 0),
+      tz: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || ''
+    };
+  }
+
+  // --- Vị trí ---------------------------------------------------------------
+
+  /** Lấy vị trí một lần, độ chính xác cao, không dùng vị trí cũ trong bộ nhớ đệm. */
+  function getLocation() {
+    return new Promise(function (resolve, reject) {
+      if (!navigator.geolocation) {
+        reject(new Error('Thiết bị không hỗ trợ định vị.'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        var c = pos.coords;
+        resolve({
+          lat: c.latitude, lng: c.longitude, accuracy: c.accuracy, positionTs: pos.timestamp,
+          altitude: c.altitude == null ? null : c.altitude, speed: c.speed == null ? null : c.speed
+        });
+      }, function (err) {
+        reject(new Error(err && err.code === 1
+          ? 'Bạn chưa cho phép truy cập vị trí. Hãy bật quyền Vị trí cho trang này rồi chấm lại.'
+          : err && err.code === 3 ? 'Lấy vị trí quá lâu. Hãy ra chỗ thoáng, bật GPS rồi thử lại.'
+            : 'Không lấy được vị trí. Hãy bật GPS rồi thử lại.'));
+      }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+    });
+  }
+
+  // --- Camera ---------------------------------------------------------------
+
+  function stopCamera(cancelled) {
+    if (SEC.stream) {
+      SEC.stream.getTracks().forEach(function (t) { t.stop(); });
+      SEC.stream = null;
+    }
+    if (SEC.scanTimer) { clearInterval(SEC.scanTimer); SEC.scanTimer = null; }
+    if (cancelled && SEC.pendingReject) {
+      var reject = SEC.pendingReject;
+      SEC.pendingReject = null;
+      reject(new Error('CANCELLED'));
+    }
+  }
+
+  function openCamera(video, facing) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return Promise.reject(new Error('Trình duyệt không cho phép dùng camera. Hãy mở bằng Chrome/Safari qua HTTPS.'));
+    }
+    return navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing || 'user', width: { ideal: 640 }, height: { ideal: 640 } }, audio: false
+    }).then(function (stream) {
+      SEC.stream = stream;
+      video.srcObject = stream;
+      return video.play().catch(function () { /* một số máy tự phát */ });
+    }).catch(function (err) {
+      if (err && err.message === 'CANCELLED') throw err;
+      throw new Error(err && err.name === 'NotAllowedError'
+        ? 'Bạn chưa cho phép dùng camera. Hãy bật quyền Camera cho trang này.'
+        : 'Không mở được camera của thiết bị.');
+    });
+  }
+
+  /** Vẽ khung hình hiện tại ra JPEG ~480px - ảnh vẽ lại qua canvas nên không mang EXIF. */
+  function grabFrame(video) {
+    var w = video.videoWidth || 480;
+    var h = video.videoHeight || 480;
+    var scale = Math.min(1, 480 / Math.max(w, h));
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.8);
+  }
+
+  /**
+   * Chụp selfie trực tiếp: khung 1 nhìn thẳng, khung 2 làm động tác ngẫu nhiên
+   * do máy chủ chọn. Không có lựa chọn tải ảnh từ thư viện.
+   */
+  function captureSelfie(opts) {
+    return new Promise(function (resolve, reject) {
+      var challenge = opts.challenge || null;
+      openModal(opts.title || 'Chụp ảnh xác minh',
+        '<div class="space-y-3">' +
+        '<div class="relative mx-auto rounded-2xl overflow-hidden bg-black" style="max-width:360px;aspect-ratio:1/1">' +
+        '<video id="ccCamVideo" playsinline muted autoplay class="w-full h-full object-cover" style="transform:scaleX(-1)"></video>' +
+        '<div class="absolute inset-6 border-4 border-white/70 rounded-full pointer-events-none"></div></div>' +
+        '<p id="ccCamStep" class="text-center text-sm font-bold text-medical-800">Nhìn thẳng vào camera, giữ khuôn mặt trong khung tròn.</p>' +
+        '<p class="text-center text-[11px] text-slate-500">Ảnh chỉ dùng để xác minh lượt chấm, lưu riêng tư và tự xoá theo thời hạn quy định.</p>' +
+        '<div class="flex gap-2 justify-center">' +
+        '<button type="button" id="ccCamShot" disabled class="px-5 py-2.5 bg-medical-600 hover:bg-medical-700 disabled:opacity-50 text-white rounded-xl text-sm font-bold">' +
+        '<i class="fas fa-camera mr-1"></i>Chụp</button>' +
+        (opts.optional ? '<button type="button" id="ccCamSkip" class="px-4 py-2.5 bg-slate-100 rounded-xl text-sm">Bỏ qua ảnh</button>' : '') +
+        '<button type="button" data-cc-act="modal-cancel" class="px-4 py-2.5 bg-slate-100 rounded-xl text-sm">Huỷ</button>' +
+        '</div></div>', null);
+      SEC.pendingReject = reject;
+      var video = el('ccCamVideo');
+      var shot = el('ccCamShot');
+      var frames = [];
+      openCamera(video, 'user').then(function () {
+        shot.disabled = false;
+      }).catch(function (err) {
+        SEC.pendingReject = null;
+        closeModal();
+        reject(err);
+      });
+      if (el('ccCamSkip')) {
+        el('ccCamSkip').addEventListener('click', function () {
+          SEC.pendingReject = null;
+          closeModal();
+          resolve(null);
+        });
+      }
+      shot.addEventListener('click', function () {
+        frames.push(grabFrame(video));
+        if (frames.length === 1 && challenge) {
+          shot.disabled = true;
+          el('ccCamStep').innerHTML = '<span class="text-amber-700">Bây giờ hãy: ' + esc(challenge.label) + '</span>';
+          // Chờ một nhịp để người dùng kịp làm động tác, tránh chụp trùng khung.
+          setTimeout(function () { shot.disabled = false; }, 900);
+          return;
+        }
+        SEC.pendingReject = null;
+        closeModal();
+        var neutralBytes = dataUrlBytes(frames[0]);
+        resolve({ neutral: frames[0], action: frames[1] || null, neutralBytes: neutralBytes });
+      });
+    });
+  }
+
+  // --- Mã QR động -----------------------------------------------------------
+
+  function askQr(mode) {
+    return new Promise(function (resolve, reject) {
+      var canScan = 'BarcodeDetector' in window;
+      openModal('Mã QR tại Trạm',
+        '<p class="text-sm text-slate-600 mb-3">Quét mã QR đang hiển thị trên màn hình tại Trạm, hoặc nhập mã chữ bên dưới mã QR. ' +
+        'Mã đổi liên tục và chỉ dùng được một lần.</p>' +
+        '<div id="ccQrScanBox" class="hidden mb-3 rounded-xl overflow-hidden bg-black mx-auto" style="max-width:320px;aspect-ratio:1/1">' +
+        '<video id="ccQrVideo" playsinline muted autoplay class="w-full h-full object-cover"></video></div>' +
+        field('Mã tại Trạm', input('qr', '', 'text', 'autocomplete="off" autocapitalize="characters" maxlength="64"')) +
+        '<div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200 mt-3">' +
+        '<button type="button" id="ccQrOk" class="px-4 py-2 bg-medical-600 text-white rounded-lg text-sm font-semibold">Tiếp tục</button>' +
+        (canScan ? '<button type="button" id="ccQrScan" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm"><i class="fas fa-qrcode mr-1"></i>Quét bằng camera</button>' : '') +
+        (mode === 'OPTIONAL' ? '<button type="button" id="ccQrSkip" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Bỏ qua</button>' : '') +
+        '<button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Huỷ</button></div>', null);
+      SEC.pendingReject = reject;
+      var done = function (value) {
+        SEC.pendingReject = null;
+        closeModal();
+        resolve(value);
+      };
+      el('ccQrOk').addEventListener('click', function () {
+        var v = String(modalValues().qr || '').trim();
+        if (!v && mode === 'REQUIRED') { toast('Trạm yêu cầu nhập hoặc quét mã QR.', 'warn'); return; }
+        done(v);
+      });
+      if (el('ccQrSkip')) el('ccQrSkip').addEventListener('click', function () { done(''); });
+      if (el('ccQrScan')) {
+        el('ccQrScan').addEventListener('click', function () {
+          var box = el('ccQrScanBox');
+          var video = el('ccQrVideo');
+          box.classList.remove('hidden');
+          var detector;
+          try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (err) { toast('Máy không hỗ trợ quét QR, hãy nhập mã.', 'warn'); return; }
+          openCamera(video, 'environment').then(function () {
+            SEC.scanTimer = setInterval(function () {
+              detector.detect(video).then(function (codes) {
+                if (codes && codes.length && codes[0].rawValue) {
+                  stopCamera(false);
+                  done(String(codes[0].rawValue).slice(0, 120));
+                }
+              }).catch(function () { /* khung hình chưa sẵn sàng */ });
+            }, 350);
+          }).catch(fail);
+        });
+      }
+    });
+  }
+
+  // --- Luồng chấm có xác minh -------------------------------------------------
+
+  function progressModal(title, text) {
+    openModal(title, spinner(text), null);
+  }
+
+  /**
+   * kind: PUNCH_IN | PUNCH_OUT | DUTY_IN | DUTY_OUT
+   * signType: đối tượng ký - IN/OUT, mã suất trực, hoặc "shift:<mã ca>"
+   * body: phần thân riêng của thao tác (action, type/assignmentId/shiftId)
+   */
+  function secureSubmit(kind, signType, body) {
+    if (SEC.busy) return Promise.reject(new Error('Đang xử lý lượt chấm trước, vui lòng chờ.'));
+    SEC.busy = true;
+    var ctx = {};
+    var title = KIND_TITLE[kind] || 'Chấm công';
+    return ensureDeviceKey().then(function () {
+      return api('staff', { body: { action: 'challenge', purpose: 'PRESENCE', deviceHash: SEC.deviceHash } });
+    }).then(function (ch) {
+      ctx.ch = ch;
+      ctx.req = ch.requirements || {};
+      SEC.requirements = ctx.req;
+      SEC.device = ch.device || null;
+      renderDeviceBox();
+      var status = SEC.device ? SEC.device.status : '';
+      if (ctx.req.requireDevice && status !== 'APPROVED') {
+        var e = new Error(!status ? 'Thiết bị này chưa được đăng ký chấm công cho tài khoản của bạn.'
+          : status === 'PENDING' ? 'Thiết bị đang chờ Quản trị viên duyệt, chưa chấm được.'
+            : 'Thiết bị đã bị từ chối / thu hồi quyền chấm công.');
+        e.code = 'DEVICE';
+        throw e;
+      }
+      return ctx.req.qrMode && ctx.req.qrMode !== 'OFF' ? askQr(ctx.req.qrMode) : '';
+    }).then(function (qr) {
+      ctx.qr = qr;
+      if (ctx.req.selfieMode === 'OFF') return null;
+      return captureSelfie({ title: title + ' - chụp ảnh xác minh', challenge: ctx.ch.challenge, optional: ctx.req.selfieMode === 'OPTIONAL' });
+    }).then(function (shot) {
+      ctx.shot = shot;
+      progressModal(title, 'Đang lấy vị trí hiện tại...');
+      return getLocation().catch(function (err) {
+        // Không có vị trí: máy chủ tự chấm mức rủi ro; chỉ dừng hẳn khi Trạm bật vùng chấm công.
+        if (ctx.req.geofence && ctx.req.geofence.enabled) throw err;
+        return null;
+      });
+    }).then(function (loc) {
+      ctx.loc = loc;
+      return ctx.shot ? sha256Hex(ctx.shot.neutralBytes) : '';
+    }).then(function (selfieSha) {
+      var loc = ctx.loc;
+      var payload = [ctx.ch.nonce, kind, signType || '', loc ? loc.lat : '', loc ? loc.lng : '', selfieSha || ''].join('|');
+      return signText(payload);
+    }).then(function (signature) {
+      progressModal(title, 'Đang gửi lượt chấm để máy chủ xác minh...');
+      var full = {
+        nonce: ctx.ch.nonce,
+        location: ctx.loc,
+        selfie: ctx.shot ? ctx.shot.neutral : null,
+        selfieAction: ctx.shot ? ctx.shot.action : null,
+        deviceHash: SEC.deviceHash,
+        signature: signature,
+        qr: ctx.qr || null,
+        clientTs: Date.now(),
+        clientFlags: clientFlags(),
+        device: devicePlatform()
+      };
+      Object.keys(body).forEach(function (k) { full[k] = body[k]; });
+      return api('staff', { body: full });
+    }).then(function (data) {
+      SEC.busy = false;
+      closeModal();
+      return data;
+    }, function (err) {
+      SEC.busy = false;
+      if (err && err.message !== 'CANCELLED') closeModal();
+      throw err;
+    });
+  }
+
+  function reasonsHtml(reasons) {
+    return (reasons || []).length ? '<ul class="space-y-1 text-sm">' + reasons.map(function (r) {
+      return '<li class="flex gap-2"><span class="mt-0.5">' + riskBadge(r.level) + '</span><span class="text-slate-700">' +
+        esc(r.message) + '</span></li>';
+    }).join('') + '</ul>' : '';
+  }
+
+  /** Hiển thị kết quả lượt chấm: XANH chỉ thông báo, VÀNG / ĐỎ nêu rõ lý do. */
+  function showPresenceResult(data) {
+    var level = String(data.riskLevel || 'GREEN').toUpperCase();
+    if (level === 'GREEN') { toast(data.message, 'success'); return; }
+    openModal('Kết quả lượt chấm',
+      '<div class="mb-3 flex items-center gap-2">' + riskBadge(level) +
+      '<span class="text-xs text-slate-500">Mã lượt chấm #' + esc(data.attemptId) + '</span></div>' +
+      '<p class="text-sm text-slate-700 mb-3">' + esc(data.message) + '</p>' +
+      '<p class="text-xs font-semibold text-slate-600 mb-1">Điểm cần người phụ trách xem lại:</p>' + reasonsHtml(data.reasons) +
+      '<p class="text-[11px] text-slate-500 mt-3">Mức VÀNG không phải kết luận vi phạm; người phụ trách sẽ đối chiếu bằng chứng.</p>' +
+      '<div class="pt-3 border-t border-slate-200 mt-3"><button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Đóng</button></div>', null);
+  }
+
+  /** Xử lý lỗi chung của một lượt chấm có xác minh. */
+  function presenceFailed(err, retry) {
+    if (!err || err.message === 'UNAUTHORIZED' || err.message === 'CANCELLED') return;
+    if (err.code === 'DEVICE') {
+      openModal('Thiết bị chưa được duyệt',
+        '<p class="text-sm text-slate-700 mb-3">' + esc(err.message) + '</p>' +
+        '<p class="text-xs text-slate-500 mb-3">Mỗi cán bộ chấm công trên thiết bị đã được Quản trị viên duyệt. ' +
+        'Nếu bạn đã đăng ký, hãy chờ duyệt; nếu chưa, bấm Đăng ký thiết bị.</p>' +
+        '<div class="flex flex-wrap gap-2 pt-3 border-t border-slate-200">' +
+        (SEC.device && SEC.device.status === 'PENDING' ? '' :
+          '<button type="button" data-cc-act="device-register" class="px-4 py-2 bg-medical-600 text-white rounded-lg text-sm font-semibold">Đăng ký thiết bị</button>') +
+        '<button type="button" data-cc-act="adjust-open" class="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm">Gửi đề nghị điều chỉnh</button>' +
+        '<button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Đóng</button></div>', null);
+      return;
+    }
+    var data = err.data || {};
+    if (data.reasons && data.reasons.length) {
+      openModal('Lượt chấm chưa được ghi nhận',
+        '<div class="mb-3 flex items-center gap-2">' + riskBadge(data.riskLevel || 'RED') +
+        (data.attemptId ? '<span class="text-xs text-slate-500">Mã lượt thử #' + esc(data.attemptId) + '</span>' : '') + '</div>' +
+        reasonsHtml(data.reasons) +
+        '<p class="text-xs text-slate-500 mt-3">Lượt thử vẫn được lưu làm bằng chứng. Nếu bạn thực sự có mặt, hãy gửi đề nghị điều chỉnh kèm mã lượt thử.</p>' +
+        '<div class="flex flex-wrap gap-2 pt-3 border-t border-slate-200 mt-3">' +
+        (retry ? '<button type="button" data-cc-act="presence-retry" class="px-4 py-2 bg-medical-600 text-white rounded-lg text-sm font-semibold">Thử lại</button>' : '') +
+        (data.canRequestAdjust ? '<button type="button" data-cc-act="adjust-open" data-attempt="' + esc(data.attemptId || '') +
+          '" class="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm">Gửi đề nghị điều chỉnh</button>' : '') +
+        '<button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Đóng</button></div>', null);
+      SEC.retry = retry || null;
+      return;
+    }
+    fail(err);
+  }
+
+  // --- Hàng đợi ngoại tuyến --------------------------------------------------
+
+  function offlineQueue() {
+    try { return JSON.parse(localStorage.getItem(OFFLINE_KEY) || '[]') || []; } catch (err) { return []; }
+  }
+
+  function saveOfflineQueue(list) {
+    try { localStorage.setItem(OFFLINE_KEY, JSON.stringify(list.slice(-10))); } catch (err) { /* hết chỗ */ }
+  }
+
+  /**
+   * Mất mạng: chỉ ghi lại "ý định chấm" kèm giờ máy. Khi có mạng, máy chủ biến
+   * chúng thành đề nghị điều chỉnh chờ duyệt - không bao giờ thành lượt chấm thẳng.
+   */
+  function queueOffline(type) {
+    var list = offlineQueue();
+    list.push({ type: type, clientTs: Date.now() });
+    saveOfflineQueue(list);
+    toast('Mất kết nối: đã lưu tạm ý định chấm ' + (type === 'IN' ? 'vào' : 'ra') +
+      '. Khi có mạng, hệ thống gửi thành đề nghị điều chỉnh chờ duyệt.', 'warn', 7000);
+  }
+
+  function syncOffline() {
+    var list = offlineQueue();
+    if (!list.length || !S.session || navigator.onLine === false) return;
+    api('staff', { body: { action: 'offline_sync', items: list } }).then(function (data) {
+      saveOfflineQueue([]);
+      toast(data.message, 'info', 6000);
+    }).catch(function (err) {
+      // Dữ liệu không hợp lệ (quá cũ, kỳ đã khoá) thì bỏ, lỗi mạng thì giữ lại.
+      if (err && err.status && err.status < 500) saveOfflineQueue([]);
+    });
+  }
+
+  function isNetworkError(err) {
+    return err && !err.status && err.message !== 'UNAUTHORIZED' && err.message !== 'CANCELLED' && err.code !== 'DEVICE' &&
+      (err instanceof TypeError || navigator.onLine === false);
+  }
+
+  // --- Các thao tác chấm -----------------------------------------------------
+
   function doPunch(type) {
     var button = el(type === 'IN' ? 'ccPunchInBtn' : 'ccPunchOutBtn');
+    if (navigator.onLine === false) { queueOffline(type); return; }
     button.disabled = true;
-    api('staff', {
-      body: {
-        action: 'punch',
-        type: type,
-        /* Ghi lại loại thiết bị để đối chiếu khi có khiếu nại; địa chỉ IP do
-           máy chủ tự lấy, giao diện không gửi lên. */
-        device: navigator.platform || (navigator.userAgentData && navigator.userAgentData.platform) || 'web'
-      }
-    }).then(function (data) {
+    secureSubmit(type === 'IN' ? 'PUNCH_IN' : 'PUNCH_OUT', type, { action: 'punch', type: type }).then(function (data) {
       S.today = data.today;
       renderHome();
       renderLockedBanner();
-      toast(data.message, 'success');
+      showPresenceResult(data);
     }).catch(function (err) {
       button.disabled = false;
-      if (err && err.data && err.data.canRequestAdjust) {
-        /* Chấm ngoài giờ: mở luôn đơn điều chỉnh, đó là đường đi đúng thay vì
-           để cán bộ loay hoay tìm chức năng. */
-        toast(err.message, 'warn');
-        setTimeout(function () { openAdjustForm(); }, 400);
-        return;
-      }
-      fail(err);
+      if (isNetworkError(err)) { queueOffline(type); return; }
+      presenceFailed(err, function () { doPunch(type); });
     });
   }
 
   function doDutyCheck(assignmentId, direction) {
-    api('staff', {
-      body: { action: direction === 'in' ? 'duty_check_in' : 'duty_check_out', assignmentId: assignmentId }
+    var kind = direction === 'in' ? 'DUTY_IN' : 'DUTY_OUT';
+    secureSubmit(kind, assignmentId, {
+      action: direction === 'in' ? 'duty_check_in' : 'duty_check_out', assignmentId: assignmentId
     }).then(function (data) {
       S.today = data.today;
       renderHome();
-      toast(data.message, 'success');
-    }).catch(fail);
+      showPresenceResult(data);
+    }).catch(function (err) {
+      presenceFailed(err, function () { doDutyCheck(assignmentId, direction); });
+    });
+  }
+
+  function doSelfDutyCheck(button) {
+    var picked = document.querySelector('input[name="ccSelfDutyShift"]:checked');
+    if (!picked) { toast('Chọn ca trực trước khi nhận ca.', 'warn'); return; }
+    var shiftId = picked.value;
+    button.disabled = true;
+    secureSubmit('DUTY_IN', 'shift:' + shiftId, { action: 'duty_self_check_in', shiftId: shiftId }).then(function (data) {
+      S.today = data.today;
+      renderHome();
+      showPresenceResult(data);
+    }).catch(function (err) {
+      button.disabled = false;
+      presenceFailed(err, function () { doSelfDutyCheck(button); });
+    });
+  }
+
+  // --- Đăng ký thiết bị -------------------------------------------------------
+
+  function loadDeviceStatus() {
+    if (!S.me || !S.me.employee) { renderDeviceBox(); return; }
+    ensureDeviceKey().then(function () {
+      return api('staff', { query: { view: 'device', deviceHash: SEC.deviceHash } });
+    }).then(function (data) {
+      SEC.device = data.current || null;
+      SEC.requirements = data.requirements || SEC.requirements;
+      renderDeviceBox();
+    }).catch(function (err) {
+      SEC.deviceError = err && err.message;
+      renderDeviceBox();
+    });
+  }
+
+  function renderDeviceBox() {
+    var box = el('ccDeviceBox');
+    if (!box) return;
+    if (!S.me || !S.me.employee) { box.innerHTML = ''; return; }
+    var d = SEC.device;
+    var req = SEC.requirements || {};
+    var status = d ? d.status : '';
+    var tone = status === 'APPROVED' ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+      : status === 'PENDING' ? 'border-amber-200 bg-amber-50 text-amber-800'
+        : 'border-red-200 bg-red-50 text-red-800';
+    var text = SEC.deviceError && !d ? SEC.deviceError
+      : !d ? 'Thiết bị này chưa được đăng ký chấm công.'
+        : status === 'APPROVED' ? 'Thiết bị đã được duyệt: ' + (d.label || 'thiết bị chấm công')
+          : status === 'PENDING' ? 'Thiết bị đang chờ Quản trị viên duyệt.'
+            : 'Thiết bị ' + (DEVICE_STATUS_LABEL[status] || status).toLowerCase() + (d.decisionNote ? ': ' + d.decisionNote : '') + '.';
+    var action = !d ? '<button type="button" data-cc-act="device-register" class="px-3 py-1.5 bg-medical-600 text-white rounded-lg text-xs font-bold">Đăng ký thiết bị</button>'
+      : (status === 'REJECTED' || status === 'REVOKED')
+        ? '<button type="button" data-cc-act="device-rekey" class="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold">Đăng ký lại</button>' : '';
+    var extras = [];
+    if (req.selfieMode && req.selfieMode !== 'OFF') extras.push('selfie trực tiếp');
+    if (req.geofence && req.geofence.enabled) extras.push('vị trí trong bán kính ' + num(req.geofence.radiusM, 0) + ' m');
+    if (req.qrMode === 'REQUIRED') extras.push('mã QR tại Trạm');
+    box.innerHTML = '<div class="rounded-2xl border px-4 py-3 text-sm flex flex-wrap items-center gap-2 ' + tone + '">' +
+      '<i class="fas ' + (status === 'APPROVED' ? 'fa-shield-halved' : 'fa-mobile-screen') + '"></i>' +
+      '<span class="flex-1 min-w-0">' + esc(text) +
+      (extras.length ? '<span class="block text-[11px] opacity-80">Mỗi lượt chấm cần: ' + esc(extras.join(', ')) + '.</span>' : '') +
+      '</span>' + action + '</div>';
+  }
+
+  function openDeviceRegister() {
+    var html =
+      '<p class="text-sm text-slate-600 mb-3">Trình duyệt sẽ tạo một khoá bảo mật riêng cho thiết bị này (khoá không rời khỏi máy) ' +
+      'và chụp một ảnh selfie làm ảnh mẫu. Thiết bị chỉ dùng chấm công được sau khi Quản trị viên duyệt.</p>' +
+      field('Tên thiết bị', input('label', 'Điện thoại của ' + ((S.me && S.me.employee && S.me.employee.fullName) || 'tôi'), 'text', 'maxlength="80"')) +
+      field('Lý do (đổi máy, thêm máy...)', textarea('reason', '', 2)) +
+      submitRow('Tiếp tục - chụp ảnh');
+    openModal('Đăng ký thiết bị chấm công', html, function () {
+      var v = modalValues();
+      var ctx = {};
+      ensureDeviceKey().then(function () {
+        return api('staff', { body: { action: 'challenge', purpose: 'DEVICE', deviceHash: SEC.deviceHash } });
+      }).then(function (ch) {
+        ctx.ch = ch;
+        return captureSelfie({ title: 'Ảnh mẫu khuôn mặt', challenge: null, optional: (ch.requirements || {}).selfieMode === 'OFF' });
+      }).then(function (shot) {
+        ctx.shot = shot;
+        return shot ? sha256Hex(shot.neutralBytes) : '';
+      }).then(function (sha) {
+        return signText([ctx.ch.nonce, 'DEVICE_REGISTER', SEC.deviceHash, '', '', sha || ''].join('|'));
+      }).then(function (signature) {
+        progressModal('Đăng ký thiết bị', 'Đang gửi đăng ký...');
+        return api('staff', {
+          body: {
+            action: 'device_register', publicKey: SEC.publicJwk, nonce: ctx.ch.nonce, signature: signature,
+            selfie: ctx.shot ? ctx.shot.neutral : null, label: v.label, platform: devicePlatform(), reason: v.reason
+          }
+        });
+      }).then(function (data) {
+        closeModal();
+        SEC.device = data.device || SEC.device;
+        toast(data.message, 'success', 6000);
+        loadDeviceStatus();
+      }).catch(function (err) {
+        if (err && err.message === 'CANCELLED') return;
+        closeModal();
+        presenceFailed(err, null);
+      });
+    });
+  }
+
+  function rekeyDevice() {
+    confirmBox('Tạo khoá thiết bị mới và gửi đăng ký lại? Quản trị viên sẽ phải duyệt lại, lịch sử cũ vẫn được giữ.', function () {
+      closeModal();
+      resetDeviceKey().then(function () { openDeviceRegister(); }).catch(fail);
+    }, 'Đăng ký lại');
   }
 
   // =========================================================================
@@ -1163,7 +1755,7 @@
     return code;
   }
 
-  function openAdjustForm() {
+  function openAdjustForm(attemptId) {
     var today = S.today ? S.today.today : '';
     var html =
       '<p class="text-xs text-slate-500 mb-3">Dùng khi quên chấm công, chấm ngoài giờ hoặc thiết bị lỗi. Yêu cầu chỉ có hiệu lực sau khi Phụ trách bộ phận hoặc Quản trị duyệt; lượt chấm được ghi mới và giữ dấu vết của yêu cầu này.</p>' +
@@ -1174,7 +1766,7 @@
       field('Giờ vào buổi chiều', input('inAfternoon', '', 'time')) +
       field('Giờ ra buổi chiều', input('outAfternoon', '', 'time')) +
       '</div>' +
-      field('Lý do', textarea('reason', '', 3), 'Tối thiểu 5 ký tự.') +
+      field('Lý do', textarea('reason', attemptId ? 'Lượt chấm #' + attemptId + ' không được ghi nhận. ' : '', 3), 'Tối thiểu 5 ký tự.') +
       submitRow('Gửi yêu cầu');
 
     openModal('Xin điều chỉnh chấm công', html, function () {
@@ -1432,6 +2024,8 @@
           detail = 'Ngày ' + fmtDateVN(r.targetDate) + ': ' + punches.map(function (p) {
             return (p.type === 'IN' ? 'vào ' : 'ra ') + p.time;
           }).join(', ');
+        } else if (r.kind === 'ADMIN_ADJUST') {
+          detail = adminAdjustDetail(r);
         } else {
           detail = 'Ca ' + (r.shiftName || '') + ' ngày ' + fmtDateVN(r.targetDate) + ' chuyển cho ' + (r.toEmployeeName || '');
         }
@@ -1458,6 +2052,18 @@
       el('ccApprovalList').innerHTML = emptyBox(err.message || 'Không tải được danh sách chờ duyệt.');
       fail(err);
     });
+  }
+
+  /** Mô tả một điều chỉnh do Quản trị lập, đang chờ người thứ hai duyệt. */
+  function adminAdjustDetail(r) {
+    var p = r.payload || {};
+    var op = { CREATE: 'Bổ sung', REPLACE: 'Thay thế', VOID: 'Huỷ hiệu lực' }[p.operation] || p.operation;
+    var what = p.target === 'DUTY_LOG'
+      ? 'nhật ký trực' + (p.checkInTime ? ' nhận ca ' + p.checkInTime : '') + (p.checkOutTime ? ', kết ca ' + p.checkOutTime : '')
+      : 'lượt chấm ' + (p.punchType === 'OUT' ? 'ra' : 'vào') + (p.time ? ' ' + p.time : '');
+    return op + ' ' + what + ' ngày ' + fmtDateVN(p.workDate || r.targetDate) +
+      (p.requestedByName ? ' - người lập: ' + p.requestedByName : '') +
+      '. Bản gốc được giữ nguyên, chỉ chuyển trạng thái.';
   }
 
   function approvalCard(item) {
@@ -1541,7 +2147,7 @@
               '<td class="px-2 py-1 text-center">' + esc({ SELF: 'Tự bấm', ADMIN: 'Quản trị', REQUEST: 'Duyệt đơn' }[p.source] || p.source) + '</td>' +
               '<td class="px-2 py-1 text-center">' +
               (can('timedata.edit') ? '<button type="button" data-cc-act="punch-delete" data-id="' + esc(p.id) +
-                '" class="text-red-600 hover:underline">Xoá</button>' : '') + '</td></tr>';
+                '" class="text-red-600 hover:underline">Huỷ hiệu lực</button>' : '') + '</td></tr>';
           }).join('') + '</tbody></table></div>'
         : emptyBox('Không có lượt chấm công nào trong kỳ.');
 
@@ -1599,13 +2205,16 @@
       field('Giờ (HH:MM)', input('time', '07:30', 'time')) +
       '</div>' +
       field('Ghi chú', input('note', '', 'text')) +
+      field('Lý do điều chỉnh (bắt buộc)', textarea('reason', '', 2),
+        'Lượt chấm gốc không bao giờ bị sửa; nếu bật nguyên tắc bốn mắt, thay đổi chờ người khác duyệt.') +
       submitRow('Lưu lượt chấm');
     openModal('Bổ sung lượt chấm công', html, function () {
       var v = modalValues();
+      if (String(v.reason || '').trim().length < 5) return toast('Nhập lý do điều chỉnh (tối thiểu 5 ký tự).', 'warn');
       api('admin', {
         body: {
           action: 'punch_save', employeeId: employeeId, workDate: v.workDate,
-          punchType: v.punchType, time: v.time, note: v.note
+          punchType: v.punchType, time: v.time, note: v.note, reason: v.reason
         }
       }).then(function (data) {
         toast(data.message, 'success');
@@ -3830,6 +4439,647 @@
   }
 
   // =========================================================================
+  //  AN TOÀN CHẤM CÔNG - bảng điều khiển cho người phụ trách / quản trị
+  //
+  //  Mọi dữ liệu đã được máy chủ lọc theo phạm vi quản lý. Màn hình này chỉ
+  //  XEM bằng chứng và ghi KẾT LUẬN của con người: không có nút sửa hay xoá
+  //  lượt chấm gốc, ảnh selfie chỉ xem (mỗi lần xem được ghi nhật ký).
+  // =========================================================================
+
+  var SEC_TABS = [
+    { key: 'dashboard', label: 'Tổng quan', icon: 'fa-gauge-high', perm: 'security.view' },
+    { key: 'alerts', label: 'Cảnh báo', icon: 'fa-triangle-exclamation', perm: 'security.view' },
+    { key: 'devices', label: 'Thiết bị', icon: 'fa-mobile-screen', perm: 'security.view' },
+    { key: 'selfduty', label: 'Ca tự nhận', icon: 'fa-user-clock', perm: 'security.view' },
+    { key: 'attempts', label: 'Sổ bằng chứng', icon: 'fa-list-check', perm: 'security.view' },
+    { key: 'adjustments', label: 'Lịch sử điều chỉnh', icon: 'fa-clock-rotate-left', perm: 'security.view' },
+    { key: 'sessions', label: 'Phiên đăng nhập', icon: 'fa-user-lock', perm: 'security.review' },
+    { key: 'settings', label: 'Cấu hình', icon: 'fa-sliders', perm: 'security.view' },
+    { key: 'audit', label: 'Kiểm toán', icon: 'fa-link', perm: 'audits.view' }
+  ];
+  var ALERT_STATUS_LABEL = { OPEN: 'Mới', REVIEWING: 'Đang xem xét', RESOLVED: 'Đã xử lý', DISMISSED: 'Bỏ qua' };
+  var RESOLUTION_LABEL = { VALID: 'Hợp lệ', VIOLATION: 'Vi phạm', TECHNICAL: 'Lỗi kỹ thuật', OTHER: 'Khác' };
+  var ATTEMPT_KIND_LABEL = {
+    PUNCH_IN: 'Chấm vào', PUNCH_OUT: 'Chấm ra', DUTY_IN: 'Nhận ca trực', DUTY_OUT: 'Kết ca trực', DEVICE_REGISTER: 'Đăng ký thiết bị'
+  };
+  var TH = 'px-2 py-1.5 text-left font-semibold';
+  var TD = 'px-2 py-1.5 align-top';
+
+  function canSecurity() { return can('security.view'); }
+
+  function secTabs() {
+    return SEC_TABS.filter(function (t) { return can(t.perm); });
+  }
+
+  function renderSecurity() {
+    var tabs = secTabs();
+    if (!tabs.length) { el('ccSecBody').innerHTML = emptyBox('Vai trò của bạn không có quyền xem mục này.'); return; }
+    if (!tabs.some(function (t) { return t.key === S.secTab; })) S.secTab = tabs[0].key;
+    el('ccSecTabs').innerHTML = tabs.map(function (t) {
+      var active = t.key === S.secTab;
+      return '<button type="button" data-cc-act="sec-tab" data-id="' + t.key + '" class="px-3 py-2 rounded-lg text-sm font-medium ' +
+        (active ? 'bg-medical-600 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100') + '">' +
+        '<i class="fas ' + t.icon + ' mr-1"></i>' + esc(t.label) + '</button>';
+    }).join('') +
+      (can('kiosk.qr') ? '<button type="button" data-cc-act="kiosk-open" class="ml-auto px-3 py-2 rounded-lg text-sm font-bold bg-slate-800 text-white">' +
+        '<i class="fas fa-qrcode mr-1"></i>Màn hình QR tại Trạm</button>' : '');
+    var loader = {
+      dashboard: loadSecDashboard, alerts: loadSecAlerts, devices: loadSecDevices, selfduty: loadSecSelfDuty,
+      attempts: loadSecAttempts, adjustments: loadSecAdjustments, sessions: loadSecSessions,
+      settings: loadSecSettings, audit: renderSecAudit
+    }[S.secTab];
+    if (loader) loader();
+  }
+
+  function secCard(title, inner, toolbar) {
+    return '<div class="bg-white rounded-2xl shadow-sm p-4">' +
+      '<div class="flex flex-wrap items-center gap-2 mb-3"><h2 class="font-bold text-slate-700 text-sm">' + esc(title) + '</h2>' +
+      '<div class="ml-auto flex flex-wrap items-center gap-2">' + (toolbar || '') + '</div></div>' + inner + '</div>';
+  }
+
+  function secBody(html) { el('ccSecBody').innerHTML = html; }
+
+  function secFail(err) {
+    secBody(secCard('Không tải được dữ liệu', emptyBox((err && err.message) || 'Có lỗi xảy ra.')));
+    fail(err);
+  }
+
+  function kpi(label, value, tone, hint) {
+    return '<div class="rounded-xl border p-3 ' + (tone || 'border-slate-200 bg-white') + '">' +
+      '<p class="text-[11px] uppercase tracking-wide opacity-70">' + esc(label) + '</p>' +
+      '<p class="text-2xl font-black tabular-nums">' + esc(value) + '</p>' +
+      (hint ? '<p class="text-[11px] opacity-70">' + esc(hint) + '</p>' : '') + '</div>';
+  }
+
+  function toneFor(n, level) {
+    if (!n) return 'border-slate-200 bg-white text-slate-700';
+    return level === 'RED' ? 'border-red-200 bg-red-50 text-red-800'
+      : level === 'YELLOW' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800';
+  }
+
+  function tinyInput(id, value, type) {
+    return '<input id="' + id + '" type="' + type + '" value="' + esc(value || '') + '" class="px-2 py-1 border border-slate-300 rounded-lg text-xs">';
+  }
+
+  function tinySelect(id, options, value) {
+    return '<select id="' + id + '" class="px-2 py-1 border border-slate-300 rounded-lg text-xs">' + options.map(function (o) {
+      return '<option value="' + esc(o.value) + '"' + (String(o.value) === String(value || '') ? ' selected' : '') + '>' + esc(o.label) + '</option>';
+    }).join('') + '</select>';
+  }
+
+  function onChange(ids, fn) {
+    ids.forEach(function (id) { var n = el(id); if (n) n.addEventListener('change', fn); });
+  }
+
+  // --- Tổng quan --------------------------------------------------------------
+
+  function loadSecDashboard() {
+    var date = S.secDate || (S.today && S.today.today) || '';
+    secBody(spinner('Đang tổng hợp số liệu an toàn...'));
+    api('security', { query: { view: 'dashboard', date: date } }).then(function (d) {
+      S.secDate = d.date;
+      var t = d.today.attempts, ta = d.today.alerts, m = d.month.attempts, ma = d.month.alerts;
+      var posture = d.posture || {};
+      var chip = function (ok, label) {
+        return badge((ok ? '✓ ' : '✗ ') + label, ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800');
+      };
+      var max = 1;
+      (d.series || []).forEach(function (r) { max = Math.max(max, r.green + r.yellow + r.red); });
+      var chart = '<div class="flex items-end gap-[2px] h-32">' + (d.series || []).map(function (r) {
+        var h = function (n) { return Math.round((n / max) * 120); };
+        return '<div class="flex-1 flex flex-col justify-end" title="' + esc(fmtDateVN(r.date) + ': ' + r.green + ' xanh, ' + r.yellow + ' vàng, ' + r.red + ' đỏ') + '">' +
+          '<div class="bg-red-500" style="height:' + h(r.red) + 'px"></div>' +
+          '<div class="bg-amber-400" style="height:' + h(r.yellow) + 'px"></div>' +
+          '<div class="bg-emerald-500" style="height:' + h(r.green) + 'px"></div></div>';
+      }).join('') + '</div>';
+
+      var html =
+        secCard('Tình trạng bảo vệ', '<div class="flex flex-wrap gap-2">' +
+          chip(posture.geofenceConfigured, 'Vùng chấm công') + chip(posture.requireDevice, 'Bắt buộc thiết bị đã duyệt') +
+          chip(posture.selfieMode === 'REQUIRED', 'Selfie: ' + posture.selfieMode) + chip(posture.qrMode !== 'OFF', 'QR: ' + posture.qrMode) +
+          chip(posture.fourEyes, 'Nguyên tắc bốn mắt') + chip(posture.singleSession, 'Một phiên / tài khoản') + '</div>',
+          tinyInput('ccSecDate', d.date, 'date')) +
+        secCard('Hôm nay ' + fmtDateVN(d.date), '<div class="grid grid-cols-2 md:grid-cols-6 gap-2">' +
+          kpi('Lượt chấm', t.total, 'border-slate-200 bg-white') +
+          kpi('Xanh', t.green, toneFor(t.green, 'GREEN')) +
+          kpi('Vàng', t.yellow, toneFor(t.yellow, 'YELLOW')) +
+          kpi('Đỏ', t.red, toneFor(t.red, 'RED')) +
+          kpi('Bị chặn', t.rejected, toneFor(t.rejected, 'RED')) +
+          kpi('Cảnh báo mở', ta.open, toneFor(ta.open, 'YELLOW'), ta.total + ' cảnh báo trong ngày') + '</div>') +
+        secCard('Tháng ' + d.period, '<div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">' +
+          kpi('Lượt chấm', m.total, 'border-slate-200 bg-white') +
+          kpi('Vàng', m.yellow, toneFor(m.yellow, 'YELLOW')) +
+          kpi('Đỏ', m.red, toneFor(m.red, 'RED')) +
+          kpi('Vi phạm đã kết luận', ma.violations, toneFor(ma.violations, 'RED')) +
+          kpi('Điều chỉnh', d.month.adjustments, 'border-slate-200 bg-white', d.month.selfApprovedAdjustments + ' tự duyệt') +
+          kpi('Cảnh báo mở', ma.open, toneFor(ma.open, 'YELLOW')) + '</div>' + chart +
+          '<p class="text-[11px] text-slate-500 mt-1">Cột: số lượt chấm theo ngày (xanh / vàng / đỏ).</p>') +
+        '<div class="grid md:grid-cols-3 gap-4">' +
+        secCard('Việc chờ xử lý', '<div class="grid grid-cols-2 gap-2">' +
+          kpi('Thiết bị chờ duyệt', d.pending.devices, toneFor(d.pending.devices, 'YELLOW')) +
+          kpi('Ca tự nhận chờ', d.pending.selfDuty, toneFor(d.pending.selfDuty, 'YELLOW')) +
+          kpi('Thiết bị dùng chung', d.sharedDevices, toneFor(d.sharedDevices, 'RED')) +
+          kpi('Phiên đang mở', d.activeSessions, 'border-slate-200 bg-white') + '</div>') +
+        secCard('Cảnh báo theo loại (tháng)', (d.byCategory || []).length ? '<div class="space-y-1">' + d.byCategory.map(function (c) {
+          return '<div class="flex items-center gap-2 text-xs">' + riskBadge(c.level) + '<span class="flex-1">' + esc(c.label) + '</span><strong>' + c.n + '</strong></div>';
+        }).join('') + '</div>' : emptyBox('Không có cảnh báo.')) +
+        secCard('Nhiều cảnh báo nhất (tháng)', (d.topPeople || []).length ? '<div class="space-y-1">' + d.topPeople.map(function (p) {
+          return '<div class="flex items-center gap-2 text-xs"><span class="flex-1">' + esc(p.name || p.employeeId) + '</span><strong>' + p.count + '</strong></div>';
+        }).join('') + '</div><p class="text-[11px] text-slate-500 mt-2">Số cảnh báo chỉ là tín hiệu để xem lại, không phải kết luận vi phạm.</p>'
+          : emptyBox('Không có.')) +
+        '</div>';
+      secBody(html);
+      onChange(['ccSecDate'], function () { S.secDate = el('ccSecDate').value; loadSecDashboard(); });
+    }).catch(secFail);
+  }
+
+  // --- Cảnh báo ---------------------------------------------------------------
+
+  function loadSecAlerts() {
+    var f = S.secAlertFilter || (S.secAlertFilter = { status: 'ACTIVE', level: '' });
+    secBody(spinner());
+    api('security', { query: { view: 'alerts', status: f.status, level: f.level } }).then(function (d) {
+      S.secAlerts = d.alerts || [];
+      var toolbar = tinySelect('ccSecAlertStatus', [
+        { value: 'ACTIVE', label: 'Đang mở' }, { value: '', label: 'Tất cả' }, { value: 'RESOLVED', label: 'Đã xử lý' }, { value: 'DISMISSED', label: 'Bỏ qua' }
+      ], f.status) + tinySelect('ccSecAlertLevel', [
+        { value: '', label: 'Mọi mức' }, { value: 'RED', label: 'Đỏ' }, { value: 'YELLOW', label: 'Vàng' }
+      ], f.level);
+      var list = S.secAlerts.map(function (a) {
+        var open = a.status === 'OPEN' || a.status === 'REVIEWING';
+        return '<div class="border border-slate-200 rounded-xl p-3" style="border-left:4px solid ' + (a.level === 'RED' ? '#dc2626' : '#f59e0b') + '">' +
+          '<div class="flex flex-wrap items-center gap-2 mb-1">' + riskBadge(a.level) +
+          badge(a.categoryLabel, 'bg-slate-100 text-slate-700') +
+          badge(ALERT_STATUS_LABEL[a.status] || a.status, open ? 'bg-sky-100 text-sky-800' : 'bg-slate-100 text-slate-600') +
+          '<span class="text-[11px] text-slate-400 ml-auto">' + esc(fmtDateVN(a.day)) + ' ' + esc(a.time) + '</span></div>' +
+          '<p class="text-sm font-semibold text-slate-800">' + esc(a.title) + '</p>' +
+          (a.employeeName ? '<p class="text-xs text-slate-700">Cán bộ: ' + esc(a.employeeName) + '</p>' : '') +
+          '<p class="text-xs text-slate-600">Nguyên nhân: ' + esc(a.cause) + '</p>' +
+          (a.handledByName ? '<p class="text-xs text-slate-500">Người xử lý: ' + esc(a.handledByName) +
+            (a.resolution ? ' - kết quả: ' + esc(RESOLUTION_LABEL[a.resolution] || a.resolution) : '') +
+            (a.resolutionNote ? ' - ' + esc(a.resolutionNote) : '') + '</p>' : '') +
+          (a.evidence ? '<details class="mt-1"><summary class="text-xs text-medical-700 cursor-pointer">Bằng chứng</summary>' +
+            '<pre class="text-[11px] bg-slate-50 rounded p-2 overflow-x-auto whitespace-pre-wrap">' + esc(JSON.stringify(a.evidence, null, 2)) + '</pre></details>' : '') +
+          '<div class="flex flex-wrap gap-2 mt-2">' +
+          (a.attemptId ? '<button type="button" data-cc-act="sec-attempt" data-id="' + esc(a.attemptId) + '" class="px-3 py-1 bg-slate-100 rounded-lg text-xs">Xem lượt chấm #' + esc(a.attemptId) + '</button>' : '') +
+          (can('security.review') ? '<button type="button" data-cc-act="sec-alert-handle" data-id="' + esc(a.id) + '" class="px-3 py-1 bg-medical-600 text-white rounded-lg text-xs font-semibold">' +
+            (open ? 'Xử lý' : 'Mở lại / sửa kết luận') + '</button>' : '') +
+          '</div></div>';
+      }).join('');
+      secBody(secCard('Cảnh báo (' + S.secAlerts.length + ')', '<div class="space-y-2">' + (list || emptyBox('Không có cảnh báo nào.')) + '</div>' +
+        '<p class="text-[11px] text-slate-500 mt-3">Mức VÀNG/ĐỎ là tín hiệu tự động. Chỉ người xử lý được kết luận "vi phạm" sau khi xem bằng chứng.</p>', toolbar));
+      onChange(['ccSecAlertStatus', 'ccSecAlertLevel'], function () {
+        S.secAlertFilter = { status: el('ccSecAlertStatus').value, level: el('ccSecAlertLevel').value };
+        loadSecAlerts();
+      });
+    }).catch(secFail);
+  }
+
+  function openAlertHandle(id) {
+    var a = (S.secAlerts || []).filter(function (x) { return String(x.id) === String(id); })[0];
+    if (!a) return;
+    var html = '<p class="text-sm font-semibold text-slate-800 mb-1">' + esc(a.title) + '</p>' +
+      '<p class="text-xs text-slate-600 mb-3">' + esc(a.cause) + '</p>' +
+      field('Trạng thái', select('status', [
+        { value: 'REVIEWING', label: 'Đang xem xét' }, { value: 'RESOLVED', label: 'Đã xử lý (đóng)' },
+        { value: 'DISMISSED', label: 'Bỏ qua (đóng)' }, { value: 'OPEN', label: 'Mở lại' }
+      ], a.status === 'OPEN' ? 'REVIEWING' : a.status)) +
+      field('Kết quả (khi đóng)', select('resolution', [
+        { value: '', label: '-- chọn --' }, { value: 'VALID', label: 'Hợp lệ - không có gian lận' },
+        { value: 'TECHNICAL', label: 'Lỗi kỹ thuật (GPS, camera, mạng...)' }, { value: 'VIOLATION', label: 'Vi phạm (đã xác minh)' },
+        { value: 'OTHER', label: 'Khác' }
+      ], a.resolution || '')) +
+      field('Nhận xét', textarea('note', '', 3), 'Bắt buộc khi đóng. Kết luận vi phạm cần nêu cụ thể bằng chứng đã xem (≥ 15 ký tự).') +
+      submitRow('Lưu kết luận');
+    openModal('Xử lý cảnh báo', html, function () {
+      var v = modalValues();
+      api('security', { body: { action: 'alert_update', id: a.id, status: v.status, resolution: v.resolution, note: v.note } }).then(function (data) {
+        closeModal();
+        toast(data.message, 'success');
+        loadSecAlerts();
+      }).catch(fail);
+    });
+  }
+
+  // --- Lượt chấm & ảnh ----------------------------------------------------------
+
+  /** Ảnh selfie: tải bằng phiếu đăng nhập rồi hiển thị qua blob URL (ảnh không có đường dẫn công khai). */
+  function loadSelfieInto(imgId, attemptId, frame) {
+    var img = el(imgId);
+    if (!img) return;
+    fetch('/api/attendance/security?view=selfie&id=' + encodeURIComponent(attemptId) + (frame ? '&frame=' + frame : ''), {
+      headers: { Authorization: 'Bearer ' + (S.session ? S.session.token : '') }, cache: 'no-store'
+    }).then(function (res) {
+      if (!res.ok) return res.json().catch(function () { return {}; }).then(function (d) { throw new Error(d.error || 'Không tải được ảnh.'); });
+      return res.blob();
+    }).then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      img.onload = function () { setTimeout(function () { URL.revokeObjectURL(url); }, 1000); };
+      img.src = url;
+      img.classList.remove('hidden');
+    }).catch(function (err) {
+      img.insertAdjacentHTML('afterend', '<p class="text-xs text-slate-500">' + esc(err.message) + '</p>');
+    });
+  }
+
+  function openAttemptDetail(id) {
+    openModal('Lượt chấm #' + id, spinner(), null);
+    api('security', { query: { view: 'attempt', id: id } }).then(function (d) {
+      if (el('ccModal').classList.contains('hidden')) return;
+      var a = d.attempt;
+      var row = function (k, v) { return '<tr class="border-t border-slate-100"><td class="' + TD + ' text-slate-500 w-40">' + esc(k) + '</td><td class="' + TD + '">' + v + '</td></tr>'; };
+      var map = a.lat != null ? '<a class="text-medical-700 underline" target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat=' +
+        encodeURIComponent(a.lat) + '&mlon=' + encodeURIComponent(a.lng) + '#map=18/' + encodeURIComponent(a.lat) + '/' + encodeURIComponent(a.lng) + '">' +
+        esc(Number(a.lat).toFixed(6) + ', ' + Number(a.lng).toFixed(6)) + '</a>' : '—';
+      var html = '<div class="flex flex-wrap items-center gap-2 mb-2">' + riskBadge(a.riskLevel) +
+        badge(a.result === 'ACCEPTED' ? 'Được ghi nhận' : 'Bị chặn', a.result === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800') +
+        '<span class="text-xs text-slate-500">' + esc(ATTEMPT_KIND_LABEL[a.kind] || a.kind) + '</span></div>' +
+        '<table class="w-full text-xs mb-3"><tbody>' +
+        row('Cán bộ', esc(a.employeeName || '—')) +
+        row('Giờ máy chủ', esc(fmtDateVN(a.workDate) + ' ' + a.serverTime)) +
+        row('Lệch đồng hồ máy', a.clockSkewMs != null ? esc(Math.round(a.clockSkewMs / 1000) + ' giây') : '—') +
+        row('Vị trí', map) +
+        row('Sai số GPS', a.accuracyM != null ? esc(Math.round(a.accuracyM) + ' m') : '—') +
+        row('Cách Trạm', a.distanceM != null ? esc(Math.round(a.distanceM) + ' m') + (a.geofenceOk === 'false' || a.geofenceOk === false ? ' ' + badge('ngoài vùng', 'bg-red-100 text-red-800') : '') : '—') +
+        row('Thiết bị', esc(d.device ? (d.device.label || '') + ' (' + (DEVICE_STATUS_LABEL[d.device.status] || d.device.status) + ')' : 'không xác định') +
+          ' · chữ ký ' + (String(a.deviceSignatureOk) === 'true' ? '✓' : '✗')) +
+        row('IP / trình duyệt', esc((a.ip || '—') + ' · ' + (a.browser || '') + (a.ipGeo ? ' · ' + a.ipGeo : ''))) +
+        row('Khuôn mặt', esc(a.faceScore != null ? 'tương đồng ' + Math.round(a.faceScore * 100) + '%' : 'chưa đối chiếu') + ' · người thật: ' + esc(a.livenessResult || '—')) +
+        row('QR tại Trạm', a.qrUsed ? '✓' : '—') +
+        '</tbody></table>' +
+        (a.reasons && a.reasons.length ? '<p class="text-xs font-semibold text-slate-600 mb-1">Lý do:</p>' + reasonsHtml(a.reasons) : '<p class="text-xs text-emerald-700">Không có dấu hiệu bất thường.</p>') +
+        (a.aiVerdict ? '<p class="text-[11px] text-slate-500 mt-2">AI tham khảo (không dùng để kết luận): ' + esc(a.aiVerdict.note || JSON.stringify(a.aiVerdict)) + '</p>' : '');
+      if (d.canViewSelfie) {
+        html += '<div class="grid grid-cols-2 gap-2 mt-3">' +
+          '<div><p class="text-[11px] text-slate-500 mb-1">Khung nhìn thẳng</p><img id="ccSelfieN" class="hidden w-full rounded-lg border" alt="Ảnh selfie"></div>' +
+          '<div><p class="text-[11px] text-slate-500 mb-1">Khung động tác</p><img id="ccSelfieA" class="hidden w-full rounded-lg border" alt="Ảnh động tác"></div></div>' +
+          '<p class="text-[11px] text-slate-400 mt-1">Ảnh chỉ để xem; mỗi lần xem được ghi vào nhật ký kiểm toán.</p>';
+      } else if (a.hasSelfie) {
+        html += '<p class="text-xs text-slate-500 mt-3">Có ảnh selfie - cần quyền xem xét bằng chứng để xem.</p>';
+      }
+      if ((d.alerts || []).length) {
+        html += '<p class="text-xs font-semibold text-slate-600 mt-3 mb-1">Cảnh báo liên quan:</p>' + d.alerts.map(function (x) {
+          return '<p class="text-xs">' + riskBadge(x.level) + ' ' + esc(x.title) + ' - ' + esc(ALERT_STATUS_LABEL[x.status] || x.status) + '</p>';
+        }).join('');
+      }
+      html += '<div class="flex flex-wrap gap-2 pt-3 border-t border-slate-200 mt-3">' +
+        (d.canViewSelfie && can('security.review') ? '<button type="button" data-cc-act="sec-template" data-id="' + esc(a.id) +
+          '" class="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs">Dùng ảnh này làm ảnh mẫu khuôn mặt</button>' : '') +
+        '<button type="button" data-cc-act="modal-cancel" class="px-3 py-1.5 bg-slate-100 rounded-lg text-xs">Đóng</button></div>';
+      el('ccModalBody').innerHTML = html;
+      if (d.canViewSelfie) {
+        loadSelfieInto('ccSelfieN', a.id, '');
+        if (a.kind !== 'DEVICE_REGISTER') loadSelfieInto('ccSelfieA', a.id, 'action');
+      }
+    }).catch(function (err) { el('ccModalBody').innerHTML = emptyBox(err.message || 'Không tải được lượt chấm.'); });
+  }
+
+  function loadSecAttempts() {
+    var f = S.secAttemptFilter || (S.secAttemptFilter = { date: (S.today && S.today.today) || '', result: '', level: '' });
+    secBody(spinner());
+    api('security', { query: { view: 'attempts', date: f.date, result: f.result, level: f.level } }).then(function (d) {
+      var rows = (d.attempts || []).map(function (a) {
+        return '<tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" data-cc-act="sec-attempt" data-id="' + esc(a.id) + '">' +
+          '<td class="' + TD + ' tabular-nums">' + esc(a.serverTime) + '</td>' +
+          '<td class="' + TD + '">' + esc(a.employeeName) + '</td>' +
+          '<td class="' + TD + '">' + esc(ATTEMPT_KIND_LABEL[a.kind] || a.kind) + '</td>' +
+          '<td class="' + TD + '">' + riskBadge(a.riskLevel) + '</td>' +
+          '<td class="' + TD + '">' + (a.result === 'ACCEPTED' ? 'Ghi nhận' : '<span class="text-red-700 font-semibold">Chặn</span>') + '</td>' +
+          '<td class="' + TD + '">' + (a.distanceM != null ? esc(Math.round(a.distanceM) + ' m') : '—') + '</td>' +
+          '<td class="' + TD + ' text-slate-600">' + esc((a.reasons || []).map(function (r) { return r.code; }).join(', ')) + '</td></tr>';
+      }).join('');
+      var toolbar = tinyInput('ccSecAttDate', f.date, 'date') +
+        tinySelect('ccSecAttResult', [{ value: '', label: 'Mọi kết quả' }, { value: 'ACCEPTED', label: 'Ghi nhận' }, { value: 'REJECTED', label: 'Bị chặn' }], f.result) +
+        tinySelect('ccSecAttLevel', [{ value: '', label: 'Mọi mức' }, { value: 'GREEN', label: 'Xanh' }, { value: 'YELLOW', label: 'Vàng' }, { value: 'RED', label: 'Đỏ' }], f.level);
+      secBody(secCard('Sổ bằng chứng lượt chấm', rows ? '<div class="overflow-x-auto"><table class="w-full text-xs min-w-[720px]"><thead><tr class="bg-slate-50 text-slate-500">' +
+        '<th class="' + TH + '">Giờ</th><th class="' + TH + '">Cán bộ</th><th class="' + TH + '">Thao tác</th><th class="' + TH + '">Mức</th>' +
+        '<th class="' + TH + '">Kết quả</th><th class="' + TH + '">Cách Trạm</th><th class="' + TH + '">Mã lý do</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+        : emptyBox('Không có lượt chấm nào.'), toolbar));
+      onChange(['ccSecAttDate', 'ccSecAttResult', 'ccSecAttLevel'], function () {
+        S.secAttemptFilter = { date: el('ccSecAttDate').value, result: el('ccSecAttResult').value, level: el('ccSecAttLevel').value };
+        loadSecAttempts();
+      });
+    }).catch(secFail);
+  }
+
+  // --- Thiết bị ---------------------------------------------------------------
+
+  function loadSecDevices() {
+    var status = S.secDeviceStatus === undefined ? 'PENDING' : S.secDeviceStatus;
+    secBody(spinner());
+    api('security', { query: { view: 'devices', status: status } }).then(function (d) {
+      var review = can('security.review');
+      var list = (d.devices || []).map(function (x) {
+        return '<div class="border border-slate-200 rounded-xl p-3">' +
+          '<div class="flex flex-wrap items-center gap-2 mb-1"><span class="font-semibold text-sm">' + esc(x.employeeName || '—') + '</span>' +
+          badge(DEVICE_STATUS_LABEL[x.status] || x.status, x.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : x.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800') +
+          (x.accountsOnDevice > 1 ? badge('Dùng chung ' + x.accountsOnDevice + ' tài khoản', 'bg-red-100 text-red-800') : '') +
+          (x.hasFaceTemplate ? badge('Có ảnh mẫu', 'bg-slate-100 text-slate-600') : badge('Chưa có ảnh mẫu', 'bg-slate-100 text-slate-500')) +
+          '<span class="text-[11px] text-slate-400 ml-auto">' + esc(fmtTimestamp(x.createdAt)) + '</span></div>' +
+          '<p class="text-xs text-slate-600">' + esc((x.label || '') + ' · ' + (x.platform || '') + ' · ' + (x.browser || '')) + '</p>' +
+          '<p class="text-[11px] text-slate-500">Mã thiết bị ' + esc(String(x.deviceHash || '').slice(0, 16)) + '… · IP ' + esc(x.firstIp || '—') +
+          (x.lastIp && x.lastIp !== x.firstIp ? ' → ' + esc(x.lastIp) : '') + (x.lastSeenAt ? ' · dùng gần nhất ' + esc(fmtTimestamp(x.lastSeenAt)) : '') + '</p>' +
+          (x.requestReason ? '<p class="text-xs text-slate-600">Lý do: ' + esc(x.requestReason) + '</p>' : '') +
+          (x.decidedByName ? '<p class="text-xs text-slate-500">Người xử lý: ' + esc(x.decidedByName) + (x.decisionNote ? ' - ' + esc(x.decisionNote) : '') + '</p>' : '') +
+          '<div class="flex flex-wrap gap-2 mt-2">' +
+          (x.registrationAttemptId ? '<button type="button" data-cc-act="sec-attempt" data-id="' + esc(x.registrationAttemptId) + '" class="px-3 py-1 bg-slate-100 rounded-lg text-xs">Ảnh đăng ký</button>' : '') +
+          (review && x.status === 'PENDING' ? '<button type="button" data-cc-act="sec-device" data-id="' + esc(x.id) + '" data-decision="APPROVE" class="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-semibold">Duyệt</button>' +
+            '<button type="button" data-cc-act="sec-device" data-id="' + esc(x.id) + '" data-decision="REJECT" class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Từ chối</button>' : '') +
+          (review && x.status === 'APPROVED' ? '<button type="button" data-cc-act="sec-device" data-id="' + esc(x.id) + '" data-decision="REVOKE" class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Thu hồi</button>' : '') +
+          '</div></div>';
+      }).join('');
+      secBody(secCard('Thiết bị chấm công', '<div class="space-y-2">' + (list || emptyBox('Không có thiết bị nào.')) + '</div>',
+        tinySelect('ccSecDevStatus', [{ value: 'PENDING', label: 'Chờ duyệt' }, { value: 'APPROVED', label: 'Đã duyệt' },
+          { value: 'REJECTED', label: 'Từ chối' }, { value: 'REVOKED', label: 'Thu hồi' }, { value: '', label: 'Tất cả' }], status)));
+      onChange(['ccSecDevStatus'], function () { S.secDeviceStatus = el('ccSecDevStatus').value; loadSecDevices(); });
+    }).catch(secFail);
+  }
+
+  function decideDevice(id, decision) {
+    var label = { APPROVE: 'Duyệt thiết bị', REJECT: 'Từ chối thiết bị', REVOKE: 'Thu hồi thiết bị' }[decision];
+    var html = (decision === 'APPROVE'
+      ? '<p class="text-sm text-slate-600 mb-3">Hãy xem ảnh đăng ký trước khi duyệt. Ảnh này sẽ làm ảnh mẫu khuôn mặt nếu cán bộ chưa có.</p>' +
+        checkbox('replaceTemplate', 'Thay ảnh mẫu hiện có bằng ảnh đăng ký này', false)
+      : '<p class="text-sm text-slate-600 mb-3">Thiết bị sẽ không dùng chấm công được nữa. Lịch sử cũ vẫn được giữ nguyên.</p>') +
+      field('Ghi chú', textarea('note', '', 2), decision === 'APPROVE' ? 'Không bắt buộc.' : 'Bắt buộc (≥ 5 ký tự).') + submitRow(label);
+    openModal(label, html, function () {
+      var v = modalValues();
+      api('security', { body: { action: 'device_decide', id: id, decision: decision, note: v.note, replaceTemplate: !!v.replaceTemplate } }).then(function (data) {
+        closeModal();
+        toast(data.message, 'success');
+        loadSecDevices();
+      }).catch(fail);
+    });
+  }
+
+  // --- Ca trực tự nhận ------------------------------------------------------------
+
+  function loadSecSelfDuty() {
+    secBody(spinner());
+    api('security', { query: { view: 'self_duty' } }).then(function (d) {
+      var list = (d.items || []).map(function (x) {
+        return '<div class="border border-slate-200 rounded-xl p-3">' +
+          '<div class="flex flex-wrap items-center gap-2 mb-1"><span class="font-semibold text-sm">' + esc(x.employeeName) + '</span>' +
+          riskBadge(x.riskLevel) + '</div>' +
+          '<p class="text-xs text-slate-600">' + esc(x.shiftName + ' (' + x.shiftTime + ') ngày ' + fmtDateVN(x.dutyDate)) + '</p>' +
+          '<p class="text-xs text-slate-500">Nhận ca ' + esc(x.checkIn || '—') + ' · kết ca ' + esc(x.checkOut || '—') + '</p>' +
+          '<div class="flex flex-wrap gap-2 mt-2">' +
+          (x.checkInAttemptId ? '<button type="button" data-cc-act="sec-attempt" data-id="' + esc(x.checkInAttemptId) + '" class="px-3 py-1 bg-slate-100 rounded-lg text-xs">Bằng chứng nhận ca</button>' : '') +
+          (x.checkOutAttemptId ? '<button type="button" data-cc-act="sec-attempt" data-id="' + esc(x.checkOutAttemptId) + '" class="px-3 py-1 bg-slate-100 rounded-lg text-xs">Bằng chứng kết ca</button>' : '') +
+          (can('security.review') ? '<button type="button" data-cc-act="sec-selfduty" data-id="' + esc(x.id) + '" data-decision="APPROVE" class="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-semibold">Xác nhận</button>' +
+            '<button type="button" data-cc-act="sec-selfduty" data-id="' + esc(x.id) + '" data-decision="REJECT" class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs">Không xác nhận</button>' : '') +
+          '</div></div>';
+      }).join('');
+      secBody(secCard('Ca trực tự nhận chờ xác nhận', '<p class="text-xs text-slate-500 mb-3">Ca tự nhận ngoài lịch chỉ được tính giờ trực sau khi được xác nhận.</p>' +
+        '<div class="space-y-2">' + (list || emptyBox('Không có ca nào chờ xác nhận.')) + '</div>'));
+    }).catch(secFail);
+  }
+
+  function decideSelfDuty(id, decision) {
+    var approve = decision === 'APPROVE';
+    openModal(approve ? 'Xác nhận ca trực' : 'Không xác nhận ca trực',
+      field('Ghi chú', textarea('note', '', 2), approve ? 'Không bắt buộc.' : 'Bắt buộc (≥ 5 ký tự).') + submitRow(approve ? 'Xác nhận' : 'Không xác nhận'),
+      function () {
+        var v = modalValues();
+        api('security', { body: { action: 'self_duty_decide', id: id, decision: decision, note: v.note } }).then(function (data) {
+          closeModal();
+          toast(data.message, 'success');
+          loadSecSelfDuty();
+        }).catch(fail);
+      });
+  }
+
+  // --- Lịch sử điều chỉnh -------------------------------------------------------
+
+  function describeRecord(r) {
+    if (!r) return '—';
+    if (r.punchType) return (r.punchType === 'IN' ? 'Vào ' : 'Ra ') + (r.time || '') + (r.state && r.state !== 'ACTIVE' ? ' [' + r.state + ']' : '');
+    return 'Nhận ' + (r.checkIn || '—') + ', kết ' + (r.checkOut || '—');
+  }
+
+  function loadSecAdjustments() {
+    var period = S.secAdjPeriod || currentPeriod();
+    secBody(spinner());
+    api('security', { query: { view: 'adjustments', period: period } }).then(function (d) {
+      var rows = (d.adjustments || []).map(function (x) {
+        return '<tr class="border-t border-slate-100">' +
+          '<td class="' + TD + '">' + esc(fmtTimestamp(x.createdAt)) + '</td>' +
+          '<td class="' + TD + '">' + esc(x.employeeName) + '<br><span class="text-slate-400">' + esc(fmtDateVN(x.workDate)) + '</span></td>' +
+          '<td class="' + TD + '">' + esc((x.targetType === 'PUNCH' ? 'Lượt chấm' : 'Nhật ký trực') + ' · ' + ({ CREATE: 'bổ sung', REPLACE: 'thay thế', VOID: 'huỷ hiệu lực' }[x.operation] || x.operation)) + '</td>' +
+          '<td class="' + TD + '">' + esc(describeRecord(x.beforeData)) + '</td>' +
+          '<td class="' + TD + '">' + esc(describeRecord(x.afterData)) + '</td>' +
+          '<td class="' + TD + '">' + esc(x.reason) + '</td>' +
+          '<td class="' + TD + '">' + esc(x.requestedByName || '') + '</td>' +
+          '<td class="' + TD + '">' + esc(x.approvedByName || '') + (x.selfApproved ? ' ' + badge('tự duyệt', 'bg-amber-100 text-amber-800') : '') + '</td></tr>';
+      }).join('');
+      secBody(secCard('Lịch sử điều chỉnh (chỉ ghi thêm, không sửa được)', rows
+        ? '<div class="overflow-x-auto"><table class="w-full text-xs min-w-[900px]"><thead><tr class="bg-slate-50 text-slate-500">' +
+          '<th class="' + TH + '">Thời điểm</th><th class="' + TH + '">Cán bộ / ngày</th><th class="' + TH + '">Thao tác</th>' +
+          '<th class="' + TH + '">Trước</th><th class="' + TH + '">Sau</th><th class="' + TH + '">Lý do</th>' +
+          '<th class="' + TH + '">Người đề nghị</th><th class="' + TH + '">Người duyệt</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+        : emptyBox('Không có điều chỉnh nào trong kỳ.'), tinyInput('ccSecAdjPeriod', period, 'month')));
+      onChange(['ccSecAdjPeriod'], function () { S.secAdjPeriod = el('ccSecAdjPeriod').value; loadSecAdjustments(); });
+    }).catch(secFail);
+  }
+
+  // --- Phiên đăng nhập ----------------------------------------------------------
+
+  function loadSecSessions() {
+    secBody(spinner());
+    api('security', { query: { view: 'sessions' } }).then(function (d) {
+      var counts = {};
+      (d.sessions || []).forEach(function (x) { counts[x.userId] = (counts[x.userId] || 0) + 1; });
+      var rows = (d.sessions || []).map(function (x) {
+        return '<tr class="border-t border-slate-100">' +
+          '<td class="' + TD + '">' + esc(x.name || x.username) + (counts[x.userId] > 1 ? ' ' + badge(counts[x.userId] + ' phiên', 'bg-amber-100 text-amber-800') : '') + '</td>' +
+          '<td class="' + TD + '">' + esc(x.browser || '') + '</td>' +
+          '<td class="' + TD + '">' + esc(x.ip || '—') + (x.lastIp && x.lastIp !== x.ip ? ' → ' + esc(x.lastIp) : '') +
+          (x.ipChanges ? ' ' + badge('đổi IP ' + x.ipChanges + ' lần', 'bg-amber-100 text-amber-800') : '') + '</td>' +
+          '<td class="' + TD + '">' + esc(fmtTimestamp(x.createdAt)) + '</td>' +
+          '<td class="' + TD + '">' + esc(fmtTimestamp(x.lastSeenAt)) + '</td>' +
+          '<td class="' + TD + '">' + (x.current ? badge('Phiên này', 'bg-medical-100 text-medical-800')
+            : '<button type="button" data-cc-act="sec-session-revoke" data-id="' + esc(x.id) + '" class="text-red-600 hover:underline">Đóng phiên</button>') + '</td></tr>';
+      }).join('');
+      secBody(secCard('Phiên đăng nhập đang mở', rows
+        ? '<div class="overflow-x-auto"><table class="w-full text-xs min-w-[720px]"><thead><tr class="bg-slate-50 text-slate-500">' +
+          '<th class="' + TH + '">Tài khoản</th><th class="' + TH + '">Trình duyệt</th><th class="' + TH + '">IP</th>' +
+          '<th class="' + TH + '">Bắt đầu</th><th class="' + TH + '">Hoạt động gần nhất</th><th class="' + TH + '"></th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+        : emptyBox('Không có phiên nào.')));
+    }).catch(secFail);
+  }
+
+  function revokeSessionUi(id) {
+    openModal('Đóng phiên đăng nhập', field('Lý do', textarea('reason', '', 2)) + submitRow('Đóng phiên'), function () {
+      var v = modalValues();
+      api('security', { body: { action: 'session_revoke', id: id, reason: v.reason } }).then(function (data) {
+        closeModal();
+        toast(data.message, 'success');
+        loadSecSessions();
+      }).catch(fail);
+    });
+  }
+
+  // --- Cấu hình -----------------------------------------------------------------
+
+  function loadSecSettings() {
+    secBody(spinner());
+    api('security', { query: { view: 'settings' } }).then(function (d) {
+      var s = d.settings;
+      var g = s.geofence || {};
+      var dis = d.canConfigure ? '' : 'disabled';
+      var modes = [{ value: 'OFF', label: 'Tắt' }, { value: 'OPTIONAL', label: 'Không bắt buộc (thiếu → VÀNG)' }, { value: 'REQUIRED', label: 'Bắt buộc (thiếu → ĐỎ)' }];
+      var numField = function (label, name, value, hint) { return field(label, input(name, value, 'number', 'step="any" ' + dis), hint); };
+      var html = '<form id="ccSecSettingsForm" onsubmit="return false">' +
+        '<div class="grid md:grid-cols-2 gap-4">' +
+        '<div><h3 class="font-semibold text-sm text-slate-700 mb-2">Vùng chấm công (máy chủ tự tính khoảng cách)</h3>' +
+        '<label class="flex items-center gap-2 mb-2 text-sm"><input name="geoEnabled" type="checkbox" ' + (g.enabled ? 'checked ' : '') + dis + '> Bật kiểm tra vùng chấm công</label>' +
+        '<div class="grid grid-cols-2 gap-2">' + numField('Vĩ độ Trạm', 'geoLat', g.lat) + numField('Kinh độ Trạm', 'geoLng', g.lng) + '</div>' +
+        (d.canConfigure ? '<button type="button" data-cc-act="sec-geo-here" class="mb-3 px-3 py-1.5 bg-slate-100 rounded-lg text-xs"><i class="fas fa-location-crosshairs mr-1"></i>Lấy vị trí hiện tại (đứng tại Trạm)</button>' : '') +
+        '<div class="grid grid-cols-2 gap-2">' + numField('Bán kính (m)', 'geoRadius', g.radiusM) + numField('Sai số GPS tối đa (m)', 'geoAccuracy', g.maxAccuracyM) + '</div></div>' +
+        '<div><h3 class="font-semibold text-sm text-slate-700 mb-2">Xác minh</h3>' +
+        '<label class="flex items-center gap-2 mb-2 text-sm"><input name="requireDevice" type="checkbox" ' + (s.requireDevice ? 'checked ' : '') + dis + '> Bắt buộc thiết bị đã duyệt</label>' +
+        field('Selfie trực tiếp', select('selfieMode', modes, s.selfieMode, dis)) +
+        field('QR động tại Trạm', select('qrMode', modes, s.qrMode, dis), 'QR không bao giờ là yếu tố duy nhất.') +
+        '<div class="grid grid-cols-2 gap-2">' + numField('Đổi mã QR sau (giây)', 'qrRotateSec', s.qrRotateSec) + numField('Mã QR sống (giây)', 'qrTtlSec', s.qrTtlSec) + '</div>' +
+        '<label class="flex items-center gap-2 mb-2 text-sm"><input name="aiFaceCheck" type="checkbox" ' + (s.aiFaceCheck ? 'checked ' : '') + dis + '> Dùng AI tham khảo đối chiếu khuôn mặt (chỉ nâng lên VÀNG)</label>' +
+        numField('Ngưỡng tương đồng khuôn mặt (0-1)', 'faceMatchThreshold', s.faceMatchThreshold) + '</div>' +
+        '<div><h3 class="font-semibold text-sm text-slate-700 mb-2">Phát hiện bất thường</h3>' +
+        '<div class="grid grid-cols-2 gap-2">' + numField('Tốc độ di chuyển tối đa (km/h)', 'maxSpeedKmh', s.maxSpeedKmh) +
+        numField('Lệch đồng hồ tối đa (giây)', 'maxClockSkewSec', s.maxClockSkewSec) +
+        numField('Thử thách sống (giây)', 'challengeTtlSec', s.challengeTtlSec) +
+        numField('Ngưỡng điều chỉnh / tháng', 'maxAdjustmentsPerMonth', s.maxAdjustmentsPerMonth) + '</div></div>' +
+        '<div><h3 class="font-semibold text-sm text-slate-700 mb-2">Quản trị & dữ liệu</h3>' +
+        '<label class="flex items-center gap-2 mb-2 text-sm"><input name="fourEyes" type="checkbox" ' + (s.fourEyes ? 'checked ' : '') + dis + '> Nguyên tắc bốn mắt cho điều chỉnh của Quản trị</label>' +
+        '<label class="flex items-center gap-2 mb-2 text-sm"><input name="singleSession" type="checkbox" ' + (s.singleSession ? 'checked ' : '') + dis + '> Mỗi tài khoản một phiên đăng nhập</label>' +
+        numField('Giữ ảnh selfie (ngày)', 'selfieRetentionDays', s.selfieRetentionDays, 'Quá hạn thì ảnh tự xoá hằng ngày; ảnh mẫu khuôn mặt được giữ riêng.') + '</div>' +
+        '</div>' +
+        (d.canConfigure ? field('Lý do thay đổi', textarea('reason', '', 2), 'Bắt buộc (≥ 10 ký tự) nếu thay đổi làm giảm mức bảo vệ.') +
+          '<div class="flex flex-wrap gap-2"><button type="button" data-cc-act="sec-settings-save" class="px-4 py-2 bg-medical-600 text-white rounded-lg text-sm font-semibold">Lưu cấu hình</button>' +
+          '<button type="button" data-cc-act="sec-purge" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Xoá ảnh quá hạn ngay</button></div>'
+          : '<p class="text-xs text-slate-500">Bạn chỉ có quyền xem cấu hình.</p>') +
+        '</form>';
+      secBody(secCard('Cấu hình an toàn chấm công', html));
+    }).catch(secFail);
+  }
+
+  function secFormValues() {
+    var out = {};
+    qsa('[name]', el('ccSecSettingsForm')).forEach(function (f) {
+      out[f.getAttribute('name')] = f.type === 'checkbox' ? f.checked : f.value;
+    });
+    return out;
+  }
+
+  function saveSecSettings() {
+    var v = secFormValues();
+    var numOrNull = function (x) { return x === '' || x == null ? null : Number(x); };
+    var settings = {
+      geofence: { enabled: v.geoEnabled, lat: numOrNull(v.geoLat), lng: numOrNull(v.geoLng), radiusM: Number(v.geoRadius), maxAccuracyM: Number(v.geoAccuracy) },
+      requireDevice: v.requireDevice, selfieMode: v.selfieMode, qrMode: v.qrMode,
+      qrRotateSec: Number(v.qrRotateSec), qrTtlSec: Number(v.qrTtlSec), challengeTtlSec: Number(v.challengeTtlSec),
+      maxSpeedKmh: Number(v.maxSpeedKmh), faceMatchThreshold: Number(v.faceMatchThreshold), aiFaceCheck: v.aiFaceCheck,
+      selfieRetentionDays: Number(v.selfieRetentionDays), fourEyes: v.fourEyes, singleSession: v.singleSession,
+      maxClockSkewSec: Number(v.maxClockSkewSec), maxAdjustmentsPerMonth: Number(v.maxAdjustmentsPerMonth)
+    };
+    api('security', { body: { action: 'settings_save', settings: settings, reason: v.reason } }).then(function (data) {
+      toast(data.message, 'success');
+      loadSecSettings();
+    }).catch(fail);
+  }
+
+  function fillGeoHere() {
+    toast('Đang lấy vị trí...', 'info');
+    getLocation().then(function (loc) {
+      var form = el('ccSecSettingsForm');
+      qs('[name="geoLat"]', form).value = loc.lat.toFixed(6);
+      qs('[name="geoLng"]', form).value = loc.lng.toFixed(6);
+      toast('Đã điền vị trí hiện tại (sai số ~' + Math.round(loc.accuracy) + ' m). Bấm Lưu cấu hình để áp dụng.', 'success', 6000);
+    }).catch(fail);
+  }
+
+  // --- Kiểm toán ----------------------------------------------------------------
+
+  function renderSecAudit() {
+    secBody(secCard('Toàn vẹn nhật ký kiểm toán',
+      '<p class="text-sm text-slate-600 mb-3">Mỗi dòng nhật ký mang dấu băm SHA-256 nối với dòng trước. Sửa hay xoá bất kỳ dòng nào ' +
+      '(kể cả trực tiếp trong cơ sở dữ liệu) sẽ làm đứt chuỗi. Bấm kiểm tra để máy chủ tính lại toàn bộ chuỗi.</p>' +
+      '<button type="button" data-cc-act="sec-audit-verify" class="px-4 py-2 bg-medical-600 text-white rounded-lg text-sm font-semibold">' +
+      '<i class="fas fa-link mr-1"></i>Kiểm tra chuỗi băm</button><div id="ccSecAuditResult" class="mt-3"></div>'));
+  }
+
+  function verifyAudit() {
+    var box = el('ccSecAuditResult');
+    box.innerHTML = spinner('Đang tính lại chuỗi băm...');
+    api('security', { query: { view: 'audit_verify' } }).then(function (d) {
+      box.innerHTML = '<div class="rounded-xl border p-3 text-sm ' + (d.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800') + '">' +
+        '<p class="font-bold">' + esc(d.message) + '</p>' +
+        '<p class="text-xs mt-1">Số dòng có chuỗi băm: ' + esc(d.total) + (d.legacyRows ? ' · dòng cũ trước khi nâng cấp (không có băm): ' + esc(d.legacyRows) : '') + '</p></div>';
+    }).catch(function (err) { box.innerHTML = ''; fail(err); });
+  }
+
+  // --- Màn hình QR tại Trạm -------------------------------------------------------
+
+  var KIOSK = { timer: null, id: '', lib: null };
+
+  function loadQrLib() {
+    if (window.qrcode) return Promise.resolve(window.qrcode);
+    if (KIOSK.lib) return KIOSK.lib;
+    KIOSK.lib = new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+      script.crossOrigin = 'anonymous';
+      script.onload = function () { resolve(window.qrcode); };
+      script.onerror = function () { KIOSK.lib = null; reject(new Error('Không tải được thư viện vẽ QR.')); };
+      document.head.appendChild(script);
+    });
+    return KIOSK.lib;
+  }
+
+  function openKiosk() {
+    var host = document.createElement('div');
+    host.id = 'ccKiosk';
+    host.className = 'fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center p-6 text-center';
+    host.innerHTML = '<p class="text-lg font-bold text-medical-800 mb-2">' + esc((S.settings && S.settings.org && S.settings.org.name) || 'TRẠM Y TẾ BÁT XÁT') + '</p>' +
+      '<p class="text-sm text-slate-600 mb-4">Quét mã khi chấm công. Mã đổi liên tục, mỗi mã chỉ dùng một lần.</p>' +
+      '<div id="ccKioskQr" class="w-72 h-72 md:w-96 md:h-96 flex items-center justify-center"></div>' +
+      '<p id="ccKioskCode" class="mt-4 text-4xl md:text-6xl font-black tracking-[0.3em] tabular-nums text-slate-900">------</p>' +
+      '<p id="ccKioskTimer" class="text-xs text-slate-500 mt-2">&nbsp;</p>' +
+      '<button type="button" id="ccKioskClose" class="mt-6 px-4 py-2 bg-slate-100 rounded-lg text-sm">Đóng màn hình QR</button>';
+    document.body.appendChild(host);
+    el('ccKioskClose').addEventListener('click', closeKiosk);
+    KIOSK.id = '';
+    var tick = function () {
+      api('security', { body: { action: 'qr_next', currentId: KIOSK.id } }).then(function (d) {
+        el('ccKioskTimer').textContent = 'Mã hiện tại hết hạn lúc ' + hhmm(d.expiresAt) + ' · tự đổi khi có người dùng';
+        if (d.same) return;
+        KIOSK.id = d.id;
+        el('ccKioskCode').textContent = d.code;
+        loadQrLib().then(function (qrcode) {
+          var qr = qrcode(0, 'M');
+          qr.addData(d.payload);
+          qr.make();
+          el('ccKioskQr').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+          var svg = qs('svg', el('ccKioskQr'));
+          if (svg) { svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%'); }
+        }).catch(function () {
+          el('ccKioskQr').innerHTML = '<p class="text-sm text-slate-500">Không vẽ được QR - cán bộ nhập mã chữ bên dưới.</p>';
+        });
+      }).catch(function (err) {
+        el('ccKioskTimer').textContent = (err && err.message) || 'Mất kết nối, đang thử lại...';
+      });
+    };
+    tick();
+    KIOSK.timer = setInterval(tick, 2000);
+  }
+
+  function closeKiosk() {
+    if (KIOSK.timer) clearInterval(KIOSK.timer);
+    KIOSK.timer = null;
+    var host = el('ccKiosk');
+    if (host) host.parentNode.removeChild(host);
+  }
+
+  // =========================================================================
   //  GẮN SỰ KIỆN
   // =========================================================================
   //  Toàn bộ trang không dùng một thuộc tính onclick nào. Các nút cố định gắn
@@ -3846,10 +5096,37 @@
     'go-change-password': function () { closeModal(); openChangePassword(false); },
     'go-logout': function () { closeModal(); doLogout(); },
 
+    // An toàn chấm công
+    'sec-tab': function (node) { S.secTab = node.getAttribute('data-id'); renderSecurity(); },
+    'sec-attempt': function (node) { openAttemptDetail(node.getAttribute('data-id')); },
+    'sec-alert-handle': function (node) { openAlertHandle(node.getAttribute('data-id')); },
+    'sec-device': function (node) { decideDevice(node.getAttribute('data-id'), node.getAttribute('data-decision')); },
+    'sec-selfduty': function (node) { decideSelfDuty(node.getAttribute('data-id'), node.getAttribute('data-decision')); },
+    'sec-session-revoke': function (node) { revokeSessionUi(node.getAttribute('data-id')); },
+    'sec-settings-save': function () { saveSecSettings(); },
+    'sec-geo-here': function () { fillGeoHere(); },
+    'sec-audit-verify': function () { verifyAudit(); },
+    'sec-template': function (node) {
+      var id = node.getAttribute('data-id');
+      confirmBox('Dùng ảnh nhìn thẳng của lượt chấm #' + id + ' làm ảnh mẫu khuôn mặt của cán bộ?', function () {
+        api('security', { body: { action: 'template_enroll', attemptId: id } }).then(function (d) { closeModal(); toast(d.message, 'success'); }).catch(fail);
+      }, 'Dùng làm ảnh mẫu');
+    },
+    'sec-purge': function () {
+      confirmBox('Xoá ngay các ảnh selfie đã quá thời hạn lưu giữ? Thao tác này không hoàn tác được.', function () {
+        api('security', { body: { action: 'purge_selfies' } }).then(function (d) { closeModal(); toast(d.message, 'success'); }).catch(fail);
+      }, 'Xoá ảnh quá hạn');
+    },
+    'kiosk-open': function () { closeModal(); openKiosk(); },
+
     // Trang chủ
     'duty-in': function (node) { doDutyCheck(node.getAttribute('data-id'), 'in'); },
     'duty-self': function (node) { doSelfDutyCheck(node); },
     'duty-out': function (node) { doDutyCheck(node.getAttribute('data-id'), 'out'); },
+    'device-register': function () { closeModal(); openDeviceRegister(); },
+    'device-rekey': function () { rekeyDevice(); },
+    'adjust-open': function (node) { closeModal(); openAdjustForm(node.getAttribute('data-attempt') || ''); },
+    'presence-retry': function () { closeModal(); if (SEC.retry) SEC.retry(); },
 
     // Yêu cầu của cán bộ
     'cancel-request': function (node) { cancelRequest(node.getAttribute('data-id')); },
@@ -3873,12 +5150,18 @@
     'punch-delete': function (node) {
       var id = node.getAttribute('data-id');
       var ctx = S.detail || {};
-      confirmBox('Xoá lượt chấm công này? Thao tác được ghi vào lịch sử và không lấy lại được.', function () {
-        api('admin', { body: { action: 'punch_delete', id: id } }).then(function (data) {
-          toast(data.message, 'success');
-          if (ctx.employeeId) openEmployeeDetail(ctx.employeeId, ctx.period); else closeModal();
-        }).catch(fail);
-      }, 'Xoá');
+      openModal('Huỷ hiệu lực lượt chấm',
+        '<p class="text-sm text-slate-600 mb-3">Lượt chấm gốc không bị xoá: nó được chuyển sang trạng thái "đã huỷ hiệu lực" ' +
+        'và vẫn nằm trong sổ bằng chứng. Nếu bật nguyên tắc bốn mắt, thao tác chờ người khác duyệt.</p>' +
+        field('Lý do (bắt buộc)', textarea('reason', '', 2)) + submitRow('Huỷ hiệu lực'),
+        function () {
+          var v = modalValues();
+          if (String(v.reason || '').trim().length < 5) return toast('Nhập lý do (tối thiểu 5 ký tự).', 'warn');
+          api('admin', { body: { action: 'punch_delete', id: id, reason: v.reason } }).then(function (data) {
+            toast(data.message, 'success');
+            if (ctx.employeeId) openEmployeeDetail(ctx.employeeId, ctx.period); else closeModal();
+          }).catch(fail);
+        });
     },
 
     // Cán bộ
@@ -4148,6 +5431,9 @@
       event.preventDefault();
       modalSubmit();
     });
+
+    // Có mạng trở lại: gửi các ý định chấm lúc mất mạng thành đề nghị điều chỉnh.
+    window.addEventListener('online', syncOffline);
 
     // Quay lại phân hệ sau khi khoá màn hình: làm mới số liệu để hai nút chấm
     // công không còn ở trạng thái của lần mở trước.

@@ -58,6 +58,11 @@ export type TokenClaims = {
   stationCode: string | null;
   iat: number;
   exp: number;
+  /**
+   * Mã phiên (auth_sessions.id). Phiếu cấp qua /api/auth/login luôn có; phân hệ
+   * Chấm công từ chối phiếu không có jti hoặc có jti đã bị thu hồi.
+   */
+  jti?: string;
 };
 
 export type AuthContext = {
@@ -185,7 +190,8 @@ async function importKey(secret: string): Promise<CryptoKey> {
 export async function signToken(
   user: UserRow,
   scopes: string[],
-  ttlSeconds = TOKEN_TTL_SECONDS
+  ttlSeconds = TOKEN_TTL_SECONDS,
+  jti?: string
 ): Promise<{ token: string; expiresAt: number }> {
   const nowSec = Math.floor(Date.now() / 1000);
   const claims: TokenClaims = {
@@ -196,7 +202,8 @@ export async function signToken(
     scopes,
     stationCode: user.stationCode || null,
     iat: nowSec,
-    exp: nowSec + ttlSeconds
+    exp: nowSec + ttlSeconds,
+    ...(jti ? { jti } : {})
   };
 
   const header = base64UrlEncode(encoder.encode(JSON.stringify({ alg: "HS256", typ: "JWT" })));

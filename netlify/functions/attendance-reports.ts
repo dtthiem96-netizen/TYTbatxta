@@ -56,6 +56,7 @@ import {
   type EmployeeRow,
   type EmployeeTimesheet,
   type TimesheetResult,
+  ACTIVE_PUNCH,
 } from "../lib/attendance.js";
 
 /** Nhãn tháng tiếng Việt cho tiêu đề báo cáo và tên tệp xuất. */
@@ -107,7 +108,7 @@ async function loadTimesheet(
       ? db
           .select()
           .from(attPunches)
-          .where(and(inArray(attPunches.employeeId, ids), gte(attPunches.workDate, from), lte(attPunches.workDate, to)))
+          .where(and(inArray(attPunches.employeeId, ids), gte(attPunches.workDate, from), lte(attPunches.workDate, to), ACTIVE_PUNCH))
       : Promise.resolve([]),
     inScope
       ? db
@@ -464,7 +465,7 @@ async function handleDetail(actor: ActorContext, period: string, employeeId: str
     db
       .select()
       .from(attPunches)
-      .where(and(eq(attPunches.employeeId, employeeId), gte(attPunches.workDate, from), lte(attPunches.workDate, to))),
+      .where(and(eq(attPunches.employeeId, employeeId), gte(attPunches.workDate, from), lte(attPunches.workDate, to), ACTIVE_PUNCH)),
     db
       .select()
       .from(attDutyAssignments)

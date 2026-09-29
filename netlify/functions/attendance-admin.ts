@@ -29,7 +29,9 @@
  *                    account_create | account_reset_password
  *        Lịch trực:  roster_assign | roster_remove | roster_copy_previous |
  *                    roster_auto | roster_import
- *        Dữ liệu:    punch_save | punch_delete | duty_log_save | leave_save
+ *        Dữ liệu:    punch_save | punch_delete | duty_log_save | duty_log_void | leave_save
+ *                    (không sửa/xoá bản gốc: tạo đề nghị ADMIN_ADJUST chờ người duyệt
+ *                    khác, hoặc áp qua bản ghi điều chỉnh khi tắt chế độ bốn mắt)
  *        Duyệt:      decide_request | decide_leave
  *        Kỳ:         period_lock | period_unlock
  *
@@ -57,6 +59,9 @@ import {
   users,
 } from "../../db/schema.js";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { AdjustmentConflict, applyDutyLogChange, applyPunchChange, type Approval, type PunchRow } from "../lib/adjustments.js";
+import { getSecurity, raiseAlert } from "../lib/security.js";
+import { isImmutableViolation } from "../lib/presence.js";
 import {
   authErrorResponse,
   generateTemporaryPassword,
@@ -66,7 +71,10 @@ import {
   type UserRow,
 } from "../lib/auth.js";
 import {
+  ACTIVE_DUTY_LOG,
+  ACTIVE_PUNCH,
   AuthError,
+  csrfCheck,
   DEFAULT_LEAVE_TYPES,
   DEFAULT_ORG,
   DEFAULT_SYMBOLS,
@@ -98,6 +106,7 @@ import {
   listShifts,
   newId,
   notify,
+  notifyApprovers,
   num,
   periodDates,
   periodOf,
@@ -171,7 +180,7 @@ async function handleOverview(actor: ActorContext) {
     ? await db
         .select()
         .from(attPunches)
-        .where(and(eq(attPunches.workDate, today), inArray(attPunches.employeeId, ids)))
+        .where(and(eq(attPunches.workDate, today), inArray(attPunches.employeeId, ids), ACTIVE_PUNCH))
     : [];
   const duties = ids.length
     ? await db
@@ -183,7 +192,7 @@ async function handleOverview(actor: ActorContext) {
     ? await db
         .select()
         .from(attDutyLogs)
-        .where(and(eq(attDutyLogs.dutyDate, today), inArray(attDutyLogs.employeeId, ids)))
+        .where(and(eq(attDutyLogs.dutyDate, today), inArray(attDutyLogs.employeeId, ids), ACTIVE_DUTY_LOG))
     : [];
   const leaves = ids.length
     ? await db
@@ -371,7 +380,7 @@ async function handleRoster(period: string) {
     db
       .select()
       .from(attDutyLogs)
-      .where(and(gte(attDutyLogs.dutyDate, dates[0]), lte(attDutyLogs.dutyDate, dates[dates.length - 1]))),
+      .where(and(gte(attDutyLogs.dutyDate, dates[0]), lte(attDutyLogs.dutyDate, dates[dates.length - 1]), ACTIVE_DUTY_LOG)),
     periodStatus(period),
   ]);
 
@@ -518,7 +527,7 @@ async function handleNotPunched(actor: ActorContext, date: string) {
   const dayType = classifyDay(date, buildHolidayMap(await listHolidays()), settings.workHours);
   const [punches, leaves, duties, deptNames] = await Promise.all([
     ids.length
-      ? db.select().from(attPunches).where(and(eq(attPunches.workDate, date), inArray(attPunches.employeeId, ids)))
+      ? db.select().from(attPunches).where(and(eq(attPunches.workDate, date), inArray(attPunches.employeeId, ids), ACTIVE_PUNCH))
       : Promise.resolve([]),
     ids.length
       ? db
@@ -1679,14 +1688,206 @@ async function importRoster(actor: ActorContext, body: Record<string, unknown>) 
 }
 
 // ---------------------------------------------------------------------------
-//  Sửa dữ liệu công (có lịch sử)
+//  Điều chỉnh dữ liệu công - KHÔNG sửa/xoá bản gốc (yêu cầu 10, 16)
 // ---------------------------------------------------------------------------
 
+/** Nội dung một đề nghị điều chỉnh do Quản trị/Phụ trách khởi tạo. */
+type AdminChange = {
+  target: "PUNCH" | "DUTY_LOG";
+  operation: "CREATE" | "REPLACE" | "VOID";
+  employeeId: string;
+  workDate: string;
+  originalId: number | null;
+  punchType?: "IN" | "OUT";
+  time?: string;
+  assignmentId?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  note?: string;
+  requestedBy?: string;
+  requestedByName?: string;
+};
+
+const TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+/** Không ai được tự điều chỉnh / tự duyệt dữ liệu công của chính mình. */
+function assertNotSelf(actor: ActorContext, employeeId: string, what: string) {
+  if (actor.employee && actor.employee.id === employeeId) {
+    throw new AuthError(403, "SELF_ACTION", `Không được ${what} dữ liệu công của chính mình. Hãy gửi đề nghị để người khác duyệt.`);
+  }
+}
+
 /**
- * Quản trị thêm hoặc sửa một lượt chấm công.
- *
- * Sổ chấm công là sổ ghi thêm: sửa giờ nghĩa là ghi bản ghi mới với
- * source = ADMIN và lưu giá trị cũ vào lịch sử, không ghi đè im lặng.
+ * Gửi một thay đổi dữ liệu công. Khi bật "bốn mắt" (mặc định), thay đổi thành
+ * đề nghị ADMIN_ADJUST chờ MỘT NGƯỜI DUYỆT KHÁC; khi tắt, thay đổi được áp ngay
+ * nhưng vẫn qua bản ghi điều chỉnh và sinh cảnh báo VÀNG để hậu kiểm.
+ */
+async function submitAdminChange(actor: ActorContext, employee: EmployeeRow, change: AdminChange, reasonText: string) {
+  const security = await getSecurity();
+  const now = Date.now();
+  const requestedByName = actor.employee?.fullName || actor.user.name;
+  if (security.fourEyes) {
+    const id = newId("req");
+    await db.insert(attRequests).values({
+      id,
+      kind: "ADMIN_ADJUST",
+      employeeId: change.employeeId,
+      targetDate: change.workDate,
+      payload: JSON.stringify({ ...change, requestedBy: actor.user.id, requestedByName }),
+      reason: reasonText,
+      status: "PENDING",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await writeAudit(actor, {
+      entity: "request",
+      entityId: id,
+      action: "ADMIN_ADJUST_REQUEST",
+      newValue: change,
+      reason: reasonText,
+    });
+    await notifyApprovers(employee, "Đề nghị điều chỉnh dữ liệu công", `${requestedByName} đề nghị điều chỉnh dữ liệu công của ${employee.fullName} ngày ${change.workDate}.`, id);
+    return json({
+      success: true,
+      pending: true,
+      message: "Đã tạo đề nghị điều chỉnh. Thay đổi chỉ có hiệu lực khi một người duyệt KHÁC phê duyệt.",
+      requestId: id,
+    });
+  }
+  const result = await executeChange(change, {
+    reason: reasonText,
+    requestId: null,
+    requestedBy: actor.user.id,
+    requestedByName,
+    requestedAt: now,
+    approver: actor,
+    selfApproved: true,
+  });
+  await raiseAlert({
+    level: "YELLOW",
+    category: "ADMIN_ADJUSTMENT",
+    employeeId: change.employeeId,
+    userId: actor.user.id,
+    title: "Quản trị tự điều chỉnh dữ liệu công",
+    cause: `${requestedByName} đã ${change.operation === "VOID" ? "huỷ hiệu lực" : change.operation === "REPLACE" ? "thay thế" : "bổ sung"} dữ liệu công của ${employee.fullName} ngày ${change.workDate} (không qua người duyệt thứ hai). Lý do: ${reasonText}`,
+    evidence: { adjustmentId: result.adjustmentId, change },
+    dedupeKey: `ADMIN_ADJUSTMENT|${result.adjustmentId}`,
+  });
+  await notify(change.employeeId, "Điều chỉnh dữ liệu công", `Dữ liệu công ngày ${change.workDate} của bạn vừa được điều chỉnh. Lý do: ${reasonText}`, "ADJUST", result.adjustmentId);
+  return json({ success: true, message: `Đã điều chỉnh dữ liệu công ngày ${change.workDate}.`, adjustmentId: result.adjustmentId });
+}
+
+/** Áp một thay đổi đã được duyệt (dùng chung cho tự duyệt và duyệt bốn mắt). */
+async function executeChange(change: AdminChange, approval: Approval) {
+  await assertPeriodOpen(change.workDate);
+  const settings = await getSettings();
+  if (change.target === "PUNCH") {
+    let original: PunchRow | null = null;
+    if (change.originalId) {
+      const rows = await db.select().from(attPunches).where(eq(attPunches.id, change.originalId));
+      original = rows[0] || null;
+      if (!original || original.employeeId !== change.employeeId) throw new AdjustmentConflict("Không tìm thấy lượt chấm công gốc.");
+      if (String(original.state || "ACTIVE").toUpperCase() !== "ACTIVE") {
+        throw new AdjustmentConflict("Lượt chấm công gốc đã bị thay thế/huỷ trước đó.");
+      }
+    }
+    let values = null;
+    if (change.operation !== "VOID") {
+      const punchType = change.punchType === "OUT" ? "OUT" : "IN";
+      const time = String(change.time || "");
+      const evaluation = evaluatePunch(punchType, time, settings.workHours);
+      values = {
+        punchType,
+        punchAt: vnEpoch(change.workDate, time),
+        session: evaluation.session,
+        status: evaluation.status,
+        minutesDelta: evaluation.minutesDelta,
+        device: approval.requestId ? "Điều chỉnh đã duyệt" : "Quản trị điều chỉnh",
+        ip: approval.approver.ip || null,
+        userAgent: approval.approver.userAgent || null,
+        source: approval.requestId ? "REQUEST" : "ADMIN",
+        requestId: approval.requestId || null,
+        note: change.note || approval.reason,
+      };
+    }
+    return applyPunchChange({
+      operation: change.operation,
+      employeeId: change.employeeId,
+      workDate: change.workDate,
+      original,
+      values,
+      approval,
+    });
+  }
+
+  // DUTY_LOG
+  const found = await db.select().from(attDutyAssignments).where(eq(attDutyAssignments.id, String(change.assignmentId || "")));
+  if (!found.length) throw new AdjustmentConflict("Không tìm thấy suất trực.");
+  const duty = found[0];
+  const logs = await db
+    .select()
+    .from(attDutyLogs)
+    .where(and(eq(attDutyLogs.assignmentId, duty.id), ACTIVE_DUTY_LOG));
+  const original = logs[0] || null;
+  if (change.originalId && original?.id !== change.originalId) {
+    throw new AdjustmentConflict("Nhật ký trực gốc đã thay đổi kể từ lúc tạo đề nghị. Vui lòng tạo đề nghị mới.");
+  }
+  if (change.operation === "VOID" && !original) throw new AdjustmentConflict("Không có nhật ký trực để huỷ hiệu lực.");
+  let values = null;
+  let operation = change.operation;
+  if (operation !== "VOID") {
+    if (original) operation = "REPLACE";
+    const shifts = await listShifts(true);
+    const shift = shifts.find((s) => s.id === duty.shiftId);
+    const checkInTime = change.checkInTime || shift?.startTime || "";
+    const checkOutTime = change.checkOutTime || shift?.endTime || "";
+    const overnight = shift ? String(shift.crossesMidnight || "false") === "true" || crossesMidnight(shift.startTime, shift.endTime) : false;
+    if (!TIME_RE.test(checkInTime)) throw new AdjustmentConflict("Giờ nhận ca không hợp lệ.");
+    const checkInAt = vnEpoch(duty.dutyDate, checkInTime);
+    // Ca qua đêm: giờ kết ca thuộc ngày hôm sau.
+    const checkOutAt = TIME_RE.test(checkOutTime)
+      ? vnEpoch(overnight ? addDays(duty.dutyDate, 1) : duty.dutyDate, checkOutTime)
+      : null;
+    const now = Date.now();
+    values = {
+      assignmentId: duty.id,
+      employeeId: duty.employeeId,
+      dutyDate: duty.dutyDate,
+      shiftId: duty.shiftId,
+      checkInAt,
+      checkOutAt,
+      hours: shift ? shift.hours ?? shiftHours(shift.startTime, shift.endTime) : 0,
+      device: approval.requestId ? "Điều chỉnh đã duyệt" : "Quản trị điều chỉnh",
+      ip: approval.approver.ip || null,
+      status: checkOutAt ? "ADMIN" : "OPEN",
+      source: "ADMIN",
+      note: change.note || approval.reason,
+      approvalStatus: "APPROVED",
+      approvedBy: approval.approver.user.id,
+      approvedByName: approval.approver.employee?.fullName || approval.approver.user.name,
+      approvedAt: now,
+    };
+  }
+  return applyDutyLogChange({
+    operation,
+    original,
+    values,
+    employeeId: duty.employeeId,
+    dutyDate: duty.dutyDate,
+    approval,
+  });
+}
+
+/** Lý do điều chỉnh là bắt buộc (yêu cầu 10). */
+function adjustReason(body: Record<string, unknown>): string {
+  const text = (str(body.reason) || str(body.note)).slice(0, 1000);
+  if (text.length < 5) throw new AuthError(400, "REASON_REQUIRED", "Vui lòng nêu lý do điều chỉnh (tối thiểu 5 ký tự).");
+  return text;
+}
+
+/**
+ * Quản trị bổ sung (không có id) hoặc thay thế (có id) một lượt chấm công.
+ * Không bao giờ UPDATE bản gốc: bản mới được chèn, bản gốc chuyển SUPERSEDED.
  */
 async function savePunch(actor: ActorContext, body: Record<string, unknown>) {
   requirePermission(actor, "timedata.edit");
@@ -1695,85 +1896,52 @@ async function savePunch(actor: ActorContext, body: Record<string, unknown>) {
   const punchType = str(body.punchType).toUpperCase() === "OUT" ? "OUT" : "IN";
   const time = str(body.time);
   if (!isValidDate(workDate)) return json({ success: false, error: "Ngày chấm công không hợp lệ." }, 400);
-  if (!/^\d{1,2}:\d{2}$/.test(time)) return json({ success: false, error: "Giờ chấm công phải ở dạng HH:MM." }, 400);
+  if (!TIME_RE.test(time)) return json({ success: false, error: "Giờ chấm công phải ở dạng HH:MM." }, 400);
+  if (workDate > vnDate()) return json({ success: false, error: "Không điều chỉnh cho ngày chưa tới." }, 400);
   const employee = await assertCanManage(actor, employeeId);
+  assertNotSelf(actor, employeeId, "tự điều chỉnh");
   await assertPeriodOpen(workDate);
+  const reasonText = adjustReason(body);
 
-  const settings = await getSettings();
-  const evaluation = evaluatePunch(punchType, time, settings.workHours);
-  const punchAt = vnEpoch(workDate, time);
   const id = num(body.id, 0);
-  const now = Date.now();
-
   if (id) {
     const existing = await db.select().from(attPunches).where(eq(attPunches.id, id));
-    if (!existing.length) return json({ success: false, error: "Không tìm thấy lượt chấm công." }, 404);
-    await db
-      .update(attPunches)
-      .set({
-        punchType,
-        punchAt,
-        session: evaluation.session,
-        status: evaluation.status,
-        minutesDelta: evaluation.minutesDelta,
-        source: "ADMIN",
-        note: str(body.note) || existing[0].note,
-      })
-      .where(eq(attPunches.id, id));
-    await writeAudit(actor, {
-      entity: "punch",
-      entityId: String(id),
-      action: "ADMIN_UPDATE",
-      field: "punchAt",
-      oldValue: { time: vnTime(existing[0].punchAt), punchType: existing[0].punchType },
-      newValue: { time, punchType, employee: employee.fullName, workDate },
-    });
-    await notify(employeeId, "Điều chỉnh chấm công", `Lượt chấm công ngày ${workDate} được điều chỉnh thành ${time}.`, "ADJUST", String(id));
-    return json({ success: true, message: `Đã cập nhật lượt chấm công ngày ${workDate}.` });
+    if (!existing.length || existing[0].employeeId !== employeeId) return json({ success: false, error: "Không tìm thấy lượt chấm công." }, 404);
+    if (String(existing[0].state || "ACTIVE").toUpperCase() !== "ACTIVE") {
+      return json({ success: false, error: "Lượt chấm công này đã bị thay thế/huỷ, không điều chỉnh tiếp được." }, 409);
+    }
   }
-
-  await db.insert(attPunches).values({
-    employeeId,
-    workDate,
-    punchType,
-    punchAt,
-    session: evaluation.session,
-    status: evaluation.status,
-    minutesDelta: evaluation.minutesDelta,
-    device: "Quản trị bổ sung",
-    ip: actor.ip || null,
-    source: "ADMIN",
-    note: str(body.note) || null,
-    createdBy: actor.user.id,
-    createdAt: now,
-  });
-  await writeAudit(actor, {
-    entity: "punch",
-    entityId: `${employeeId}/${workDate}`,
-    action: "ADMIN_CREATE",
-    newValue: { time, punchType, employee: employee.fullName },
-  });
-  await notify(employeeId, "Bổ sung chấm công", `Quản trị đã bổ sung lượt chấm ${punchType === "IN" ? "vào" : "ra"} ${time} ngày ${workDate}.`, "ADJUST", null);
-  return json({ success: true, message: `Đã bổ sung lượt chấm công ngày ${workDate}.` });
+  return submitAdminChange(
+    actor,
+    employee,
+    { target: "PUNCH", operation: id ? "REPLACE" : "CREATE", employeeId, workDate, originalId: id || null, punchType, time, note: str(body.note).slice(0, 500) },
+    reasonText
+  );
 }
 
+/** "Xoá" lượt chấm công = huỷ hiệu lực (VOIDED). Bản gốc và bằng chứng còn nguyên. */
 async function deletePunch(actor: ActorContext, body: Record<string, unknown>) {
   requirePermission(actor, "timedata.edit");
   const id = num(body.id, 0);
   const existing = await db.select().from(attPunches).where(eq(attPunches.id, id));
   if (!existing.length) return json({ success: false, error: "Không tìm thấy lượt chấm công." }, 404);
-  await assertPeriodOpen(existing[0].workDate);
-  await db.delete(attPunches).where(eq(attPunches.id, id));
-  await writeAudit(actor, {
-    entity: "punch",
-    entityId: String(id),
-    action: "ADMIN_DELETE",
-    oldValue: { workDate: existing[0].workDate, time: vnTime(existing[0].punchAt), punchType: existing[0].punchType },
-  });
-  return json({ success: true, message: "Đã xoá lượt chấm công." });
+  const punch = existing[0];
+  if (String(punch.state || "ACTIVE").toUpperCase() !== "ACTIVE") {
+    return json({ success: false, error: "Lượt chấm công này đã bị thay thế/huỷ trước đó." }, 409);
+  }
+  const employee = await assertCanManage(actor, punch.employeeId);
+  assertNotSelf(actor, punch.employeeId, "tự huỷ");
+  await assertPeriodOpen(punch.workDate);
+  const reasonText = adjustReason(body);
+  return submitAdminChange(
+    actor,
+    employee,
+    { target: "PUNCH", operation: "VOID", employeeId: punch.employeeId, workDate: punch.workDate, originalId: punch.id },
+    reasonText
+  );
 }
 
-/** Quản trị ghi nhận một ca trực đã hoàn thành (cán bộ quên bấm). */
+/** Ghi nhận / thay thế / huỷ nhật ký một ca trực (cán bộ quên bấm, bấm sai). */
 async function saveDutyLog(actor: ActorContext, body: Record<string, unknown>) {
   requirePermission(actor, "timedata.edit");
   const assignmentId = str(body.assignmentId);
@@ -1781,72 +1949,38 @@ async function saveDutyLog(actor: ActorContext, body: Record<string, unknown>) {
   if (!found.length) return json({ success: false, error: "Không tìm thấy suất trực." }, 404);
   const duty = found[0];
   await assertPeriodOpen(duty.dutyDate);
-  await assertCanManage(actor, duty.employeeId);
+  const employee = await assertCanManage(actor, duty.employeeId);
+  assertNotSelf(actor, duty.employeeId, "tự điều chỉnh");
+  const reasonText = adjustReason(body);
+  const voiding = str(body.operation).toUpperCase() === "VOID";
 
-  const shifts = await listShifts(true);
-  const shift = shifts.find((s) => s.id === duty.shiftId);
-  const checkInTime = str(body.checkInTime) || (shift ? shift.startTime : "");
-  const checkOutTime = str(body.checkOutTime) || (shift ? shift.endTime : "");
-  if (!/^\d{1,2}:\d{2}$/.test(checkInTime)) return json({ success: false, error: "Giờ nhận ca không hợp lệ." }, 400);
+  const checkInTime = str(body.checkInTime);
+  const checkOutTime = str(body.checkOutTime);
+  if (!voiding && checkInTime && !TIME_RE.test(checkInTime)) return json({ success: false, error: "Giờ nhận ca không hợp lệ." }, 400);
+  if (!voiding && checkOutTime && !TIME_RE.test(checkOutTime)) return json({ success: false, error: "Giờ kết ca không hợp lệ." }, 400);
 
-  const checkInAt = vnEpoch(duty.dutyDate, checkInTime);
-  // Ca qua đêm kết thúc vào ngày hôm sau, nên mốc kết ca phải cộng một ngày.
-  const crosses = shift ? String(shift.crossesMidnight || "false") === "true" : false;
-  const checkOutAt = /^\d{1,2}:\d{2}$/.test(checkOutTime)
-    ? vnEpoch(crosses ? addDays(duty.dutyDate, 1) : duty.dutyDate, checkOutTime)
-    : null;
-  const hours = shift ? shift.hours ?? shiftHours(shift.startTime, shift.endTime) : 0;
-
-  const existing = await db.select().from(attDutyLogs).where(eq(attDutyLogs.assignmentId, assignmentId));
-  const now = Date.now();
-  if (existing.length) {
-    await db
-      .update(attDutyLogs)
-      .set({
-        checkInAt,
-        checkOutAt,
-        hours,
-        status: checkOutAt ? "ADMIN" : "OPEN",
-        source: "ADMIN",
-        note: str(body.note) || existing[0].note,
-        updatedAt: now,
-      })
-      .where(eq(attDutyLogs.id, existing[0].id));
-    await writeAudit(actor, {
-      entity: "duty_log",
-      entityId: assignmentId,
-      action: "ADMIN_UPDATE",
-      oldValue: { checkInAt: existing[0].checkInAt, checkOutAt: existing[0].checkOutAt },
-      newValue: { checkInTime, checkOutTime },
-    });
-  } else {
-    await db.insert(attDutyLogs).values({
-      assignmentId,
+  const logs = await db
+    .select()
+    .from(attDutyLogs)
+    .where(and(eq(attDutyLogs.assignmentId, assignmentId), ACTIVE_DUTY_LOG));
+  const original = logs[0] || null;
+  if (voiding && !original) return json({ success: false, error: "Chưa có nhật ký trực để huỷ." }, 404);
+  return submitAdminChange(
+    actor,
+    employee,
+    {
+      target: "DUTY_LOG",
+      operation: voiding ? "VOID" : original ? "REPLACE" : "CREATE",
       employeeId: duty.employeeId,
-      dutyDate: duty.dutyDate,
-      shiftId: duty.shiftId,
-      checkInAt,
-      checkOutAt,
-      hours,
-      device: "Quản trị ghi nhận",
-      ip: actor.ip || null,
-      status: checkOutAt ? "ADMIN" : "OPEN",
-      source: "ADMIN",
-      note: str(body.note) || null,
-      createdBy: actor.user.id,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await writeAudit(actor, {
-      entity: "duty_log",
-      entityId: assignmentId,
-      action: "ADMIN_CREATE",
-      newValue: { dutyDate: duty.dutyDate, checkInTime, checkOutTime },
-    });
-  }
-
-  await notify(duty.employeeId, "Ghi nhận ca trực", `Ca trực ngày ${duty.dutyDate} đã được Quản trị ghi nhận.`, "DUTY", assignmentId);
-  return json({ success: true, message: `Đã ghi nhận ca trực ngày ${duty.dutyDate}.` });
+      workDate: duty.dutyDate,
+      originalId: original?.id ?? null,
+      assignmentId,
+      checkInTime,
+      checkOutTime,
+      note: str(body.note).slice(0, 500),
+    },
+    reasonText
+  );
 }
 
 /** Quản trị/Phụ trách ghi trực tiếp một kỳ nghỉ cho cán bộ (đã duyệt sẵn). */
@@ -1922,7 +2056,7 @@ async function decideRequest(actor: ActorContext, body: Record<string, unknown>)
   requirePermission(actor, "approvals.decide");
   const id = str(body.id);
   const approve = str(body.decision).toUpperCase() !== "REJECT";
-  const note = str(body.note);
+  const note = str(body.note).slice(0, 1000);
 
   const found = await db.select().from(attRequests).where(eq(attRequests.id, id));
   if (!found.length) return json({ success: false, error: "Không tìm thấy yêu cầu." }, 404);
@@ -1939,98 +2073,29 @@ async function decideRequest(actor: ActorContext, body: Record<string, unknown>)
   } catch {
     payload = {};
   }
-
-  const now = Date.now();
   const kind = String(request.kind).toUpperCase();
 
-  if (approve && kind === "ADJUST_PUNCH") {
-    const workDate = str(request.targetDate);
-    const wanted = Array.isArray(payload.punches) ? payload.punches : [];
-    const settings = await getSettings();
-    const rows: (typeof attPunches.$inferInsert)[] = [];
-    for (const item of wanted) {
-      const entry = item as Record<string, unknown>;
-      const time = str(entry.time);
-      if (!/^\d{1,2}:\d{2}$/.test(time)) continue;
-      const punchType = str(entry.type).toUpperCase() === "OUT" ? "OUT" : "IN";
-      const evaluation = evaluatePunch(punchType, time, settings.workHours);
-      rows.push({
-        employeeId: request.employeeId,
-        workDate,
-        punchType,
-        punchAt: vnEpoch(workDate, time),
-        session: evaluation.session,
-        status: evaluation.status,
-        minutesDelta: evaluation.minutesDelta,
-        device: "Duyệt yêu cầu điều chỉnh",
-        ip: actor.ip || null,
-        source: "REQUEST",
-        requestId: request.id,
-        note: note || request.reason,
-        createdBy: actor.user.id,
-        createdAt: now,
-      });
-    }
-    if (!rows.length) return json({ success: false, error: "Yêu cầu không có mốc giờ hợp lệ để ghi nhận." }, 400);
-
-    // Lượt chấm cũ cùng buổi cùng loại được thay bằng số đã duyệt, bản cũ vào lịch sử.
-    const existing = await db
-      .select()
-      .from(attPunches)
-      .where(and(eq(attPunches.employeeId, request.employeeId), eq(attPunches.workDate, workDate)));
-    for (const row of rows) {
-      const replaced = existing.find(
-        (p) =>
-          String(p.punchType).toUpperCase() === row.punchType &&
-          String(p.session || "").toUpperCase() === row.session
-      );
-      if (replaced) {
-        await db.delete(attPunches).where(eq(attPunches.id, replaced.id));
-        await writeAudit(actor, {
-          entity: "punch",
-          entityId: String(replaced.id),
-          action: "REPLACED_BY_REQUEST",
-          field: "punchAt",
-          oldValue: { time: vnTime(replaced.punchAt), punchType: replaced.punchType },
-          newValue: { time: vnTime(row.punchAt as number), requestId: request.id },
-        });
-      }
-    }
-    await db.insert(attPunches).values(rows);
-  }
-
-  if (approve && kind === "SWAP_DUTY") {
-    const assignmentId = str(payload.assignmentId);
-    const toEmployeeId = str(payload.toEmployeeId);
-    const duty = await db.select().from(attDutyAssignments).where(eq(attDutyAssignments.id, assignmentId));
-    if (!duty.length) return json({ success: false, error: "Suất trực trong yêu cầu không còn tồn tại." }, 404);
-    await db
-      .update(attDutyAssignments)
-      .set({ employeeId: toEmployeeId, swappedFromEmployeeId: request.employeeId, updatedAt: now })
-      .where(eq(attDutyAssignments.id, assignmentId));
-    // Người cũ đã nhận ca trước đó thì bản ghi chấm trực phải theo người mới.
-    await db
-      .update(attDutyLogs)
-      .set({ employeeId: toEmployeeId, updatedAt: now })
-      .where(eq(attDutyLogs.assignmentId, assignmentId));
-    await writeAudit(actor, {
-      entity: "duty_assignment",
-      entityId: assignmentId,
-      action: "SWAP_APPROVED",
-      field: "employeeId",
-      oldValue: request.employeeId,
-      newValue: toEmployeeId,
+  // Không ai tự duyệt yêu cầu của chính mình, kể cả Quản trị (nguyên tắc bốn mắt).
+  const selfDecision =
+    (actor.employee && actor.employee.id === request.employeeId) ||
+    (kind === "ADMIN_ADJUST" && str(payload.requestedBy) === actor.user.id);
+  if (selfDecision) {
+    await raiseAlert({
+      level: "YELLOW",
+      category: "SELF_APPROVAL",
+      employeeId: request.employeeId,
+      userId: actor.user.id,
+      title: "Cố tự duyệt yêu cầu của chính mình",
+      cause: `${actor.employee?.fullName || actor.user.name} cố duyệt yêu cầu ${kind} do chính mình tạo / của chính mình. Hệ thống đã chặn.`,
+      evidence: { requestId: id, kind },
+      dedupeKey: `SELF_APPROVAL|${id}|${actor.user.id}`,
     });
-    await notify(
-      toEmployeeId,
-      "Nhận ca trực thay",
-      `Bạn nhận ca trực ngày ${duty[0].dutyDate} thay cho ${employee.fullName}.`,
-      "DUTY",
-      assignmentId
-    );
+    return json({ success: false, error: "Không được tự duyệt yêu cầu của chính mình. Yêu cầu phải do một người duyệt khác xử lý." }, 403);
   }
 
-  await db
+  // Giữ chỗ nguyên tử: chỉ một người duyệt thắng khi hai người bấm cùng lúc.
+  const now = Date.now();
+  const claimed = await db
     .update(attRequests)
     .set({
       status: approve ? "APPROVED" : "REJECTED",
@@ -2040,20 +2105,126 @@ async function decideRequest(actor: ActorContext, body: Record<string, unknown>)
       decisionNote: note || null,
       updatedAt: now,
     })
-    .where(eq(attRequests.id, id));
+    .where(and(eq(attRequests.id, id), sql`coalesce(${attRequests.status}, 'PENDING') = 'PENDING'`))
+    .returning({ id: attRequests.id });
+  if (!claimed.length) return json({ success: false, error: "Yêu cầu vừa được người khác xử lý." }, 409);
+
+  const approval: Approval = {
+    reason: request.reason || note || "Duyệt yêu cầu",
+    requestId: request.id,
+    requestedBy: str(payload.requestedBy) || request.employeeId,
+    requestedByName: str(payload.requestedByName) || employee.fullName,
+    requestedAt: request.createdAt || now,
+    approver: actor,
+    selfApproved: false,
+  };
+
+  try {
+    if (approve && kind === "ADJUST_PUNCH") {
+      const workDate = str(request.targetDate);
+      const wanted = (Array.isArray(payload.punches) ? payload.punches : []) as Record<string, unknown>[];
+      const valid = wanted.filter((e) => TIME_RE.test(str(e.time))).slice(0, 8);
+      if (!valid.length) throw new AdjustmentConflict("Yêu cầu không có mốc giờ hợp lệ để ghi nhận.");
+      const settings = await getSettings();
+      for (const entry of valid) {
+        const time = str(entry.time);
+        const punchType = str(entry.type).toUpperCase() === "OUT" ? "OUT" : "IN";
+        const evaluation = evaluatePunch(punchType, time, settings.workHours);
+        // Lượt chấm ACTIVE cùng buổi cùng loại được THAY THẾ (bản gốc chuyển SUPERSEDED, không xoá).
+        const actives = await db
+          .select()
+          .from(attPunches)
+          .where(and(eq(attPunches.employeeId, request.employeeId), eq(attPunches.workDate, workDate), ACTIVE_PUNCH));
+        const replaced =
+          actives.find(
+            (p) => String(p.punchType).toUpperCase() === punchType && String(p.session || "").toUpperCase() === evaluation.session
+          ) || null;
+        await applyPunchChange({
+          operation: replaced ? "REPLACE" : "CREATE",
+          employeeId: request.employeeId,
+          workDate,
+          original: replaced,
+          values: {
+            punchType,
+            punchAt: vnEpoch(workDate, time),
+            session: evaluation.session,
+            status: evaluation.status,
+            minutesDelta: evaluation.minutesDelta,
+            device: payload.offline ? "Chấm ngoại tuyến đã duyệt" : "Duyệt yêu cầu điều chỉnh",
+            ip: actor.ip || null,
+            source: "REQUEST",
+            requestId: request.id,
+            note: note || request.reason,
+          },
+          approval,
+        });
+      }
+    }
+
+    if (approve && kind === "ADMIN_ADJUST") {
+      await executeChange(payload as unknown as AdminChange, approval);
+    }
+
+    if (approve && kind === "SWAP_DUTY") {
+      const assignmentId = str(payload.assignmentId);
+      const toEmployeeId = str(payload.toEmployeeId);
+      const duty = await db.select().from(attDutyAssignments).where(eq(attDutyAssignments.id, assignmentId));
+      if (!duty.length) throw new AdjustmentConflict("Suất trực trong yêu cầu không còn tồn tại.");
+      // Ca đã có người nhận thì không đổi được: nhật ký trực gắn với người đã có mặt.
+      const logs = await db
+        .select({ id: attDutyLogs.id })
+        .from(attDutyLogs)
+        .where(and(eq(attDutyLogs.assignmentId, assignmentId), ACTIVE_DUTY_LOG));
+      if (logs.length) throw new AdjustmentConflict("Ca trực này đã được nhận ca nên không đổi người được nữa.");
+      await db
+        .update(attDutyAssignments)
+        .set({ employeeId: toEmployeeId, swappedFromEmployeeId: request.employeeId, updatedAt: now })
+        .where(eq(attDutyAssignments.id, assignmentId));
+      await writeAudit(actor, {
+        entity: "duty_assignment",
+        entityId: assignmentId,
+        action: "SWAP_APPROVED",
+        field: "employeeId",
+        oldValue: request.employeeId,
+        newValue: toEmployeeId,
+        reason: request.reason || null,
+        approverId: actor.user.id,
+        approverName: actor.employee?.fullName || actor.user.name,
+      });
+      await notify(
+        toEmployeeId,
+        "Nhận ca trực thay",
+        `Bạn nhận ca trực ngày ${duty[0].dutyDate} thay cho ${employee.fullName}.`,
+        "DUTY",
+        assignmentId
+      );
+    }
+  } catch (err) {
+    // Không áp được thì trả yêu cầu về trạng thái chờ để xử lý lại.
+    await db
+      .update(attRequests)
+      .set({ status: "PENDING", decidedBy: null, decidedByName: null, decidedAt: null, decisionNote: null, updatedAt: Date.now() })
+      .where(eq(attRequests.id, id));
+    if (err instanceof AdjustmentConflict) return json({ success: false, error: err.message }, 409);
+    throw err;
+  }
 
   await writeAudit(actor, {
     entity: "request",
     entityId: id,
     action: approve ? "APPROVE" : "REJECT",
-    newValue: { kind, employee: employee.fullName, note },
+    oldValue: { status: "PENDING" },
+    newValue: { kind, status: approve ? "APPROVED" : "REJECTED", employee: employee.fullName, note },
+    reason: request.reason || null,
+    approverId: actor.user.id,
+    approverName: actor.employee?.fullName || actor.user.name,
   });
+  const kindLabel =
+    kind === "ADJUST_PUNCH" ? "Yêu cầu điều chỉnh chấm công" : kind === "ADMIN_ADJUST" ? "Đề nghị điều chỉnh dữ liệu công" : "Yêu cầu đổi ca trực";
   await notify(
     request.employeeId,
     approve ? "Yêu cầu được duyệt" : "Yêu cầu bị từ chối",
-    `${kind === "ADJUST_PUNCH" ? "Yêu cầu điều chỉnh chấm công" : "Yêu cầu đổi ca trực"} ngày ${
-      request.targetDate || ""
-    } ${approve ? "đã được duyệt" : "không được duyệt"}.${note ? ` Ý kiến: ${note}` : ""}`,
+    `${kindLabel} ngày ${request.targetDate || ""} ${approve ? "đã được duyệt" : "không được duyệt"}.${note ? ` Ý kiến: ${note}` : ""}`,
     "REQUEST",
     id
   );
@@ -2074,6 +2245,9 @@ async function decideLeave(actor: ActorContext, body: Record<string, unknown>) {
     return json({ success: false, error: "Đơn nghỉ đã được xử lý." }, 409);
   }
   const employee = await assertCanManage(actor, leave.employeeId);
+  if (actor.employee && actor.employee.id === leave.employeeId) {
+    return json({ success: false, error: "Không được tự duyệt đơn nghỉ của chính mình." }, 403);
+  }
   await assertPeriodOpen(leave.fromDate);
 
   const now = Date.now();
@@ -2203,6 +2377,8 @@ export default async (req: Request) => {
     }
 
     if (req.method !== "POST") return json({ success: false, error: "Method not allowed" }, 405);
+    const csrf = csrfCheck(req);
+    if (csrf) return csrf;
 
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     if (!body) return json({ success: false, error: "Nội dung yêu cầu không hợp lệ." }, 400);
@@ -2270,6 +2446,8 @@ export default async (req: Request) => {
         return await deletePunch(actor, body);
       case "duty_log_save":
         return await saveDutyLog(actor, body);
+      case "duty_log_void":
+        return await saveDutyLog(actor, { ...body, operation: "VOID" });
       case "leave_save":
         return await saveLeave(actor, body);
 
@@ -2293,6 +2471,10 @@ export default async (req: Request) => {
     if (authResponse) return authResponse;
     if (err instanceof AuthError) {
       return json({ success: false, code: err.code, error: err.message }, err.status);
+    }
+    if (err instanceof AdjustmentConflict) return json({ success: false, code: "CONFLICT", error: err.message }, 409);
+    if (isImmutableViolation(err)) {
+      return json({ success: false, code: "IMMUTABLE", error: "Dữ liệu gốc không được sửa hoặc xoá. Hãy tạo đề nghị điều chỉnh." }, 409);
     }
     console.error("attendance-admin error", err);
     return json({ success: false, error: "Hệ thống chấm công đang gián đoạn. Vui lòng thử lại." }, 500);

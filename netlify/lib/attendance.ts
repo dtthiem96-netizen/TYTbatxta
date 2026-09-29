@@ -34,10 +34,13 @@
  */
 import { db } from "../../db/index.js";
 import {
+  attAlerts,
   attAudits,
   attDepartments,
+  attDutyLogs,
   attEmployees,
   attHolidays,
+  attPunches,
   attNotifications,
   attPeriods,
   attRoles,
@@ -45,8 +48,9 @@ import {
   attShifts,
   users,
 } from "../../db/schema.js";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { isAdminRole, requireScope, AuthError, type AuthContext, type UserRow } from "./auth.js";
+import { checkSession } from "./sessions.js";
 
 export type EmployeeRow = typeof attEmployees.$inferSelect;
 export type DepartmentRow = typeof attDepartments.$inferSelect;
@@ -628,6 +632,8 @@ export type PunchLite = {
   minutesDelta: number | null;
   source: string | null;
   note: string | null;
+  /** ACTIVE | SUPERSEDED | VOIDED. Chỉ ACTIVE (hoặc trống - dữ liệu cũ) được tính công. */
+  state?: string | null;
 };
 
 export type DutyLite = {
@@ -646,7 +652,22 @@ export type DutyLogLite = {
   checkOutAt: number | null;
   hours: number | null;
   status: string | null;
+  state?: string | null;
+  /** Ca tự nhận chờ duyệt (PENDING) hoặc bị từ chối (REJECTED) không được tính giờ trực. */
+  approvalStatus?: string | null;
 };
+
+/** Lượt chấm còn hiệu lực: không bị thay thế / huỷ bởi điều chỉnh đã duyệt. */
+export const isActiveRecord = (r: { state?: string | null }) => String(r.state || "ACTIVE").toUpperCase() === "ACTIVE";
+
+/** Nhật ký trực được tính công: còn hiệu lực VÀ đã được duyệt (ca theo lịch mặc định là đã duyệt). */
+export const isCountedDutyLog = (r: { state?: string | null; approvalStatus?: string | null }) =>
+  isActiveRecord(r) && String(r.approvalStatus || "APPROVED").toUpperCase() === "APPROVED";
+
+/** Điều kiện SQL tương ứng, để lọc ngay trong truy vấn. */
+export const ACTIVE_PUNCH = sql`coalesce(${attPunches.state}, 'ACTIVE') = 'ACTIVE'`;
+export const ACTIVE_DUTY_LOG = sql`coalesce(${attDutyLogs.state}, 'ACTIVE') = 'ACTIVE'`;
+export const COUNTED_DUTY_LOG = sql`coalesce(${attDutyLogs.state}, 'ACTIVE') = 'ACTIVE' and coalesce(${attDutyLogs.approvalStatus}, 'APPROVED') = 'APPROVED'`;
 
 export type LeaveLite = {
   employeeId: string;
@@ -760,8 +781,10 @@ export function buildTimesheet(input: {
   const dates = periodDates(period);
 
   // Nhóm dữ liệu thô theo cán bộ + ngày, một lượt duy nhất cho mỗi bảng.
+  // Lớp chặn cuối: dù truy vấn phía trên quên lọc, bản ghi đã bị thay thế và
+  // ca tự nhận chưa duyệt vẫn không bao giờ lọt vào bảng công.
   const punchIndex = new Map<string, PunchLite[]>();
-  for (const p of input.punches) {
+  for (const p of input.punches.filter(isActiveRecord)) {
     const key = `${p.employeeId}|${p.workDate}`;
     const list = punchIndex.get(key);
     if (list) list.push(p);
@@ -776,7 +799,7 @@ export function buildTimesheet(input: {
     else dutyIndex.set(key, [d]);
   }
   const dutyLogIndex = new Set<string>();
-  for (const l of input.dutyLogs) {
+  for (const l of input.dutyLogs.filter(isCountedDutyLog)) {
     if (l.checkInAt) dutyLogIndex.add(`${l.employeeId}|${l.dutyDate}|${l.shiftId}`);
   }
 
@@ -1003,7 +1026,22 @@ function dateIsFuture(dateStr: string): boolean {
 //  6. Danh tính và vai trò trong phân hệ
 // ---------------------------------------------------------------------------
 
-export type AttendanceRole = "STAFF" | "MANAGER" | "ADMIN";
+/**
+ * Năm vai trò hệ thống (yêu cầu 17):
+ *   STAFF    Cán bộ
+ *   MANAGER  Người phụ trách bộ phận
+ *   APPROVER Người duyệt (toàn trạm, chỉ xem + duyệt)
+ *   OFFICER  Quản trị viên chấm công (vận hành, xử lý cảnh báo, duyệt thiết bị -
+ *            KHÔNG cấu hình an ninh, KHÔNG phân vai trò)
+ *   ADMIN    Quản trị hệ thống
+ */
+export type AttendanceRole = "STAFF" | "MANAGER" | "APPROVER" | "OFFICER" | "ADMIN";
+
+/**
+ * Bậc giao diện: STAFF (chỉ màn hình cán bộ), MANAGER (có màn hình quản lý),
+ * ADMIN (Quản trị hệ thống). APPROVER/OFFICER hiển thị ở bậc MANAGER.
+ */
+export type AttendanceTier = "STAFF" | "MANAGER" | "ADMIN";
 
 /** Phạm vi dữ liệu của một vai trò: chính mình, bộ phận của mình, hay toàn đơn vị. */
 export type RoleScope = "SELF" | "DEPARTMENT" | "ALL";
@@ -1023,32 +1061,67 @@ export const PERMISSIONS = [
   { code: "worktime.manage", group: "Cấu hình", label: "Cấu hình thời gian làm việc, ký hiệu và loại nghỉ" },
   { code: "shifts.manage", group: "Cấu hình", label: "Quản lý danh mục ca trực và ngày nghỉ lễ" },
   { code: "roster.manage", group: "Lịch trực", label: "Lập, sửa, sao chép, nhập lịch trực tháng" },
-  { code: "timedata.edit", group: "Dữ liệu công", label: "Sửa, xoá lượt chấm công và giờ trực" },
+  { code: "timedata.edit", group: "Dữ liệu công", label: "Lập đề nghị điều chỉnh lượt chấm công và giờ trực (không sửa/xoá bản gốc)" },
   { code: "periods.lock", group: "Dữ liệu công", label: "Khoá / mở kỳ bảng công" },
   { code: "audits.view", group: "Giám sát", label: "Xem lịch sử thao tác" },
+  { code: "security.view", group: "An toàn chấm công", label: "Xem bảng An toàn chấm công, bằng chứng và cảnh báo" },
+  { code: "security.review", group: "An toàn chấm công", label: "Xử lý cảnh báo, duyệt thiết bị, duyệt ca tự nhận, xem ảnh selfie" },
+  { code: "security.configure", group: "An toàn chấm công", label: "Cấu hình vùng chấm công, QR, selfie, chính sách an ninh" },
+  { code: "kiosk.qr", group: "An toàn chấm công", label: "Mở màn hình QR động tại Trạm" },
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number]["code"];
 const PERMISSION_CODES = new Set<string>(PERMISSIONS.map((p) => p.code));
 
 /** Ba vai trò hệ thống - cố định trong mã, không sửa/xoá được. */
-export const BUILTIN_ROLES: Record<AttendanceRole, { name: string; description: string; scope: RoleScope; permissions: Permission[] }> = {
+export const BUILTIN_ROLES: Record<
+  AttendanceRole,
+  { name: string; description: string; scope: RoleScope; tier: AttendanceTier; permissions: Permission[] }
+> = {
   STAFF: {
     name: "Cán bộ / nhân viên",
     description: "Tự chấm công, xem lịch trực, bảng công của mình và gửi yêu cầu.",
     scope: "SELF",
+    tier: "STAFF",
     permissions: [],
   },
   MANAGER: {
     name: "Phụ trách khoa / bộ phận",
     description: "Theo dõi và duyệt yêu cầu của cán bộ trong bộ phận mình phụ trách.",
     scope: "DEPARTMENT",
-    permissions: ["manage.view", "approvals.decide", "leave.record"],
+    tier: "MANAGER",
+    permissions: ["manage.view", "approvals.decide", "leave.record", "security.view"],
+  },
+  APPROVER: {
+    name: "Người duyệt",
+    description: "Duyệt đề nghị điều chỉnh, đổi ca, nghỉ phép và ca tự nhận của toàn trạm. Không sửa danh mục.",
+    scope: "ALL",
+    tier: "MANAGER",
+    permissions: ["manage.view", "approvals.decide", "security.view", "audits.view"],
+  },
+  OFFICER: {
+    name: "Quản trị viên chấm công",
+    description:
+      "Vận hành hằng ngày: hồ sơ, lịch trực, lập đề nghị điều chỉnh, xử lý cảnh báo, duyệt thiết bị, QR tại Trạm. Không cấu hình an ninh, không phân vai trò.",
+    scope: "ALL",
+    tier: "MANAGER",
+    permissions: [
+      "manage.view",
+      "leave.record",
+      "employees.manage",
+      "roster.manage",
+      "timedata.edit",
+      "audits.view",
+      "security.view",
+      "security.review",
+      "kiosk.qr",
+    ],
   },
   ADMIN: {
     name: "Quản trị hệ thống chấm công",
-    description: "Toàn quyền trong phân hệ, kể cả tạo và phân vai trò.",
+    description: "Toàn quyền trong phân hệ, kể cả tạo và phân vai trò, cấu hình an ninh.",
     scope: "ALL",
+    tier: "ADMIN",
     permissions: PERMISSIONS.map((p) => p.code),
   },
 };
@@ -1134,7 +1207,7 @@ export type ActorContext = {
    * quyền), MANAGER là bất kỳ vai trò nào có ít nhất một quyền quản lý (kể cả
    * vai trò tuỳ chỉnh), STAFF là cán bộ thường.
    */
-  role: AttendanceRole;
+  role: AttendanceTier;
   /** Mã vai trò thật được gán (STAFF/MANAGER/ADMIN hoặc mã vai trò tuỳ chỉnh). */
   roleCode: string;
   roleName: string;
@@ -1143,6 +1216,10 @@ export type ActorContext = {
   ip: string;
   /** Thiết bị gọi, lưu kèm lượt chấm công để đối chiếu khi có khiếu nại. */
   userAgent: string;
+  /** Phiên đăng nhập (auth_sessions.id). */
+  sessionId: string;
+  /** Dấu vân tay thiết bị do trình duyệt tự khai (header X-Device-Id) - chỉ để ghi nhật ký, không dùng để cấp quyền. */
+  deviceId: string;
 };
 
 /** Địa chỉ IP người gọi, theo header Netlify đặt ở biên. */
@@ -1167,7 +1244,22 @@ export function clientIp(req: Request): string {
  * quyền của cán bộ thường, không bao giờ rơi lên quyền cao hơn.
  */
 export async function resolveActor(req: Request): Promise<ActorContext> {
+  // Phân hệ chỉ nhận phiếu trong header Authorization: phiếu trong URL (?token=)
+  // dễ lọt vào lịch sử trình duyệt, nhật ký máy chủ và header Referer.
+  const header = req.headers.get("authorization") || "";
+  if (!/^Bearer\s+\S+/i.test(header)) {
+    throw new AuthError(401, "UNAUTHENTICATED", "Thiếu phiếu đăng nhập. Vui lòng đăng nhập lại.");
+  }
   const auth = await requireScope(req, "attendance");
+  const ip = clientIp(req);
+  const userAgent = (req.headers.get("user-agent") || "").slice(0, 250);
+  const session = await checkSession(auth.claims.jti, ip, userAgent);
+  if (!session.ok) {
+    if (session.code === "SESSION_HIJACK") {
+      await raiseSessionAlert(auth.user.id, session.session?.id || "", ip, userAgent, session.session?.userAgent || "");
+    }
+    throw new AuthError(401, session.code, session.message);
+  }
   const found = await db.select().from(attEmployees).where(eq(attEmployees.userId, auth.user.id));
   const employee = found.length ? found[0] : null;
 
@@ -1175,13 +1267,13 @@ export async function resolveActor(req: Request): Promise<ActorContext> {
   if (isAdminRole(auth.user.role)) roleCode = "ADMIN";
   else if (employee) roleCode = String(employee.attendanceRole || "STAFF").toUpperCase();
 
-  let role: AttendanceRole = "STAFF";
+  let role: AttendanceTier = "STAFF";
   let roleName = BUILTIN_ROLES.STAFF.name;
   let permissions: Permission[] = [];
   let scope: RoleScope = "SELF";
 
   if (isBuiltinRole(roleCode)) {
-    role = roleCode;
+    role = BUILTIN_ROLES[roleCode].tier;
     roleName = BUILTIN_ROLES[roleCode].name;
     permissions = BUILTIN_ROLES[roleCode].permissions;
     scope = BUILTIN_ROLES[roleCode].scope;
@@ -1211,9 +1303,40 @@ export async function resolveActor(req: Request): Promise<ActorContext> {
     roleName,
     permissions: new Set(permissions),
     scope,
-    ip: clientIp(req),
-    userAgent: (req.headers.get("user-agent") || "").slice(0, 250),
+    ip,
+    userAgent,
+    sessionId: session.session.id,
+    deviceId: str(req.headers.get("x-device-id")).slice(0, 80),
   };
+}
+
+/**
+ * Cảnh báo ĐỎ khi một phiếu phiên bị dùng từ trình duyệt/hệ điều hành khác với
+ * lúc đăng nhập (nghi phiếu bị sao chép). Ghi thẳng vào att_alerts ở đây vì
+ * security.ts phụ thuộc ngược vào tệp này.
+ */
+async function raiseSessionAlert(userId: string, sessionId: string, ip: string, ua: string, originalUa: string) {
+  try {
+    const emp = await db.select().from(attEmployees).where(eq(attEmployees.userId, userId));
+    const day = vnDate();
+    await db
+      .insert(attAlerts)
+      .values({
+        level: "RED",
+        category: "SESSION_HIJACK",
+        employeeId: emp[0]?.id || null,
+        userId,
+        title: "Phiên đăng nhập bị dùng từ trình duyệt khác",
+        cause: "Cùng một phiếu đăng nhập được gửi từ trình duyệt/hệ điều hành khác với lúc đăng nhập. Phiên đã bị thu hồi tự động.",
+        evidence: JSON.stringify({ sessionId, ip, userAgent: ua, originalUserAgent: originalUa }),
+        day,
+        createdAt: Date.now(),
+        dedupeKey: `SESSION_HIJACK|${sessionId}`,
+      })
+      .onConflictDoNothing();
+  } catch (err) {
+    console.warn("[attendance] Không ghi được cảnh báo phiên:", err);
+  }
 }
 
 /** Người thao tác có giữ quyền chức năng này không. Quản trị hệ thống luôn có. */
@@ -1335,6 +1458,9 @@ export async function writeAudit(
     field?: string | null;
     oldValue?: unknown;
     newValue?: unknown;
+    reason?: string | null;
+    approverId?: string | null;
+    approverName?: string | null;
   }
 ): Promise<void> {
   const short = (value: unknown): string | null => {
@@ -1354,7 +1480,13 @@ export async function writeAudit(
       actorName: actor.employee?.fullName || actor.user.name,
       actorUsername: actor.user.username,
       ip: actor.ip || null,
+      // Trigger att_audits_chain ghi đè ts bằng đồng hồ cơ sở dữ liệu và nối chuỗi băm.
       ts: Date.now(),
+      userAgent: actor.userAgent || null,
+      deviceId: actor.deviceId || null,
+      reason: entry.reason ? short(entry.reason) : null,
+      approverId: entry.approverId || null,
+      approverName: entry.approverName || null,
     });
   } catch (err) {
     console.warn("[attendance] Không ghi được lịch sử thao tác:", err);
@@ -1379,20 +1511,90 @@ export async function notify(
   }
 }
 
+/**
+ * Thông báo tới những người có quyền duyệt yêu cầu của một cán bộ: phụ trách bộ
+ * phận của người đó, những cán bộ giữ vai trò MANAGER/ADMIN trong phân hệ, và
+ * những cán bộ mang vai trò tuỳ chỉnh có quyền duyệt (theo phạm vi của vai trò).
+ */
+export async function notifyApprovers(employee: EmployeeRow, title: string, bodyText: string, refId: string) {
+  try {
+    const customRoles = (await db.select().from(attRoles)).filter(
+      (r) =>
+        String(r.status || "ACTIVE").toUpperCase() === "ACTIVE" &&
+        parsePermissions(r.permissions).includes("approvals.decide") &&
+        String(r.scope || "SELF").toUpperCase() !== "SELF"
+    );
+    const allScope = new Set(["ADMIN", ...customRoles.filter((r) => String(r.scope).toUpperCase() === "ALL").map((r) => r.code)]);
+    const rows = await db
+      .select()
+      .from(attEmployees)
+      .where(inArray(attEmployees.attendanceRole, ["MANAGER", "ADMIN", ...customRoles.map((r) => r.code)]));
+    const ids = rows
+      .filter((r) => r.id !== employee.id)
+      .filter(
+        (r) =>
+          allScope.has(String(r.attendanceRole || "").toUpperCase()) ||
+          !employee.departmentId ||
+          r.departmentId === employee.departmentId
+      )
+      .map((r) => r.id);
+    await notify(ids, title, bodyText, "REQUEST", refId);
+  } catch (err) {
+    console.warn("[attendance] Không thông báo được tới người duyệt:", err);
+  }
+}
+
 // ---------------------------------------------------------------------------
 //  9. Tiện ích chung cho các Function
 // ---------------------------------------------------------------------------
 
-export const JSON_HEADERS = {
-  "Content-Type": "application/json",
+/**
+ * Header chung của API chấm công. KHÔNG còn "Access-Control-Allow-Origin: *":
+ * giao diện chạy cùng tên miền nên không cần CORS, và bỏ đi thì một trang web lạ
+ * không gọi được API bằng phiếu của cán bộ. nosniff/no-referrer chặn trình duyệt
+ * đoán kiểu nội dung và làm lộ URL.
+ */
+export const JSON_HEADERS: Record<string, string> = {
+  "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
 };
 
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { headers: JSON_HEADERS, status });
+
+/**
+ * Chống CSRF cho các yêu cầu ghi (POST).
+ *
+ * Phiếu phiên đi bằng header Authorization (không phải cookie) nên trang lạ vốn
+ * không mượn được phiên. Thêm hai lớp nữa cho chắc: thân yêu cầu phải là JSON
+ * (form chéo trang không gửi được application/json mà không qua preflight, và
+ * API không bật CORS), và nếu trình duyệt gửi Origin / Sec-Fetch-Site thì phải
+ * là cùng trang. Trả về Response lỗi, hoặc null nếu hợp lệ.
+ */
+export function csrfCheck(req: Request): Response | null {
+  const type = String(req.headers.get("content-type") || "").toLowerCase();
+  if (!type.startsWith("application/json")) {
+    return json({ success: false, code: "CSRF", error: "Yêu cầu phải gửi dạng JSON." }, 415);
+  }
+  const site = String(req.headers.get("sec-fetch-site") || "").toLowerCase();
+  if (site === "cross-site") {
+    return json({ success: false, code: "CSRF", error: "Yêu cầu chéo trang bị từ chối." }, 403);
+  }
+  const origin = req.headers.get("origin");
+  if (origin) {
+    try {
+      const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || new URL(req.url).host;
+      if (new URL(origin).host !== host && new URL(origin).host !== new URL(req.url).host) {
+        return json({ success: false, code: "CSRF", error: "Nguồn gọi không hợp lệ." }, 403);
+      }
+    } catch {
+      return json({ success: false, code: "CSRF", error: "Nguồn gọi không hợp lệ." }, 403);
+    }
+  }
+  return null;
+}
 
 /** Ép về chuỗi đã cắt khoảng trắng, không bao giờ trả undefined. */
 export const str = (value: unknown): string =>
