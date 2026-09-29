@@ -1,16 +1,16 @@
 /**
  * Bảng trực công khai của Phân hệ Chấm công - Chấm trực.
  *
- *   GET /api/attendance/public     cán bộ đang trực và cán bộ đang làm việc lúc này
+ *   GET /api/attendance/public     số cán bộ đang trực và đang làm việc lúc này
  *
  * Đây là tuyến DUY NHẤT của phân hệ không cần đăng nhập: trang chủ dùng nó để
  * trả lời câu hỏi của người dân "bây giờ trạm có ai trực không?" ngay tại dòng
  * trạng thái đầu trang. Vì mở cho mọi người nên tuyến này:
  *   - chỉ ĐỌC, không có nhánh POST nào;
- *   - chỉ trả họ tên, chức danh và ca trực - không số điện thoại, email, mã cán
- *     bộ, tài khoản hay giờ chấm công chi tiết (bản chiếu riêng, không dùng lại
- *     publicEmployee() vốn dành cho giao diện nội bộ);
- *   - lỗi cơ sở dữ liệu thì trả danh sách rỗng kèm available=false thay vì mã
+ *   - chỉ trả SỐ LƯỢNG cán bộ đang trực / đã nhận ca / đang làm việc hành chính
+ *     - không họ tên, chức danh, ca trực, số điện thoại hay bất kỳ dữ liệu cá
+ *     nhân nào của cán bộ;
+ *   - lỗi cơ sở dữ liệu thì trả số lượng 0 kèm available=false thay vì mã
  *     500, để trang chủ tự rơi về lời mời gọi khám mà không hiện lỗi cho dân.
  */
 import { db } from "../../db/index.js";
@@ -89,35 +89,23 @@ export default async (req: Request) => {
           )
         )
       : [];
-    const order = new Map(employees.map((e, i) => [e.id, i]));
     const byId = new Map(employees.map((e) => [e.id, e]));
 
-    const onDuty = active
-      .filter((a) => byId.has(a.employeeId))
-      .sort((a, b) => (order.get(a.employeeId) ?? 0) - (order.get(b.employeeId) ?? 0))
-      .map((a) => {
-        const emp = byId.get(a.employeeId)!;
-        const shift = shiftById.get(a.shiftId)!;
-        return {
-          fullName: emp.fullName,
-          position: emp.position || "",
-          shiftName: shift.name,
-          startTime: shift.startTime,
-          endTime: shift.endTime,
-          color: shift.color || "#0284c7",
-          checkedIn: checkedIn.has(a.id),
-        };
-      });
+    // Chỉ trả SỐ LƯỢNG: trang chủ không hiển thị danh tính cán bộ trực nên không
+    // có lý do gì để một tuyến công khai phát tán họ tên, chức danh hay ca trực.
+    const onDutyAssignments = active.filter((a) => byId.has(a.employeeId));
+    const onDutyCount = new Set(onDutyAssignments.map((a) => a.employeeId)).size;
+    const checkedInCount = new Set(
+      onDutyAssignments.filter((a) => checkedIn.has(a.id)).map((a) => a.employeeId)
+    ).size;
 
     const dutyIds = new Set(active.map((a) => a.employeeId));
-    const working = employees
-      .filter((e) => workingIds.includes(e.id) && !dutyIds.has(e.id))
-      .map((e) => ({ fullName: e.fullName, position: e.position || "" }));
+    const workingCount = employees.filter((e) => workingIds.includes(e.id) && !dutyIds.has(e.id)).length;
 
-    return reply({ success: true, available: true, date: today, time: vnTime(now), onDuty, working });
+    return reply({ success: true, available: true, date: today, time: vnTime(now), onDutyCount, checkedInCount, workingCount });
   } catch (err) {
     console.error("attendance-public error", err);
-    return reply({ success: true, available: false, date: today, time: vnTime(now), onDuty: [], working: [] });
+    return reply({ success: true, available: false, date: today, time: vnTime(now), onDutyCount: 0, checkedInCount: 0, workingCount: 0 });
   }
 };
 
