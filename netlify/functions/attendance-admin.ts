@@ -28,7 +28,8 @@
  *        Tài khoản:  account_link | account_unlink | account_grant |
  *                    account_create | account_reset_password
  *        Lịch trực:  roster_assign | roster_remove | roster_copy_previous |
- *                    roster_auto | roster_import
+ *                    roster_auto | roster_import | roster_rules_save |
+ *                    roster_rules_reset (chỉ Quản trị hệ thống)
  *        Dữ liệu:    punch_save | punch_delete | duty_log_save | duty_log_void | leave_save
  *                    (không sửa/xoá bản gốc: tạo đề nghị ADMIN_ADJUST chờ người duyệt
  *                    khác, hoặc áp qua bản ghi điều chỉnh khi tắt chế độ bốn mắt)
@@ -77,6 +78,7 @@ import {
   csrfCheck,
   DEFAULT_LEAVE_TYPES,
   DEFAULT_ORG,
+  DEFAULT_ROSTER_RULES,
   DEFAULT_SYMBOLS,
   DEFAULT_WORK_HOURS,
   JSON_HEADERS,
@@ -90,6 +92,7 @@ import {
   crossesMidnight,
   daysInPeriod,
   departmentNameMap,
+  deleteSetting,
   ensureSeedData,
   evaluatePunch,
   getSettings,
@@ -132,6 +135,7 @@ import {
   type DayType,
   type EmployeeRow,
   type ShiftRow,
+  type RosterRules,
 } from "../lib/attendance.js";
 
 /** Mã vai trò tuỳ chỉnh: chữ in hoa, số và gạch dưới, 2-30 ký tự. */
@@ -358,13 +362,14 @@ async function handleSettings() {
       symbols: DEFAULT_SYMBOLS,
       leaveTypes: DEFAULT_LEAVE_TYPES,
       org: DEFAULT_ORG,
+      rosterRules: DEFAULT_ROSTER_RULES,
     },
     keys: SETTING_KEYS,
   });
 }
 
 /** Lịch trực tháng dưới dạng bảng ngày x ca, kèm chỗ trống chưa phân người. */
-async function handleRoster(period: string) {
+async function handleRoster(actor: ActorContext, period: string) {
   if (!isValidPeriod(period)) return json({ success: false, error: "Kỳ không hợp lệ." }, 400);
   const dates = periodDates(period);
   const [assignments, shifts, employees, holidays, settings, logs, locked] = await Promise.all([
@@ -433,6 +438,9 @@ async function handleRoster(period: string) {
     workload: sortEmployees(employees)
       .filter((e) => String(e.status || "ACTIVE").toUpperCase() === "ACTIVE")
       .map((e) => ({ employeeId: e.id, fullName: e.fullName, code: e.code, shifts: counts.get(e.id) || 0 })),
+    rules: settings.rosterRules,
+    defaultRules: DEFAULT_ROSTER_RULES,
+    canResetRules: actor.role === "ADMIN",
   });
 }
 
@@ -1451,25 +1459,88 @@ async function copyPreviousRoster(actor: ActorContext, body: Record<string, unkn
   });
 }
 
+/** Chuẩn hoá quy tắc phân trực gửi lên: giới hạn số, bỏ mã rỗng và trùng. */
+function normalizeRosterRules(raw: Record<string, unknown>): RosterRules {
+  const ids = (v: unknown) => [...new Set((Array.isArray(v) ? v : []).map((x) => str(x)).filter(Boolean))];
+  const clamp = (v: unknown, fallback: number, min: number, max: number) =>
+    Math.min(Math.max(Math.round(num(v, fallback)), min), max);
+  return {
+    shiftIds: ids(raw.shiftIds),
+    employeeIds: ids(raw.employeeIds),
+    peoplePerShift: clamp(raw.peoplePerShift, DEFAULT_ROSTER_RULES.peoplePerShift, 1, 10),
+    strategy: str(raw.strategy).toUpperCase() === "BALANCED" ? "BALANCED" : "ROUND_ROBIN",
+    minRestDays: clamp(raw.minRestDays, DEFAULT_ROSTER_RULES.minRestDays, 0, 7),
+    maxPerMonth: clamp(raw.maxPerMonth, 0, 0, 31),
+    maxWeekendHolidayPerMonth: clamp(raw.maxWeekendHolidayPerMonth, 0, 0, 31),
+    skipOnLeave: raw.skipOnLeave === undefined ? DEFAULT_ROSTER_RULES.skipOnLeave : Boolean(raw.skipOnLeave),
+    relaxWhenShort: raw.relaxWhenShort === undefined ? DEFAULT_ROSTER_RULES.relaxWhenShort : Boolean(raw.relaxWhenShort),
+  };
+}
+
+/** Lưu quy tắc phân trực tự động để các lần phân sau dùng lại. */
+async function saveRosterRules(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const raw = body.rules;
+  if (!raw || typeof raw !== "object") return json({ success: false, error: "Quy tắc phân trực không hợp lệ." }, 400);
+  const rules = normalizeRosterRules(raw as Record<string, unknown>);
+  const before = (await getSettings()).rosterRules;
+  await saveSetting(SETTING_KEYS.ROSTER_RULES, rules, actor);
+  await writeAudit(actor, {
+    entity: "settings",
+    entityId: SETTING_KEYS.ROSTER_RULES,
+    action: "UPDATE",
+    oldValue: before,
+    newValue: rules,
+  });
+  return json({ success: true, message: "Đã lưu quy tắc phân trực tự động.", rules });
+}
+
+/**
+ * Khôi phục quy tắc phân trực về mặc định của hệ thống.
+ *
+ * Chỉ Quản trị hệ thống được làm: quy tắc đã lưu là thoả thuận chung của cả
+ * đơn vị, người được cấp quyền lập lịch có thể sửa nhưng không được xoá trắng.
+ * Lịch trực đã phân KHÔNG bị ảnh hưởng - chỉ các lần phân tự động sau mới dùng
+ * quy tắc mặc định.
+ */
+async function resetRosterRules(actor: ActorContext) {
+  requireAdmin(actor);
+  const before = (await getSettings()).rosterRules;
+  await deleteSetting(SETTING_KEYS.ROSTER_RULES);
+  await writeAudit(actor, {
+    entity: "settings",
+    entityId: SETTING_KEYS.ROSTER_RULES,
+    action: "RESET",
+    oldValue: before,
+    newValue: DEFAULT_ROSTER_RULES,
+  });
+  return json({
+    success: true,
+    message: "Đã khôi phục quy tắc phân trực về mặc định. Lịch trực đã phân được giữ nguyên.",
+    rules: DEFAULT_ROSTER_RULES,
+  });
+}
+
 /**
  * Phân trực tự động cho cả tháng.
  *
- * Luật phân: quay vòng danh sách cán bộ được chọn, mỗi ngày mỗi ca lấy người
- * kế tiếp, nhưng BỎ QUA người đã trực hôm trước (không trực hai đêm liền) và
- * người đang có đơn nghỉ đã duyệt trong ngày đó. Những ngày đã có người trực
- * thì giữ nguyên - lịch do Quản trị đặt tay luôn thắng.
+ * Dùng quy tắc đã lưu (roster_rules); những trường gửi kèm trong yêu cầu ghi
+ * đè quy tắc cho riêng lần phân này. Luật phân:
+ *   - ROUND_ROBIN quay vòng danh sách, BALANCED ưu tiên người ít suất nhất
+ *     (tính cả suất đã có sẵn trong tháng);
+ *   - mỗi người nghỉ tối thiểu minRestDays ngày giữa hai suất trực;
+ *   - không vượt maxPerMonth suất/tháng và maxWeekendHolidayPerMonth suất
+ *     cuối tuần/lễ/tháng (0 = không giới hạn);
+ *   - bỏ qua người có đơn nghỉ đã duyệt (skipOnLeave);
+ *   - thiếu người thì nới quy tắc ngày nghỉ (relaxWhenShort), giới hạn số suất
+ *     thì không bao giờ nới.
+ * Những ngày đã có người trực thì giữ nguyên - lịch do Quản trị đặt tay luôn thắng.
  */
 async function autoAssignRoster(actor: ActorContext, body: Record<string, unknown>) {
   requirePermission(actor, "roster.manage");
   const period = str(body.period);
   if (!isValidPeriod(period)) return json({ success: false, error: "Kỳ không hợp lệ." }, 400);
   await assertPeriodOpen(period);
-
-  const shiftIds = Array.isArray(body.shiftIds) ? body.shiftIds.map((v) => str(v)).filter(Boolean) : [];
-  const employeeIds = Array.isArray(body.employeeIds) ? body.employeeIds.map((v) => str(v)).filter(Boolean) : [];
-  if (!shiftIds.length) return json({ success: false, error: "Chọn ít nhất một ca trực cần phân." }, 400);
-  if (employeeIds.length < 1) return json({ success: false, error: "Chọn danh sách cán bộ tham gia trực." }, 400);
-  const perShift = Math.min(Math.max(num(body.peoplePerShift, 1), 1), 10);
 
   const dates = periodDates(period);
   const [allShifts, allEmployees, settings, holidays, existing, leaves] = await Promise.all([
@@ -1487,27 +1558,68 @@ async function autoAssignRoster(actor: ActorContext, body: Record<string, unknow
       .where(and(eq(attLeaves.status, "APPROVED"), lte(attLeaves.fromDate, dates[dates.length - 1]), gte(attLeaves.toDate, dates[0]))),
   ]);
 
-  const shifts = shiftIds
-    .map((id) => allShifts.find((s) => s.id === id))
-    .filter((s): s is ShiftRow => Boolean(s) && String(s!.status || "ACTIVE").toUpperCase() === "ACTIVE");
-  if (!shifts.length) return json({ success: false, error: "Các ca đã chọn không còn hiệu lực." }, 400);
+  const overrides = Object.fromEntries(
+    Object.entries(body).filter(([k]) => k in DEFAULT_ROSTER_RULES && body[k] !== undefined && body[k] !== null)
+  );
+  const rules = normalizeRosterRules({ ...settings.rosterRules, ...overrides });
 
-  const pool = employeeIds
-    .map((id) => allEmployees.find((e) => e.id === id))
-    .filter((e): e is EmployeeRow => Boolean(e) && String(e!.status || "ACTIVE").toUpperCase() === "ACTIVE");
-  if (!pool.length) return json({ success: false, error: "Danh sách cán bộ đã chọn không còn hiệu lực." }, 400);
+  const isActiveShift = (s: ShiftRow | undefined): s is ShiftRow =>
+    Boolean(s) && String(s!.status || "ACTIVE").toUpperCase() === "ACTIVE";
+  const isActiveEmp = (e: EmployeeRow | undefined): e is EmployeeRow =>
+    Boolean(e) && String(e!.status || "ACTIVE").toUpperCase() === "ACTIVE";
+
+  const shifts = rules.shiftIds.length
+    ? rules.shiftIds.map((id) => allShifts.find((s) => s.id === id)).filter(isActiveShift)
+    : allShifts.filter(isActiveShift);
+  if (!shifts.length) return json({ success: false, error: "Chưa có ca trực nào còn hiệu lực để phân." }, 400);
+
+  const pool = rules.employeeIds.length
+    ? rules.employeeIds.map((id) => allEmployees.find((e) => e.id === id)).filter(isActiveEmp)
+    : sortEmployees(allEmployees).filter(isActiveEmp);
+  if (!pool.length) return json({ success: false, error: "Danh sách cán bộ tham gia trực không còn hiệu lực." }, 400);
 
   const holidayMap = buildHolidayMap(holidays);
+  const dayTypeOf = new Map(dates.map((d) => [d, classifyDay(d, holidayMap, settings.workHours)]));
+  const isSpecial = (date: string) => {
+    const t = dayTypeOf.get(date) || classifyDay(date, holidayMap, settings.workHours);
+    return t === "WEEKEND" || t === "HOLIDAY";
+  };
+
   const active = existing.filter((r) => String(r.status || "PLANNED").toUpperCase() !== "CANCELLED");
   const taken = new Set(active.map((r) => `${r.dutyDate}|${r.shiftId}|${r.employeeId}`));
   const filledDayShift = new Map<string, number>();
+  const total = new Map<string, number>();
+  const special = new Map<string, number>();
+  const busy = new Set<string>();
+  const markBusy = (date: string, employeeId: string) => {
+    busy.add(`${date}|${employeeId}`);
+    total.set(employeeId, (total.get(employeeId) || 0) + 1);
+    if (isSpecial(date)) special.set(employeeId, (special.get(employeeId) || 0) + 1);
+  };
   for (const r of active) {
     const key = `${r.dutyDate}|${r.shiftId}`;
     filledDayShift.set(key, (filledDayShift.get(key) || 0) + 1);
+    if (!busy.has(`${r.dutyDate}|${r.employeeId}`)) markBusy(r.dutyDate, r.employeeId);
   }
-  const busy = new Set(active.map((r) => `${r.dutyDate}|${r.employeeId}`));
+  // Suất cuối tháng trước cũng tính cho quy tắc ngày nghỉ của đầu tháng này.
+  if (rules.minRestDays > 0) {
+    const prior = await db
+      .select()
+      .from(attDutyAssignments)
+      .where(and(gte(attDutyAssignments.dutyDate, addDays(dates[0], -rules.minRestDays)), lte(attDutyAssignments.dutyDate, addDays(dates[0], -1))));
+    for (const r of prior) {
+      if (String(r.status || "PLANNED").toUpperCase() !== "CANCELLED") busy.add(`${r.dutyDate}|${r.employeeId}`);
+    }
+  }
+
   const onLeave = (employeeId: string, date: string) =>
     leaves.some((l) => l.employeeId === employeeId && l.fromDate <= date && l.toDate >= date);
+  const restedEnough = (employeeId: string, date: string) => {
+    for (let d = 1; d <= rules.minRestDays; d++) {
+      if (busy.has(`${addDays(date, -d)}|${employeeId}`) || busy.has(`${addDays(date, d)}|${employeeId}`)) return false;
+    }
+    return true;
+  };
 
   const now = Date.now();
   const rows: (typeof attDutyAssignments.$inferInsert)[] = [];
@@ -1515,23 +1627,43 @@ async function autoAssignRoster(actor: ActorContext, body: Record<string, unknow
   let unfilled = 0;
 
   for (const date of dates) {
-    const dayType = classifyDay(date, holidayMap, settings.workHours);
-    const yesterday = addDays(date, -1);
+    const dayType = dayTypeOf.get(date)!;
+    const specialDay = dayType === "WEEKEND" || dayType === "HOLIDAY";
     for (const shift of shifts) {
       if (!shiftFitsDay(shift, dayType)) continue;
       const key = `${date}|${shift.id}`;
-      let need = perShift - (filledDayShift.get(key) || 0);
+      let need = rules.peoplePerShift - (filledDayShift.get(key) || 0);
       if (need <= 0) continue;
 
-      // Hai lượt quét: lượt đầu tránh người trực hôm trước, lượt sau nới điều
-      // kiện đó ra để không bỏ trống ca khi danh sách quá ngắn.
-      for (let relax = 0; relax < 2 && need > 0; relax++) {
-        for (let step = 0; step < pool.length && need > 0; step++) {
-          const candidate = pool[(cursor + step) % pool.length];
+      // Lượt đầu giữ đủ quy tắc ngày nghỉ; lượt sau (nếu cho phép) nới quy tắc
+      // đó để không bỏ trống ca khi danh sách quá ngắn.
+      const passes = rules.relaxWhenShort && rules.minRestDays > 0 ? 2 : 1;
+      for (let relax = 0; relax < passes && need > 0; relax++) {
+        let order = pool.map((_, step) => (cursor + step) % pool.length);
+        if (rules.strategy === "BALANCED") {
+          // Ít suất nhất trước; hoà nhau thì giữ thứ tự vòng để luân phiên đều.
+          order = order
+            .map((idx, rank) => ({ idx, rank }))
+            .sort((a, b) => {
+              const ea = pool[a.idx].id;
+              const eb = pool[b.idx].id;
+              if (specialDay) {
+                const ds = (special.get(ea) || 0) - (special.get(eb) || 0);
+                if (ds) return ds;
+              }
+              return (total.get(ea) || 0) - (total.get(eb) || 0) || a.rank - b.rank;
+            })
+            .map((x) => x.idx);
+        }
+        for (const idx of order) {
+          if (need <= 0) break;
+          const candidate = pool[idx];
           if (busy.has(`${date}|${candidate.id}`)) continue;
           if (taken.has(`${date}|${shift.id}|${candidate.id}`)) continue;
-          if (onLeave(candidate.id, date)) continue;
-          if (relax === 0 && busy.has(`${yesterday}|${candidate.id}`)) continue;
+          if (rules.skipOnLeave && onLeave(candidate.id, date)) continue;
+          if (rules.maxPerMonth && (total.get(candidate.id) || 0) >= rules.maxPerMonth) continue;
+          if (specialDay && rules.maxWeekendHolidayPerMonth && (special.get(candidate.id) || 0) >= rules.maxWeekendHolidayPerMonth) continue;
+          if (relax === 0 && !restedEnough(candidate.id, date)) continue;
 
           rows.push({
             id: newId("duty"),
@@ -1546,9 +1678,9 @@ async function autoAssignRoster(actor: ActorContext, body: Record<string, unknow
             updatedAt: now,
           });
           taken.add(`${date}|${shift.id}|${candidate.id}`);
-          busy.add(`${date}|${candidate.id}`);
+          markBusy(date, candidate.id);
           filledDayShift.set(key, (filledDayShift.get(key) || 0) + 1);
-          cursor = (cursor + step + 1) % pool.length;
+          cursor = (idx + 1) % pool.length;
           need -= 1;
         }
       }
@@ -1557,16 +1689,17 @@ async function autoAssignRoster(actor: ActorContext, body: Record<string, unknow
   }
 
   if (rows.length) await db.insert(attDutyAssignments).values(rows);
+  if (body.saveRules === true) await saveSetting(SETTING_KEYS.ROSTER_RULES, rules, actor);
   await writeAudit(actor, {
     entity: "duty_assignment",
     entityId: period,
     action: "ROSTER_AUTO",
-    newValue: { created: rows.length, unfilled, shiftIds, employees: pool.length, peoplePerShift: perShift },
+    newValue: { created: rows.length, unfilled, employees: pool.length, shifts: shifts.length, rules, savedRules: body.saveRules === true },
   });
   return json({
     success: true,
     message: `Đã phân tự động ${rows.length} suất trực cho tháng ${period}${
-      unfilled ? `. Còn ${unfilled} suất chưa có người - hãy bổ sung cán bộ hoặc phân tay.` : "."
+      unfilled ? `. Còn ${unfilled} suất chưa có người - hãy bổ sung cán bộ, nới quy tắc hoặc phân tay.` : "."
     }`,
     created: rows.length,
     unfilled,
@@ -2361,7 +2494,7 @@ export default async (req: Request) => {
           return await handleSettings();
         case "roster":
           requireManager(actor);
-          return await handleRoster(period);
+          return await handleRoster(actor, period);
         case "approvals":
           return await handleApprovals(actor, str(url.searchParams.get("status")));
         case "not_punched":
@@ -2438,6 +2571,10 @@ export default async (req: Request) => {
         return await autoAssignRoster(actor, body);
       case "roster_import":
         return await importRoster(actor, body);
+      case "roster_rules_save":
+        return await saveRosterRules(actor, body);
+      case "roster_rules_reset":
+        return await resetRosterRules(actor);
 
       // Dữ liệu công
       case "punch_save":

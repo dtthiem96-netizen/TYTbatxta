@@ -207,7 +207,48 @@ export const SETTING_KEYS = {
   SYMBOLS: "symbols",
   LEAVE_TYPES: "leave_types",
   ORG: "org",
+  ROSTER_RULES: "roster_rules",
 } as const;
+
+/**
+ * Quy tắc phân trực tự động.
+ *
+ * Quản trị (hoặc người có quyền lập lịch trực) lưu một lần, mỗi lần bấm "Phân
+ * lịch tự động" sẽ dùng lại. Danh sách ca/cán bộ để trống nghĩa là lấy tất cả
+ * ca/cán bộ đang hoạt động tại thời điểm phân.
+ */
+export type RosterRules = {
+  /** Ca trực mặc định cần phân. Rỗng = mọi ca đang dùng. */
+  shiftIds: string[];
+  /** Cán bộ tham gia trực mặc định. Rỗng = mọi cán bộ đang hoạt động. */
+  employeeIds: string[];
+  /** Số người mỗi ca. */
+  peoplePerShift: number;
+  /** ROUND_ROBIN: quay vòng theo danh sách; BALANCED: ưu tiên người ít suất nhất trong tháng. */
+  strategy: "ROUND_ROBIN" | "BALANCED";
+  /** Số ngày nghỉ tối thiểu giữa hai suất trực của cùng một người (0 = được trực liền). */
+  minRestDays: number;
+  /** Tối đa số suất trực một người trong tháng (0 = không giới hạn). */
+  maxPerMonth: number;
+  /** Tối đa số suất trực cuối tuần/lễ một người trong tháng (0 = không giới hạn). */
+  maxWeekendHolidayPerMonth: number;
+  /** Bỏ qua người có đơn nghỉ đã duyệt trong ngày. */
+  skipOnLeave: boolean;
+  /** Thiếu người thì nới quy tắc ngày nghỉ giữa ca để không bỏ trống ca. */
+  relaxWhenShort: boolean;
+};
+
+export const DEFAULT_ROSTER_RULES: RosterRules = {
+  shiftIds: [],
+  employeeIds: [],
+  peoplePerShift: 1,
+  strategy: "ROUND_ROBIN",
+  minRestDays: 1,
+  maxPerMonth: 0,
+  maxWeekendHolidayPerMonth: 0,
+  skipOnLeave: true,
+  relaxWhenShort: true,
+};
 
 export type WorkHours = {
   /** Ngày làm việc trong tuần: 0 = Chủ nhật ... 6 = Thứ 7. */
@@ -381,6 +422,7 @@ export type Settings = {
   symbols: Symbols;
   leaveTypes: LeaveType[];
   org: OrgInfo;
+  rosterRules: RosterRules;
 };
 
 /**
@@ -414,7 +456,13 @@ export async function getSettings(): Promise<Settings> {
     symbols: mergeDeep(DEFAULT_SYMBOLS, parse(SETTING_KEYS.SYMBOLS)),
     leaveTypes: Array.isArray(leaveRaw) && leaveRaw.length ? (leaveRaw as LeaveType[]) : DEFAULT_LEAVE_TYPES,
     org: mergeDeep(DEFAULT_ORG, parse(SETTING_KEYS.ORG)),
+    rosterRules: mergeDeep(DEFAULT_ROSTER_RULES, parse(SETTING_KEYS.ROSTER_RULES)),
   };
+}
+
+/** Xoá một khoá cấu hình để quay về giá trị mặc định. */
+export async function deleteSetting(key: string): Promise<void> {
+  await db.delete(attSettings).where(eq(attSettings.id, key));
 }
 
 /** Ghi một khoá cấu hình. */
