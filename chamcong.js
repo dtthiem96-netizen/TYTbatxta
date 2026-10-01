@@ -3049,7 +3049,7 @@
           '</td></tr>';
       }).join('');
 
-      host.innerHTML = toolbar + workload +
+      host.innerHTML = toolbar + rosterRulesCard(data) + workload +
         adminCard('Lịch trực ' + periodLabel(wanted),
           '<span class="text-xs text-slate-500">' + activeShifts.length + ' ca trực đang dùng</span>',
           tableWrap([
@@ -3060,6 +3060,137 @@
       host.innerHTML = emptyBox(err.message || 'Không tải được lịch trực.');
       fail(err);
     });
+  }
+
+  var STRATEGY_LABEL = {
+    ROUND_ROBIN: 'Quay vòng theo danh sách',
+    BALANCED: 'Cân bằng - ưu tiên người ít suất trực nhất'
+  };
+
+  function rosterRules() {
+    return (S.rosterData && S.rosterData.rules) || (S.settings && S.settings.rosterRules) || {};
+  }
+
+  /** Tóm tắt quy tắc phân trực đang lưu, kèm nút thiết lập / khôi phục mặc định. */
+  function rosterRulesCard(data) {
+    var r = data.rules || {};
+    var shiftNames = (r.shiftIds || []).map(function (id) {
+      var s = (data.shifts || []).filter(function (x) { return x.id === id; })[0];
+      return s ? s.name : null;
+    }).filter(Boolean);
+    var empCount = (r.employeeIds || []).filter(function (id) {
+      return S.employees.some(function (e) { return e.id === id && e.status === 'ACTIVE'; });
+    }).length;
+    var item = function (label, value) {
+      return '<div class="px-3 py-2 rounded-lg bg-slate-50 border border-slate-100">' +
+        '<p class="text-[11px] text-slate-500">' + esc(label) + '</p>' +
+        '<p class="text-sm font-semibold text-slate-800">' + esc(value) + '</p></div>';
+    };
+    var limit = function (n) { return num(n, 0) > 0 ? n + ' suất' : 'Không giới hạn'; };
+    var actions =
+      '<button type="button" data-cc-act="roster-rules" class="px-3 py-1.5 bg-medical-50 hover:bg-medical-100 text-medical-700 rounded-lg text-xs font-semibold"><i class="fas fa-sliders mr-1"></i>Thiết lập quy tắc</button>' +
+      (data.canResetRules ? '<button type="button" data-cc-act="roster-rules-reset" class="ml-2 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-semibold"><i class="fas fa-rotate-left mr-1"></i>Khôi phục mặc định</button>' : '');
+    return adminCard('Quy tắc phân trực tự động', actions,
+      '<div class="grid grid-cols-2 md:grid-cols-4 gap-2">' +
+      item('Cách phân', STRATEGY_LABEL[r.strategy] || STRATEGY_LABEL.ROUND_ROBIN) +
+      item('Số người mỗi ca', String(num(r.peoplePerShift, 1))) +
+      item('Nghỉ tối thiểu giữa hai suất', num(r.minRestDays, 0) > 0 ? r.minRestDays + ' ngày' : 'Được trực liền') +
+      item('Tối đa mỗi người / tháng', limit(r.maxPerMonth)) +
+      item('Tối đa cuối tuần, lễ / tháng', limit(r.maxWeekendHolidayPerMonth)) +
+      item('Ca trực áp dụng', shiftNames.length ? shiftNames.join(', ') : 'Tất cả ca đang dùng') +
+      item('Cán bộ tham gia', (r.employeeIds || []).length ? empCount + ' cán bộ đã chọn' : 'Tất cả cán bộ đang hoạt động') +
+      item('Nghỉ phép / thiếu người', (r.skipOnLeave === false ? 'Không bỏ qua nghỉ phép' : 'Bỏ qua người nghỉ phép') +
+        (r.relaxWhenShort === false ? '; giữ nguyên quy tắc' : '; nới quy tắc khi thiếu')) +
+      '</div>');
+  }
+
+  /** Các trường quy tắc dùng chung cho hộp thoại thiết lập và hộp thoại phân tự động. */
+  function rosterRulesFields(r, shifts, staff) {
+    var allShifts = !(r.shiftIds || []).length;
+    var allStaff = !(r.employeeIds || []).length;
+    return '<div class="mb-3"><p class="text-xs font-semibold text-slate-600 mb-1">Ca trực cần phân</p>' +
+      shifts.map(function (s) {
+        return '<label class="flex items-center gap-2 text-sm mb-1"><input type="checkbox" data-cc-shift="' + esc(s.id) +
+          '" class="w-4 h-4"' + (allShifts || r.shiftIds.indexOf(s.id) >= 0 ? ' checked' : '') + '><span>' +
+          esc(s.name) + ' (' + esc(s.startTime) + ' - ' + esc(s.endTime) + ')</span></label>';
+      }).join('') + '</div>' +
+      '<div class="mb-3"><p class="text-xs font-semibold text-slate-600 mb-1">Cán bộ tham gia trực</p>' +
+      '<div class="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2">' +
+      staff.map(function (e) {
+        return '<label class="flex items-center gap-2 text-sm mb-1"><input type="checkbox" data-cc-emp="' + esc(e.id) +
+          '" class="w-4 h-4"' + (allStaff || r.employeeIds.indexOf(e.id) >= 0 ? ' checked' : '') + '><span>' +
+          esc(e.fullName) + '</span></label>';
+      }).join('') + '</div></div>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-x-3">' +
+      field('Cách phân', select('strategy', [
+        { value: 'ROUND_ROBIN', label: STRATEGY_LABEL.ROUND_ROBIN },
+        { value: 'BALANCED', label: STRATEGY_LABEL.BALANCED }
+      ], r.strategy || 'ROUND_ROBIN')) +
+      field('Số người mỗi ca', input('peoplePerShift', num(r.peoplePerShift, 1), 'number', 'min="1" max="10"')) +
+      field('Số ngày nghỉ tối thiểu giữa hai suất trực', input('minRestDays', num(r.minRestDays, 1), 'number', 'min="0" max="7"'),
+        '0 = được trực hai ngày liền; 1 = không trực hai ngày liền.') +
+      field('Tối đa số suất mỗi người / tháng', input('maxPerMonth', num(r.maxPerMonth, 0), 'number', 'min="0" max="31"'), '0 = không giới hạn.') +
+      field('Tối đa suất cuối tuần, lễ mỗi người / tháng', input('maxWeekendHolidayPerMonth', num(r.maxWeekendHolidayPerMonth, 0), 'number', 'min="0" max="31"'), '0 = không giới hạn.') +
+      '</div>' +
+      checkbox('skipOnLeave', 'Bỏ qua cán bộ đang có đơn nghỉ đã duyệt', r.skipOnLeave !== false) +
+      checkbox('relaxWhenShort', 'Thiếu người thì nới quy tắc ngày nghỉ để không bỏ trống ca', r.relaxWhenShort !== false);
+  }
+
+  /** Đọc quy tắc từ hộp thoại. Chọn đủ tất cả thì lưu rỗng = "tất cả", để ca/cán bộ mới tự được tính. */
+  function readRosterRules() {
+    var body = el('ccModalBody');
+    var shiftBoxes = qsa('[data-cc-shift]', body);
+    var empBoxes = qsa('[data-cc-emp]', body);
+    var pick = function (boxes, attr) {
+      var chosen = boxes.filter(function (n) { return n.checked; });
+      if (chosen.length === boxes.length) return [];
+      return chosen.map(function (n) { return n.getAttribute(attr); });
+    };
+    var v = modalValues();
+    return {
+      shiftIds: pick(shiftBoxes, 'data-cc-shift'),
+      employeeIds: pick(empBoxes, 'data-cc-emp'),
+      anyShift: shiftBoxes.some(function (n) { return n.checked; }),
+      anyEmployee: empBoxes.some(function (n) { return n.checked; }),
+      strategy: v.strategy,
+      peoplePerShift: num(v.peoplePerShift, 1),
+      minRestDays: num(v.minRestDays, 0),
+      maxPerMonth: num(v.maxPerMonth, 0),
+      maxWeekendHolidayPerMonth: num(v.maxWeekendHolidayPerMonth, 0),
+      skipOnLeave: !!v.skipOnLeave,
+      relaxWhenShort: !!v.relaxWhenShort,
+      saveRules: !!v.saveRules
+    };
+  }
+
+  function openRosterRulesForm() {
+    var shifts = ((S.rosterData && S.rosterData.shifts) || S.shifts).filter(function (s) { return s.status === 'ACTIVE'; });
+    var staff = S.employees.filter(function (e) { return e.status === 'ACTIVE'; });
+    var html =
+      '<p class="text-xs text-slate-500 mb-3">Quy tắc được lưu lại và dùng cho mọi lần bấm "Phân lịch tự động". Chọn đủ tất cả ca hoặc tất cả cán bộ nghĩa là ca/cán bộ thêm sau này cũng tự được tính. Những suất đã phân tay luôn được giữ nguyên.</p>' +
+      rosterRulesFields(rosterRules(), shifts, staff) +
+      submitRow('Lưu quy tắc');
+    openModal('Thiết lập quy tắc phân trực tự động', html, function () {
+      var r = readRosterRules();
+      if (!r.anyShift) return toast('Chọn ít nhất một ca trực.', 'warn');
+      if (!r.anyEmployee) return toast('Chọn ít nhất một cán bộ tham gia trực.', 'warn');
+      api('admin', { body: { action: 'roster_rules_save', rules: r } }).then(function (data) {
+        closeModal();
+        toast(data.message, 'success');
+        loadAdminRoster(el('ccAdminBody'), rosterPeriod());
+      }).catch(fail);
+    });
+  }
+
+  function resetRosterRules() {
+    confirmBox('Khôi phục quy tắc phân trực tự động về mặc định của hệ thống? Quy tắc đã lưu sẽ bị xoá; lịch trực đã phân không thay đổi.',
+      function () {
+        api('admin', { body: { action: 'roster_rules_reset' } }).then(function (data) {
+          closeModal();
+          toast(data.message, 'success');
+          loadAdminRoster(el('ccAdminBody'), rosterPeriod());
+        }).catch(fail);
+      }, 'Khôi phục');
   }
 
   function rosterPeriod() {
@@ -3102,38 +3233,19 @@
     var shifts = ((S.rosterData && S.rosterData.shifts) || S.shifts).filter(function (s) { return s.status === 'ACTIVE'; });
     var staff = S.employees.filter(function (e) { return e.status === 'ACTIVE'; });
     var html =
-      '<p class="text-xs text-slate-500 mb-3">Hệ thống phân lần lượt theo vòng, tránh xếp hai đêm liền nhau và bỏ qua người đang nghỉ phép. Những suất đã phân bằng tay được giữ nguyên, không bị ghi đè.</p>' +
-      '<div class="mb-3"><p class="text-xs font-semibold text-slate-600 mb-1">Ca trực cần phân</p>' +
-      shifts.map(function (s) {
-        return '<label class="flex items-center gap-2 text-sm mb-1"><input type="checkbox" data-cc-shift="' + esc(s.id) +
-          '" class="w-4 h-4" checked><span>' + esc(s.name) + ' (' + esc(s.startTime) + ' - ' + esc(s.endTime) + ')</span></label>';
-      }).join('') + '</div>' +
-      '<div class="mb-3"><p class="text-xs font-semibold text-slate-600 mb-1">Cán bộ tham gia trực</p>' +
-      '<div class="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2">' +
-      staff.map(function (e) {
-        return '<label class="flex items-center gap-2 text-sm mb-1"><input type="checkbox" data-cc-emp="' + esc(e.id) +
-          '" class="w-4 h-4" checked><span>' + esc(e.fullName) + '</span></label>';
-      }).join('') + '</div></div>' +
-      field('Số người mỗi ca', input('peoplePerShift', 1, 'number', 'min="1" max="10"')) +
+      '<p class="text-xs text-slate-500 mb-3">Các lựa chọn dưới đây lấy từ quy tắc phân trực đã lưu; có thể chỉnh riêng cho lần phân này. Những suất đã phân bằng tay được giữ nguyên, không bị ghi đè.</p>' +
+      rosterRulesFields(rosterRules(), shifts, staff) +
+      checkbox('saveRules', 'Lưu các lựa chọn này làm quy tắc cho những lần sau', false) +
       submitRow('Phân lịch cho ' + periodLabel(period));
     openModal('Phân lịch trực tự động', html, function () {
-      var body = el('ccModalBody');
-      var shiftIds = qsa('[data-cc-shift]', body).filter(function (n) { return n.checked; })
-        .map(function (n) { return n.getAttribute('data-cc-shift'); });
-      var employeeIds = qsa('[data-cc-emp]', body).filter(function (n) { return n.checked; })
-        .map(function (n) { return n.getAttribute('data-cc-emp'); });
-      var v = modalValues();
-      api('admin', {
-        body: {
-          action: 'roster_auto', period: period, shiftIds: shiftIds,
-          employeeIds: employeeIds, peoplePerShift: num(v.peoplePerShift, 1)
-        }
-      }).then(function (data) {
+      var r = readRosterRules();
+      if (!r.anyShift) return toast('Chọn ít nhất một ca trực cần phân.', 'warn');
+      if (!r.anyEmployee) return toast('Chọn danh sách cán bộ tham gia trực.', 'warn');
+      var body = { action: 'roster_auto', period: period };
+      Object.keys(r).forEach(function (k) { if (k !== 'anyShift' && k !== 'anyEmployee') body[k] = r[k]; });
+      api('admin', { body: body }).then(function (data) {
         closeModal();
-        toast(data.message, 'success');
-        if (data.unfilled && data.unfilled.length) {
-          toast('Còn ' + data.unfilled.length + ' suất chưa phân được người, cần xếp tay.', 'warn');
-        }
+        toast(data.message, data.unfilled ? 'warn' : 'success', data.unfilled ? 6000 : null);
         loadAdminRoster(el('ccAdminBody'), period);
       }).catch(fail);
     });
@@ -5321,6 +5433,8 @@
         }, 'Sao chép');
     },
     'roster-auto': function () { openRosterAutoForm(); },
+    'roster-rules': function () { openRosterRulesForm(); },
+    'roster-rules-reset': function () { resetRosterRules(); },
     'roster-import': function () { openRosterImportForm(); },
 
     // Khoá kỳ
