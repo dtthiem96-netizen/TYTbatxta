@@ -82,12 +82,16 @@
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" as="style">
     
     <!-- THƯ VIỆN GIAO DIỆN -->
-    <script src="https://cdn.tailwindcss.com" defer></script>
+    <script src="https://cdn.tailwindcss.com" defer onload="if (window.__tytTailwindConfig) tailwind.config = window.__tytTailwindConfig"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     
     <script>
-        tailwind.config = {
+        // Tailwind CDN được nạp với "defer" nên chưa tồn tại tại thời điểm này.
+        // Gán thẳng tailwind.config ở đây sẽ ném ReferenceError và làm mất bảng màu
+        // "medical" (tiêu đề cửa sổ trắng trên nền trắng). Lưu cấu hình lại và áp
+        // dụng trong onload của thẻ script CDN ở trên.
+        window.__tytTailwindConfig = {
             theme: {
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'], },
@@ -126,6 +130,20 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* TIÊU ĐỀ & NÚT ĐÓNG CỬA SỔ (MODAL): luôn rõ nét, kể cả khi nền màu chuyển chưa nạp */
+        .modal-content > div:first-child.text-white { background-color: #0b416b; }
+        .modal-content > div:first-child.text-white h3 { color: #ffffff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+        .modal-content > div:first-child.text-white p { color: rgba(255, 255, 255, 0.92); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+        .modal-content button[onclick*="closeModal"]:has(> i.fa-times:only-child) {
+            flex-shrink: 0; width: 2.25rem; height: 2.25rem; border-radius: 9999px;
+            display: inline-flex; align-items: center; justify-content: center;
+            color: #ffffff; background-color: rgba(0, 0, 0, 0.28);
+            border: 2px solid rgba(255, 255, 255, 0.85); font-size: 1.05rem;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); transition: background-color 0.2s, transform 0.2s;
+        }
+        .modal-content button[onclick*="closeModal"]:has(> i.fa-times:only-child):hover { background-color: #dc2626; border-color: #ffffff; color: #ffffff; transform: scale(1.08); }
+        .modal-content button[onclick*="closeModal"]:has(> i.fa-times:only-child):focus-visible { outline: 3px solid #fde047; outline-offset: 2px; }
 
         /* CHẾ ĐỘ TƯƠNG PHẢN CAO CHO NGƯỜI LỚN TUỔI & NGƯỜI DÂN */
         body.high-contrast {
@@ -1659,7 +1677,7 @@
 
         <!-- BIỂU MẪU GÓP Ý PHẢN ÁNH -->
         <div id="modal-gopy" class="modal-content hidden bg-white rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden shadow-2xl transform transition-all">
-            <div class="bg-gradient-to-r from-yellow-500 to-yellow-400 p-5 flex justify-between items-center text-white">
+            <div class="bg-gradient-to-r from-amber-600 to-orange-600 p-5 flex justify-between items-center text-white">
                 <h3 class="font-bold text-xl"><i class="fas fa-comment-medical mr-2"></i> Góp ý & Phản ánh</h3>
                 <button onclick="window.closeModal()" class="text-white hover:text-gray-100 bg-black/10 w-8 h-8 rounded-full flex items-center justify-center" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
             </div>
