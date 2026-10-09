@@ -109,8 +109,9 @@
         }
         body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
         .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .service-card:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border-color: #e0f2fe; }
-        .service-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Thẻ dịch vụ: rê chuột thì viền đậm lên và thẻ nhô ra, thay vì viền nhạt đi như trước */
+        .service-card:hover { transform: translateY(-4px); box-shadow: 0 14px 24px -8px rgba(11, 65, 107, 0.3); border-color: #0b416b; }
+        .service-card { transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
         .feedback-btn {
             position: fixed; left: -140px; top: 50%; transform: translateY(-50%);
             background-color: #f59e0b; color: white; padding: 14px 22px;
@@ -130,8 +131,8 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         /* Nút "Xem thêm" ở trang chủ: đủ lớn, tương phản rõ cho người cao tuổi */
-        .tyt-more-btn { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; padding: 0.6rem 1.25rem; border-radius: 0.75rem; font-size: 1rem; font-weight: 800; color: #ffffff; background-color: #0b416b; box-shadow: 0 2px 6px rgba(11, 65, 107, 0.25); transition: background-color 0.2s; }
-        .tyt-more-btn:hover { background-color: #1976d2; }
+        .tyt-more-btn { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 3rem; padding: 0.6rem 1.25rem; border-radius: 0.75rem; border: 2px solid #0b416b; font-size: 1rem; font-weight: 800; color: #ffffff; background-color: #0b416b; box-shadow: 0 2px 6px rgba(11, 65, 107, 0.25); transition: background-color 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.18s; }
+        .tyt-more-btn:hover { background-color: #1976d2; border-color: #1976d2; transform: translateY(-2px); box-shadow: 0 8px 18px rgba(25, 118, 210, 0.35); }
         .tyt-more-btn:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
         /* Ảnh trong thẻ tin dạng lưới: giữ chiều cao gọn để các hàng đều nhau */
         .tyt-news-card-body img { max-height: 11rem; }
@@ -274,21 +275,6 @@
         footer a:hover, #lien-he a:hover {
             color: #7dd3fc !important;
             text-decoration: underline;
-        }
-        @media screen and (max-width: 768px) {
-            footer .grid, #lien-he .grid {
-                display: flex !important;
-                flex-direction: column !important;
-                gap: 2rem !important;
-            }
-            footer .flex-col-mobile, #lien-he .flex-col-mobile {
-                flex-direction: column !important;
-                align-items: flex-start !important;
-                gap: 1.25rem !important;
-            }
-            footer .text-center-mobile, #lien-he .text-center-mobile {
-                text-align: left !important;
-            }
         }
 
         /* =====================================================================
@@ -633,6 +619,154 @@
             }
         }
 
+        /* =====================================================================
+           7. CHUẨN HOÁ KIỂU CHỮ - KHOẢNG CÁCH - NÚT BẤM (TRANG NGƯỜI DÂN)
+
+           Tiêu đề các khối trước đây mỗi nơi một cỡ (text-2xl, md:text-3xl,
+           text-4xl...) và một độ đậm (extrabold/black). Nhóm luật dưới đây đặt
+           một thang chữ duy nhất cho ba trang công khai: Trang chủ, Khoa & Phòng,
+           Tin tức. Cỡ chữ dùng đơn vị rem nên vẫn phóng to theo nút A+ / A++.
+           Bộ chọn có mã id nên thắng lớp tiện ích của Tailwind mà không cần
+           !important - chế độ tương phản cao vẫn ghi đè màu như cũ.
+           ===================================================================== */
+        :is(#trang-chu-container, #khoa-phong-container, #tin-tuc-container) :is(h1, h2, h3, h4) {
+            line-height: 1.25;
+            text-wrap: balance;
+        }
+        :is(#trang-chu-container, #khoa-phong-container, #tin-tuc-container) p {
+            line-height: 1.6;
+        }
+        /* Cấp 1 - tiêu đề lớn đầu trang chủ */
+        #trang-chu-container [data-cms-id="hero-heading"] {
+            font-size: clamp(2rem, 1.25rem + 3vw, 3rem);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+        }
+        #trang-chu-container [data-cms-id="hero-desc"] {
+            font-size: 1.125rem;
+            max-width: 40rem;
+            margin-inline: auto;
+        }
+        @media (min-width: 768px) {
+            #trang-chu-container [data-cms-id="hero-desc"] { margin-left: 0; }
+        }
+        /* Cấp 2 - tiêu đề trang Khoa & Phòng, Tin tức */
+        :is(#khoa-phong-container, #tin-tuc-container) h2 {
+            font-size: clamp(1.625rem, 1.2rem + 1.6vw, 2.25rem);
+            font-weight: 800;
+            line-height: 1.2;
+        }
+        :is(#khoa-phong-container, #tin-tuc-container) h2 + p {
+            font-size: 1.0625rem;
+            margin-top: 0.375rem;
+        }
+        /* Cấp 3 - tiêu đề từng khối nội dung */
+        :is(#trang-chu-container, #khoa-phong-container, #tin-tuc-container) h3 {
+            font-size: 1.375rem;
+            font-weight: 800;
+        }
+        :is(#trang-chu-container, #khoa-phong-container, #tin-tuc-container) h3:not(.uppercase) {
+            letter-spacing: -0.01em;
+        }
+        /* Cấp 4 - tên thẻ dịch vụ, tiêu đề tin */
+        :is(#trang-chu-container, #khoa-phong-container, #tin-tuc-container) h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.35;
+        }
+        :is(#news-container, #archive-news-container) h4 {
+            font-size: 1.125rem;
+            font-weight: 800;
+        }
+        @media (min-width: 768px) {
+            :is(#trang-chu-container, #khoa-phong-container, #tin-tuc-container) h3 { font-size: 1.625rem; }
+            :is(#trang-chu-container, #khoa-phong-container, #tin-tuc-container) h4 { font-size: 1.0625rem; }
+        }
+
+        /* NÚT BẤM: nền đặc, viền rõ, bo góc vừa phải và phản hồi rõ khi rê
+           chuột / bấm. Khi rê chuột nút đổi hẳn màu nền (không chỉ nhạt đi một
+           chút) và nhô lên, để người cao tuổi nhìn ra ngay nút nào đang chọn. */
+        .tyt-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+            min-height: 3rem; border-radius: 0.875rem; border: 2px solid transparent;
+            font-weight: 800; line-height: 1.2; text-decoration: none; cursor: pointer;
+            transition: background-color 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+        }
+        .tyt-btn-primary { background-color: #1976d2; color: #ffffff; box-shadow: 0 4px 12px rgba(25, 118, 210, 0.35); }
+        .tyt-btn-primary:hover { background-color: #0b416b; color: #ffffff; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(11, 65, 107, 0.35), 0 0 0 3px rgba(25, 118, 210, 0.3); }
+        .tyt-btn-outline { background-color: #ffffff; color: #0b416b; border-color: #1976d2; box-shadow: 0 2px 8px rgba(11, 65, 107, 0.12); }
+        .tyt-btn-outline i { color: #1976d2; transition: color 0.18s; }
+        .tyt-btn-outline:hover { background-color: #0b416b; border-color: #0b416b; color: #ffffff; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(11, 65, 107, 0.3); }
+        .tyt-btn-outline:hover i { color: #ffffff; }
+
+        .tyt-ai-btn {
+            display: flex; align-items: center; min-height: 3rem; border-radius: 0.75rem;
+            font-weight: 700; color: #ffffff; background-color: rgba(255, 255, 255, 0.14);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            transition: background-color 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+        }
+        .tyt-ai-btn:hover { background-color: #ffffff; border-color: #ffffff; color: #4527a0; transform: translateY(-2px); box-shadow: 0 8px 18px rgba(30, 10, 80, 0.35); }
+        .tyt-ai-btn:hover i { color: #5e35b1; }
+
+        .tyt-emerg-card { transition: background-color 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.18s; }
+        .tyt-emerg-card:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.3); }
+
+        .frontend-tab-btn { border-radius: 0.75rem 0.75rem 0 0; }
+        .frontend-tab-btn:hover { background-color: rgba(25, 118, 210, 0.07); }
+
+        #tyt-header nav button { transition: background-color 0.18s, box-shadow 0.18s, transform 0.18s; }
+        #tyt-header nav button:hover { transform: translateY(-1px); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35); }
+
+        /* Nhấn xuống: nút lún nhẹ để người dùng biết đã bấm trúng. */
+        :is(.tyt-btn, .tyt-ai-btn, .tyt-more-btn, .tyt-emerg-card, .service-card, .tyt-footer-btn, .tyt-staff-link):active,
+        :is(#trang-chu-container, #khoa-phong-container, #tin-tuc-container) button:not(:disabled):active {
+            transform: translateY(0) scale(0.98);
+            box-shadow: none;
+        }
+
+        /* CHÂN TRANG GỌN: tiêu đề cột, danh sách và nút có cùng nhịp khoảng cách.
+           Cần mã id #lien-he vì luật chân trang phía trên đặt cỡ/màu cho mọi
+           phần tử con. */
+        #lien-he .tyt-footer-brand { font-size: 1.125rem; font-weight: 900; letter-spacing: 0.03em; line-height: 1.25; }
+        #lien-he .tyt-footer-title {
+            font-size: 1rem; font-weight: 800; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.05em;
+            margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 2px solid rgba(255, 255, 255, 0.18);
+        }
+        #lien-he .tyt-footer-list { display: grid; gap: 0.5rem; }
+        #lien-he .tyt-footer-list li { display: flex; align-items: flex-start; gap: 0.625rem; }
+        #lien-he .tyt-footer-list li > i { width: 1.125rem; flex-shrink: 0; margin-top: 0.3em; text-align: center; color: #93c5fd !important; }
+        #lien-he .text-amber-300 { color: #fcd34d !important; }
+        #lien-he .tyt-footer-btn {
+            display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; padding: 0.5rem 1rem;
+            border-radius: 0.75rem; border: 2px solid rgba(255, 255, 255, 0.45); background-color: #1976d2;
+            font-weight: 700; text-decoration: none;
+            transition: background-color 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+        }
+        #lien-he .tyt-footer-btn:hover { background-color: #ffffff; border-color: #ffffff; text-decoration: none; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3); }
+        #lien-he .tyt-footer-btn:hover, #lien-he .tyt-footer-btn:hover * { color: #0b416b !important; }
+        #lien-he .tyt-footer-staff { display: grid; gap: 0.5rem; }
+        #lien-he .tyt-staff-link {
+            display: flex; align-items: center; gap: 0.625rem; width: 100%; min-height: 2.75rem;
+            padding: 0.5rem 0.75rem; border-radius: 0.75rem; text-align: left; font-weight: 700; line-height: 1.3;
+            background-color: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.22);
+            text-decoration: none; cursor: pointer;
+            transition: background-color 0.18s, border-color 0.18s, transform 0.18s;
+        }
+        #lien-he .tyt-staff-link > i:first-child { width: 1.125rem; text-align: center; flex-shrink: 0; color: #93c5fd !important; }
+        #lien-he .tyt-staff-link .tyt-staff-lock { margin-left: auto; font-size: 0.75rem; opacity: 0.7; }
+        #lien-he .tyt-staff-link:hover { background-color: #ffffff; border-color: #ffffff; text-decoration: none; transform: translateX(2px); }
+        #lien-he .tyt-staff-link:hover, #lien-he .tyt-staff-link:hover * { color: #0b416b !important; }
+        #lien-he .tyt-footer-bottom {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1.5rem;
+            padding-top: 0.875rem; border-top: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        #lien-he .tyt-footer-bottom, #lien-he .tyt-footer-bottom * { color: #bfdbfe !important; }
+        #lien-he .tyt-footer-bottom a:hover { color: #ffffff !important; }
+        @media (max-width: 767px) {
+            #lien-he .tyt-footer-bottom { flex-direction: column; align-items: flex-start; }
+        }
+
     </style>
 </head>
 <body class="bg-[#f4f6f9] text-gray-800 antialiased relative">
@@ -747,9 +881,9 @@
                 </div>
                 
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                    <div class="flex flex-col md:flex-row items-center justify-between gap-8">
-                        <div class="md:w-3/5 space-y-6 text-center md:text-left">
-                            <div class="inline-block px-4 py-2 rounded-full bg-blue-100 text-[#0b416b] font-bold text-sm mb-2 border border-blue-200">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-6 lg:gap-10">
+                        <div class="md:w-3/5 space-y-4 text-center md:text-left">
+                            <div class="inline-block px-4 py-1.5 rounded-full bg-blue-100 text-[#0b416b] font-bold text-sm border border-blue-200">
                                 <i class="fas fa-shield-alt text-[#1976d2] mr-1"></i> Cổng thông tin Y tế số chính quy
                             </div>
                             <h2 data-cms-id="hero-heading" class="text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">
@@ -757,19 +891,19 @@
                                 <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#0b416b] to-[#1976d2]">Cho Mọi Gia Đình</span>
                             </h2>
                             <p data-cms-id="hero-desc" class="text-lg text-gray-700 font-medium">Hỗ trợ nhân dân tra cứu thuốc bằng AI, đặt lịch khám BHYT trực tuyến, cập nhật lịch tiêm phòng dịch và kết nối nhanh tới Cán bộ chuyên trách.</p>
-                            <div class="flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-2">
-                                <button onclick="window.switchPage('dept')" class="w-full sm:w-auto bg-[#1976d2] hover:bg-[#1565c0] text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg">
+                            <div class="flex flex-col sm:flex-row justify-center md:justify-start gap-3 pt-1">
+                                <button onclick="window.switchPage('dept')" class="tyt-btn tyt-btn-primary w-full sm:w-auto px-7 py-3.5 text-lg">
                                     <i class="fas fa-hospital text-xl"></i> Khám phá Khoa & Phòng
                                 </button>
-                                <button onclick="window.openModal('modal-datlich')" class="w-full sm:w-auto bg-white text-[#0b416b] border-2 border-blue-200 px-8 py-4 rounded-2xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-lg hover:bg-blue-50">
-                                    <i class="fas fa-calendar-check text-xl text-[#1976d2]"></i> Đặt lịch khám BHYT
+                                <button onclick="window.openModal('modal-datlich')" class="tyt-btn tyt-btn-outline w-full sm:w-auto px-7 py-3.5 text-lg">
+                                    <i class="fas fa-calendar-check text-xl"></i> Đặt lịch khám BHYT
                                 </button>
                             </div>
                             <p id="hero-on-duty" class="text-sm font-bold text-gray-500 pt-1"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang kiểm tra cán bộ y tế trực trực tuyến...</p>
                         </div>
-                        <div class="md:w-2/5 flex justify-center mt-8 md:mt-0">
-                            <div class="w-full max-w-sm aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full shadow-2xl border-8 border-white flex flex-col items-center justify-center relative overflow-hidden">
-                                <i class="fas fa-heartbeat text-8xl text-[#e53935] mb-4 animate-pulse"></i>
+                        <div class="md:w-2/5 hidden md:flex justify-center">
+                            <div class="w-full max-w-[18rem] lg:max-w-xs aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full shadow-2xl border-8 border-white flex flex-col items-center justify-center relative overflow-hidden">
+                                <i class="fas fa-heartbeat text-7xl text-[#e53935] mb-3 animate-pulse"></i>
                                 <h3 class="text-2xl font-black text-[#0b416b] text-center uppercase tracking-wide">Trạm Y tế<br>Bát Xát</h3>
                             </div>
                         </div>
@@ -778,21 +912,21 @@
             </section>
 
             <!-- KÊNH LIÊN HỆ KHẨN CẤP -->
-            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-20 mb-16">
-                <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border-t-8 border-[#e53935]">
-                    <h3 data-cms-id="emergency-title" class="text-2xl font-black text-gray-900 mb-6 text-center uppercase tracking-wider"><i class="fas fa-ambulance text-[#e53935] mr-2"></i> Kênh liên hệ khẩn cấp</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <a href="tel:02143909011" class="btn-call-station group bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl p-6 flex flex-col items-center text-center transition-all border-2 border-emerald-500 shadow-md">
+            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-20 mb-8 md:mb-10">
+                <div class="bg-white rounded-3xl shadow-2xl p-5 md:p-6 border-t-8 border-[#e53935]">
+                    <h3 data-cms-id="emergency-title" class="text-2xl font-black text-gray-900 mb-4 text-center uppercase tracking-wider"><i class="fas fa-ambulance text-[#e53935] mr-2"></i> Kênh liên hệ khẩn cấp</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                        <a href="tel:02143909011" class="tyt-emerg-card btn-call-station group bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-emerald-500 shadow-md">
                             <i class="fas fa-phone-volume text-4xl mb-2 group-hover:scale-110 transition-transform text-white"></i>
                             <div class="font-bold text-lg text-white">Gọi Trạm Y tế Bát Xát</div>
                             <div class="text-2xl font-black text-white">02143909011</div>
                         </a>
-                        <a href="tel:115" class="btn-call-emergency group bg-[#e53935] hover:bg-[#d32f2f] text-white rounded-2xl p-6 flex flex-col items-center text-center transition-all shadow-md border-2 border-red-500">
-                            <i class="fas fa-truck-medical text-5xl mb-2 group-hover:animate-pulse text-white"></i>
+                        <a href="tel:115" class="tyt-emerg-card btn-call-emergency group bg-[#e53935] hover:bg-[#d32f2f] text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all shadow-md border-2 border-red-500">
+                            <i class="fas fa-truck-medical text-4xl mb-2 group-hover:animate-pulse text-white"></i>
                             <div class="font-bold text-lg uppercase text-white">Gọi Cấp Cứu 115</div>
                             <div class="text-4xl font-black text-white">115</div>
                         </a>
-                        <button onclick="window.openModal('modal-danhba')" class="group bg-blue-50 hover:bg-[#1976d2] text-[#0b416b] hover:text-white rounded-2xl p-6 flex flex-col items-center text-center transition-all border-2 border-blue-100 shadow-sm">
+                        <button onclick="window.openModal('modal-danhba')" class="tyt-emerg-card group bg-blue-50 hover:bg-[#0b416b] text-[#0b416b] hover:text-white rounded-2xl p-5 flex flex-col items-center text-center transition-all border-2 border-blue-300 hover:border-[#0b416b] shadow-sm">
                             <i class="fas fa-user-nurse text-4xl mb-2 group-hover:scale-110 transition-transform"></i>
                             <div class="font-bold text-lg">Danh bạ Cán bộ Y tế</div>
                             <div class="text-sm font-bold mt-1">Xem chi tiết SĐT trực ban</div>
@@ -802,10 +936,10 @@
             </section>
 
             <!-- TIN TỨC & LỊCH TIÊM -->
-            <section id="tin-tuc" class="py-12 bg-white border-t border-gray-100">
+            <section id="tin-tuc" class="py-8 md:py-10 bg-white border-t border-gray-100">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <!-- Bố cục: Thông báo Trạm ở trên, Bảng tin Y tế dạng lưới 2 hàng ở ngay dưới -->
-                    <div class="space-y-8 mb-12">
+                    <div class="space-y-6 mb-6 md:mb-8">
                         <!-- Khối 1: Thông báo Trạm -->
                         <div class="bg-gray-50 p-5 md:p-6 rounded-3xl border border-gray-200 flex flex-col">
                             <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200 shrink-0">
@@ -846,17 +980,17 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
                         <!-- Dòng dưới: Dịch vụ AI & Mạng Xã Hội -->
                         <div class="space-y-8">
-                            <div class="bg-[#5e35b1] rounded-3xl p-8 text-white shadow-xl">
+                            <div class="bg-[#5e35b1] rounded-3xl p-6 md:p-7 text-white shadow-xl">
                                 <h3 data-cms-id="ai-box-title" class="text-2xl md:text-3xl font-black mb-2"><i class="fas fa-robot text-purple-200 mr-2"></i> Khám phá Trợ lý AI</h3>
-                                <p data-cms-id="ai-box-desc" class="mb-6 text-white/95 text-base">Ứng dụng trí tuệ nhân tạo để tra cứu y tế mộc mạc, dễ hiểu cho bà con vùng cao.</p>
+                                <p data-cms-id="ai-box-desc" class="mb-5 text-white/95 text-base">Ứng dụng trí tuệ nhân tạo để tra cứu y tế mộc mạc, dễ hiểu cho bà con vùng cao.</p>
                                 <div class="grid grid-cols-2 gap-3">
-                                    <button onclick="window.openModal('modal-tracuuthuoc')" class="bg-white/15 hover:bg-white/25 border border-white/20 p-3.5 rounded-xl font-bold transition text-base text-left"><i class="fas fa-pills mr-2 text-purple-300"></i> Tra cứu Thuốc AI</button>
-                                    <button onclick="window.openModal('modal-aidich')" class="bg-white/15 hover:bg-white/25 border border-white/20 p-3.5 rounded-xl font-bold transition text-base text-left"><i class="fas fa-language mr-2 text-purple-300"></i> Dịch thuật Y khoa</button>
-                                    <button onclick="window.openModal('modal-aivision')" class="bg-white/15 hover:bg-white/25 border border-white/20 p-3.5 rounded-xl font-bold transition text-base text-left"><i class="fas fa-camera mr-2 text-purple-300"></i> Đọc ảnh Đơn thuốc</button>
-                                    <button onclick="window.openModal('modal-socuu')" class="bg-white/15 hover:bg-white/25 border border-white/20 p-3.5 rounded-xl font-bold transition text-base text-left"><i class="fas fa-briefcase-medical mr-2 text-purple-300"></i> Sơ cứu Khẩn cấp</button>
+                                    <button onclick="window.openModal('modal-tracuuthuoc')" class="tyt-ai-btn p-3.5 text-base text-left"><i class="fas fa-pills mr-2 text-purple-300"></i> Tra cứu Thuốc AI</button>
+                                    <button onclick="window.openModal('modal-aidich')" class="tyt-ai-btn p-3.5 text-base text-left"><i class="fas fa-language mr-2 text-purple-300"></i> Dịch thuật Y khoa</button>
+                                    <button onclick="window.openModal('modal-aivision')" class="tyt-ai-btn p-3.5 text-base text-left"><i class="fas fa-camera mr-2 text-purple-300"></i> Đọc ảnh Đơn thuốc</button>
+                                    <button onclick="window.openModal('modal-socuu')" class="tyt-ai-btn p-3.5 text-base text-left"><i class="fas fa-briefcase-medical mr-2 text-purple-300"></i> Sơ cứu Khẩn cấp</button>
                                 </div>
                             </div>
                         </div>
@@ -870,7 +1004,7 @@
                                 <div class="w-full rounded-2xl overflow-hidden shadow-md bg-white border border-blue-200">
                                     <iframe src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2Fprofile.php%3Fid%3D61556920635321&tabs=timeline&width=340&height=500&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=false&appId" width="100%" height="500" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>
                                 </div>
-                                <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" rel="noopener noreferrer" class="mt-4 bg-[#1976d2] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-[#1565c0] transition w-full text-center flex items-center justify-center gap-2">
+                                <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" rel="noopener noreferrer" class="tyt-btn tyt-btn-primary mt-4 px-6 py-3 w-full text-base">
                                     <i class="fab fa-facebook"></i> Mở Facebook Trạm Y tế Bát Xát
                                 </a>
                             </div>
@@ -881,15 +1015,15 @@
         </div>
 
         <!-- ================= KHU VỰC KHOA PHÒNG & CHỨC NĂNG (TÁCH BIỆT) ================= -->
-        <div id="khoa-phong-container" class="hidden tyt-below-header pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
+        <div id="khoa-phong-container" class="hidden tyt-below-header pb-10 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-10">
+                <div class="text-center mb-6 md:mb-8">
                     <h2 data-cms-id="dept-section-title" class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide">Dịch Vụ & Khoa Phòng</h2>
                     <p data-cms-id="dept-section-desc" class="text-medical-600 font-bold mt-2 text-lg">Mọi chức năng đã được số hóa và hỗ trợ bởi Trí tuệ Nhân tạo AI</p>
                 </div>
 
                 <!-- THANH ĐIỀU HƯỚNG TABS -->
-                <div class="flex justify-start md:justify-center border-b-2 border-gray-200 mb-8 overflow-x-auto hide-scrollbar snap-x">
+                <div class="flex justify-start md:justify-center border-b-2 border-gray-200 mb-6 overflow-x-auto hide-scrollbar snap-x">
                     <button onclick="window.switchFrontendTab('kham-benh', event)" class="frontend-tab-btn active snap-center px-6 py-4 text-base md:text-lg font-black whitespace-nowrap border-b-4 border-medical-600 text-medical-700 transition-colors"><i class="fas fa-stethoscope mr-2"></i> Khám & Chữa Bệnh</button>
                     <button onclick="window.switchFrontendTab('hanh-chinh', event)" class="frontend-tab-btn snap-center px-6 py-4 text-base md:text-lg font-bold whitespace-nowrap border-b-4 border-transparent text-gray-500 hover:text-medical-600 transition-colors"><i class="fas fa-building mr-2"></i> Hành Chính & Tổng Hợp</button>
                     <button onclick="window.switchFrontendTab('phong-benh', event)" class="frontend-tab-btn snap-center px-6 py-4 text-base md:text-lg font-bold whitespace-nowrap border-b-4 border-transparent text-gray-500 hover:text-medical-600 transition-colors"><i class="fas fa-shield-virus mr-2"></i> Khoa Phòng bệnh và ATTP</button>
@@ -899,7 +1033,7 @@
                 <!-- TAB 1: KHÁM BỆNH - LÂM SÀNG -->
                 <div id="tab-kham-benh" class="frontend-tab-content block animate-[fadeIn_0.3s_ease-in-out]">
                     <div class="bg-white p-6 md:p-8 rounded-3xl shadow-md border-t-4 border-green-500">
-                        <div class="flex items-center gap-4 mb-8 pb-4 border-b border-gray-100">
+                        <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-green-100 text-green-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-stethoscope"></i></div>
                             <div>
                                 <h3 data-cms-id="dept-khambenh-title" class="text-2xl font-black text-gray-900">Khoa Khám Bệnh & Lâm Sàng</h3>
@@ -928,7 +1062,7 @@
                 <!-- TAB 2: HÀNH CHÍNH & TỔNG HỢP -->
                 <div id="tab-hanh-chinh" class="frontend-tab-content hidden animate-[fadeIn_0.3s_ease-in-out]">
                     <div class="bg-white p-6 md:p-8 rounded-3xl shadow-md border-t-4 border-blue-500">
-                        <div class="flex items-center gap-4 mb-8 pb-4 border-b border-gray-100">
+                        <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-building"></i></div>
                             <div>
                                 <h3 data-cms-id="dept-hanhchinh-title" class="text-2xl font-black text-gray-900">Phòng Hành Chính & Tổng Hợp</h3>
@@ -950,7 +1084,7 @@
                 <!-- TAB 3: Y TẾ DỰ PHÒNG -->
                 <div id="tab-phong-benh" class="frontend-tab-content hidden animate-[fadeIn_0.3s_ease-in-out]">
                     <div class="bg-white p-6 md:p-8 rounded-3xl shadow-md border-t-4 border-orange-500">
-                        <div class="flex items-center gap-4 mb-8 pb-4 border-b border-gray-100">
+                        <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-orange-100 text-orange-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-shield-virus"></i></div>
                             <div>
                                 <h3 data-cms-id="dept-phongbenh-title" class="text-2xl font-black text-gray-900">Khoa Phòng bệnh và ATTP</h3>
@@ -973,7 +1107,7 @@
                 <!-- TAB 4: TRUNG TÂM AI Y TẾ TỔNG HỢP -->
                 <div id="tab-ai-hub" class="frontend-tab-content hidden animate-[fadeIn_0.3s_ease-in-out]">
                     <div class="bg-white p-6 md:p-8 rounded-3xl shadow-md border-t-4 border-purple-500">
-                        <div class="flex items-center gap-4 mb-8 pb-4 border-b border-gray-100">
+                        <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-purple-100 text-purple-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-robot"></i></div>
                             <div>
                                 <h3 class="text-2xl font-black text-gray-900">Trung tâm Trợ lý Y Tế AI</h3>
@@ -995,18 +1129,18 @@
         </div>
 
         <!-- ================= KHU VỰC TIN TỨC & LỊCH TIÊM (TÁCH BIỆT) ================= -->
-        <div id="tin-tuc-container" class="hidden tyt-below-header pb-12 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
+        <div id="tin-tuc-container" class="hidden tyt-below-header pb-10 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-10">
+                <div class="text-center mb-6 md:mb-8">
                     <h2 class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide"><i class="fas fa-newspaper text-medical-600 mr-2"></i>Tin tức & Lịch tiêm</h2>
                     <p class="text-medical-600 font-bold mt-2 text-lg">Cập nhật tin tức phòng dịch, bảo vệ sức khỏe và lịch tiêm chủng mới nhất</p>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
                     <!-- Column 1: Lịch Tiêm Chủng / Thông báo Trạm -->
                     <div class="space-y-8">
                         <div class="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
-                            <div class="flex items-center gap-3 mb-6 border-b pb-3">
+                            <div class="flex items-center gap-3 mb-4 border-b pb-3">
                                 <i class="fas fa-calendar-alt text-3xl text-medical-600"></i>
                                 <h3 class="text-2xl font-black text-gray-900">Thông báo & Lịch tiêm chủng</h3>
                             </div>
@@ -1032,7 +1166,7 @@
                     <!-- Column 2: Kho lưu trữ tin bài (Archive) với phân trang -->
                     <div class="space-y-8">
                         <div class="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
-                            <div class="flex items-center justify-between mb-6 border-b pb-3">
+                            <div class="flex items-center justify-between mb-4 border-b pb-3">
                                 <div class="flex items-center gap-3">
                                     <i class="fas fa-archive text-3xl text-orange-500"></i>
                                     <h3 class="text-2xl font-black text-gray-900">Kho lưu trữ tin bài (Tin tức tổng hợp)</h3>
@@ -1045,7 +1179,7 @@
                             </div>
 
                             <!-- Bộ điều hướng phân trang (Pagination) -->
-                            <div class="mt-8 flex justify-center items-center gap-2" id="news-pagination">
+                            <div class="mt-6 flex flex-wrap justify-center items-center gap-2" id="news-pagination">
                                 <!-- Các nút trang 1, 2, 3... -->
                             </div>
                         </div>
@@ -1055,118 +1189,122 @@
         </div>
 
         <!-- FOOTER / LIÊN HỆ -->
-        <footer id="lien-he" class="bg-[#0b416b] text-white pt-8 pb-5 border-t-4 border-[#1976d2]">
+        <footer id="lien-he" class="bg-[#0b416b] text-white pt-7 pb-4 border-t-4 border-[#1976d2]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-6">
+                <!-- Chân trang chia 4 cột trên máy tính, 2 cột trên máy tính bảng, 1 cột
+                     trên điện thoại. Mỗi thông tin chỉ xuất hiện MỘT lần (trước đây tên cơ
+                     quan và đơn vị chủ quản lặp lại ở hai cột), khối bản đồ cao 160px được
+                     thay bằng một nút mở Google Maps, và các lối vào nội bộ của cán bộ được
+                     gom thành cột riêng thay vì dồn chung một hàng với dòng bản quyền. -->
+                <div class="tyt-footer-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6 mb-5">
                     <div>
                         <div class="flex items-center gap-3 mb-3">
-                            <div class="bg-white p-2 rounded-full inline-block shadow-lg">
+                            <div class="bg-white p-1.5 rounded-full inline-block shadow-lg shrink-0">
                                 <img src="logo.png" alt="Logo Trạm Y tế Bát Xát" class="w-10 h-10 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230b416b\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
                             </div>
                             <div>
-                                <h3 class="text-xl font-black uppercase tracking-wide text-white leading-tight">Trạm Y tế Bát Xát</h3>
-                                <p class="text-sm text-blue-100 font-bold">Cổng thông tin & Dịch vụ Y tế số</p>
+                                <h3 class="tyt-footer-brand uppercase text-white">Trạm Y tế Bát Xát</h3>
+                                <p class="text-sm text-blue-100 font-bold">Cổng thông tin &amp; Dịch vụ Y tế số</p>
                             </div>
                         </div>
-                        <p class="text-blue-50 text-sm leading-snug mb-2 font-medium">
-                            <strong class="text-white">Cơ quan quản lý:</strong> Trực thuộc Ủy ban nhân dân xã Bát Xát quản lý trực tiếp.
+                        <p class="text-blue-50 text-sm mb-3">
+                            Đơn vị y tế tuyến cơ sở trực thuộc <strong class="text-white">Ủy ban nhân dân xã Bát Xát</strong>: chăm sóc sức khỏe ban đầu, tiêm chủng mở rộng, khám chữa bệnh BHYT và phòng chống dịch bệnh.
                         </p>
-                        <p class="text-blue-50 text-sm leading-snug mb-3 font-medium">
-                            Đơn vị sự nghiệp y tế tuyến cơ sở, đảm bảo công tác chăm sóc sức khỏe ban đầu, tiêm chủng mở rộng, khám chữa bệnh BHYT và phòng chống dịch bệnh cho nhân dân trên địa bàn.
-                        </p>
-                        <div>
-                            <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-3 bg-[#1976d2] hover:bg-[#1565c0] text-white font-bold px-4 py-2 rounded-xl transition shadow-md" title="Trang Facebook Trạm Y tế Bát Xát">
-                                <i class="fab fa-facebook text-xl text-white"></i>
-                                <span class="text-white text-sm">Trang Facebook Trạm Y tế Bát Xát</span>
-                            </a>
-                        </div>
+                        <a href="https://www.facebook.com/profile.php?id=61556920635321" target="_blank" rel="noopener noreferrer" class="tyt-footer-btn" title="Trang Facebook Trạm Y tế Bát Xát">
+                            <i class="fab fa-facebook"></i> <span>Facebook Trạm Y tế</span>
+                        </a>
                     </div>
 
                     <div>
-                        <h3 class="text-lg font-black mb-3 border-b-2 border-blue-700/60 pb-1.5 uppercase tracking-wide text-white">Thông tin liên hệ</h3>
-                        <ul class="space-y-2 text-blue-50 text-sm">
-                            <li class="flex items-start gap-3">
-                                <i class="fas fa-building mt-1 text-lg text-blue-300"></i>
-                                <span class="font-bold text-white">Tên cơ quan: Trạm Y tế Bát Xát</span>
+                        <h3 class="tyt-footer-title">Thông tin liên hệ</h3>
+                        <ul class="tyt-footer-list">
+                            <li>
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>Thôn Bát Xát 04, Xã Bát Xát, tỉnh Lào Cai</span>
                             </li>
-                            <li class="flex items-start gap-3">
-                                <i class="fas fa-sitemap mt-1 text-lg text-blue-300"></i>
-                                <span>Trực thuộc: Ủy ban nhân dân xã Bát Xát quản lý trực tiếp.</span>
+                            <li>
+                                <i class="fas fa-phone-alt"></i>
+                                <span>Điện thoại: <a href="tel:02143909011" class="font-black">0382.103.002</a></span>
                             </li>
-                            <li class="flex items-start gap-3">
-                                <i class="fas fa-map-marker-alt mt-1 text-lg text-blue-300"></i>
-                                <span>Địa chỉ: Trạm Y tế Bát Xát - Thôn Bát Xát 04, Xã Bát Xát, tỉnh Lào Cai.</span>
+                            <li>
+                                <i class="fas fa-envelope"></i>
+                                <span><a href="mailto:tytbatxat@laocai.gov.vn" class="font-bold break-all">tytbatxat@laocai.gov.vn</a></span>
                             </li>
-                            <li class="flex items-center gap-3">
-                                <i class="fas fa-phone-alt text-lg text-blue-300"></i>
-                                <span>Điện thoại: <a href="tel:02143909011" class="hover:underline font-black text-base text-white">0382.103.002</a></span>
+                        </ul>
+                        <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="tyt-footer-btn mt-3">
+                            <i class="fas fa-map-marked-alt"></i> <span>Xem bản đồ chỉ đường</span>
+                        </a>
+                    </div>
+
+                    <div>
+                        <h3 class="tyt-footer-title">Giờ làm việc</h3>
+                        <ul class="tyt-footer-list">
+                            <li>
+                                <i class="far fa-sun"></i>
+                                <span><strong class="text-white">Sáng:</strong> 07:30 - 12:00</span>
                             </li>
-                            <li class="flex items-center gap-3">
-                                <i class="fas fa-envelope text-lg text-blue-300"></i>
-                                <span>Email: <a href="mailto:tytbatxat@laocai.gov.vn" class="hover:underline font-bold text-white">tytbatxat@laocai.gov.vn</a></span>
+                            <li>
+                                <i class="far fa-clock"></i>
+                                <span><strong class="text-white">Chiều:</strong> 13:30 - 17:00</span>
                             </li>
-                            <li class="flex items-start gap-3 pt-2 border-t border-blue-800/80">
-                                <i class="far fa-clock mt-1 text-lg text-blue-300"></i>
-                                <div>
-                                    <strong class="text-white block">Giờ làm việc chính thức:</strong>
-                                    Sáng: 07:30 - 12:00 | Chiều: 13:30 - 17:00<br>
-                                    <em class="text-amber-300 font-bold mt-1 inline-block">Trực cấp cứu: 24/24h (Kể cả Lễ, Tết)</em>
-                                </div>
+                            <li>
+                                <i class="fas fa-truck-medical"></i>
+                                <span class="text-amber-300 font-bold">Trực cấp cứu 24/24h (kể cả Lễ, Tết)</span>
                             </li>
                         </ul>
                     </div>
 
                     <div>
-                        <h3 class="text-lg font-black mb-3 border-b-2 border-blue-700/60 pb-1.5 uppercase tracking-wide text-white">Bản đồ vị trí</h3>
-                        <div class="w-full h-40 bg-gray-200 rounded-xl overflow-hidden relative shadow-inner border border-blue-800">
-                            <div class="absolute inset-0 bg-[#083054] flex flex-col justify-center items-center text-center p-4">
-                                <i class="fas fa-map-marked-alt text-3xl text-blue-300 mb-2 drop-shadow-md"></i>
-                                <p class="text-sm text-white font-bold leading-snug">Trạm Y tế Bát Xát<br>Thôn Bát xát 04, Xã Bát Xát, tỉnh Lào Cai</p>
-                                <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="mt-3 text-sm bg-white text-[#0b416b] px-5 py-2 rounded-full font-black hover:bg-blue-50 transition shadow-lg active:scale-95 transform">Mở Google Maps</a>
-                            </div>
-                        </div>
+                        <h3 class="tyt-footer-title">Dành cho cán bộ</h3>
+                        <ul class="tyt-footer-staff">
+                            <li>
+                                <!-- ===== MODULE HỢP NHẤT: BẢNG ĐIỀU KHIỂN TRẠM Y TẾ =====
+                                     Chân trang trước đây có HAI lối vào riêng rẽ cho cùng một điểm trạm:
+                                     "Bảng điều khiển trạm y tế" (cán bộ trực khám) và "Bảng điều khiển
+                                     điểm trạm" (Quản trị gán tài khoản nhận cuộc gọi và định
+                                     tuyến). Hai mô-đun đó nay gộp thành MỘT cửa sổ duy nhất với hai khu
+                                     làm việc bên trong; khu nào hiện ra là do phạm vi quyền của tài khoản
+                                     đăng nhập quyết định, máy chủ vẫn kiểm tra lại quyền ở từng lệnh gọi.
+                                     Tên phòng khám là biến động, lấy từ CMS Quản trị (khoá station-clinic-name). -->
+                                <button type="button" id="footer-station-module" onclick="window.openStationControlCenter()" title="Bảng điều khiển hợp nhất của điểm trạm: trực khám - hội chẩn từ xa và quản trị tài khoản nhận cuộc gọi, định tuyến. Yêu cầu đăng nhập tài khoản được CMS Quản trị cấp quyền." class="tyt-staff-link">
+                                    <i class="fas fa-notes-medical"></i>
+                                    <span>Bảng điều khiển <span data-station-clinic-name>TRẠM Y TẾ BÁT XÁT</span></span>
+                                    <i class="fas fa-lock tyt-staff-lock" aria-hidden="true"></i>
+                                </button>
+                            </li>
+                            <li>
+                                <!-- ===== MODULE BÁC SĨ TUYẾN TRÊN =====
+                                     Module riêng, có trang và cổng đăng nhập riêng (/bacsi). Chỉ tài khoản
+                                     được CMS Quản trị cấp ô "Module Bác sĩ tuyến trên" mới vào được; đây
+                                     chỉ là lối đi, quyền do máy chủ quyết định. -->
+                                <a href="/bacsi" title="Module riêng của Bác sĩ tuyến trên tham gia phòng khám trực tuyến từ xa - yêu cầu tài khoản và mật khẩu được cấp riêng" class="tyt-staff-link">
+                                    <i class="fas fa-user-doctor"></i> <span>Bác sĩ tuyến trên</span>
+                                    <i class="fas fa-lock tyt-staff-lock" aria-hidden="true"></i>
+                                </a>
+                            </li>
+                            <li>
+                                <!-- ===== PHÂN HỆ CHẤM CÔNG - CHẤM TRỰC (nội bộ) =====
+                                     Lối vào cho cán bộ của trạm. Trang /cham-cong có cổng đăng nhập riêng;
+                                     chỉ tài khoản được CMS Quản trị cấp ô "Phân hệ Chấm công - Chấm trực"
+                                     mới vào được, và máy chủ kiểm tra lại quyền ở từng lệnh gọi API. -->
+                                <a href="/cham-cong" rel="nofollow" title="Phân hệ nội bộ: chấm công hành chính, nhận/kết ca trực, bảng công tháng - chỉ dành cho cán bộ Trạm Y tế, yêu cầu tài khoản được cấp quyền" class="tyt-staff-link">
+                                    <i class="fas fa-user-clock"></i> <span>Chấm công - Chấm trực</span>
+                                    <i class="fas fa-lock tyt-staff-lock" aria-hidden="true"></i>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="tyt-staff-link">
+                                    <i class="fas fa-user-shield"></i> <span>Quản trị CMS</span>
+                                    <i class="fas fa-lock tyt-staff-lock" aria-hidden="true"></i>
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                 </div>
-                
-                <div class="border-t border-blue-800/80 pt-4 flex flex-col md:flex-row justify-between items-center text-sm text-blue-200 font-medium flex-col-mobile">
-                    <p class="mb-3 md:mb-0 text-center md:text-left text-center-mobile">&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
-                    <div class="flex items-center gap-x-4 gap-y-2 flex-wrap justify-center">
-                        <a href="#" class="hover:text-white transition text-blue-200">Chính sách bảo mật</a>
 
-                        <!-- ===== MODULE HỢP NHẤT: BẢNG ĐIỀU KHIỂN TRẠM Y TẾ =====
-                             Chân trang trước đây có HAI lối vào riêng rẽ cho cùng một điểm trạm:
-                             "Bảng điều khiển trạm y tế" (cán bộ trực khám) và "Bảng điều khiển
-                             điểm trạm" (Quản trị gán tài khoản nhận cuộc gọi và định
-                             tuyến). Hai mô-đun đó nay gộp thành MỘT cửa sổ duy nhất với hai khu
-                             làm việc bên trong; khu nào hiện ra là do phạm vi quyền của tài khoản
-                             đăng nhập quyết định, máy chủ vẫn kiểm tra lại quyền ở từng lệnh gọi.
-                             Tên phòng khám là biến động, lấy từ CMS Quản trị (khoá station-clinic-name). -->
-                        <button type="button" id="footer-station-module" onclick="window.openStationControlCenter()" title="Bảng điều khiển hợp nhất của điểm trạm: trực khám - hội chẩn từ xa và quản trị tài khoản nhận cuộc gọi, định tuyến. Yêu cầu đăng nhập tài khoản được CMS Quản trị cấp quyền." class="group inline-flex items-center gap-3 border-l-2 border-blue-700 pl-4 text-left transition">
-                            <span class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 flex items-center justify-center shadow-inner group-hover:bg-emerald-500/25 transition"><i class="fas fa-notes-medical"></i></span>
-                            <span class="leading-tight">
-                                <span class="block font-black text-emerald-400 group-hover:text-emerald-300 tracking-wide transition">BẢNG ĐIỀU KHIỂN <span data-station-clinic-name>TRẠM Y TẾ BÁT XÁT</span></span>
-                                <span class="block text-[11px] text-blue-300 font-bold"><i class="fas fa-lock text-[9px] mr-1"></i>Trực khám &amp; Hội chẩn · Quản trị điểm trạm — yêu cầu đăng nhập</span>
-                            </span>
-                        </button>
-
-                        <a href="#" onclick="window.openModal('modal-admin-login'); return false;" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-amber-300 tracking-wide">QUẢN TRỊ CMS</a>
-
-                        <!-- ===== PHÂN HỆ CHẤM CÔNG - CHẤM TRỰC (nội bộ) =====
-                             Lối vào cho cán bộ của trạm. Trang /cham-cong có cổng đăng nhập riêng;
-                             chỉ tài khoản được CMS Quản trị cấp ô "Phân hệ Chấm công - Chấm trực"
-                             mới vào được, và máy chủ kiểm tra lại quyền ở từng lệnh gọi API. -->
-                        <a href="/cham-cong" rel="nofollow" title="Phân hệ nội bộ: chấm công hành chính, nhận/kết ca trực, bảng công tháng - chỉ dành cho cán bộ Trạm Y tế, yêu cầu tài khoản được cấp quyền" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-sky-300 tracking-wide inline-flex items-center gap-1.5">
-                            <i class="fas fa-user-clock text-[11px]"></i> CHẤM CÔNG - CHẤM TRỰC <i class="fas fa-lock text-[9px] text-blue-300"></i>
-                        </a>
-
-                        <!-- ===== MODULE BÁC SĨ TUYẾN TRÊN =====
-                             Module riêng, có trang và cổng đăng nhập riêng (/bacsi). Chỉ tài khoản
-                             được CMS Quản trị cấp ô "Module Bác sĩ tuyến trên" mới vào được; đây
-                             chỉ là lối đi, quyền do máy chủ quyết định. -->
-                        <a href="/bacsi" title="Module riêng của Bác sĩ tuyến trên tham gia phòng khám trực tuyến từ xa - yêu cầu tài khoản và mật khẩu được cấp riêng" class="hover:text-white border-l-2 border-blue-700 pl-4 font-black text-purple-300 tracking-wide inline-flex items-center gap-1.5">
-                            <i class="fas fa-user-doctor text-[11px]"></i> BÁC SĨ TUYẾN TRÊN
-                        </a>
-                    </div>
+                <div class="tyt-footer-bottom">
+                    <p>&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
+                    <a href="#">Chính sách bảo mật</a>
                 </div>
             </div>
         </footer>
