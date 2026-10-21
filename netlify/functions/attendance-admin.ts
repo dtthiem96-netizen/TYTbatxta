@@ -14,6 +14,7 @@
  *        holidays        danh mục ngày nghỉ lễ
  *        settings        cấu hình (giờ hành chính, ký hiệu, loại nghỉ, đơn vị)
  *        roster          lịch trực một tháng
+ *        roster_clear_preview  số liệu sẽ bị xoá khi xoá lịch trực cả tháng
  *        approvals       yêu cầu điều chỉnh / đổi ca / đơn nghỉ đang chờ
  *        not_punched     ai chưa chấm công trong một ngày
  *        periods         trạng thái khoá các kỳ
@@ -29,7 +30,8 @@
  *                    account_create | account_reset_password
  *        Lịch trực:  roster_assign | roster_remove | roster_copy_previous |
  *                    roster_auto | roster_import | roster_rules_save |
- *                    roster_rules_reset (chỉ Quản trị hệ thống)
+ *                    roster_rules_reset (chỉ Quản trị hệ thống) |
+ *                    roster_clear_month | roster_restore_snapshot
  *        Dữ liệu:    punch_save | punch_delete | duty_log_save | duty_log_void | leave_save
  *                    (không sửa/xoá bản gốc: tạo đề nghị ADMIN_ADJUST chờ người duyệt
  *                    khác, hoặc áp qua bản ghi điều chỉnh khi tắt chế độ bốn mắt)
@@ -57,12 +59,13 @@ import {
   attShifts,
   attAudits,
   attRoles,
+  attRosterSnapshots,
   users,
 } from "../../db/schema.js";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { AdjustmentConflict, applyDutyLogChange, applyPunchChange, type Approval, type PunchRow } from "../lib/adjustments.js";
 import { getSecurity, raiseAlert } from "../lib/security.js";
-import { isImmutableViolation } from "../lib/presence.js";
+import { isImmutableViolation, isUniqueViolation } from "../lib/presence.js";
 import {
   authErrorResponse,
   generateTemporaryPassword,
@@ -441,6 +444,7 @@ async function handleRoster(actor: ActorContext, period: string) {
     rules: settings.rosterRules,
     defaultRules: DEFAULT_ROSTER_RULES,
     canResetRules: actor.role === "ADMIN",
+    canManageRoster: hasPermission(actor, "roster.manage"),
   });
 }
 
@@ -1625,6 +1629,9 @@ async function autoAssignRoster(actor: ActorContext, body: Record<string, unknow
   const rows: (typeof attDutyAssignments.$inferInsert)[] = [];
   let cursor = 0;
   let unfilled = 0;
+  let relaxedRest = 0;
+  // Từng ca chưa đủ người, để Quản trị biết chính xác ngày nào cần bổ sung.
+  const unfilledSlots: { date: string; shiftId: string; shiftName: string; missing: number }[] = [];
 
   for (const date of dates) {
     const dayType = dayTypeOf.get(date)!;
@@ -1682,19 +1689,44 @@ async function autoAssignRoster(actor: ActorContext, body: Record<string, unknow
           filledDayShift.set(key, (filledDayShift.get(key) || 0) + 1);
           cursor = (idx + 1) % pool.length;
           need -= 1;
+          if (relax === 1) relaxedRest += 1;
         }
       }
       unfilled += Math.max(need, 0);
+      if (need > 0) unfilledSlots.push({ date, shiftId: shift.id, shiftName: shift.name, missing: need });
     }
   }
 
-  if (rows.length) await db.insert(attDutyAssignments).values(rows);
+  // Một lệnh insert nhiều dòng là nguyên tử: lỗi thì không dòng nào được ghi,
+  // lịch không bao giờ ở trạng thái phân dở dang.
+  if (rows.length) {
+    try {
+      await db.insert(attDutyAssignments).values(rows);
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        return json({ success: false, error: "Lịch trực tháng này vừa được thay đổi trong lúc phân. Không có suất nào được tạo - hãy tải lại và phân lại." }, 409);
+      }
+      throw err;
+    }
+  }
   if (body.saveRules === true) await saveSetting(SETTING_KEYS.ROSTER_RULES, rules, actor);
+  const assignedEmployees = new Set(rows.map((r) => r.employeeId)).size;
+  const unfilledDates = [...new Set(unfilledSlots.map((u) => u.date))];
   await writeAudit(actor, {
     entity: "duty_assignment",
     entityId: period,
     action: "ROSTER_AUTO",
-    newValue: { created: rows.length, unfilled, employees: pool.length, shifts: shifts.length, rules, savedRules: body.saveRules === true },
+    newValue: {
+      created: rows.length,
+      unfilled,
+      unfilledDays: unfilledDates.length,
+      relaxedRest,
+      assignedEmployees,
+      employees: pool.length,
+      shifts: shifts.length,
+      rules,
+      savedRules: body.saveRules === true,
+    },
   });
   return json({
     success: true,
@@ -1703,6 +1735,11 @@ async function autoAssignRoster(actor: ActorContext, body: Record<string, unknow
     }`,
     created: rows.length,
     unfilled,
+    assignedEmployees,
+    unfilledSlots,
+    unfilledDates,
+    relaxedRest,
+    rules,
   });
 }
 
@@ -1818,6 +1855,332 @@ async function importRoster(actor: ActorContext, body: Record<string, unknown>) 
     created: inserts.length,
     errors,
   });
+}
+
+// ---------------------------------------------------------------------------
+//  Xoá toàn bộ lịch trực một tháng (để phân lại tự động)
+// ---------------------------------------------------------------------------
+
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbExec = typeof db | DbTx;
+type AssignmentRow = typeof attDutyAssignments.$inferSelect;
+
+/** Lỗi nghiệp vụ trong giao dịch xoá lịch: ném ra để rollback, trả về đúng mã HTTP. */
+class RosterClearError extends Error {
+  constructor(public status: number, message: string, public extra: Record<string, unknown> = {}) {
+    super(message);
+  }
+}
+
+/** "2026-09" → "09/2026" - chuỗi người dùng phải gõ lại để xác nhận lần cuối. */
+function periodMonthLabel(period: string): string {
+  return `${period.slice(5, 7)}/${period.slice(0, 4)}`;
+}
+
+/** Điều kiện tháng/năm bắt buộc cho MỌI lệnh đọc/xoá lịch trực hàng loạt. */
+function monthRange(period: string) {
+  const dates = periodDates(period);
+  return and(gte(attDutyAssignments.dutyDate, dates[0]), lte(attDutyAssignments.dutyDate, dates[dates.length - 1]));
+}
+
+/**
+ * Lập phương án xoá lịch trực của một tháng.
+ *
+ * Suất trực nào đã phát sinh dữ liệu chấm trực (có bất kỳ dòng att_duty_logs
+ * nào, kể cả dòng đã bị thay thế/huỷ) hoặc đang có đề nghị điều chỉnh công chờ
+ * duyệt trỏ tới thì được GIỮ NGUYÊN: xoá chúng là làm mất dấu vết chấm công.
+ * Những suất đó phải xử lý theo quy trình điều chỉnh riêng. Đề nghị đổi ca đang
+ * chờ của các suất bị xoá sẽ được huỷ kèm, vì suất trực gốc không còn nữa.
+ */
+async function planRosterClear(q: DbExec, period: string, lock = false) {
+  const dates = periodDates(period);
+  const base = q.select().from(attDutyAssignments).where(monthRange(period));
+  // Tuần tự, không Promise.all: trong giao dịch mọi truy vấn đi chung một kết nối.
+  const assignments = (await (lock ? base.for("update") : base)) as AssignmentRow[];
+  const logs = await q
+    .select({ assignmentId: attDutyLogs.assignmentId })
+    .from(attDutyLogs)
+    .where(and(gte(attDutyLogs.dutyDate, dates[0]), lte(attDutyLogs.dutyDate, addDays(dates[dates.length - 1], 1))));
+  const pending = await q
+    .select({ id: attRequests.id, kind: attRequests.kind, payload: attRequests.payload })
+    .from(attRequests)
+    .where(and(eq(attRequests.status, "PENDING"), inArray(attRequests.kind, ["SWAP_DUTY", "ADMIN_ADJUST"])));
+
+  const ids = new Set(assignments.map((a) => a.id));
+  const logged = new Set(logs.map((l) => l.assignmentId).filter((id) => ids.has(id)));
+  // Ca trực qua đêm có thể có nhật ký ghi ngày khác: soát thêm theo mã suất trực.
+  const unknown = assignments.filter((a) => !logged.has(a.id)).map((a) => a.id);
+  if (unknown.length) {
+    const extra = await q
+      .select({ assignmentId: attDutyLogs.assignmentId })
+      .from(attDutyLogs)
+      .where(inArray(attDutyLogs.assignmentId, unknown));
+    for (const l of extra) logged.add(l.assignmentId);
+  }
+
+  const adjusting = new Set<string>();
+  const swapsByAssignment = new Map<string, string[]>();
+  for (const r of pending) {
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = JSON.parse(r.payload || "{}");
+    } catch {
+      continue;
+    }
+    const assignmentId = str(payload.assignmentId);
+    if (!ids.has(assignmentId)) continue;
+    if (r.kind === "ADMIN_ADJUST") adjusting.add(assignmentId);
+    else swapsByAssignment.set(assignmentId, [...(swapsByAssignment.get(assignmentId) || []), r.id]);
+  }
+
+  const kept = assignments.filter((a) => logged.has(a.id) || adjusting.has(a.id));
+  const removable = assignments.filter((a) => !logged.has(a.id) && !adjusting.has(a.id));
+  const isActive = (a: AssignmentRow) => String(a.status || "PLANNED").toUpperCase() !== "CANCELLED";
+  const activeRemovable = removable.filter(isActive);
+  const swapRequestIds = removable.flatMap((a) => swapsByAssignment.get(a.id) || []);
+
+  return {
+    removable,
+    kept,
+    swapRequestIds,
+    summary: {
+      period,
+      label: periodMonthLabel(period),
+      // Số ngày có ít nhất một suất trực sẽ bị xoá và số lượt trực (suất đang hiệu lực).
+      days: new Set(activeRemovable.map((a) => a.dutyDate)).size,
+      duties: activeRemovable.length,
+      // Bản ghi đã huỷ trước đó, cũng được dọn cùng.
+      cancelledRecords: removable.length - activeRemovable.length,
+      records: removable.length,
+      employees: new Set(activeRemovable.map((a) => a.employeeId)).size,
+      keptWithAttendance: kept.filter((a) => logged.has(a.id)).length,
+      keptPendingAdjust: kept.filter((a) => !logged.has(a.id)).length,
+      kept: kept.length,
+      pendingSwapRequests: swapRequestIds.length,
+    },
+  };
+}
+
+/** Xem trước số liệu sẽ bị xoá + các bản sao lưu gần nhất của tháng. */
+async function handleRosterClearPreview(actor: ActorContext, period: string) {
+  requirePermission(actor, "roster.manage");
+  if (!isValidPeriod(period)) return json({ success: false, error: "Thiếu hoặc sai tháng/năm cần xoá lịch trực." }, 400);
+  const [plan, locked, snapshots] = await Promise.all([
+    planRosterClear(db, period),
+    periodStatus(period),
+    db
+      .select({
+        id: attRosterSnapshots.id,
+        rowCount: attRosterSnapshots.rowCount,
+        createdAt: attRosterSnapshots.createdAt,
+        createdByName: attRosterSnapshots.createdByName,
+        restoredAt: attRosterSnapshots.restoredAt,
+      })
+      .from(attRosterSnapshots)
+      .where(eq(attRosterSnapshots.period, period))
+      .orderBy(desc(attRosterSnapshots.createdAt))
+      .limit(5),
+  ]);
+  return json({ success: true, locked: locked === "LOCKED", ...plan.summary, snapshots });
+}
+
+/**
+ * Xoá toàn bộ lịch trực của ĐÚNG tháng đang chọn.
+ *
+ * Bắt buộc: quyền roster.manage, kỳ chưa khoá, tháng hợp lệ, chuỗi xác nhận
+ * gõ lại đúng "MM/YYYY" và số liệu khớp với lần xem trước (lịch bị người khác
+ * sửa giữa chừng thì từ chối, để không xoá thứ người dùng chưa nhìn thấy).
+ * Chụp bản sao lưu, xoá và huỷ đề nghị đổi ca nằm trong MỘT giao dịch: lỗi ở
+ * bất kỳ bước nào thì rollback toàn bộ, lịch trực giữ nguyên như trước.
+ * Danh mục cán bộ, ca, quy tắc, ngày lễ và dữ liệu chấm công không bị đụng tới.
+ */
+async function clearRosterMonth(actor: ActorContext, body: Record<string, unknown>) {
+  const period = str(body.period);
+  try {
+    requirePermission(actor, "roster.manage");
+  } catch (err) {
+    await writeAudit(actor, {
+      entity: "duty_assignment",
+      entityId: isValidPeriod(period) ? period : null,
+      action: "ROSTER_CLEAR_DENIED",
+      newValue: { result: "FORBIDDEN" },
+    });
+    throw err;
+  }
+  if (!isValidPeriod(period)) return json({ success: false, error: "Thiếu hoặc sai tháng/năm cần xoá lịch trực." }, 400);
+  const label = periodMonthLabel(period);
+  if (str(body.confirm) !== label) {
+    return json({ success: false, error: `Xác nhận không khớp. Hãy gõ đúng "${label}" để xoá lịch trực tháng này.` }, 400);
+  }
+  await assertPeriodOpen(period);
+
+  const expectedDuties = Math.round(num(body.expectedDuties, -1));
+  const expectedKept = Math.round(num(body.expectedKept, -1));
+  const snapshotId = newId("rsnap");
+  const now = Date.now();
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      const plan = await planRosterClear(tx, period, true);
+      if (plan.summary.duties !== expectedDuties || plan.summary.kept !== expectedKept) {
+        throw new RosterClearError(
+          409,
+          "Lịch trực tháng này vừa thay đổi kể từ lúc xem trước. Hãy mở lại chức năng xoá để kiểm tra số liệu mới.",
+          { summary: plan.summary }
+        );
+      }
+      if (!plan.removable.length) {
+        throw new RosterClearError(404, `Tháng ${label} không có suất trực nào có thể xoá.`, { summary: plan.summary });
+      }
+
+      await tx.insert(attRosterSnapshots).values({
+        id: snapshotId,
+        period,
+        reason: "CLEAR_MONTH",
+        rowCount: plan.removable.length,
+        rows: JSON.stringify(plan.removable),
+        createdBy: actor.user.id,
+        createdByName: actor.employee?.fullName || actor.user.name,
+        createdAt: now,
+      });
+
+      const removableIds = plan.removable.map((a) => a.id);
+      const deleted: { id: string }[] = [];
+      for (let i = 0; i < removableIds.length; i += 500) {
+        const chunk = removableIds.slice(i, i + 500);
+        deleted.push(
+          ...(await tx
+            .delete(attDutyAssignments)
+            .where(and(monthRange(period), inArray(attDutyAssignments.id, chunk)))
+            .returning({ id: attDutyAssignments.id }))
+        );
+      }
+      if (deleted.length !== removableIds.length) {
+        throw new RosterClearError(409, "Số suất trực xoá được không khớp phương án. Đã huỷ thao tác, lịch trực giữ nguyên.");
+      }
+
+      if (plan.swapRequestIds.length) {
+        await tx
+          .update(attRequests)
+          .set({
+            status: "CANCELLED",
+            decidedBy: actor.user.id,
+            decidedByName: actor.employee?.fullName || actor.user.name,
+            decidedAt: now,
+            decisionNote: `Tự huỷ: lịch trực tháng ${label} đã bị xoá để phân lại.`,
+            updatedAt: now,
+          })
+          .where(and(inArray(attRequests.id, plan.swapRequestIds), eq(attRequests.status, "PENDING")));
+      }
+      return plan;
+    });
+
+    const summary = result.summary;
+    await writeAudit(actor, {
+      entity: "duty_assignment",
+      entityId: period,
+      action: "ROSTER_CLEAR_MONTH",
+      oldValue: { records: summary.records, duties: summary.duties, days: summary.days, snapshotId },
+      newValue: {
+        result: "SUCCESS",
+        deleted: summary.records,
+        kept: summary.kept,
+        keptWithAttendance: summary.keptWithAttendance,
+        cancelledSwapRequests: summary.pendingSwapRequests,
+      },
+    });
+    const affected = [...new Set(result.removable.filter((a) => String(a.status || "PLANNED").toUpperCase() !== "CANCELLED").map((a) => a.employeeId))];
+    if (affected.length) {
+      await notify(affected, "Lịch trực tháng được lập lại", `Lịch trực tháng ${label} đã được xoá để phân lại. Vui lòng theo dõi lịch mới.`, "DUTY", period);
+    }
+    return json({
+      success: true,
+      message: `Đã xóa lịch trực tháng ${label}. Có thể tiến hành phân lịch tự động.`,
+      ...summary,
+      snapshotId,
+    });
+  } catch (err) {
+    await writeAudit(actor, {
+      entity: "duty_assignment",
+      entityId: period,
+      action: "ROSTER_CLEAR_FAILED",
+      newValue: {
+        result: err instanceof RosterClearError ? "REJECTED" : "ERROR",
+        message: err instanceof Error ? err.message.slice(0, 300) : "unknown",
+      },
+    });
+    if (err instanceof RosterClearError) return json({ success: false, error: err.message, ...err.extra }, err.status);
+    if (isImmutableViolation(err)) {
+      return json({ success: false, code: "IMMUTABLE", error: "Có dữ liệu chấm trực gắn với lịch tháng này nên không xoá được. Lịch trực giữ nguyên." }, 409);
+    }
+    console.error("roster clear failed", err);
+    return json({ success: false, error: "Không xoá được lịch trực, hệ thống đã hoàn tác. Lịch trực vẫn giữ nguyên như trước." }, 500);
+  }
+}
+
+/**
+ * Khôi phục lịch trực từ bản sao lưu đã chụp lúc xoá tháng.
+ *
+ * Chỉ khôi phục khi tháng chưa có lịch mới (ngoài các suất được giữ lại vì đã
+ * chấm trực) - trộn lịch cũ với lịch phân lại sẽ làm sai quy tắc phân trực.
+ */
+async function restoreRosterSnapshot(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const period = str(body.period);
+  const snapshotId = str(body.snapshotId);
+  if (!isValidPeriod(period) || !snapshotId) return json({ success: false, error: "Thiếu tháng hoặc bản sao lưu cần khôi phục." }, 400);
+  await assertPeriodOpen(period);
+  const label = periodMonthLabel(period);
+
+  try {
+    const restored = await db.transaction(async (tx) => {
+      const found = await tx
+        .select()
+        .from(attRosterSnapshots)
+        .where(and(eq(attRosterSnapshots.id, snapshotId), eq(attRosterSnapshots.period, period)))
+        .for("update");
+      if (!found.length) throw new RosterClearError(404, "Không tìm thấy bản sao lưu của tháng này.");
+      if (found[0].restoredAt) throw new RosterClearError(409, "Bản sao lưu này đã được khôi phục trước đó.");
+
+      const plan = await planRosterClear(tx, period, true);
+      if (plan.removable.length) {
+        throw new RosterClearError(
+          409,
+          `Tháng ${label} đã có lịch trực mới. Hãy xoá lịch hiện tại trước khi khôi phục bản sao lưu.`
+        );
+      }
+      const keptIds = new Set(plan.kept.map((a) => a.id));
+      const keptKeys = new Set(plan.kept.map((a) => `${a.dutyDate}|${a.shiftId}|${a.employeeId}`));
+      const rows = (JSON.parse(found[0].rows) as AssignmentRow[]).filter(
+        (r) => periodOf(r.dutyDate) === period && !keptIds.has(r.id) && !keptKeys.has(`${r.dutyDate}|${r.shiftId}|${r.employeeId}`)
+      );
+      for (let i = 0; i < rows.length; i += 500) {
+        await tx.insert(attDutyAssignments).values(rows.slice(i, i + 500));
+      }
+      await tx
+        .update(attRosterSnapshots)
+        .set({ restoredAt: Date.now(), restoredBy: actor.user.id })
+        .where(eq(attRosterSnapshots.id, snapshotId));
+      return rows.length;
+    });
+    await writeAudit(actor, {
+      entity: "duty_assignment",
+      entityId: period,
+      action: "ROSTER_RESTORE",
+      newValue: { result: "SUCCESS", snapshotId, restored },
+    });
+    return json({ success: true, message: `Đã khôi phục ${restored} suất trực tháng ${label} từ bản sao lưu.`, restored });
+  } catch (err) {
+    await writeAudit(actor, {
+      entity: "duty_assignment",
+      entityId: period,
+      action: "ROSTER_RESTORE_FAILED",
+      newValue: { snapshotId, message: err instanceof Error ? err.message.slice(0, 300) : "unknown" },
+    });
+    if (err instanceof RosterClearError) return json({ success: false, error: err.message }, err.status);
+    console.error("roster restore failed", err);
+    return json({ success: false, error: "Không khôi phục được lịch trực, hệ thống đã hoàn tác." }, 500);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -2495,6 +2858,9 @@ export default async (req: Request) => {
         case "roster":
           requireManager(actor);
           return await handleRoster(actor, period);
+        case "roster_clear_preview":
+          // Không lấy tháng mặc định: thiếu tháng là yêu cầu không hợp lệ.
+          return await handleRosterClearPreview(actor, str(url.searchParams.get("period")));
         case "approvals":
           return await handleApprovals(actor, str(url.searchParams.get("status")));
         case "not_punched":
@@ -2575,6 +2941,10 @@ export default async (req: Request) => {
         return await saveRosterRules(actor, body);
       case "roster_rules_reset":
         return await resetRosterRules(actor);
+      case "roster_clear_month":
+        return await clearRosterMonth(actor, body);
+      case "roster_restore_snapshot":
+        return await restoreRosterSnapshot(actor, body);
 
       // Dữ liệu công
       case "punch_save":

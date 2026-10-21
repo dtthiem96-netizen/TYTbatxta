@@ -621,6 +621,30 @@ export const attDutyAssignments = pgTable(
   ]
 );
 
+/* BẢN SAO LƯU LỊCH TRỰC - chụp lại toàn bộ suất trực của một tháng ngay trước
+   khi bị xoá hàng loạt (trong cùng giao dịch với lệnh xoá), để có thể khôi phục
+   đúng lịch cũ nếu xoá nhầm. Chỉ thêm mới, không sửa. */
+export const attRosterSnapshots = pgTable(
+  "att_roster_snapshots",
+  {
+    id: text("id").primaryKey(),
+    // Dạng YYYY-MM.
+    period: text("period").notNull(),
+    // CLEAR_MONTH
+    reason: text("reason").notNull(),
+    rowCount: integer("row_count").notNull(),
+    // Mảng JSON các dòng att_duty_assignments đã bị xoá, nguyên trạng.
+    rows: text("rows").notNull(),
+    // Thời điểm đã khôi phục từ bản này (trống = chưa khôi phục).
+    restoredAt: bigint("restored_at", { mode: "number" }),
+    restoredBy: text("restored_by"),
+    createdBy: text("created_by"),
+    createdByName: text("created_by_name"),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  },
+  (table) => [index("att_roster_snapshots_period_idx").on(table.period, table.createdAt)]
+);
+
 /* SỔ CHẤM TRỰC - cán bộ bấm nhận ca và kết ca trên suất trực đã được phân.
    Tách khỏi att_punches để không có phép cộng nào trộn lẫn hai loại công. */
 export const attDutyLogs = pgTable(
