@@ -158,6 +158,11 @@
     return p.year + '-' + p.month;
   }
 
+  function todayIso() {
+    var p = vnParts();
+    return p.year + '-' + p.month + '-' + p.day;
+  }
+
   function periodLabel(period) {
     if (!period || period.length < 7) return '';
     return 'Tháng ' + Number(period.slice(5, 7)) + ' năm ' + period.slice(0, 4);
@@ -229,6 +234,8 @@
   function openModal(title, bodyHtml, onSubmit) {
     el('ccModalTitle').textContent = title;
     el('ccModalBody').innerHTML = bodyHtml;
+    var panel = el('ccModalPanel');
+    if (panel) { panel.classList.add('max-w-2xl'); panel.classList.remove('max-w-6xl'); }
     modalSubmit = onSubmit || null;
     el('ccModal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
@@ -2320,10 +2327,37 @@
 
   // --- Cán bộ ---------------------------------------------------------------
 
+  var DUTY_STATUS_LABEL = { ACTIVE: 'Đang công tác', ON_LEAVE: 'Nghỉ phép', SUSPENDED: 'Tạm nghỉ', NO_DUTY: 'Không tham gia trực' };
+  var DUTY_STATUS_CLASS = { ACTIVE: 'bg-emerald-50 text-emerald-700', ON_LEAVE: 'bg-amber-100 text-amber-800', SUSPENDED: 'bg-orange-100 text-orange-800', NO_DUTY: 'bg-slate-200 text-slate-600' };
+
+  /** Danh mục phân trực (điểm trạm, nơi làm việc, nhóm trực...). Lỗi quyền thì trả về rỗng. */
+  function loadScopeCatalog(period) {
+    return api('admin', { query: { view: 'roster_scope', period: period || currentPeriod() } }).then(function (data) {
+      S.scope = data;
+      return data;
+    }, function () {
+      S.scope = S.scope || null;
+      return S.scope || {};
+    });
+  }
+
+  function stationLabel(code) {
+    var st = ((S.scope && S.scope.stations) || []).filter(function (x) { return x.stationCode === code; })[0];
+    if (st) return st.stationName;
+    var f = ((S.rosterData && S.rosterData.filters && S.rosterData.filters.stations) || []).filter(function (x) { return x.code === code; })[0];
+    return f ? f.name : (code || '');
+  }
+
+  function workplaceLabel(id) {
+    var w = ((S.scope && S.scope.workplaces) || []).filter(function (x) { return x.id === id; })[0];
+    return w ? w.name : '';
+  }
+
   function loadAdminEmployees(host) {
     Promise.all([
       api('admin', { query: { view: 'employees' } }),
-      api('admin', { query: { view: 'departments' } })
+      api('admin', { query: { view: 'departments' } }),
+      loadScopeCatalog()
     ]).then(function (res) {
       S.employees = res[0].employees || [];
       S.departments = res[1].departments || [];
@@ -2334,6 +2368,9 @@
           (e.status === 'INACTIVE' ? ' ' + badge('Ngừng', 'bg-slate-200 text-slate-600') : '') + '</td>' +
           '<td class="px-2 py-2 text-xs">' + esc(e.position) + '</td>' +
           '<td class="px-2 py-2 text-xs">' + esc(e.departmentName) + '</td>' +
+          '<td class="px-2 py-2 text-xs">' + (e.stationCode ? esc(stationLabel(e.stationCode)) : '<span class="text-amber-700 italic">chưa gắn</span>') +
+          (e.workplaceId ? '<div class="text-[11px] text-slate-500">' + esc(workplaceLabel(e.workplaceId)) + '</div>' : '') + '</td>' +
+          '<td class="px-2 py-2 text-xs">' + badge(DUTY_STATUS_LABEL[e.dutyStatus] || e.dutyStatus, DUTY_STATUS_CLASS[e.dutyStatus] || 'bg-slate-100') + '</td>' +
           '<td class="px-2 py-2 text-xs">' + esc(ROLE_LABEL[e.attendanceRole] || e.attendanceRole) + '</td>' +
           '<td class="px-2 py-2 text-xs">' + (e.hasAccount
             ? esc(e.username) + (e.accountAccess === 'true' ? '' : ' ' + badge('Chưa cấp quyền', 'bg-amber-100 text-amber-800'))
@@ -2348,9 +2385,10 @@
         '<button type="button" data-cc-act="emp-new" class="px-3 py-2 bg-medical-600 hover:bg-medical-700 text-white rounded-lg text-xs font-semibold">' +
         '<i class="fas fa-plus mr-1"></i>Thêm cán bộ</button>',
         tableWrap([
-          { label: 'Mã' }, { label: 'Họ và tên' }, { label: 'Chức vụ' }, { label: 'Bộ phận' },
+          { label: 'Mã' }, { label: 'Họ và tên' }, { label: 'Chức vụ' }, { label: 'Khoa/phòng' },
+          { label: 'Điểm trạm / nơi làm việc' }, { label: 'Tham gia trực' },
           { label: 'Vai trò' }, { label: 'Tài khoản' }, { label: '', align: 'text-right' }
-        ], rows, 820) +
+        ], rows, 1080) +
         '<p class="text-[11px] text-slate-400 mt-3">Cán bộ đã có dữ liệu chấm công sẽ được chuyển sang trạng thái Ngừng thay vì xoá hẳn, để bảng công của các tháng trước không bị mất người.</p>');
     }).catch(function (err) {
       host.innerHTML = emptyBox(err.message || 'Không tải được danh sách cán bộ.');
@@ -2376,15 +2414,16 @@
       field('Số điện thoại', input('phone', e.phone || '')) +
       field('Thư điện tử', input('email', e.email || '', 'email')) +
       field('Thứ tự hiển thị', input('displayOrder', e.displayOrder || 0, 'number')) +
-      field('Trạng thái', select('status', [
+      field('Trạng thái hồ sơ', select('status', [
         { value: 'ACTIVE', label: 'Đang làm việc' }, { value: 'INACTIVE', label: 'Ngừng làm việc' }
       ], e.status || 'ACTIVE')) +
       '</div>' +
+      employeeDutyFields(e) +
       field('Ghi chú', textarea('note', e.note || '', 2)) +
       submitRow(id ? 'Lưu thay đổi' : 'Thêm cán bộ');
 
     openModal(id ? 'Sửa hồ sơ cán bộ' : 'Thêm cán bộ', html, function () {
-      var v = modalValues();
+      var v = readEmployeeDutyFields(modalValues(), id);
       v.action = 'employee_save';
       if (id) v.id = id;
       api('admin', { body: v }).then(function (data) {
@@ -2393,6 +2432,118 @@
         renderAdmin();
       }).catch(fail);
     });
+  }
+
+  /** Ô chọn nơi làm việc, chỉ hiện nơi làm việc thuộc điểm trạm đang chọn. */
+  function workplaceSelect(name, stationCode, value, emptyLabel) {
+    var list = ((S.scope && S.scope.workplaces) || []).filter(function (w) { return w.status === 'ACTIVE' || w.id === value; });
+    return '<select name="' + esc(name) + '" data-cc-wpfor="' + esc(stationCode || '') + '" class="' + INPUT_CLASS + '">' +
+      '<option value="">' + esc(emptyLabel || '-- Không chọn --') + '</option>' +
+      list.map(function (w) {
+        return '<option value="' + esc(w.id) + '" data-station="' + esc(w.stationCode) + '"' +
+          (w.id === value ? ' selected' : '') + (stationCode && w.stationCode !== stationCode ? ' hidden disabled' : '') + '>' +
+          esc(w.name + ' (' + w.code + ')') + '</option>';
+      }).join('') + '</select>';
+  }
+
+  function stationOptions(emptyLabel) {
+    return [{ value: '', label: emptyLabel || '-- Chưa gắn điểm trạm --' }].concat(
+      ((S.scope && S.scope.stations) || []).map(function (st) {
+        return { value: st.stationCode, label: st.stationName + ' (' + st.stationCode + ')' + (st.status === 'DISABLED' ? ' - ngừng' : '') };
+      })
+    );
+  }
+
+  /** Khi đổi điểm trạm trong hộp thoại: lọc lại danh sách nơi làm việc theo trạm. */
+  function syncWorkplaceOptions(stationSelect) {
+    var body = el('ccModalBody');
+    var target = qs('select[name="' + stationSelect.getAttribute('data-cc-stationfor') + '"]', body);
+    if (!target) return;
+    var code = stationSelect.value;
+    qsa('option[data-station]', target).forEach(function (opt) {
+      var hide = code && opt.getAttribute('data-station') !== code;
+      opt.hidden = !!hide;
+      opt.disabled = !!hide;
+      if (hide && opt.selected) target.value = '';
+    });
+  }
+
+  function checkList(attr, items, chosen, emptyText) {
+    if (!items.length) return '<p class="text-xs text-slate-400 italic">' + esc(emptyText || 'Chưa có dữ liệu.') + '</p>';
+    return '<div class="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 grid md:grid-cols-2 gap-x-3">' +
+      items.map(function (it) {
+        return '<label class="flex items-center gap-2 text-sm mb-1"><input type="checkbox" ' + attr + '="' + esc(it.value) +
+          '" class="w-4 h-4"' + (chosen.indexOf(it.value) >= 0 ? ' checked' : '') + '><span>' + esc(it.label) + '</span></label>';
+      }).join('') + '</div>';
+  }
+
+  function checkedValues(attr) {
+    return qsa('[' + attr + ']', el('ccModalBody')).filter(function (n) { return n.checked; })
+      .map(function (n) { return n.getAttribute(attr); });
+  }
+
+  /** Nhóm trường phân trực trong hồ sơ cán bộ: điểm trạm, nơi làm việc, trạng thái, ca, nhóm, quy tắc riêng. */
+  function employeeDutyFields(e) {
+    var sc = S.scope || {};
+    var shifts = (sc.shifts || S.shifts || []).filter(function (x) { return x.status === 'ACTIVE'; });
+    var groups = (sc.groups || []).filter(function (g) { return g.status === 'ACTIVE'; });
+    var myGroups = groups.filter(function (g) { return (g.memberIds || []).indexOf(e.id) >= 0; }).map(function (g) { return g.id; });
+    var rule = e.dutyRule || {};
+    var excluded = (rule.excludedWeekdays || []).map(String);
+    var allowed = e.allowedShiftIds || [];
+    return '<div class="mt-2 mb-3 p-3 rounded-xl border border-medical-100 bg-medical-50/40">' +
+      '<p class="text-xs font-bold text-medical-800 mb-2"><i class="fas fa-location-dot mr-1"></i>Phạm vi công tác & phân trực</p>' +
+      (sc.stations ? '' : '<p class="text-xs text-amber-700 mb-2">Không tải được danh mục điểm trạm - các trường phạm vi giữ nguyên.</p>') +
+      '<div class="grid md:grid-cols-2 gap-x-3">' +
+      field('Điểm trạm làm việc', select('stationCode', stationOptions(), e.stationCode || '', 'data-cc-stationfor="workplaceId"'),
+        'Lấy từ danh mục điểm trạm (CMS Quản trị → Điểm trạm).') +
+      field('Nơi làm việc cụ thể', workplaceSelect('workplaceId', e.stationCode || '', e.workplaceId || '', '-- Chưa chọn nơi làm việc --'),
+        'Danh mục ở Lịch trực tháng → Thiết lập quy tắc.') +
+      field('Ngày hiệu lực của thay đổi công tác', input('effectiveFrom', todayIso(), 'date'),
+        'Chỉ dùng khi đổi điểm trạm / khoa phòng / nơi làm việc. Lịch đã phân trước đó không bị sửa.') +
+      field('Lý do / số quyết định', input('changeReason', '')) +
+      field('Trạng thái làm việc', select('dutyStatus', Object.keys(DUTY_STATUS_LABEL).map(function (k) {
+        return { value: k, label: DUTY_STATUS_LABEL[k] };
+      }), e.dutyStatus || 'ACTIVE'), 'Chỉ "Đang công tác" mới được phân trực.') +
+      '</div>' +
+      '<p class="text-xs font-semibold text-slate-600 mb-1">Loại ca được phép đảm nhiệm <span class="font-normal text-slate-400">(không chọn = mọi ca)</span></p>' +
+      checkList('data-cc-eshift', shifts.map(function (x) { return { value: x.id, label: x.name }; }), allowed, 'Chưa có ca trực.') +
+      '<p class="text-xs font-semibold text-slate-600 mb-1 mt-3">Nhóm trực được tham gia</p>' +
+      checkList('data-cc-egroup', groups.map(function (g) { return { value: g.id, label: g.name + ' - ' + g.stationName }; }), myGroups,
+        'Chưa có nhóm trực nào (tạo ở Thiết lập quy tắc).') +
+      '<p class="text-xs font-semibold text-slate-600 mb-1 mt-3">Quy tắc phân trực riêng <span class="font-normal text-slate-400">(0 = theo quy tắc chung)</span></p>' +
+      '<div class="grid md:grid-cols-2 gap-x-3">' +
+      field('Tối đa suất / tháng', input('prMaxPerMonth', num(rule.maxPerMonth, 0), 'number', 'min="0" max="31"')) +
+      field('Tối đa suất cuối tuần, lễ / tháng', input('prMaxSpecial', num(rule.maxWeekendHolidayPerMonth, 0), 'number', 'min="0" max="31"')) +
+      '</div>' +
+      '<p class="text-[11px] text-slate-500 mb-1">Không phân trực vào các thứ:</p>' +
+      '<div class="flex flex-wrap gap-3 mb-1">' + WEEKDAY_SHORT.map(function (d, i) {
+        return '<label class="flex items-center gap-1 text-sm"><input type="checkbox" data-cc-ewd="' + i + '" class="w-4 h-4"' +
+          (excluded.indexOf(String(i)) >= 0 ? ' checked' : '') + '>' + esc(d) + '</label>';
+      }).join('') + '</div>' +
+      '</div>';
+  }
+
+  function readEmployeeDutyFields(v, id) {
+    var body = el('ccModalBody');
+    var shiftBoxes = qsa('[data-cc-eshift]', body);
+    var allowed = checkedValues('data-cc-eshift');
+    v.allowedShiftIds = allowed.length === shiftBoxes.length ? [] : allowed;
+    if (S.scope && S.scope.groups) v.dutyGroupIds = checkedValues('data-cc-egroup');
+    v.dutyRule = {
+      maxPerMonth: num(v.prMaxPerMonth, 0),
+      maxWeekendHolidayPerMonth: num(v.prMaxSpecial, 0),
+      excludedWeekdays: checkedValues('data-cc-ewd').map(Number)
+    };
+    delete v.prMaxPerMonth;
+    delete v.prMaxSpecial;
+    if (!S.scope || !S.scope.stations) {
+      // Không có danh mục thì không gửi phạm vi, để máy chủ không hiểu nhầm là gỡ điểm trạm.
+      var e = S.employees.filter(function (x) { return x.id === id; })[0] || {};
+      v.stationCode = e.stationCode || '';
+      v.workplaceId = e.workplaceId || '';
+    }
+    return v;
   }
 
   function openCreateAccountForm(employeeId) {
@@ -2998,90 +3149,146 @@
 
   function loadAdminRoster(host, period) {
     var wanted = period || (S.rosterData && S.rosterData.period) || currentPeriod();
+    if (S.rosterPanel === 'rules') return loadRosterScopePanel(host, wanted);
     host.innerHTML = spinner('Đang tải lịch trực...');
     Promise.all([
       api('admin', { query: { view: 'roster', period: wanted } }),
       S.employees.length ? Promise.resolve({ employees: S.employees }) : api('admin', { query: { view: 'employees' } })
     ]).then(function (res) {
-      var data = res[0];
-      S.rosterData = data;
+      S.rosterData = res[0];
       S.employees = res[1].employees || S.employees;
-      var activeShifts = (data.shifts || []).filter(function (s) { return s.status === 'ACTIVE'; });
-
-      var toolbar =
-        '<div class="bg-white rounded-2xl shadow-sm p-4 flex flex-wrap items-end gap-3">' +
-        '<div><label class="block text-xs font-semibold text-slate-600 mb-1" for="ccRosterPeriod">Tháng lập lịch</label>' +
-        '<input type="month" id="ccRosterPeriod" value="' + esc(wanted) + '" class="px-3 py-2 border border-slate-300 rounded-lg text-sm"></div>' +
-        '<button type="button" data-cc-act="roster-load" class="px-4 py-2 bg-medical-600 hover:bg-medical-700 text-white rounded-lg text-sm font-semibold">Xem lịch</button>' +
-        '<button type="button" data-cc-act="roster-copy" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm"><i class="fas fa-copy mr-1"></i>Sao chép tháng trước</button>' +
-        '<button type="button" data-cc-act="roster-auto" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"><i class="fas fa-wand-magic-sparkles mr-1"></i>Phân lịch tự động</button>' +
-        '<button type="button" data-cc-act="roster-import" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm"><i class="fas fa-file-import mr-1"></i>Nhập từ Excel</button>' +
-        (data.canManageRoster && !data.locked ? '<button type="button" id="ccRosterClearBtn" data-cc-act="roster-clear" class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm disabled:opacity-60">🗑️ Xóa toàn bộ lịch trực tháng</button>' : '') +
-        (data.locked ? badge('Kỳ đã khoá - không sửa được', 'bg-slate-800 text-white') : '') +
-        '</div>';
-
-      var workload = '<div class="bg-white rounded-2xl shadow-sm p-4">' +
-        '<h3 class="font-bold text-sm text-slate-700 mb-2">Số suất trực trong tháng theo cán bộ</h3>' +
-        '<div class="flex flex-wrap gap-2">' + (data.workload || []).map(function (w) {
-          return '<span class="px-3 py-1.5 rounded-lg text-xs ' +
-            (w.shifts === 0 ? 'bg-slate-100 text-slate-500' : 'bg-medical-50 text-medical-800 font-semibold') + '">' +
-            esc(w.fullName) + ': ' + w.shifts + '</span>';
-        }).join('') + '</div></div>';
-
-      var dayRows = (data.days || []).map(function (day) {
-        var entries = day.entries.map(function (e) {
-          return '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-white border border-slate-200">' +
-            '<span class="w-2 h-2 rounded-full" style="background:' + esc(e.color) + '"></span>' +
-            '<span class="font-semibold">' + esc(e.shiftName) + '</span>: ' + esc(e.employeeName) +
-            (e.swappedFromName ? ' <i class="fas fa-right-left text-indigo-500" title="Đổi từ ' + esc(e.swappedFromName) + '"></i>' : '') +
-            (e.checkInAt ? ' <i class="fas fa-circle-check text-emerald-500" title="Đã nhận ca"></i>' : '') +
-            (data.locked ? '' : '<button type="button" data-cc-act="roster-remove" data-id="' + esc(e.assignmentId) +
-              '" class="ml-1 text-red-500 hover:text-red-700" title="Bỏ suất trực này"><i class="fas fa-xmark"></i></button>') +
-            '</span>';
-        }).join('');
-        return '<tr class="border-t border-slate-100 ' + (DAY_TYPE_CLASS[day.dayType] || '') + '">' +
-          '<td class="px-2 py-2 text-center font-bold">' + day.day + '</td>' +
-          '<td class="px-2 py-2 text-xs">' + esc(WEEKDAY_SHORT[num(day.weekday, 0)]) + '</td>' +
-          '<td class="px-2 py-2 text-xs">' + esc(day.holidayName || DAY_TYPE_LABEL[day.dayType]) + '</td>' +
-          '<td class="px-2 py-2"><div class="flex flex-wrap gap-1">' + (entries || '<span class="text-xs text-slate-400 italic">chưa phân</span>') + '</div></td>' +
-          '<td class="px-2 py-2 text-right">' + (data.locked ? '' :
-            '<button type="button" data-cc-act="roster-add" data-date="' + esc(day.date) +
-            '" class="px-2 py-1 bg-medical-50 text-medical-700 rounded text-xs font-semibold whitespace-nowrap"><i class="fas fa-plus mr-1"></i>Phân người</button>') +
-          '</td></tr>';
-      }).join('');
-
-      host.innerHTML = toolbar + rosterRulesCard(data) + workload +
-        adminCard('Lịch trực ' + periodLabel(wanted),
-          '<span class="text-xs text-slate-500">' + activeShifts.length + ' ca trực đang dùng</span>',
-          tableWrap([
-            { label: 'Ngày', align: 'text-center' }, { label: 'Thứ' }, { label: 'Loại ngày' },
-            { label: 'Ca trực và người trực' }, { label: '', align: 'text-right' }
-          ], dayRows, 760));
+      renderRosterBody(host);
     }).catch(function (err) {
       host.innerHTML = emptyBox(err.message || 'Không tải được lịch trực.');
       fail(err);
     });
   }
 
+  /** Bộ lọc lịch trực: tháng (ở thanh công cụ), điểm trạm, khoa/phòng, nơi làm việc, loại ca, cán bộ. */
+  function rosterFilter() {
+    if (!S.rosterFilter) S.rosterFilter = { station: '', department: '', workplace: '', shift: '', employee: '' };
+    return S.rosterFilter;
+  }
+
+  function entryMatches(e) {
+    var f = rosterFilter();
+    return (!f.station || e.stationCode === f.station) &&
+      (!f.department || e.departmentId === f.department) &&
+      (!f.workplace || e.workplaceId === f.workplace) &&
+      (!f.shift || e.shiftId === f.shift) &&
+      (!f.employee || e.employeeId === f.employee);
+  }
+
+  function filterSelect(key, label, options) {
+    var f = rosterFilter();
+    return '<div><label class="block text-[11px] font-semibold text-slate-500 mb-1">' + esc(label) + '</label>' +
+      '<select data-cc-rfilter="' + key + '" class="px-2 py-1.5 border border-slate-300 rounded-lg text-xs max-w-[12rem]">' +
+      '<option value="">Tất cả</option>' + options.map(function (o) {
+        return '<option value="' + esc(o.value) + '"' + (f[key] === o.value ? ' selected' : '') + '>' + esc(o.label) + '</option>';
+      }).join('') + '</select></div>';
+  }
+
+  function renderRosterBody(host) {
+    var data = S.rosterData;
+    var wanted = data.period;
+    var activeShifts = (data.shifts || []).filter(function (s) { return s.status === 'ACTIVE'; });
+    var flt = data.filters || {};
+    var f = rosterFilter();
+    var filtering = f.station || f.department || f.workplace || f.shift || f.employee;
+
+    var toolbar =
+      '<div class="bg-white rounded-2xl shadow-sm p-4 flex flex-wrap items-end gap-3">' +
+      '<div><label class="block text-xs font-semibold text-slate-600 mb-1" for="ccRosterPeriod">Tháng lập lịch</label>' +
+      '<input type="month" id="ccRosterPeriod" value="' + esc(wanted) + '" class="px-3 py-2 border border-slate-300 rounded-lg text-sm"></div>' +
+      '<button type="button" data-cc-act="roster-load" class="px-4 py-2 bg-medical-600 hover:bg-medical-700 text-white rounded-lg text-sm font-semibold">Xem lịch</button>' +
+      '<button type="button" data-cc-act="roster-copy" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm"><i class="fas fa-copy mr-1"></i>Sao chép tháng trước</button>' +
+      '<button type="button" data-cc-act="roster-auto" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"><i class="fas fa-wand-magic-sparkles mr-1"></i>Phân lịch tự động</button>' +
+      '<button type="button" data-cc-act="roster-import" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm"><i class="fas fa-file-import mr-1"></i>Nhập từ Excel</button>' +
+      (data.canManageRoster && !data.locked ? '<button type="button" id="ccRosterClearBtn" data-cc-act="roster-clear" class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm disabled:opacity-60">🗑️ Xóa toàn bộ lịch trực tháng</button>' : '') +
+      (data.locked ? badge('Kỳ đã khoá - không sửa được', 'bg-slate-800 text-white') : '') +
+      '</div>' +
+      '<div class="bg-white rounded-2xl shadow-sm p-3 flex flex-wrap items-end gap-3">' +
+      '<span class="text-xs font-bold text-slate-600 self-center"><i class="fas fa-filter mr-1"></i>Lọc lịch</span>' +
+      filterSelect('station', 'Điểm trạm', (flt.stations || []).map(function (x) { return { value: x.code, label: x.name }; })) +
+      filterSelect('department', 'Khoa/phòng', (flt.departments || []).map(function (x) { return { value: x.id, label: x.name }; })) +
+      filterSelect('workplace', 'Nơi làm việc', (flt.workplaces || []).filter(function (x) { return !f.station || x.stationCode === f.station; })
+        .map(function (x) { return { value: x.id, label: x.name }; })) +
+      filterSelect('shift', 'Loại ca', (data.shifts || []).map(function (x) { return { value: x.id, label: x.name }; })) +
+      filterSelect('employee', 'Cán bộ', (data.workload || []).filter(function (w) { return !f.station || w.stationCode === f.station; })
+        .map(function (x) { return { value: x.employeeId, label: x.fullName }; })) +
+      (filtering ? '<button type="button" data-cc-act="roster-filter-clear" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs">Bỏ lọc</button>' : '') +
+      '</div>';
+
+    var counts = {};
+    (data.days || []).forEach(function (day) {
+      day.entries.forEach(function (e) { if (entryMatches(e)) counts[e.employeeId] = (counts[e.employeeId] || 0) + 1; });
+    });
+    var wl = (data.workload || []).filter(function (w) {
+      return (!f.station || w.stationCode === f.station) && (!f.employee || w.employeeId === f.employee) &&
+        (!f.department || w.departmentId === f.department) && (!f.workplace || w.workplaceId === f.workplace);
+    });
+    var workload = '<div class="bg-white rounded-2xl shadow-sm p-4">' +
+      '<h3 class="font-bold text-sm text-slate-700 mb-2">Số suất trực trong tháng theo cán bộ' + (filtering ? ' (theo bộ lọc)' : '') + '</h3>' +
+      '<div class="flex flex-wrap gap-2">' + (wl.map(function (w) {
+        var n = filtering ? (counts[w.employeeId] || 0) : w.shifts;
+        return '<span class="px-3 py-1.5 rounded-lg text-xs ' +
+          (n === 0 ? 'bg-slate-100 text-slate-500' : 'bg-medical-50 text-medical-800 font-semibold') + '">' +
+          esc(w.fullName) + ': ' + n + '</span>';
+      }).join('') || '<span class="text-xs text-slate-400">Không có cán bộ khớp bộ lọc.</span>') + '</div></div>';
+
+    var dayRows = (data.days || []).map(function (day) {
+      var entries = day.entries.filter(entryMatches).map(function (e) {
+        return '<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-white border border-slate-200">' +
+          '<span class="w-2 h-2 rounded-full" style="background:' + esc(e.color) + '"></span>' +
+          '<span class="font-semibold">' + esc(e.shiftName) + '</span>: ' + esc(e.employeeName) +
+          (e.stationName ? ' <span class="text-[10px] px-1 rounded bg-slate-100 text-slate-600" title="' +
+            esc(e.stationInferred ? 'Suất cũ - điểm trạm tra theo hồ sơ công tác' : 'Điểm trạm trực') + '">' +
+            esc(e.stationName) + (e.workplaceName ? ' › ' + esc(e.workplaceName) : '') + (e.stationInferred ? '*' : '') + '</span>' : '') +
+          (e.swappedFromName ? ' <i class="fas fa-right-left text-indigo-500" title="Đổi từ ' + esc(e.swappedFromName) + '"></i>' : '') +
+          (e.checkInAt ? ' <i class="fas fa-circle-check text-emerald-500" title="Đã nhận ca"></i>' : '') +
+          (data.locked ? '' : '<button type="button" data-cc-act="roster-remove" data-id="' + esc(e.assignmentId) +
+            '" class="ml-1 text-red-500 hover:text-red-700" title="Bỏ suất trực này"><i class="fas fa-xmark"></i></button>') +
+          '</span>';
+      }).join('');
+      return '<tr class="border-t border-slate-100 ' + (DAY_TYPE_CLASS[day.dayType] || '') + '">' +
+        '<td class="px-2 py-2 text-center font-bold">' + day.day + '</td>' +
+        '<td class="px-2 py-2 text-xs">' + esc(WEEKDAY_SHORT[num(day.weekday, 0)]) + '</td>' +
+        '<td class="px-2 py-2 text-xs">' + esc(day.holidayName || DAY_TYPE_LABEL[day.dayType]) + '</td>' +
+        '<td class="px-2 py-2"><div class="flex flex-wrap gap-1">' + (entries || '<span class="text-xs text-slate-400 italic">' + (filtering ? 'không có suất khớp bộ lọc' : 'chưa phân') + '</span>') + '</div></td>' +
+        '<td class="px-2 py-2 text-right">' + (data.locked ? '' :
+          '<button type="button" data-cc-act="roster-add" data-date="' + esc(day.date) +
+          '" class="px-2 py-1 bg-medical-50 text-medical-700 rounded text-xs font-semibold whitespace-nowrap"><i class="fas fa-plus mr-1"></i>Phân người</button>') +
+        '</td></tr>';
+    }).join('');
+
+    host.innerHTML = toolbar + rosterRulesCard(data) + workload +
+      adminCard('Lịch trực ' + periodLabel(wanted),
+        '<span class="text-xs text-slate-500">' + activeShifts.length + ' ca trực đang dùng</span>',
+        tableWrap([
+          { label: 'Ngày', align: 'text-center' }, { label: 'Thứ' }, { label: 'Loại ngày' },
+          { label: 'Ca trực và người trực' }, { label: '', align: 'text-right' }
+        ], dayRows, 760) +
+        '<p class="text-[11px] text-slate-400 mt-2">* Suất phân trước khi có phân trực theo điểm trạm: điểm trạm hiển thị theo lịch sử công tác của cán bộ vào ngày đó.</p>');
+  }
+
   var STRATEGY_LABEL = {
     ROUND_ROBIN: 'Quay vòng theo danh sách',
     BALANCED: 'Cân bằng - ưu tiên người ít suất trực nhất'
+  };
+  var SCOPE_MODE_LABEL = {
+    STATION: 'Theo điểm trạm',
+    DEPARTMENT: 'Theo điểm trạm + khoa/phòng',
+    WORKPLACE: 'Theo điểm trạm + nơi làm việc',
+    COMBINED: 'Kết hợp điểm trạm + khoa/phòng + nơi làm việc'
   };
 
   function rosterRules() {
     return (S.rosterData && S.rosterData.rules) || (S.settings && S.settings.rosterRules) || {};
   }
 
-  /** Tóm tắt quy tắc phân trực đang lưu, kèm nút thiết lập / khôi phục mặc định. */
+  /** Tóm tắt quy tắc chung đang lưu, kèm nút mở Thiết lập quy tắc / khôi phục mặc định. */
   function rosterRulesCard(data) {
     var r = data.rules || {};
-    var shiftNames = (r.shiftIds || []).map(function (id) {
-      var s = (data.shifts || []).filter(function (x) { return x.id === id; })[0];
-      return s ? s.name : null;
-    }).filter(Boolean);
-    var empCount = (r.employeeIds || []).filter(function (id) {
-      return S.employees.some(function (e) { return e.id === id && e.status === 'ACTIVE'; });
-    }).length;
     var item = function (label, value) {
       return '<div class="px-3 py-2 rounded-lg bg-slate-50 border border-slate-100">' +
         '<p class="text-[11px] text-slate-500">' + esc(label) + '</p>' +
@@ -3093,98 +3300,20 @@
       (data.canResetRules ? '<button type="button" data-cc-act="roster-rules-reset" class="ml-2 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-semibold"><i class="fas fa-rotate-left mr-1"></i>Khôi phục mặc định</button>' : '');
     return adminCard('Quy tắc phân trực tự động', actions,
       '<div class="grid grid-cols-2 md:grid-cols-4 gap-2">' +
-      item('Cách phân', STRATEGY_LABEL[r.strategy] || STRATEGY_LABEL.ROUND_ROBIN) +
-      item('Số người mỗi ca', String(num(r.peoplePerShift, 1))) +
-      item('Nghỉ tối thiểu giữa hai suất', num(r.minRestDays, 0) > 0 ? r.minRestDays + ' ngày' : 'Được trực liền') +
+      item('Phạm vi phân trực', SCOPE_MODE_LABEL[r.scopeMode] || SCOPE_MODE_LABEL.STATION) +
+      item('Cách phân trong từng điểm', STRATEGY_LABEL[r.strategy] || STRATEGY_LABEL.ROUND_ROBIN) +
+      item('Nghỉ tối thiểu giữa hai suất', (num(r.minRestDays, 0) > 0 ? r.minRestDays + ' ngày' : 'Được trực liền') +
+        (num(r.minRestHours, 0) > 0 ? ', ' + r.minRestHours + ' giờ' : '')) +
+      item('Thuộc nhiều nhóm trực', r.allowMultiGroup ? 'Cho phép (theo danh sách duyệt)' : 'Không cho phép') +
       item('Tối đa mỗi người / tháng', limit(r.maxPerMonth)) +
       item('Tối đa cuối tuần, lễ / tháng', limit(r.maxWeekendHolidayPerMonth)) +
-      item('Ca trực áp dụng', shiftNames.length ? shiftNames.join(', ') : 'Tất cả ca đang dùng') +
-      item('Cán bộ tham gia', (r.employeeIds || []).length ? empCount + ' cán bộ đã chọn' : 'Tất cả cán bộ đang hoạt động') +
-      item('Nghỉ phép / thiếu người', (r.skipOnLeave === false ? 'Không bỏ qua nghỉ phép' : 'Bỏ qua người nghỉ phép') +
-        (r.relaxWhenShort === false ? '; giữ nguyên quy tắc' : '; nới quy tắc khi thiếu')) +
+      item('Số người, ca, cán bộ', 'Theo quy tắc từng điểm trạm') +
+      item('Trực chéo giữa các điểm', 'Chỉ khi có điều động đã duyệt') +
       '</div>');
   }
 
-  /** Các trường quy tắc dùng chung cho hộp thoại thiết lập và hộp thoại phân tự động. */
-  function rosterRulesFields(r, shifts, staff) {
-    var allShifts = !(r.shiftIds || []).length;
-    var allStaff = !(r.employeeIds || []).length;
-    return '<div class="mb-3"><p class="text-xs font-semibold text-slate-600 mb-1">Ca trực cần phân</p>' +
-      shifts.map(function (s) {
-        return '<label class="flex items-center gap-2 text-sm mb-1"><input type="checkbox" data-cc-shift="' + esc(s.id) +
-          '" class="w-4 h-4"' + (allShifts || r.shiftIds.indexOf(s.id) >= 0 ? ' checked' : '') + '><span>' +
-          esc(s.name) + ' (' + esc(s.startTime) + ' - ' + esc(s.endTime) + ')</span></label>';
-      }).join('') + '</div>' +
-      '<div class="mb-3"><p class="text-xs font-semibold text-slate-600 mb-1">Cán bộ tham gia trực</p>' +
-      '<div class="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2">' +
-      staff.map(function (e) {
-        return '<label class="flex items-center gap-2 text-sm mb-1"><input type="checkbox" data-cc-emp="' + esc(e.id) +
-          '" class="w-4 h-4"' + (allStaff || r.employeeIds.indexOf(e.id) >= 0 ? ' checked' : '') + '><span>' +
-          esc(e.fullName) + '</span></label>';
-      }).join('') + '</div></div>' +
-      '<div class="grid grid-cols-1 md:grid-cols-2 gap-x-3">' +
-      field('Cách phân', select('strategy', [
-        { value: 'ROUND_ROBIN', label: STRATEGY_LABEL.ROUND_ROBIN },
-        { value: 'BALANCED', label: STRATEGY_LABEL.BALANCED }
-      ], r.strategy || 'ROUND_ROBIN')) +
-      field('Số người mỗi ca', input('peoplePerShift', num(r.peoplePerShift, 1), 'number', 'min="1" max="10"')) +
-      field('Số ngày nghỉ tối thiểu giữa hai suất trực', input('minRestDays', num(r.minRestDays, 1), 'number', 'min="0" max="7"'),
-        '0 = được trực hai ngày liền; 1 = không trực hai ngày liền.') +
-      field('Tối đa số suất mỗi người / tháng', input('maxPerMonth', num(r.maxPerMonth, 0), 'number', 'min="0" max="31"'), '0 = không giới hạn.') +
-      field('Tối đa suất cuối tuần, lễ mỗi người / tháng', input('maxWeekendHolidayPerMonth', num(r.maxWeekendHolidayPerMonth, 0), 'number', 'min="0" max="31"'), '0 = không giới hạn.') +
-      '</div>' +
-      checkbox('skipOnLeave', 'Bỏ qua cán bộ đang có đơn nghỉ đã duyệt', r.skipOnLeave !== false) +
-      checkbox('relaxWhenShort', 'Thiếu người thì nới quy tắc ngày nghỉ để không bỏ trống ca', r.relaxWhenShort !== false);
-  }
-
-  /** Đọc quy tắc từ hộp thoại. Chọn đủ tất cả thì lưu rỗng = "tất cả", để ca/cán bộ mới tự được tính. */
-  function readRosterRules() {
-    var body = el('ccModalBody');
-    var shiftBoxes = qsa('[data-cc-shift]', body);
-    var empBoxes = qsa('[data-cc-emp]', body);
-    var pick = function (boxes, attr) {
-      var chosen = boxes.filter(function (n) { return n.checked; });
-      if (chosen.length === boxes.length) return [];
-      return chosen.map(function (n) { return n.getAttribute(attr); });
-    };
-    var v = modalValues();
-    return {
-      shiftIds: pick(shiftBoxes, 'data-cc-shift'),
-      employeeIds: pick(empBoxes, 'data-cc-emp'),
-      anyShift: shiftBoxes.some(function (n) { return n.checked; }),
-      anyEmployee: empBoxes.some(function (n) { return n.checked; }),
-      strategy: v.strategy,
-      peoplePerShift: num(v.peoplePerShift, 1),
-      minRestDays: num(v.minRestDays, 0),
-      maxPerMonth: num(v.maxPerMonth, 0),
-      maxWeekendHolidayPerMonth: num(v.maxWeekendHolidayPerMonth, 0),
-      skipOnLeave: !!v.skipOnLeave,
-      relaxWhenShort: !!v.relaxWhenShort,
-      saveRules: !!v.saveRules
-    };
-  }
-
-  function openRosterRulesForm() {
-    var shifts = ((S.rosterData && S.rosterData.shifts) || S.shifts).filter(function (s) { return s.status === 'ACTIVE'; });
-    var staff = S.employees.filter(function (e) { return e.status === 'ACTIVE'; });
-    var html =
-      '<p class="text-xs text-slate-500 mb-3">Quy tắc được lưu lại và dùng cho mọi lần bấm "Phân lịch tự động". Chọn đủ tất cả ca hoặc tất cả cán bộ nghĩa là ca/cán bộ thêm sau này cũng tự được tính. Những suất đã phân tay luôn được giữ nguyên.</p>' +
-      rosterRulesFields(rosterRules(), shifts, staff) +
-      submitRow('Lưu quy tắc');
-    openModal('Thiết lập quy tắc phân trực tự động', html, function () {
-      var r = readRosterRules();
-      if (!r.anyShift) return toast('Chọn ít nhất một ca trực.', 'warn');
-      if (!r.anyEmployee) return toast('Chọn ít nhất một cán bộ tham gia trực.', 'warn');
-      api('admin', { body: { action: 'roster_rules_save', rules: r } }).then(function (data) {
-        closeModal();
-        toast(data.message, 'success');
-        loadAdminRoster(el('ccAdminBody'), rosterPeriod());
-      }).catch(fail);
-    });
-  }
-
   function resetRosterRules() {
-    confirmBox('Khôi phục quy tắc phân trực tự động về mặc định của hệ thống? Quy tắc đã lưu sẽ bị xoá; lịch trực đã phân không thay đổi.',
+    confirmBox('Khôi phục quy tắc chung (phạm vi, cách phân, thời gian nghỉ, giới hạn) về mặc định của hệ thống? Quy tắc từng điểm trạm và lịch trực đã phân không thay đổi.',
       function () {
         api('admin', { body: { action: 'roster_rules_reset' } }).then(function (data) {
           closeModal();
@@ -3196,60 +3325,223 @@
 
   function rosterPeriod() {
     var input2 = qs('#ccRosterPeriod');
-    return (input2 && input2.value) || currentPeriod();
+    return (input2 && input2.value) || (S.rosterData && S.rosterData.period) || currentPeriod();
   }
 
   function openRosterAssignForm(date) {
     var shifts = ((S.rosterData && S.rosterData.shifts) || S.shifts).filter(function (s) { return s.status === 'ACTIVE'; });
-    var staff = S.employees.filter(function (e) { return e.status === 'ACTIVE'; });
+    var staff = S.employees.filter(function (e) { return e.status === 'ACTIVE' && (e.dutyStatus || 'ACTIVE') === 'ACTIVE'; });
     if (!shifts.length) return toast('Chưa có ca trực nào đang dùng. Hãy khai báo ca trực trước.', 'warn');
-    if (!staff.length) return toast('Chưa có cán bộ nào để phân trực.', 'warn');
+    if (!staff.length) return toast('Chưa có cán bộ nào đang công tác để phân trực.', 'warn');
+    var stations = ((S.rosterData && S.rosterData.filters && S.rosterData.filters.stations) || []);
+    var f = rosterFilter();
     var html =
-      '<p class="text-sm text-slate-600 mb-3">Phân người trực cho ngày <strong>' + esc(fmtDateVN(date)) + '</strong>.</p>' +
+      '<p class="text-sm text-slate-600 mb-3">Phân người trực cho ngày <strong>' + esc(fmtDateVN(date)) + '</strong>. ' +
+      'Cán bộ chỉ được phân tại điểm trạm của mình, hoặc điểm trạm khác khi có quyết định điều động đã xác nhận.</p>' +
       field('Ca trực', select('shiftId', shifts.map(function (s) {
         return { value: s.id, label: s.name + ' (' + s.startTime + ' - ' + s.endTime + ')' };
-      }), shifts[0].id)) +
+      }), f.shift || shifts[0].id)) +
       field('Cán bộ trực', select('employeeId', staff.map(function (e) {
-        return { value: e.id, label: e.fullName + (e.departmentName ? ' - ' + e.departmentName : '') };
+        return { value: e.id, label: e.fullName + (e.stationCode ? ' - ' + stationLabel(e.stationCode) : ' - chưa gắn điểm trạm') };
       }), staff[0].id)) +
+      field('Điểm trạm trực', select('stationCode', [{ value: '', label: '-- Điểm trạm của cán bộ vào ngày trực --' }].concat(
+        stations.map(function (st) { return { value: st.code, label: st.name }; })), f.station || '')) +
       field('Ghi chú', input('note', '')) +
       submitRow('Phân trực');
     openModal('Phân người trực', html, function () {
-      var v = modalValues();
-      api('admin', {
-        body: {
-          action: 'roster_assign', dutyDate: date, shiftId: v.shiftId,
-          employeeId: v.employeeId, note: v.note
-        }
-      }).then(function (data) {
-        closeModal();
-        toast(data.message, 'success');
-        loadAdminRoster(el('ccAdminBody'), rosterPeriod());
+      submitRosterAssign(date, modalValues(), false);
+    });
+  }
+
+  function submitRosterAssign(date, v, confirmCross) {
+    var period = rosterPeriod();
+    api('admin', {
+      body: {
+        action: 'roster_assign', dutyDate: date, shiftId: v.shiftId, employeeId: v.employeeId,
+        stationCode: v.stationCode, note: v.note, confirmCrossStation: !!confirmCross
+      }
+    }).then(function (data) {
+      closeModal();
+      toast(data.message, 'success');
+      loadAdminRoster(el('ccAdminBody'), period);
+    }).catch(function (err) {
+      if (err && err.data && err.data.needsCrossConfirm && !confirmCross) {
+        confirmBox(err.message + ' Bạn là Quản trị hệ thống: xác nhận điều động cán bộ trực ca này tại điểm trạm đã chọn? Thao tác được ghi vào nhật ký.', function () {
+          submitRosterAssign(date, v, true);
+        }, 'Xác nhận điều động');
+        return;
+      }
+      fail(err);
+    });
+  }
+
+  // --- Phân lịch tự động: chọn phạm vi → xem trước → xác nhận lưu ----------
+
+  function openRosterAutoForm() {
+    var period = rosterPeriod();
+    var stations = ((S.rosterData && S.rosterData.filters && S.rosterData.filters.stations) || []);
+    var f = rosterFilter();
+    var r = rosterRules();
+    var html =
+      '<p class="text-xs text-slate-500 mb-3">Hệ thống phân theo từng điểm trạm, dựa trên quy tắc đã kích hoạt ở "Thiết lập quy tắc" và hồ sơ cán bộ (điểm trạm, khoa/phòng, nơi làm việc, nhóm trực, loại ca được phép, trạng thái). ' +
+      'Suất đã có được giữ nguyên và tính vào nhu cầu. Không có gì được lưu cho tới khi bạn xem trước và xác nhận.</p>' +
+      '<div class="grid grid-cols-2 gap-2 mb-3 text-xs">' +
+      '<div class="px-3 py-2 rounded-lg bg-slate-50 border border-slate-100"><p class="text-slate-500">Tháng</p><p class="font-semibold text-slate-800">' + esc(periodLabel(period)) + '</p></div>' +
+      '<div class="px-3 py-2 rounded-lg bg-slate-50 border border-slate-100"><p class="text-slate-500">Phạm vi</p><p class="font-semibold text-slate-800">' + esc(SCOPE_MODE_LABEL[r.scopeMode] || SCOPE_MODE_LABEL.STATION) + '</p></div>' +
+      '</div>' +
+      '<p class="text-xs font-semibold text-slate-600 mb-1">Điểm trạm cần phân <span class="font-normal text-slate-400">(không chọn = mọi điểm trạm có quy tắc)</span></p>' +
+      checkList('data-cc-autostation', stations.map(function (st) { return { value: st.code, label: st.name }; }), f.station ? [f.station] : [],
+        'Chưa có điểm trạm nào trong danh mục.') +
+      submitRow('Xem trước phương án');
+    openModal('Phân lịch trực tự động', html, function () {
+      var codes = checkedValues('data-cc-autostation');
+      runModalAction('Đang dựng phương án...', api('admin', {
+        body: { action: 'roster_auto_preview', period: period, stationCodes: codes }
+      })).then(function (data) {
+        S.rosterPreview = { period: period, stationCodes: codes, data: data };
+        showRosterPreview();
       }).catch(fail);
     });
   }
 
-  function openRosterAutoForm() {
-    var period = rosterPeriod();
-    var shifts = ((S.rosterData && S.rosterData.shifts) || S.shifts).filter(function (s) { return s.status === 'ACTIVE'; });
-    var staff = S.employees.filter(function (e) { return e.status === 'ACTIVE'; });
-    var html =
-      '<p class="text-xs text-slate-500 mb-3">Các lựa chọn dưới đây lấy từ quy tắc phân trực đã lưu; có thể chỉnh riêng cho lần phân này. Những suất đã phân bằng tay được giữ nguyên, không bị ghi đè.</p>' +
-      rosterRulesFields(rosterRules(), shifts, staff) +
-      checkbox('saveRules', 'Lưu các lựa chọn này làm quy tắc cho những lần sau', false) +
-      submitRow('Phân lịch cho ' + periodLabel(period));
-    openModal('Phân lịch trực tự động', html, function () {
-      var r = readRosterRules();
-      if (!r.anyShift) return toast('Chọn ít nhất một ca trực cần phân.', 'warn');
-      if (!r.anyEmployee) return toast('Chọn danh sách cán bộ tham gia trực.', 'warn');
-      var body = { action: 'roster_auto', period: period };
-      Object.keys(r).forEach(function (k) { if (k !== 'anyShift' && k !== 'anyEmployee') body[k] = r[k]; });
-      runModalAction('Đang phân lịch...', api('admin', { body: body })).then(function (data) {
-        toast(data.message, data.unfilled ? 'warn' : 'success', data.unfilled ? 6000 : null);
-        showRosterAutoResult(period, data);
-        loadAdminRoster(el('ccAdminBody'), period);
-      }).catch(fail);
+  function widenModal(wide) {
+    var panel = el('ccModalPanel');
+    if (!panel) return;
+    panel.classList.toggle('max-w-2xl', !wide);
+    panel.classList.toggle('max-w-6xl', !!wide);
+  }
+
+  function listBlock(title, cls, items) {
+    if (!items.length) return '';
+    return '<div class="mb-3 rounded-xl border ' + cls + ' p-3"><p class="text-xs font-bold mb-1">' + esc(title) + '</p>' +
+      '<ul class="text-xs space-y-1 list-disc pl-5 max-h-48 overflow-y-auto">' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>';
+  }
+
+  /** Bản xem trước: tóm tắt, xung đột, vi phạm, thiếu nhân lực, các suất đề xuất theo điểm trạm. */
+  function showRosterPreview() {
+    var pv = S.rosterPreview;
+    if (!pv) return;
+    var d = pv.data;
+    var sm = d.summary || {};
+    var stat = function (label, value, cls) {
+      return '<div class="px-3 py-2 rounded-lg border ' + cls + '"><p class="text-[11px]">' + esc(label) +
+        '</p><p class="text-lg font-bold">' + esc(String(value)) + '</p></div>';
+    };
+    var blockingConflicts = (d.conflicts || []).filter(function (c) { return c.blocking; });
+    var infoConflicts = (d.conflicts || []).filter(function (c) { return !c.blocking; });
+    var blockingViol = (d.violations || []).filter(function (v) { return v.blocking; });
+    var oldViol = (d.violations || []).filter(function (v) { return !v.blocking; });
+
+    var shortageRows = (d.shortages || []).map(function (s) {
+      return '<tr class="border-t border-slate-100 align-top">' +
+        '<td class="px-2 py-1.5 text-xs whitespace-nowrap">' + esc(fmtDateVN(s.date)) + '</td>' +
+        '<td class="px-2 py-1.5 text-xs">' + esc(s.stationName) + '</td>' +
+        '<td class="px-2 py-1.5 text-xs">' + esc(s.shiftName) + '<div class="text-[10px] text-slate-400">' + esc(s.ruleName) + '</div></td>' +
+        '<td class="px-2 py-1.5 text-xs text-center">' + s.needed + '</td>' +
+        '<td class="px-2 py-1.5 text-xs text-center font-bold text-red-700">' + s.missing + '</td>' +
+        '<td class="px-2 py-1.5 text-[11px] text-slate-600">' + ((s.reasons || []).map(function (r) {
+          return esc(r.label) + ': ' + r.count;
+        }).join('; ') || 'Không có cán bộ nào trong phạm vi') + '</td>' +
+        '<td class="px-2 py-1.5 text-[11px] text-slate-600">' + ((s.suggestions || []).map(function (g) {
+          return esc(g.employeeName) + ' (' + esc(g.stationName) + ')';
+        }).join(', ') || '—') + '</td></tr>';
+    }).join('');
+
+    var byStation = {};
+    (d.proposals || []).forEach(function (p) {
+      (byStation[p.stationCode] = byStation[p.stationCode] || { name: p.stationName, rows: [] }).rows.push(p);
     });
+    var proposalBlocks = Object.keys(byStation).map(function (code) {
+      var g = byStation[code];
+      return '<details class="mb-2 border border-slate-200 rounded-lg"><summary class="px-3 py-2 text-sm font-semibold cursor-pointer">' +
+        esc(g.name) + ' - ' + g.rows.length + ' suất đề xuất</summary>' +
+        '<div class="overflow-x-auto"><table class="w-full text-xs"><tbody>' + g.rows.map(function (p) {
+          return '<tr class="border-t border-slate-100"><td class="px-2 py-1 whitespace-nowrap">' + esc(fmtDateVN(p.date)) + '</td>' +
+            '<td class="px-2 py-1">' + esc(p.shiftName) + '</td><td class="px-2 py-1 font-medium">' + esc(p.employeeName) + '</td>' +
+            '<td class="px-2 py-1 text-slate-500">' + esc([p.departmentName, p.workplaceName].filter(Boolean).join(' › ')) + '</td>' +
+            '<td class="px-2 py-1">' + (p.cross ? badge(p.secondmentId ? 'Điều động' : 'Trực chéo', 'bg-indigo-100 text-indigo-800') : '') + '</td>' +
+            '<td class="px-2 py-1 text-slate-400">' + esc(p.ruleName) + '</td></tr>';
+        }).join('') + '</tbody></table></div></details>';
+    }).join('');
+
+    var html =
+      '<div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">' +
+      stat('Suất đề xuất', num(sm.proposed, 0), 'bg-medical-50 border-medical-100 text-medical-800') +
+      stat('Cán bộ được phân', num(sm.employees, 0), 'bg-emerald-50 border-emerald-100 text-emerald-800') +
+      stat('Suất còn thiếu người', num(sm.missing, 0), sm.missing ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-100 text-slate-700') +
+      stat('Xung đột quy tắc', num(sm.blockingConflicts, 0), sm.blockingConflicts ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-100 text-slate-700') +
+      stat('Vi phạm bắt buộc', num(sm.blockingViolations, 0), sm.blockingViolations ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-100 text-slate-700') +
+      '</div>' +
+      '<p class="text-xs text-slate-500 mb-3">Phạm vi: <strong>' + esc(d.scopeModeLabel || '') + '</strong>; điểm trạm: ' +
+      esc((d.stations || []).map(function (s) { return s.name; }).join(', ') || 'chưa có quy tắc') + '.</p>' +
+      listBlock('Xung đột quy tắc cần xử lý trước khi lưu', 'border-red-200 bg-red-50 text-red-800',
+        blockingConflicts.map(function (c) { return esc(c.message); })) +
+      listBlock('Vi phạm điều kiện bắt buộc trong phương án', 'border-red-200 bg-red-50 text-red-800',
+        blockingViol.map(function (v) { return esc(v.message); })) +
+      listBlock('Cảnh báo', 'border-amber-200 bg-amber-50 text-amber-800',
+        (d.warnings || []).map(esc).concat(infoConflicts.map(function (c) { return esc(c.message); }))) +
+      listBlock('Trùng ca / thiếu giờ nghỉ trong lịch đã có (không do phương án này sinh ra - nên xem lại)', 'border-slate-200 bg-slate-50 text-slate-700',
+        oldViol.map(function (v) { return esc(v.message); })) +
+      (shortageRows
+        ? '<div class="mb-3"><p class="text-xs font-bold text-amber-800 mb-1"><i class="fas fa-triangle-exclamation mr-1"></i>Báo cáo thiếu nhân lực (' + (d.shortages || []).length + ' ca)</p>' +
+          '<div class="overflow-x-auto max-h-72 overflow-y-auto border border-amber-200 rounded-lg"><table class="w-full" style="min-width:820px"><thead><tr class="bg-amber-50 text-[11px] text-amber-900">' +
+          '<th class="px-2 py-1 text-left">Ngày</th><th class="px-2 py-1 text-left">Điểm trạm</th><th class="px-2 py-1 text-left">Ca / quy tắc</th>' +
+          '<th class="px-2 py-1">Cần</th><th class="px-2 py-1">Thiếu</th><th class="px-2 py-1 text-left">Nguyên nhân loại trừ</th>' +
+          '<th class="px-2 py-1 text-left">Có thể bổ sung (cần điều động)</th></tr></thead><tbody>' + shortageRows + '</tbody></table></div>' +
+          '<p class="text-[11px] text-slate-500 mt-1">Phương án bổ sung: giảm số người của quy tắc, bổ sung cán bộ vào điểm trạm/nhóm trực, mở rộng loại ca được phép, hoặc lập quyết định điều động (cần Quản trị hệ thống xác nhận). Hệ thống không tự lấy người từ điểm trạm khác.</p></div>'
+        : '<p class="text-sm text-emerald-700 mb-3"><i class="fas fa-circle-check mr-1"></i>Mọi ca theo quy tắc đã bố trí đủ người.</p>') +
+      (proposalBlocks ? '<p class="text-xs font-bold text-slate-600 mb-1">Các suất đề xuất</p>' + proposalBlocks : '') +
+      (d.canSave && !d.locked && sm.missing ? checkbox('acceptShortage', 'Tôi đã xem báo cáo thiếu nhân lực và đồng ý lưu phần đã phân được', false) : '') +
+      '<div class="flex flex-wrap gap-2 pt-3 mt-3 border-t border-slate-200">' +
+      (d.canSave && !d.locked
+        ? '<button type="button" data-cc-act="roster-preview-save" class="px-4 py-2 bg-medical-600 hover:bg-medical-700 text-white rounded-lg text-sm font-semibold"><i class="fas fa-floppy-disk mr-1"></i>Xác nhận & lưu ' + num(sm.proposed, 0) + ' suất</button>'
+        : '<span class="text-xs text-red-700 self-center">' + (d.locked ? 'Kỳ đã khoá.' : sm.proposed ? 'Xử lý xung đột / vi phạm rồi xem trước lại để lưu.' : 'Không có suất mới để lưu.') + '</span>') +
+      '<button type="button" data-cc-act="roster-preview-again" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm"><i class="fas fa-rotate mr-1"></i>Xem trước lại</button>' +
+      '<button type="button" data-cc-act="roster-open-rules" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm"><i class="fas fa-sliders mr-1"></i>Điều chỉnh quy tắc</button>' +
+      '<button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm">Đóng</button></div>';
+    openModal('Xem trước lịch phân công ' + periodLabel(pv.period), html, null);
+    widenModal(true);
+  }
+
+  function saveRosterPreview() {
+    var pv = S.rosterPreview;
+    if (!pv) return;
+    var ack = qs('[name="acceptShortage"]', el('ccModalBody'));
+    if (num(pv.data.summary && pv.data.summary.missing, 0) > 0 && !(ack && ack.checked)) {
+      return toast('Hãy xác nhận đã xem báo cáo thiếu nhân lực trước khi lưu.', 'warn');
+    }
+    var btn = qs('[data-cc-act="roster-preview-save"]', el('ccModalBody'));
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Đang lưu...'; }
+    api('admin', {
+      body: {
+        action: 'roster_auto', period: pv.period, stationCodes: pv.stationCodes,
+        fingerprint: pv.data.fingerprint, acceptShortage: !!(ack && ack.checked)
+      }
+    }).then(function (data) {
+      S.rosterPreview = null;
+      closeModal();
+      toast(data.message, data.unfilled ? 'warn' : 'success', data.unfilled ? 6000 : null);
+      loadAdminRoster(el('ccAdminBody'), pv.period);
+    }).catch(function (err) {
+      if (err && err.data && err.data.fingerprint) {
+        // Dữ liệu đổi trong lúc xem: hiện phương án mới để Quản trị xem lại.
+        pv.data = err.data;
+        showRosterPreview();
+      } else if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = 'Xác nhận & lưu';
+      }
+      fail(err);
+    });
+  }
+
+  function previewAgain() {
+    var pv = S.rosterPreview;
+    if (!pv) return;
+    api('admin', { body: { action: 'roster_auto_preview', period: pv.period, stationCodes: pv.stationCodes } }).then(function (data) {
+      pv.data = data;
+      showRosterPreview();
+    }).catch(fail);
   }
 
   /**
@@ -3278,32 +3570,343 @@
     });
   }
 
-  /** Kết quả phân tự động: số suất đã tạo, số cán bộ, các ngày/ca chưa bố trí được. */
-  function showRosterAutoResult(period, data) {
-    var slots = data.unfilledSlots || [];
-    var stat = function (label, value, cls) {
-      return '<div class="px-3 py-2 rounded-lg border ' + cls + '"><p class="text-[11px]">' + esc(label) +
-        '</p><p class="text-lg font-bold">' + esc(String(value)) + '</p></div>';
+  // --- Thiết lập quy tắc: phạm vi, danh mục, quy tắc từng điểm, điều động ----
+
+  function loadRosterScopePanel(host, period) {
+    host.innerHTML = spinner('Đang tải thiết lập phân trực...');
+    loadScopeCatalog(period).then(function (sc) {
+      if (!sc || !sc.stations) throw new Error('Không tải được thiết lập phân trực.');
+      renderRosterScopePanel(host, sc, period);
+    }).catch(function (err) {
+      host.innerHTML = emptyBox(err.message || 'Không tải được thiết lập phân trực.');
+      fail(err);
+    });
+  }
+
+  function smallBtn(act, id, label, cls) {
+    return '<button type="button" data-cc-act="' + act + '" data-id="' + esc(id) + '" class="px-2 py-1 text-xs hover:underline ' + (cls || 'text-medical-600') + '">' + esc(label) + '</button>';
+  }
+
+  function renderRosterScopePanel(host, sc, period) {
+    var g = sc.general || {};
+    var stateBadge = function (status) {
+      return status === 'ACTIVE' ? badge('Kích hoạt', 'bg-emerald-100 text-emerald-800')
+        : status === 'LOCKED' ? badge('Đã khoá', 'bg-slate-700 text-white')
+        : badge('Ngừng', 'bg-slate-200 text-slate-600');
     };
-    var html =
-      '<div class="grid grid-cols-3 gap-2 mb-3">' +
-      stat('Suất trực đã tạo', num(data.created, 0), 'bg-medical-50 border-medical-100 text-medical-800') +
-      stat('Cán bộ được phân', num(data.assignedEmployees, 0), 'bg-emerald-50 border-emerald-100 text-emerald-800') +
-      stat('Ngày chưa bố trí đủ', (data.unfilledDates || []).length, slots.length ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-100 text-slate-700') +
+    var back =
+      '<div class="bg-white rounded-2xl shadow-sm p-3 flex flex-wrap items-center gap-2">' +
+      '<button type="button" data-cc-act="roster-panel-back" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm"><i class="fas fa-arrow-left mr-1"></i>Về lịch trực ' + esc(periodLabel(period)) + '</button>' +
+      '<h2 class="font-bold text-slate-700 text-sm flex-1">Thiết lập quy tắc phân trực theo điểm trạm</h2>' +
+      '<span class="text-xs text-slate-500">Danh sách đủ điều kiện tính theo ngày ' + esc(fmtDateVN(sc.referenceDate)) + '</span></div>';
+
+    var scope = adminCard('1. Phạm vi phân trực & quy tắc chung', '',
+      '<div id="ccScopeForm">' +
+      '<div class="grid md:grid-cols-2 gap-2 mb-2">' + (sc.scopeModes || []).map(function (m) {
+        return '<label class="flex items-start gap-2 p-2 rounded-lg border ' + (g.scopeMode === m.code ? 'border-medical-400 bg-medical-50' : 'border-slate-200') + ' text-sm">' +
+          '<input type="radio" name="scopeMode" value="' + esc(m.code) + '"' + (g.scopeMode === m.code ? ' checked' : '') + ' class="mt-1">' +
+          '<span>' + esc(m.label) + '<span class="block text-[11px] text-slate-500">' + esc({
+            STATION: 'Mỗi quy tắc gắn một điểm trạm; khoa/phòng, nơi làm việc là tuỳ chọn.',
+            DEPARTMENT: 'Mỗi quy tắc bắt buộc có điểm trạm và khoa/phòng.',
+            WORKPLACE: 'Mỗi quy tắc bắt buộc có điểm trạm và nơi làm việc.',
+            COMBINED: 'Mỗi quy tắc bắt buộc có đủ điểm trạm, khoa/phòng và nơi làm việc.'
+          }[m.code] || '') + '</span></span></label>';
+      }).join('') + '</div>' +
+      '<label class="flex items-center gap-2 mb-3 text-sm"><input type="checkbox" name="allowMultiGroup" class="w-4 h-4"' + (g.allowMultiGroup ? ' checked' : '') + '>' +
+      '<span>5. Cho phép cán bộ thuộc nhiều nhóm trực theo danh sách được Quản trị phê duyệt</span></label>' +
+      '<div class="grid grid-cols-2 md:grid-cols-5 gap-3">' +
+      '<div><label class="block text-[11px] font-semibold text-slate-600 mb-1">Cách phân trong từng điểm</label>' + select('strategy', [
+        { value: 'ROUND_ROBIN', label: 'Quay vòng' }, { value: 'BALANCED', label: 'Cân bằng số lượt' }
+      ], g.strategy || 'ROUND_ROBIN') + '</div>' +
+      '<div><label class="block text-[11px] font-semibold text-slate-600 mb-1">Nghỉ tối thiểu (ngày)</label>' + input('minRestDays', num(g.minRestDays, 1), 'number', 'min="0" max="7"') + '</div>' +
+      '<div><label class="block text-[11px] font-semibold text-slate-600 mb-1">Nghỉ tối thiểu (giờ)</label>' + input('minRestHours', num(g.minRestHours, 0), 'number', 'min="0" max="48"') + '</div>' +
+      '<div><label class="block text-[11px] font-semibold text-slate-600 mb-1">Tối đa suất / tháng</label>' + input('maxPerMonth', num(g.maxPerMonth, 0), 'number', 'min="0" max="31"') + '</div>' +
+      '<div><label class="block text-[11px] font-semibold text-slate-600 mb-1">Tối đa cuối tuần, lễ / tháng</label>' + input('maxWeekendHolidayPerMonth', num(g.maxWeekendHolidayPerMonth, 0), 'number', 'min="0" max="31"') + '</div>' +
       '</div>' +
-      (num(data.relaxedRest, 0) > 0
-        ? '<p class="text-xs text-amber-700 mb-2"><i class="fas fa-triangle-exclamation mr-1"></i>' + data.relaxedRest +
-          ' suất được phân với ngày nghỉ ngắn hơn quy định vì thiếu người (theo quy tắc "nới quy tắc khi thiếu" đã chọn).</p>'
-        : '') +
-      (slots.length
-        ? '<p class="text-xs font-semibold text-slate-600 mb-1">Các ca chưa có đủ người đáp ứng quy tắc - cần bổ sung cán bộ hoặc phân tay:</p>' +
-          '<ul class="text-xs text-slate-700 space-y-1 list-disc pl-5 max-h-56 overflow-y-auto">' +
-          slots.map(function (u) {
-            return '<li><strong>' + esc(fmtDateVN(u.date)) + '</strong> - ' + esc(u.shiftName) + ': thiếu ' + u.missing + ' người</li>';
-          }).join('') + '</ul>'
-        : '<p class="text-sm text-emerald-700"><i class="fas fa-circle-check mr-1"></i>Tất cả các ca trong tháng đã được bố trí đủ người.</p>') +
-      '<div class="pt-3 mt-3 border-t border-slate-200"><button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Đóng</button></div>';
-    openModal('Kết quả phân lịch ' + periodLabel(period), html, null);
+      '<p class="text-[11px] text-slate-500 mt-2">Thời gian nghỉ và chống trùng lịch là điều kiện bắt buộc - quy tắc riêng của điểm trạm không nới được. Giới hạn số suất của từng điểm (nếu đặt) được ưu tiên hơn giới hạn chung; 0 = không giới hạn. Cán bộ nghỉ phép đã duyệt luôn bị loại.</p>' +
+      '<button type="button" data-cc-act="scope-save" class="mt-3 px-4 py-2 bg-medical-600 hover:bg-medical-700 text-white rounded-lg text-sm font-semibold"><i class="fas fa-floppy-disk mr-1"></i>Lưu phạm vi & quy tắc chung</button>' +
+      '</div>');
+
+    var stationRows = (sc.stations || []).map(function (s) {
+      return '<tr class="border-t border-slate-100"><td class="px-2 py-1.5 text-xs text-slate-500">' + esc(s.stationCode) + '</td>' +
+        '<td class="px-2 py-1.5 font-medium">' + esc(s.stationName) + '</td><td class="px-2 py-1.5 text-xs">' + esc(s.status) + '</td>' +
+        '<td class="px-2 py-1.5 text-center">' + s.employeeCount + '</td><td class="px-2 py-1.5 text-center">' + s.ruleCount + '</td></tr>';
+    }).join('');
+    var deptRows = (sc.departments || []).map(function (d) {
+      return '<tr class="border-t border-slate-100"><td class="px-2 py-1.5 text-xs text-slate-500">' + esc(d.code) + '</td>' +
+        '<td class="px-2 py-1.5 font-medium">' + esc(d.name) + '</td><td class="px-2 py-1.5 text-xs">' + esc(d.status === 'ACTIVE' ? 'Đang dùng' : 'Ngừng') + '</td>' +
+        '<td class="px-2 py-1.5 text-center">' + d.employeeCount + '</td></tr>';
+    }).join('');
+    var wpRows = (sc.workplaces || []).map(function (w) {
+      return '<tr class="border-t border-slate-100' + (w.status === 'ACTIVE' ? '' : ' opacity-60') + '"><td class="px-2 py-1.5 text-xs text-slate-500">' + esc(w.code) + '</td>' +
+        '<td class="px-2 py-1.5 font-medium">' + esc(w.name) + '</td><td class="px-2 py-1.5 text-xs">' + esc(w.stationName) + '</td>' +
+        '<td class="px-2 py-1.5 text-xs">' + esc(w.departmentName || '—') + '</td><td class="px-2 py-1.5 text-center">' + w.employeeCount + '</td>' +
+        '<td class="px-2 py-1.5 text-right whitespace-nowrap">' + smallBtn('wp-edit', w.id, 'Sửa') + smallBtn('wp-delete', w.id, 'Xoá', 'text-red-600') + '</td></tr>';
+    }).join('');
+    var catalogs = adminCard('2. Danh mục dùng chung', '',
+      '<div class="grid lg:grid-cols-2 gap-4">' +
+      '<div><p class="text-xs font-bold text-slate-600 mb-1">Danh sách điểm trạm <span class="font-normal text-slate-400">(quản lý tại CMS Quản trị → Điểm trạm)</span></p>' +
+      tableWrap([{ label: 'Mã' }, { label: 'Điểm trạm' }, { label: 'Trạng thái' }, { label: 'Cán bộ', align: 'text-center' }, { label: 'Quy tắc', align: 'text-center' }], stationRows, 420) + '</div>' +
+      '<div><p class="text-xs font-bold text-slate-600 mb-1">Danh sách khoa/phòng <span class="font-normal text-slate-400">(quản lý ở thẻ "Bộ phận")</span></p>' +
+      tableWrap([{ label: 'Mã' }, { label: 'Khoa/phòng' }, { label: 'Trạng thái' }, { label: 'Cán bộ', align: 'text-center' }], deptRows, 380) + '</div>' +
+      '</div>' +
+      '<div class="mt-4"><div class="flex items-center mb-1"><p class="text-xs font-bold text-slate-600 flex-1">Danh sách nơi làm việc</p>' +
+      '<button type="button" data-cc-act="wp-new" class="px-3 py-1.5 bg-medical-600 text-white rounded-lg text-xs font-semibold"><i class="fas fa-plus mr-1"></i>Thêm nơi làm việc</button></div>' +
+      tableWrap([{ label: 'Mã' }, { label: 'Nơi làm việc' }, { label: 'Điểm trạm' }, { label: 'Khoa/phòng' }, { label: 'Cán bộ', align: 'text-center' }, { label: '', align: 'text-right' }], wpRows, 640) + '</div>');
+
+    var grpRows = (sc.groups || []).map(function (gr) {
+      return '<tr class="border-t border-slate-100' + (gr.status === 'ACTIVE' ? '' : ' opacity-60') + '"><td class="px-2 py-1.5 text-xs text-slate-500">' + esc(gr.code) + '</td>' +
+        '<td class="px-2 py-1.5 font-medium">' + esc(gr.name) + '</td><td class="px-2 py-1.5 text-xs">' + esc(gr.stationName) + '</td>' +
+        '<td class="px-2 py-1.5 text-center">' + gr.memberCount + '</td>' +
+        '<td class="px-2 py-1.5 text-right whitespace-nowrap">' + smallBtn('grp-edit', gr.id, 'Sửa / thành viên') + smallBtn('grp-delete', gr.id, 'Xoá', 'text-red-600') + '</td></tr>';
+    }).join('');
+    var groups = adminCard('3. Nhóm trực',
+      '<button type="button" data-cc-act="grp-new" class="px-3 py-1.5 bg-medical-600 text-white rounded-lg text-xs font-semibold"><i class="fas fa-plus mr-1"></i>Thêm nhóm trực</button>',
+      tableWrap([{ label: 'Mã' }, { label: 'Nhóm trực' }, { label: 'Điểm trạm' }, { label: 'Thành viên đã duyệt', align: 'text-center' }, { label: '', align: 'text-right' }], grpRows, 600));
+
+    var conflictsHtml = listBlock('Xung đột / vi phạm quy tắc', 'border-red-200 bg-red-50 text-red-800',
+      (sc.conflicts || []).map(function (c) { return (c.blocking ? '<strong>Cần xử lý:</strong> ' : '') + esc(c.message); }));
+    var ruleRows = (sc.rules || []).map(function (r) {
+      var hc = (r.weekdayHeadcount || []).map(function (n, i) { return WEEKDAY_SHORT[i] + ':' + n; }).join(' ') +
+        (r.holidayHeadcount !== null && r.holidayHeadcount !== undefined ? ' · Lễ:' + r.holidayHeadcount : '');
+      return '<tr class="border-t border-slate-100 align-top' + (r.status === 'ACTIVE' ? '' : ' opacity-60') + '">' +
+        '<td class="px-2 py-1.5"><div class="font-medium text-sm">' + esc(r.name) + '</div>' +
+        (r.problems && r.problems.length ? '<div class="text-[11px] text-red-700">' + esc(r.problems.join(' ')) + '</div>' : '') + '</td>' +
+        '<td class="px-2 py-1.5 text-xs">' + esc(r.stationName) + '<div class="text-[11px] text-slate-500">' +
+        esc([r.departmentName, r.workplaceName, r.dutyGroupName ? 'Nhóm: ' + r.dutyGroupName : ''].filter(Boolean).join(' › ')) + '</div></td>' +
+        '<td class="px-2 py-1.5 text-xs">' + esc(r.shiftName) + '</td>' +
+        '<td class="px-2 py-1.5 text-[11px] font-mono">' + esc(hc) + '</td>' +
+        '<td class="px-2 py-1.5 text-[11px]">' + esc(fmtDateVN(r.effectiveFrom)) + ' → ' + esc(r.effectiveTo ? fmtDateVN(r.effectiveTo) : 'không hạn') + '</td>' +
+        '<td class="px-2 py-1.5 text-[11px]">' + (r.eligibleEmployeeIds.length ? r.eligibleEmployeeIds.length + ' người chỉ định' : 'Mọi cán bộ khớp phạm vi') +
+        '<div class="text-slate-500">Đủ điều kiện hiện nay: ' + r.eligibleNow.length + '</div>' +
+        (r.allowCrossStation ? '<div class="text-indigo-700">Cho trực chéo</div>' : '') + '</td>' +
+        '<td class="px-2 py-1.5 text-center text-xs">' + r.priority + '</td>' +
+        '<td class="px-2 py-1.5">' + stateBadge(r.status) + '</td>' +
+        '<td class="px-2 py-1.5 text-right whitespace-nowrap">' + smallBtn('rule-edit', r.id, 'Sửa') +
+        (r.status === 'ACTIVE' ? smallBtn('rule-lock', r.id, 'Khoá', 'text-slate-600') : smallBtn('rule-activate', r.id, 'Kích hoạt', 'text-emerald-700')) +
+        smallBtn('rule-delete', r.id, 'Xoá', 'text-red-600') + '</td></tr>';
+    }).join('');
+    var rules = adminCard('4. Bảng cấu hình số người trực theo điểm trạm và loại ca',
+      '<button type="button" data-cc-act="rule-new" class="px-3 py-1.5 bg-medical-600 text-white rounded-lg text-xs font-semibold"><i class="fas fa-plus mr-1"></i>Thêm quy tắc</button>',
+      conflictsHtml +
+      tableWrap([{ label: 'Quy tắc' }, { label: 'Điểm trạm / phạm vi' }, { label: 'Loại ca' }, { label: 'Số người theo thứ' },
+        { label: 'Ngày áp dụng' }, { label: 'Cán bộ đủ điều kiện' }, { label: 'Ưu tiên', align: 'text-center' }, { label: 'Trạng thái' }, { label: '', align: 'text-right' }], ruleRows, 1100) +
+      '<p class="text-[11px] text-slate-500 mt-2">Cùng điểm trạm, cùng phạm vi, cùng ca và trùng ngày: quy tắc ưu tiên cao hơn thắng; bằng nhau là xung đột phải xử lý trước khi lưu lịch. Quy tắc bị khoá không được dùng khi phân lịch.</p>');
+
+    var elig = adminCard('5. Danh sách cán bộ đủ điều kiện trực tại từng điểm', '',
+      (sc.eligibility || []).map(function (st) {
+        return '<details class="mb-2 border border-slate-200 rounded-lg"' + (st.employees.length && st.employees.length < 15 ? ' open' : '') + '>' +
+          '<summary class="px-3 py-2 text-sm font-semibold cursor-pointer">' + esc(st.stationName) + ' - ' + st.eligibleCount + '/' + st.employees.length + ' cán bộ đủ điều kiện</summary>' +
+          (st.employees.length ? '<div class="overflow-x-auto"><table class="w-full text-xs" style="min-width:760px"><tbody>' + st.employees.map(function (e) {
+            return '<tr class="border-t border-slate-100' + (e.eligible ? '' : ' text-slate-400') + '"><td class="px-2 py-1">' + esc(e.code) + '</td>' +
+              '<td class="px-2 py-1 font-medium">' + esc(e.fullName) + (e.seconded ? ' ' + badge('Điều động', 'bg-indigo-100 text-indigo-800') : '') + '</td>' +
+              '<td class="px-2 py-1">' + esc([e.departmentName, e.workplaceName].filter(Boolean).join(' › ') || '—') + '</td>' +
+              '<td class="px-2 py-1">' + esc(e.groups.join(', ') || '—') + '</td>' +
+              '<td class="px-2 py-1">' + esc(e.allowedShifts.length ? e.allowedShifts.join(', ') : 'Mọi ca') + '</td>' +
+              '<td class="px-2 py-1">' + (e.eligible ? badge('Đủ điều kiện', 'bg-emerald-50 text-emerald-700') : esc(e.reason)) + '</td></tr>';
+          }).join('') + '</tbody></table></div>' : '<p class="px-3 pb-2 text-xs text-slate-400">Chưa có cán bộ nào gắn với điểm trạm này.</p>') + '</details>';
+      }).join('') || emptyBox('Chưa có điểm trạm.'));
+
+    var secRows = (sc.secondments || []).map(function (s) {
+      return '<tr class="border-t border-slate-100' + (s.status === 'REVOKED' ? ' opacity-60' : '') + '"><td class="px-2 py-1.5 font-medium">' + esc(s.employeeName) + '</td>' +
+        '<td class="px-2 py-1.5 text-xs">' + esc(s.homeStationName || '—') + ' → <strong>' + esc(s.stationName) + '</strong>' + (s.workplaceName ? ' › ' + esc(s.workplaceName) : '') + '</td>' +
+        '<td class="px-2 py-1.5 text-xs">' + esc(fmtDateVN(s.validFrom)) + ' → ' + esc(fmtDateVN(s.validTo)) + '</td>' +
+        '<td class="px-2 py-1.5 text-xs">' + esc(s.decisionRef || '—') + '<div class="text-slate-500">' + esc(s.reason) + '</div></td>' +
+        '<td class="px-2 py-1.5">' + badge({ PENDING: 'Chờ xác nhận', APPROVED: 'Đã xác nhận', REVOKED: 'Đã thu hồi' }[s.status] || s.status,
+          STATUS_CLASS[s.status === 'REVOKED' ? 'CANCELLED' : s.status] || 'bg-slate-100') +
+        (s.approvedByName ? '<div class="text-[11px] text-slate-500">' + esc(s.approvedByName) + '</div>' : '') + '</td>' +
+        '<td class="px-2 py-1.5 text-right whitespace-nowrap">' + (sc.canApproveSecondment
+          ? (s.status !== 'APPROVED' && s.status !== 'REVOKED' ? smallBtn('sec-approve', s.id, 'Xác nhận', 'text-emerald-700') : '') +
+            (s.status !== 'REVOKED' ? smallBtn('sec-revoke', s.id, 'Thu hồi', 'text-red-600') : '')
+          : '') + '</td></tr>';
+    }).join('');
+    var secs = adminCard('6. Điều động / trực chéo giữa các điểm trạm',
+      '<button type="button" data-cc-act="sec-new" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold"><i class="fas fa-plus mr-1"></i>Lập quyết định điều động</button>',
+      tableWrap([{ label: 'Cán bộ' }, { label: 'Từ → điểm trạm nhận' }, { label: 'Thời gian' }, { label: 'Số quyết định / lý do' }, { label: 'Trạng thái' }, { label: '', align: 'text-right' }], secRows, 820) +
+      '<p class="text-[11px] text-slate-500 mt-2">Cán bộ chỉ được phân trực ngoài điểm trạm chính khi quyết định điều động đã được Quản trị hệ thống xác nhận, trong đúng khoảng ngày ghi nhận.</p>');
+
+    host.innerHTML = back + scope + catalogs + groups + rules + elig + secs;
+  }
+
+  function scopeData() { return S.scope || {}; }
+  function reloadScopePanel() { loadRosterScopePanel(el('ccAdminBody'), rosterPeriod()); }
+
+  function saveScopeSettings() {
+    var box = el('ccScopeForm');
+    if (!box) return;
+    var val = function (name) { var n = qs('[name="' + name + '"]', box); return n ? n.value : ''; };
+    var mode = qs('[name="scopeMode"]:checked', box);
+    var g = scopeData().general || rosterRules();
+    var rules = {};
+    Object.keys(g).forEach(function (k) { rules[k] = g[k]; });
+    rules.scopeMode = mode ? mode.value : 'STATION';
+    rules.allowMultiGroup = qs('[name="allowMultiGroup"]', box).checked;
+    rules.strategy = val('strategy');
+    rules.minRestDays = num(val('minRestDays'), 0);
+    rules.minRestHours = num(val('minRestHours'), 0);
+    rules.maxPerMonth = num(val('maxPerMonth'), 0);
+    rules.maxWeekendHolidayPerMonth = num(val('maxWeekendHolidayPerMonth'), 0);
+    rules.skipOnLeave = true;
+    rules.relaxWhenShort = false;
+    api('admin', { body: { action: 'roster_rules_save', rules: rules } }).then(function (data) {
+      toast(data.message, 'success');
+      if (S.rosterData) S.rosterData.rules = data.rules;
+      reloadScopePanel();
+    }).catch(fail);
+  }
+
+  function departmentOptions(emptyLabel) {
+    return [{ value: '', label: emptyLabel || '-- Không chọn --' }].concat((scopeData().departments || [])
+      .filter(function (d) { return d.status === 'ACTIVE'; })
+      .map(function (d) { return { value: d.id, label: d.name }; }));
+  }
+
+  function openWorkplaceForm(id) {
+    var w = (scopeData().workplaces || []).filter(function (x) { return x.id === id; })[0] || {};
+    var html =
+      '<div class="grid md:grid-cols-2 gap-x-3">' +
+      field('Mã nơi làm việc', input('code', w.code || '', 'text', 'required'), 'Ví dụ: PK1, TIEMCHUNG.') +
+      field('Tên nơi làm việc', input('name', w.name || '', 'text', 'required')) +
+      field('Thuộc điểm trạm', select('stationCode', stationOptions('-- Chọn điểm trạm --'), w.stationCode || '')) +
+      field('Khoa/phòng (tuỳ chọn)', select('departmentId', departmentOptions(), w.departmentId || '')) +
+      field('Thứ tự hiển thị', input('displayOrder', w.displayOrder || 0, 'number')) +
+      field('Trạng thái', select('status', [{ value: 'ACTIVE', label: 'Đang dùng' }, { value: 'INACTIVE', label: 'Ngừng' }], w.status || 'ACTIVE')) +
+      '</div>' + field('Ghi chú', input('note', w.note || '')) + submitRow(id ? 'Lưu thay đổi' : 'Thêm nơi làm việc');
+    openModal(id ? 'Sửa nơi làm việc' : 'Thêm nơi làm việc', html, function () {
+      var v = modalValues();
+      v.action = 'workplace_save';
+      if (id) v.id = id;
+      runModalAction('Đang lưu...', api('admin', { body: v })).then(function (data) { toast(data.message, 'success'); reloadScopePanel(); }).catch(fail);
+    });
+  }
+
+  function employeeChoices(filterStation) {
+    return (scopeData().employees || []).filter(function (e) { return e.status === 'ACTIVE'; }).map(function (e) {
+      return { value: e.id, label: e.fullName + ' (' + e.code + ')' + (e.stationCode ? ' - ' + stationLabel(e.stationCode) : ' - chưa gắn trạm'), station: e.stationCode };
+    }).sort(function (a, b) {
+      if (filterStation) {
+        var da = a.station === filterStation ? 0 : 1;
+        var db2 = b.station === filterStation ? 0 : 1;
+        if (da !== db2) return da - db2;
+      }
+      return 0;
+    });
+  }
+
+  function openGroupForm(id) {
+    var gr = (scopeData().groups || []).filter(function (x) { return x.id === id; })[0] || {};
+    var html =
+      '<div class="grid md:grid-cols-2 gap-x-3">' +
+      field('Mã nhóm trực', input('code', gr.code || '', 'text', 'required')) +
+      field('Tên nhóm trực', input('name', gr.name || '', 'text', 'required')) +
+      field('Thuộc điểm trạm', select('stationCode', stationOptions('-- Chọn điểm trạm --'), gr.stationCode || '')) +
+      field('Trạng thái', select('status', [{ value: 'ACTIVE', label: 'Đang dùng' }, { value: 'INACTIVE', label: 'Ngừng' }], gr.status || 'ACTIVE')) +
+      '</div>' + field('Ghi chú', input('note', gr.note || '')) +
+      '<p class="text-xs font-semibold text-slate-600 mb-1">Thành viên được phê duyệt</p>' +
+      checkList('data-cc-gmember', employeeChoices(gr.stationCode), gr.memberIds || [], 'Chưa có cán bộ.') +
+      '<p class="text-[11px] text-slate-500 mt-1">' + (scopeData().general && scopeData().general.allowMultiGroup
+        ? 'Cấu hình đang cho phép một cán bộ thuộc nhiều nhóm trực.'
+        : 'Cấu hình chưa cho phép thuộc nhiều nhóm: cán bộ đã ở nhóm khác sẽ bị từ chối.') + '</p>' +
+      submitRow(id ? 'Lưu nhóm trực' : 'Thêm nhóm trực');
+    openModal(id ? 'Sửa nhóm trực' : 'Thêm nhóm trực', html, function () {
+      var v = modalValues();
+      v.action = 'duty_group_save';
+      v.memberIds = checkedValues('data-cc-gmember');
+      if (id) v.id = id;
+      runModalAction('Đang lưu...', api('admin', { body: v })).then(function (data) { toast(data.message, 'success'); reloadScopePanel(); }).catch(fail);
+    });
+  }
+
+  function openDutyRuleForm(id) {
+    var sc = scopeData();
+    var r = (sc.rules || []).filter(function (x) { return x.id === id; })[0] || {};
+    var mode = (sc.general && sc.general.scopeMode) || 'STATION';
+    var needDept = mode === 'DEPARTMENT' || mode === 'COMBINED';
+    var needWp = mode === 'WORKPLACE' || mode === 'COMBINED';
+    var shifts = (sc.shifts || []).filter(function (s) { return s.status === 'ACTIVE' || s.id === r.shiftId; });
+    var hc = r.weekdayHeadcount || [1, 1, 1, 1, 1, 1, 1];
+    var groups = [{ value: '', label: '-- Không giới hạn theo nhóm --' }].concat((sc.groups || [])
+      .filter(function (g) { return g.status === 'ACTIVE' || g.id === r.dutyGroupId; })
+      .map(function (g) { return { value: g.id, label: g.name + ' (' + g.stationName + ')' }; }));
+    var html =
+      '<p class="text-xs text-slate-500 mb-3">Phạm vi đang chọn: <strong>' + esc(SCOPE_MODE_LABEL[mode]) + '</strong>' +
+      (needDept || needWp ? ' - bắt buộc có ' + [needDept ? 'khoa/phòng' : '', needWp ? 'nơi làm việc' : ''].filter(Boolean).join(' và ') : '') + '.</p>' +
+      '<div class="grid md:grid-cols-2 gap-x-3">' +
+      field('Tên quy tắc', input('name', r.name || '', 'text', 'required'), 'Ví dụ: Trực đêm - Trạm A.') +
+      field('Loại ca trực', select('shiftId', shifts.map(function (s) { return { value: s.id, label: s.name + ' (' + s.startTime + ' - ' + s.endTime + ')' }; }), r.shiftId || (shifts[0] && shifts[0].id))) +
+      field('Điểm trạm áp dụng', select('stationCode', stationOptions('-- Chọn điểm trạm --'), r.stationCode || rosterFilter().station || '', 'data-cc-stationfor="workplaceId"')) +
+      field('Khoa/phòng áp dụng' + (needDept ? ' *' : ''), select('departmentId', departmentOptions(needDept ? '-- Chọn khoa/phòng --' : '-- Mọi khoa/phòng --'), r.departmentId || '')) +
+      field('Nơi làm việc áp dụng' + (needWp ? ' *' : ''), workplaceSelect('workplaceId', r.stationCode || '', r.workplaceId || '', needWp ? '-- Chọn nơi làm việc --' : '-- Mọi nơi làm việc --')) +
+      field('Nhóm trực', select('dutyGroupId', groups, r.dutyGroupId || '')) +
+      field('Ngày bắt đầu áp dụng', input('effectiveFrom', r.effectiveFrom || (rosterPeriod() + '-01'), 'date', 'required')) +
+      field('Ngày kết thúc (để trống = không hạn)', input('effectiveTo', r.effectiveTo || '', 'date')) +
+      '</div>' +
+      '<p class="text-xs font-semibold text-slate-600 mb-1">Số người cần bố trí theo ngày trong tuần</p>' +
+      '<div class="grid grid-cols-4 md:grid-cols-8 gap-2 mb-3">' + WEEKDAY_SHORT.map(function (d, i) {
+        return '<div><label class="block text-[11px] text-slate-500 text-center">' + esc(d) + '</label>' + input('hc' + i, num(hc[i], 0), 'number', 'min="0" max="20"') + '</div>';
+      }).join('') +
+      '<div><label class="block text-[11px] text-slate-500 text-center">Lễ/Tết</label>' + input('holidayHeadcount', r.holidayHeadcount === null || r.holidayHeadcount === undefined ? '' : r.holidayHeadcount, 'number', 'min="0" max="20" placeholder="theo thứ"') + '</div>' +
+      '</div>' +
+      '<p class="text-xs font-semibold text-slate-600 mb-1">Danh sách cán bộ đủ điều kiện <span class="font-normal text-slate-400">(không chọn = mọi cán bộ khớp phạm vi)</span></p>' +
+      checkList('data-cc-relig', employeeChoices(r.stationCode), r.eligibleEmployeeIds || [], 'Chưa có cán bộ.') +
+      '<label class="flex items-center gap-2 mt-2 mb-3 text-sm"><input type="checkbox" name="allowCrossStation" class="w-4 h-4"' + (r.allowCrossStation ? ' checked' : '') + '>' +
+      '<span>Cho phép cán bộ điểm trạm khác <strong>có tên trong danh sách trên</strong> trực tại điểm này (trực chéo đã được phê duyệt)</span></label>' +
+      '<div class="grid md:grid-cols-4 gap-x-3">' +
+      field('Tối đa suất / tháng', input('maxPerMonth', r.maxPerMonth === null || r.maxPerMonth === undefined ? '' : r.maxPerMonth, 'number', 'min="0" max="31" placeholder="theo chung"')) +
+      field('Tối đa cuối tuần, lễ', input('maxWeekendHolidayPerMonth', r.maxWeekendHolidayPerMonth === null || r.maxWeekendHolidayPerMonth === undefined ? '' : r.maxWeekendHolidayPerMonth, 'number', 'min="0" max="31" placeholder="theo chung"')) +
+      field('Độ ưu tiên', input('priority', num(r.priority, 0), 'number', 'min="-100" max="100"')) +
+      field('Trạng thái', select('status', [{ value: 'ACTIVE', label: 'Kích hoạt' }, { value: 'LOCKED', label: 'Khoá' }], r.status || 'ACTIVE')) +
+      '</div>' + field('Ghi chú', input('note', r.note || '')) +
+      submitRow(id ? 'Lưu quy tắc' : 'Thêm quy tắc');
+    openModal(id ? 'Sửa quy tắc phân trực' : 'Thêm quy tắc phân trực', html, function () {
+      var v = modalValues();
+      var body = {
+        action: 'duty_rule_save', name: v.name, shiftId: v.shiftId, stationCode: v.stationCode, departmentId: v.departmentId,
+        workplaceId: v.workplaceId, dutyGroupId: v.dutyGroupId, effectiveFrom: v.effectiveFrom, effectiveTo: v.effectiveTo,
+        weekdayHeadcount: [0, 1, 2, 3, 4, 5, 6].map(function (i) { return num(v['hc' + i], 0); }),
+        holidayHeadcount: v.holidayHeadcount, eligibleEmployeeIds: checkedValues('data-cc-relig'),
+        allowCrossStation: !!v.allowCrossStation, maxPerMonth: v.maxPerMonth, maxWeekendHolidayPerMonth: v.maxWeekendHolidayPerMonth,
+        priority: num(v.priority, 0), status: v.status, note: v.note
+      };
+      if (!body.stationCode) return toast('Chọn điểm trạm áp dụng.', 'warn');
+      if (id) body.id = id;
+      runModalAction('Đang lưu...', api('admin', { body: body })).then(function (data) { toast(data.message, 'success'); reloadScopePanel(); }).catch(fail);
+    });
+  }
+
+  function openSecondmentForm() {
+    var html =
+      '<p class="text-xs text-slate-500 mb-3">' + (scopeData().canApproveSecondment
+        ? 'Bạn là Quản trị hệ thống: quyết định có hiệu lực ngay khi lưu.'
+        : 'Đề nghị sẽ chờ Quản trị hệ thống xác nhận trước khi có hiệu lực.') + '</p>' +
+      field('Cán bộ được điều động', select('employeeId', employeeChoices(''), '')) +
+      '<div class="grid md:grid-cols-2 gap-x-3">' +
+      field('Điểm trạm nhận', select('stationCode', stationOptions('-- Chọn điểm trạm --'), '', 'data-cc-stationfor="workplaceId"')) +
+      field('Nơi làm việc (tuỳ chọn)', workplaceSelect('workplaceId', '', '', '-- Không chỉ định --')) +
+      field('Từ ngày', input('validFrom', rosterPeriod() + '-01', 'date', 'required')) +
+      field('Đến ngày', input('validTo', '', 'date', 'required')) +
+      field('Số quyết định', input('decisionRef', '')) +
+      field('Lý do', input('reason', '')) +
+      '</div>' + submitRow(scopeData().canApproveSecondment ? 'Lưu & xác nhận' : 'Gửi đề nghị');
+    openModal('Quyết định điều động trực', html, function () {
+      var v = modalValues();
+      v.action = 'secondment_save';
+      runModalAction('Đang lưu...', api('admin', { body: v })).then(function (data) { toast(data.message, 'success'); reloadScopePanel(); }).catch(fail);
+    });
+  }
+
+  function scopeAction(action, id, message, label, extra) {
+    var send = function () {
+      var body = { action: action, id: id };
+      Object.keys(extra || {}).forEach(function (k) { body[k] = extra[k]; });
+      api('admin', { body: body }).then(function (data) {
+        closeModal();
+        toast(data.message, 'success');
+        reloadScopePanel();
+      }).catch(fail);
+    };
+    if (message) confirmBox(message, send, label);
+    else send();
   }
 
   // --- Xoá toàn bộ lịch trực tháng -----------------------------------------
@@ -3533,7 +4136,7 @@
     shifts: loadAdminShifts,
     holidays: loadAdminHolidays,
     symbols: loadAdminSymbols,
-    roster: function (host) { loadAdminRoster(host, null); },
+    roster: function (host) { S.rosterPanel = null; loadAdminRoster(host, null); },
     periods: loadAdminPeriods,
     audits: loadAdminAudits
   };
@@ -5593,7 +6196,55 @@
         }, 'Sao chép');
     },
     'roster-auto': function () { openRosterAutoForm(); },
-    'roster-rules': function () { openRosterRulesForm(); },
+    'roster-rules': function () {
+      S.rosterPanel = 'rules';
+      loadAdminRoster(el('ccAdminBody'), rosterPeriod());
+    },
+    'roster-open-rules': function () {
+      closeModal();
+      S.rosterPanel = 'rules';
+      loadAdminRoster(el('ccAdminBody'), (S.rosterPreview && S.rosterPreview.period) || rosterPeriod());
+    },
+    'roster-panel-back': function () {
+      S.rosterPanel = null;
+      loadAdminRoster(el('ccAdminBody'), rosterPeriod());
+    },
+    'roster-filter-clear': function () {
+      S.rosterFilter = null;
+      if (S.rosterData) renderRosterBody(el('ccAdminBody'));
+    },
+    'roster-preview-save': function () { saveRosterPreview(); },
+    'roster-preview-again': function () { previewAgain(); },
+    'scope-save': function () { saveScopeSettings(); },
+    'wp-new': function () { openWorkplaceForm(null); },
+    'wp-edit': function (node) { openWorkplaceForm(node.getAttribute('data-id')); },
+    'wp-delete': function (node) {
+      scopeAction('workplace_delete', node.getAttribute('data-id'),
+        'Xoá nơi làm việc này? Nếu đã được dùng trong hồ sơ, quy tắc hoặc lịch trực thì chỉ chuyển sang ngừng sử dụng.', 'Xoá');
+    },
+    'grp-new': function () { openGroupForm(null); },
+    'grp-edit': function (node) { openGroupForm(node.getAttribute('data-id')); },
+    'grp-delete': function (node) {
+      scopeAction('duty_group_delete', node.getAttribute('data-id'),
+        'Xoá nhóm trực này? Nếu đang được quy tắc sử dụng thì chỉ chuyển sang ngừng sử dụng.', 'Xoá');
+    },
+    'rule-new': function () { openDutyRuleForm(null); },
+    'rule-edit': function (node) { openDutyRuleForm(node.getAttribute('data-id')); },
+    'rule-lock': function (node) { scopeAction('duty_rule_status', node.getAttribute('data-id'), null, null, { status: 'LOCKED' }); },
+    'rule-activate': function (node) { scopeAction('duty_rule_status', node.getAttribute('data-id'), null, null, { status: 'ACTIVE' }); },
+    'rule-delete': function (node) {
+      scopeAction('duty_rule_delete', node.getAttribute('data-id'),
+        'Xoá quy tắc này? Nếu quy tắc đã sinh suất trực thì chỉ được khoá, lịch đã lưu giữ nguyên.', 'Xoá');
+    },
+    'sec-new': function () { openSecondmentForm(); },
+    'sec-approve': function (node) {
+      scopeAction('secondment_decide', node.getAttribute('data-id'),
+        'Xác nhận quyết định điều động này? Cán bộ sẽ được phép phân trực tại điểm trạm nhận trong khoảng ngày đã ghi.', 'Xác nhận', { decision: 'APPROVED' });
+    },
+    'sec-revoke': function (node) {
+      scopeAction('secondment_decide', node.getAttribute('data-id'),
+        'Thu hồi quyết định điều động? Các lần phân lịch sau sẽ không dùng nữa; suất đã phân giữ nguyên.', 'Thu hồi', { decision: 'REVOKED' });
+    },
     'roster-rules-reset': function () { resetRosterRules(); },
     'roster-import': function () { openRosterImportForm(); },
     'roster-clear': function () { openRosterClear(); },
@@ -5671,6 +6322,20 @@
     // --- Cài lên màn hình chính ---
     el('ccInstallBtn').addEventListener('click', doInstall);
     el('ccInstallDismiss').addEventListener('click', dismissInstall);
+
+    // --- Bộ lọc lịch trực và ô điểm trạm → nơi làm việc trong hộp thoại ---
+    document.addEventListener('change', function (event) {
+      var t = event.target;
+      if (!t || !t.getAttribute) return;
+      var key = t.getAttribute('data-cc-rfilter');
+      if (key) {
+        rosterFilter()[key] = t.value;
+        if (key === 'station') { rosterFilter().workplace = ''; rosterFilter().employee = ''; }
+        if (S.rosterData) renderRosterBody(el('ccAdminBody'));
+        return;
+      }
+      if (t.getAttribute('data-cc-stationfor')) syncWorkplaceOptions(t);
+    });
 
     // --- Bộ điều phối cho mọi nút do JavaScript sinh ra ---
     document.addEventListener('click', function (event) {

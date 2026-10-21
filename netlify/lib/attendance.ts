@@ -234,8 +234,23 @@ export type RosterRules = {
   maxWeekendHolidayPerMonth: number;
   /** Bỏ qua người có đơn nghỉ đã duyệt trong ngày. */
   skipOnLeave: boolean;
-  /** Thiếu người thì nới quy tắc ngày nghỉ giữa ca để không bỏ trống ca. */
+  /** Thiếu người thì nới quy tắc ngày nghỉ giữa ca để không bỏ trống ca.
+   *  Chỉ còn tác dụng với dữ liệu cũ: bộ phân lịch theo điểm trạm coi thời gian
+   *  nghỉ là điều kiện bắt buộc và không bao giờ nới. */
   relaxWhenShort: boolean;
+  /**
+   * Phạm vi phân trực. Mọi quy tắc đều gắn một điểm trạm (phân theo điểm trạm
+   * trước); phạm vi quyết định điều kiện bổ sung bắt buộc của quy tắc:
+   *   STATION     chỉ điểm trạm
+   *   DEPARTMENT  điểm trạm + khoa/phòng
+   *   WORKPLACE   điểm trạm + nơi làm việc
+   *   COMBINED    điểm trạm + khoa/phòng + nơi làm việc
+   */
+  scopeMode: "STATION" | "DEPARTMENT" | "WORKPLACE" | "COMBINED";
+  /** Cho phép một cán bộ thuộc nhiều nhóm trực (theo danh sách đã duyệt). */
+  allowMultiGroup: boolean;
+  /** Số giờ nghỉ tối thiểu giữa giờ kết thúc ca trước và giờ bắt đầu ca sau. */
+  minRestHours: number;
 };
 
 export const DEFAULT_ROSTER_RULES: RosterRules = {
@@ -248,6 +263,9 @@ export const DEFAULT_ROSTER_RULES: RosterRules = {
   maxWeekendHolidayPerMonth: 0,
   skipOnLeave: true,
   relaxWhenShort: true,
+  scopeMode: "STATION",
+  allowMultiGroup: false,
+  minRestHours: 0,
 };
 
 export type WorkHours = {
@@ -1658,6 +1676,23 @@ export const num = (value: unknown, fallback = 0): number => {
 export const newId = (prefix: string): string =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+const parseJsonList = (raw: string | null | undefined): string[] => {
+  try {
+    const v = JSON.parse(raw || "[]");
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
+  }
+};
+const parseJsonObject = (raw: string | null | undefined): Record<string, unknown> => {
+  try {
+    const v = JSON.parse(raw || "{}");
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch {
+    return {};
+  }
+};
+
 /** Bản chiếu cán bộ trả ra giao diện. */
 export function publicEmployee(emp: EmployeeRow, deptName = "", account: UserRow | null = null) {
   return {
@@ -1676,6 +1711,11 @@ export function publicEmployee(emp: EmployeeRow, deptName = "", account: UserRow
     status: String(emp.status || "ACTIVE").toUpperCase(),
     note: emp.note || "",
     displayOrder: emp.displayOrder ?? 0,
+    stationCode: emp.stationCode || "",
+    workplaceId: emp.workplaceId || "",
+    dutyStatus: String(emp.dutyStatus || "ACTIVE").toUpperCase(),
+    allowedShiftIds: parseJsonList(emp.allowedShiftIds),
+    dutyRule: parseJsonObject(emp.dutyRule),
     hasAccount: Boolean(emp.userId),
     accountStatus: account ? String(account.status || "ACTIVE").toUpperCase() : "",
     accountAccess: account ? String(account.attendanceAccess || "false") : "",
