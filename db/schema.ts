@@ -442,8 +442,22 @@ export const attEmployees = pgTable(
     code: text("code").notNull(),
     fullName: text("full_name").notNull(),
     position: text("position"),
-    departmentId: text("department_id"),
+    departmentId: text("department_id").references(() => attDepartments.id),
     userId: text("user_id"),
+    /* PHẠM VI CÔNG TÁC HIỆN HÀNH - điểm trạm và nơi làm việc lấy từ danh mục
+       (station_rooms, att_workplaces), không nhập tên tự do. Đây là giá trị
+       đang có hiệu lực hôm nay; lịch sử theo ngày hiệu lực nằm ở
+       att_employee_postings và là nguồn duy nhất bộ phân lịch dùng. */
+    stationCode: text("station_code").references(() => stationRooms.stationCode),
+    workplaceId: text("workplace_id").references(() => attWorkplaces.id),
+    // ACTIVE (đang công tác) | ON_LEAVE (nghỉ phép) | SUSPENDED (tạm nghỉ) |
+    // NO_DUTY (không tham gia trực). Độc lập với status (còn/ngừng theo dõi công).
+    dutyStatus: text("duty_status").default("ACTIVE"),
+    // Mảng JSON mã ca trực (att_shifts.id) được phép đảm nhiệm. Rỗng = mọi ca.
+    allowedShiftIds: text("allowed_shift_ids").default("[]"),
+    // Quy tắc phân trực riêng (JSON): maxPerMonth, maxWeekendHolidayPerMonth,
+    // excludedWeekdays. Chỉ được chặt hơn quy tắc chung, không nới thời gian nghỉ.
+    dutyRule: text("duty_rule"),
     // STAFF | MANAGER | ADMIN - quyền trong phân hệ chấm công, độc lập với
     // vai trò ở cổng thông tin.
     attendanceRole: text("attendance_role").default("STAFF"),
@@ -462,6 +476,7 @@ export const attEmployees = pgTable(
     uniqueIndex("att_employees_code_uidx").on(table.code),
     uniqueIndex("att_employees_user_uidx").on(table.userId),
     index("att_employees_department_idx").on(table.departmentId),
+    index("att_employees_station_idx").on(table.stationCode),
   ]
 );
 
@@ -609,6 +624,14 @@ export const attDutyAssignments = pgTable(
     status: text("status").default("PLANNED"),
     // Suất trực này có được từ một lần đổi ca đã duyệt.
     swappedFromEmployeeId: text("swapped_from_employee_id"),
+    /* Phạm vi được chốt lúc phân: điểm trạm, khoa/phòng, nơi làm việc và quy
+       tắc đã sinh ra suất này. Chốt lại để cán bộ chuyển công tác về sau không
+       làm đổi lịch sử phân công đã thực hiện. Suất cũ (trước khi có phân trực
+       theo điểm trạm) để trống. */
+    stationCode: text("station_code").references(() => stationRooms.stationCode),
+    departmentId: text("department_id").references(() => attDepartments.id),
+    workplaceId: text("workplace_id").references(() => attWorkplaces.id),
+    ruleId: text("rule_id").references(() => attDutyRules.id, { onDelete: "set null" }),
     note: text("note"),
     createdBy: text("created_by"),
     createdAt: bigint("created_at", { mode: "number" }),
@@ -618,6 +641,7 @@ export const attDutyAssignments = pgTable(
     uniqueIndex("att_duty_unique_idx").on(table.dutyDate, table.shiftId, table.employeeId),
     index("att_duty_date_idx").on(table.dutyDate),
     index("att_duty_employee_idx").on(table.employeeId),
+    index("att_duty_station_date_idx").on(table.stationCode, table.dutyDate),
   ]
 );
 
@@ -1110,3 +1134,155 @@ export const attFaceTemplates = pgTable("att_face_templates", {
   enrolledAt: bigint("enrolled_at", { mode: "number" }),
   status: text("status").default("ACTIVE"),
 });
+
+/* ===========================================================================
+   PHÂN TRỰC THEO ĐIỂM TRẠM, KHOA/PHÒNG VÀ NƠI LÀM VIỆC
+
+   Tái sử dụng hai danh mục đã có: điểm trạm (station_rooms, do CMS quản lý) và
+   khoa/phòng (att_departments). Chỉ bổ sung danh mục còn thiếu là nơi làm
+   việc. Mọi liên kết đi theo mã định danh có khoá ngoại, không theo tên.
+   =========================================================================== */
+
+/* Nơi làm việc cụ thể (phòng khám, buồng tiêm, quầy thuốc...). Luôn thuộc đúng
+   một điểm trạm; khoa/phòng là tuỳ chọn. */
+export const attWorkplaces = pgTable(
+  "att_workplaces",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    stationCode: text("station_code").notNull().references(() => stationRooms.stationCode),
+    departmentId: text("department_id").references(() => attDepartments.id),
+    note: text("note"),
+    displayOrder: integer("display_order").default(0),
+    // ACTIVE | INACTIVE
+    status: text("status").default("ACTIVE"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [
+    uniqueIndex("att_workplaces_code_uidx").on(table.code),
+    index("att_workplaces_station_idx").on(table.stationCode),
+  ]
+);
+
+/* Nhóm trực - tập cán bộ cùng luân phiên một loại ca, thuộc một điểm trạm. */
+export const attDutyGroups = pgTable(
+  "att_duty_groups",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    stationCode: text("station_code").notNull().references(() => stationRooms.stationCode),
+    note: text("note"),
+    status: text("status").default("ACTIVE"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [uniqueIndex("att_duty_groups_code_uidx").on(table.code)]
+);
+
+/* Thành viên nhóm trực - danh sách do Quản trị phê duyệt. Một cán bộ thuộc
+   nhiều nhóm chỉ được tính khi cấu hình phạm vi cho phép (allowMultiGroup). */
+export const attDutyGroupMembers = pgTable(
+  "att_duty_group_members",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("group_id").notNull().references(() => attDutyGroups.id, { onDelete: "cascade" }),
+    employeeId: text("employee_id").notNull().references(() => attEmployees.id, { onDelete: "cascade" }),
+    // APPROVED | REVOKED
+    status: text("status").default("APPROVED"),
+    approvedBy: text("approved_by"),
+    approvedByName: text("approved_by_name"),
+    approvedAt: bigint("approved_at", { mode: "number" }),
+    createdAt: bigint("created_at", { mode: "number" }),
+  },
+  (table) => [
+    uniqueIndex("att_duty_group_members_uidx").on(table.groupId, table.employeeId),
+    index("att_duty_group_members_employee_idx").on(table.employeeId),
+  ]
+);
+
+/* Lịch sử công tác theo ngày hiệu lực: từ effective_from cán bộ thuộc điểm
+   trạm / khoa phòng / nơi làm việc nào. Hiệu lực tới ngày trước bản ghi kế
+   tiếp. Chỉ thêm mới (hoặc thay bản ghi cùng ngày hiệu lực), không sửa quá khứ. */
+export const attEmployeePostings = pgTable(
+  "att_employee_postings",
+  {
+    id: text("id").primaryKey(),
+    employeeId: text("employee_id").notNull().references(() => attEmployees.id, { onDelete: "cascade" }),
+    stationCode: text("station_code").references(() => stationRooms.stationCode),
+    departmentId: text("department_id").references(() => attDepartments.id),
+    workplaceId: text("workplace_id").references(() => attWorkplaces.id),
+    effectiveFrom: text("effective_from").notNull(),
+    reason: text("reason"),
+    createdBy: text("created_by"),
+    createdByName: text("created_by_name"),
+    createdAt: bigint("created_at", { mode: "number" }),
+  },
+  (table) => [uniqueIndex("att_employee_postings_uidx").on(table.employeeId, table.effectiveFrom)]
+);
+
+/* Quyết định điều động / trực chéo sang điểm trạm khác. Chỉ có hiệu lực khi đã
+   được Quản trị hệ thống xác nhận (APPROVED) và trong khoảng ngày ghi nhận. */
+export const attSecondments = pgTable(
+  "att_secondments",
+  {
+    id: text("id").primaryKey(),
+    employeeId: text("employee_id").notNull().references(() => attEmployees.id, { onDelete: "cascade" }),
+    stationCode: text("station_code").notNull().references(() => stationRooms.stationCode),
+    workplaceId: text("workplace_id").references(() => attWorkplaces.id),
+    validFrom: text("valid_from").notNull(),
+    validTo: text("valid_to").notNull(),
+    decisionRef: text("decision_ref"),
+    reason: text("reason"),
+    // PENDING | APPROVED | REVOKED
+    status: text("status").default("PENDING"),
+    requestedBy: text("requested_by"),
+    requestedByName: text("requested_by_name"),
+    approvedBy: text("approved_by"),
+    approvedByName: text("approved_by_name"),
+    approvedAt: bigint("approved_at", { mode: "number" }),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [index("att_secondments_employee_idx").on(table.employeeId, table.validFrom)]
+);
+
+/* Quy tắc phân trực theo phạm vi: tại điểm trạm X (và khoa/phòng, nơi làm
+   việc, nhóm trực nếu có), ca Y cần bao nhiêu người cho từng ngày trong tuần
+   và ngày lễ, trong khoảng ngày áp dụng. Nhiều quy tắc cùng phạm vi + ca +
+   ngày thì quy tắc có độ ưu tiên cao hơn thắng; bằng nhau là xung đột. */
+export const attDutyRules = pgTable(
+  "att_duty_rules",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    stationCode: text("station_code").notNull().references(() => stationRooms.stationCode),
+    departmentId: text("department_id").references(() => attDepartments.id),
+    workplaceId: text("workplace_id").references(() => attWorkplaces.id),
+    dutyGroupId: text("duty_group_id").references(() => attDutyGroups.id),
+    shiftId: text("shift_id").notNull().references(() => attShifts.id),
+    // Mảng JSON 7 số (CN..T7): số người cần cho từng thứ trong tuần.
+    weekdayHeadcount: text("weekday_headcount").notNull(),
+    // Số người ngày lễ/Tết. NULL = theo thứ trong tuần của ngày đó.
+    holidayHeadcount: integer("holiday_headcount"),
+    effectiveFrom: text("effective_from").notNull(),
+    effectiveTo: text("effective_to"),
+    // Mảng JSON att_employees.id. Rỗng = mọi cán bộ khớp phạm vi.
+    eligibleEmployeeIds: text("eligible_employee_ids").default("[]"),
+    // Cho phép cán bộ trạm khác có tên trong danh sách đủ điều kiện trực tại đây.
+    allowCrossStation: text("allow_cross_station").default("false"),
+    // Giới hạn riêng của điểm (NULL = theo quy tắc chung).
+    maxPerMonth: integer("max_per_month"),
+    maxWeekendHolidayPerMonth: integer("max_weekend_holiday_per_month"),
+    priority: integer("priority").default(0),
+    // ACTIVE | LOCKED
+    status: text("status").default("ACTIVE"),
+    note: text("note"),
+    createdBy: text("created_by"),
+    createdAt: bigint("created_at", { mode: "number" }),
+    updatedAt: bigint("updated_at", { mode: "number" }),
+  },
+  (table) => [index("att_duty_rules_station_idx").on(table.stationCode, table.shiftId)]
+);

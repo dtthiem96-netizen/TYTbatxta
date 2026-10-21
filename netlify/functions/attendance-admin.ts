@@ -15,6 +15,9 @@
  *        settings        cấu hình (giờ hành chính, ký hiệu, loại nghỉ, đơn vị)
  *        roster          lịch trực một tháng
  *        roster_clear_preview  số liệu sẽ bị xoá khi xoá lịch trực cả tháng
+ *        roster_scope    phân trực theo điểm trạm: danh mục, quy tắc, nhóm trực,
+ *                        điều động, cán bộ đủ điều kiện tại từng điểm
+ *        employee_postings  lịch sử công tác của một cán bộ
  *        approvals       yêu cầu điều chỉnh / đổi ca / đơn nghỉ đang chờ
  *        not_punched     ai chưa chấm công trong một ngày
  *        periods         trạng thái khoá các kỳ
@@ -31,7 +34,13 @@
  *        Lịch trực:  roster_assign | roster_remove | roster_copy_previous |
  *                    roster_auto | roster_import | roster_rules_save |
  *                    roster_rules_reset (chỉ Quản trị hệ thống) |
- *                    roster_clear_month | roster_restore_snapshot
+ *                    roster_clear_month | roster_restore_snapshot |
+ *                    roster_auto_preview (xem trước, không ghi)
+ *        Phân trực theo điểm trạm:
+ *                    workplace_save | workplace_delete | duty_group_save |
+ *                    duty_group_delete | duty_rule_save | duty_rule_status |
+ *                    duty_rule_delete | secondment_save |
+ *                    secondment_decide (chỉ Quản trị hệ thống)
  *        Dữ liệu:    punch_save | punch_delete | duty_log_save | duty_log_void | leave_save
  *                    (không sửa/xoá bản gốc: tạo đề nghị ADMIN_ADJUST chờ người duyệt
  *                    khác, hoặc áp qua bản ghi điều chỉnh khi tắt chế độ bốn mắt)
@@ -60,8 +69,38 @@ import {
   attAudits,
   attRoles,
   attRosterSnapshots,
+  attWorkplaces,
+  attDutyGroups,
+  attDutyGroupMembers,
+  attDutyRules,
+  attEmployeePostings,
+  attSecondments,
+  stationRooms,
   users,
 } from "../../db/schema.js";
+import {
+  BASELINE_DATE,
+  DUTY_STATUSES,
+  DUTY_STATUS_LABEL,
+  REASON_LABEL,
+  SCOPE_MODES,
+  SCOPE_MODE_LABEL,
+  buildPlan,
+  checkManualAssignment,
+  dutyStatusOf,
+  isActive,
+  loadCatalog,
+  loadPlanContext,
+  parseHeadcount,
+  parseIdList,
+  parsePersonalRule,
+  postingOn,
+  ruleConflicts,
+  ruleProblems,
+  scopeCheck,
+  type Plan,
+  type PlanContext,
+} from "../lib/duty-scope.js";
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { AdjustmentConflict, applyDutyLogChange, applyPunchChange, type Approval, type PunchRow } from "../lib/adjustments.js";
 import { getSecurity, raiseAlert } from "../lib/security.js";
@@ -391,6 +430,12 @@ async function handleRoster(actor: ActorContext, period: string) {
       .where(and(gte(attDutyLogs.dutyDate, dates[0]), lte(attDutyLogs.dutyDate, dates[dates.length - 1]), ACTIVE_DUTY_LOG)),
     periodStatus(period),
   ]);
+  const catalog = await loadCatalog();
+  const postingsByEmp = new Map<string, typeof catalog.postings>();
+  for (const p of catalog.postings) postingsByEmp.set(p.employeeId, [...(postingsByEmp.get(p.employeeId) || []), p]);
+  const stationName = new Map(catalog.stations.map((st) => [st.stationCode, st.stationName]));
+  const wpName = new Map(catalog.workplaces.map((w) => [w.id, w.name]));
+  const deptName = new Map(catalog.departments.map((d) => [d.id, d.name]));
 
   const holidayMap = buildHolidayMap(holidays);
   const empById = new Map(employees.map((e) => [e.id, e]));
@@ -418,8 +463,22 @@ async function handleRoster(actor: ActorContext, period: string) {
           .filter((a) => a.dutyDate === date)
           .map((a) => {
             const log = logByAssignment.get(a.id);
+            const emp = empById.get(a.employeeId);
+            // Suất cũ chưa chốt phạm vi: tra theo lịch sử công tác (mã định danh), không theo tên.
+            const posting = emp ? postingOn(emp, postingsByEmp.get(emp.id), a.dutyDate) : null;
+            const st = a.stationCode || posting?.stationCode || "";
+            const dp = a.departmentId || posting?.departmentId || "";
+            const wp = a.workplaceId || (a.stationCode ? "" : posting?.workplaceId || "");
             return {
               assignmentId: a.id,
+              stationCode: st,
+              stationName: stationName.get(st) || "",
+              stationInferred: !a.stationCode && Boolean(st),
+              departmentId: dp,
+              departmentName: deptName.get(dp) || "",
+              workplaceId: wp,
+              workplaceName: wpName.get(wp) || "",
+              ruleId: a.ruleId || "",
               employeeId: a.employeeId,
               employeeName: empById.get(a.employeeId)?.fullName || a.employeeId,
               employeeCode: empById.get(a.employeeId)?.code || "",
@@ -440,7 +499,20 @@ async function handleRoster(actor: ActorContext, period: string) {
     // Số suất mỗi người trong tháng, để Quản trị thấy ngay việc phân có đều không.
     workload: sortEmployees(employees)
       .filter((e) => String(e.status || "ACTIVE").toUpperCase() === "ACTIVE")
-      .map((e) => ({ employeeId: e.id, fullName: e.fullName, code: e.code, shifts: counts.get(e.id) || 0 })),
+      .map((e) => ({
+        employeeId: e.id,
+        fullName: e.fullName,
+        code: e.code,
+        shifts: counts.get(e.id) || 0,
+        stationCode: postingOn(e, postingsByEmp.get(e.id), dates[0]).stationCode || "",
+        departmentId: e.departmentId || "",
+        workplaceId: e.workplaceId || "",
+      })),
+    filters: {
+      stations: catalog.stations.map((st) => ({ code: st.stationCode, name: st.stationName })),
+      departments: catalog.departments.map((d) => ({ id: d.id, name: d.name })),
+      workplaces: catalog.workplaces.map((w) => ({ id: w.id, name: w.name, stationCode: w.stationCode })),
+    },
     rules: settings.rosterRules,
     defaultRules: DEFAULT_ROSTER_RULES,
     canResetRules: actor.role === "ADMIN",
@@ -680,6 +752,18 @@ async function deleteDepartment(actor: ActorContext, body: Record<string, unknow
       409
     );
   }
+  const [post, wp, rule, duty] = await Promise.all([
+    db.select({ id: attEmployeePostings.id }).from(attEmployeePostings).where(eq(attEmployeePostings.departmentId, id)).limit(1),
+    db.select({ id: attWorkplaces.id }).from(attWorkplaces).where(eq(attWorkplaces.departmentId, id)).limit(1),
+    db.select({ id: attDutyRules.id }).from(attDutyRules).where(eq(attDutyRules.departmentId, id)).limit(1),
+    db.select({ id: attDutyAssignments.id }).from(attDutyAssignments).where(eq(attDutyAssignments.departmentId, id)).limit(1),
+  ]);
+  if (post.length || wp.length || rule.length || duty.length) {
+    // Còn trong lịch sử công tác, nơi làm việc, quy tắc hoặc lịch trực: giữ lại để tra cứu.
+    await db.update(attDepartments).set({ status: "INACTIVE", updatedAt: Date.now() }).where(eq(attDepartments.id, id));
+    await writeAudit(actor, { entity: "department", entityId: id, action: "DEACTIVATE" });
+    return json({ success: true, message: "Bộ phận còn trong lịch sử công tác, quy tắc hoặc lịch trực nên chỉ ngừng sử dụng.", deactivated: true });
+  }
   await db.delete(attDepartments).where(eq(attDepartments.id, id));
   await writeAudit(actor, { entity: "department", entityId: id, action: "DELETE" });
   return json({ success: true, message: "Đã xoá bộ phận." });
@@ -717,12 +801,96 @@ async function saveEmployee(actor: ActorContext, body: Record<string, unknown>) 
   const startDate = str(body.startDate);
   if (startDate && !isValidDate(startDate)) return json({ success: false, error: "Ngày bắt đầu làm việc không hợp lệ." }, 400);
 
+  // --- Phạm vi công tác: chỉ nhận mã trong danh mục, không nhận tên tự do ---
+  const stationCode = str(body.stationCode).toUpperCase() || null;
+  const departmentId = str(body.departmentId) || null;
+  const workplaceId = str(body.workplaceId) || null;
+  if (stationCode && !(await requireStation(stationCode))) {
+    return json({ success: false, error: `Điểm trạm "${stationCode}" không có trong danh mục.` }, 400);
+  }
+  if (departmentId) {
+    const d = await db.select().from(attDepartments).where(eq(attDepartments.id, departmentId));
+    if (!d.length) return json({ success: false, error: "Khoa/phòng không có trong danh mục." }, 400);
+  }
+  if (workplaceId) {
+    const w = await db.select().from(attWorkplaces).where(eq(attWorkplaces.id, workplaceId));
+    if (!w.length) return json({ success: false, error: "Nơi làm việc không có trong danh mục." }, 400);
+    if (!stationCode || w[0].stationCode !== stationCode) {
+      return json({ success: false, error: `Nơi làm việc ${w[0].name} không thuộc điểm trạm đã chọn.` }, 400);
+    }
+    if (w[0].departmentId && departmentId && w[0].departmentId !== departmentId) {
+      return json({ success: false, error: `Nơi làm việc ${w[0].name} thuộc khoa/phòng khác với khoa/phòng đã chọn.` }, 400);
+    }
+  }
+  const dutyStatusRaw = str(body.dutyStatus).toUpperCase() || "ACTIVE";
+  if (!(DUTY_STATUSES as readonly string[]).includes(dutyStatusRaw)) return json({ success: false, error: "Trạng thái làm việc không hợp lệ." }, 400);
+  const allowedShiftIds = parseIdList(body.allowedShiftIds);
+  if (allowedShiftIds.length) {
+    const found = await db.select({ id: attShifts.id }).from(attShifts).where(inArray(attShifts.id, allowedShiftIds));
+    if (found.length !== allowedShiftIds.length) return json({ success: false, error: "Danh sách ca được phép có ca không tồn tại." }, 400);
+  }
+  const personal = parsePersonalRule(body.dutyRule);
+  const hasPersonal = personal.maxPerMonth || personal.maxWeekendHolidayPerMonth || personal.excludedWeekdays.length;
+  const dutyGroupIds = body.dutyGroupIds === undefined ? null : parseIdList(body.dutyGroupIds);
+  if (dutyGroupIds && dutyGroupIds.length) {
+    const groups = await db.select().from(attDutyGroups).where(inArray(attDutyGroups.id, dutyGroupIds));
+    if (groups.length !== dutyGroupIds.length) return json({ success: false, error: "Nhóm trực không có trong danh mục." }, 400);
+    if (dutyGroupIds.length > 1 && !(await getSettings()).rosterRules.allowMultiGroup) {
+      return json({ success: false, error: "Cấu hình phạm vi phân trực hiện không cho phép một cán bộ thuộc nhiều nhóm trực." }, 400);
+    }
+  }
+  const { today } = todayContext();
+  const effectiveFrom = str(body.effectiveFrom) || today;
+  if (!isValidDate(effectiveFrom)) return json({ success: false, error: "Ngày hiệu lực của thay đổi công tác không hợp lệ." }, 400);
+
+  const postings = id
+    ? (await db.select().from(attEmployeePostings).where(eq(attEmployeePostings.employeeId, id))).sort((a, b) =>
+        a.effectiveFrom.localeCompare(b.effectiveFrom)
+      )
+    : [];
+  const before = existingRows.length ? postingOn(existingRows[0], postings, effectiveFrom) : null;
+  const scopeChanged = before
+    ? before.stationCode !== stationCode || before.departmentId !== departmentId || before.workplaceId !== workplaceId
+    : Boolean(stationCode || departmentId || workplaceId);
+  if (scopeChanged) await assertPeriodOpen(effectiveFrom);
+
   const now = Date.now();
+  const actorName = actor.employee?.fullName || actor.user.name;
+  // Hồ sơ hiện hành = phạm vi có hiệu lực hôm nay. Thay đổi có hiệu lực ở tương
+  // lai chỉ được ghi vào lịch sử công tác và tự áp dụng khi tới ngày.
+  let current = { stationCode, departmentId, workplaceId };
+  if (scopeChanged) {
+    const projected = postings.filter((p) => p.effectiveFrom !== effectiveFrom);
+    projected.push({
+      id: "", employeeId: id, stationCode, departmentId, workplaceId, effectiveFrom,
+      reason: null, createdBy: null, createdByName: null, createdAt: now,
+    });
+    if (!postings.length && existingRows.length) {
+      const e = existingRows[0];
+      if (e.stationCode || e.departmentId || e.workplaceId) {
+        projected.push({
+          id: "", employeeId: id, stationCode: e.stationCode, departmentId: e.departmentId, workplaceId: e.workplaceId,
+          effectiveFrom: BASELINE_DATE, reason: null, createdBy: null, createdByName: null, createdAt: now,
+        });
+      }
+    }
+    projected.sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+    const p = postingOn(existingRows[0] || ({} as EmployeeRow), projected, today);
+    current = { stationCode: p.stationCode, departmentId: p.departmentId, workplaceId: p.workplaceId };
+  } else if (existingRows.length) {
+    current = { stationCode: existingRows[0].stationCode, departmentId: existingRows[0].departmentId, workplaceId: existingRows[0].workplaceId };
+  }
+
   const patch = {
     code,
     fullName,
     position: str(body.position) || null,
-    departmentId: str(body.departmentId) || null,
+    departmentId: current.departmentId,
+    stationCode: current.stationCode,
+    workplaceId: current.workplaceId,
+    dutyStatus: dutyStatusRaw,
+    allowedShiftIds: JSON.stringify(allowedShiftIds),
+    dutyRule: hasPersonal ? JSON.stringify(personal) : null,
     attendanceRole: role,
     phone: str(body.phone) || null,
     email: str(body.email) || null,
@@ -733,16 +901,116 @@ async function saveEmployee(actor: ActorContext, body: Record<string, unknown>) 
     updatedAt: now,
   };
 
+  let empId = id;
   if (id) {
     await db.update(attEmployees).set(patch).where(eq(attEmployees.id, id));
     await writeAudit(actor, { entity: "employee", entityId: id, action: "UPDATE", oldValue: existingRows[0], newValue: patch });
-    return json({ success: true, message: "Đã cập nhật hồ sơ cán bộ.", id });
+  } else {
+    empId = newId("emp");
+    await db.insert(attEmployees).values({ id: empId, ...patch, userId: null, createdAt: now });
+    await writeAudit(actor, { entity: "employee", entityId: empId, action: "CREATE", newValue: patch });
   }
 
-  const newEmpId = newId("emp");
-  await db.insert(attEmployees).values({ id: newEmpId, ...patch, userId: null, createdAt: now });
-  await writeAudit(actor, { entity: "employee", entityId: newEmpId, action: "CREATE", newValue: patch });
-  return json({ success: true, message: "Đã thêm cán bộ.", id: newEmpId });
+  let scopeNote = "";
+  if (scopeChanged) {
+    if (!postings.length && existingRows.length) {
+      const e = existingRows[0];
+      if ((e.stationCode || e.departmentId || e.workplaceId) && effectiveFrom > BASELINE_DATE) {
+        await db.insert(attEmployeePostings).values({
+          id: newId("post"), employeeId: empId, stationCode: e.stationCode, departmentId: e.departmentId,
+          workplaceId: e.workplaceId, effectiveFrom: BASELINE_DATE, reason: "Phạm vi công tác trước khi ghi lịch sử",
+          createdBy: actor.user.id, createdByName: actorName, createdAt: now,
+        });
+      }
+    }
+    await db
+      .insert(attEmployeePostings)
+      .values({
+        id: newId("post"), employeeId: empId, stationCode, departmentId, workplaceId, effectiveFrom,
+        reason: str(body.changeReason) || null, createdBy: actor.user.id, createdByName: actorName, createdAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [attEmployeePostings.employeeId, attEmployeePostings.effectiveFrom],
+        set: { stationCode, departmentId, workplaceId, reason: str(body.changeReason) || null, createdBy: actor.user.id, createdByName: actorName, createdAt: now },
+      });
+    await writeAudit(actor, {
+      entity: "employee_posting",
+      entityId: empId,
+      action: "SET",
+      oldValue: before,
+      newValue: { stationCode, departmentId, workplaceId, effectiveFrom },
+      reason: str(body.changeReason) || null,
+    });
+    if (effectiveFrom > today) scopeNote = ` Thay đổi công tác có hiệu lực từ ${effectiveFrom}; hồ sơ hiện hành giữ nguyên tới ngày đó.`;
+    // Không tự sửa lịch đã phân: chỉ báo để Quản trị xem lại.
+    if (id) {
+      const later = await db
+        .select()
+        .from(attDutyAssignments)
+        .where(and(eq(attDutyAssignments.employeeId, id), gte(attDutyAssignments.dutyDate, effectiveFrom)));
+      const affected = later.filter(
+        (a) => String(a.status || "PLANNED").toUpperCase() !== "CANCELLED" && a.stationCode && a.stationCode !== stationCode
+      );
+      if (affected.length) {
+        scopeNote += ` Có ${affected.length} suất trực đã phân từ ${effectiveFrom} ở điểm trạm cũ - lịch đó được giữ nguyên, hãy xem lại nếu cần.`;
+      }
+    }
+  }
+  if (dutyGroupIds) await syncEmployeeGroups(actor, empId, dutyGroupIds);
+
+  return json({ success: true, message: (id ? "Đã cập nhật hồ sơ cán bộ." : "Đã thêm cán bộ.") + scopeNote, id: empId });
+}
+
+/** Đặt danh sách nhóm trực đã duyệt của một cán bộ. */
+async function syncEmployeeGroups(actor: ActorContext, employeeId: string, groupIds: string[]) {
+  const now = Date.now();
+  const current = await db.select().from(attDutyGroupMembers).where(eq(attDutyGroupMembers.employeeId, employeeId));
+  const want = new Set(groupIds);
+  const approver = { approvedBy: actor.user.id, approvedByName: actor.employee?.fullName || actor.user.name, approvedAt: now };
+  const changes: { added: string[]; removed: string[] } = { added: [], removed: [] };
+  for (const m of current) {
+    const approved = String(m.status || "APPROVED").toUpperCase() === "APPROVED";
+    if (want.has(m.groupId) && !approved) {
+      await db.update(attDutyGroupMembers).set({ status: "APPROVED", ...approver }).where(eq(attDutyGroupMembers.id, m.id));
+      changes.added.push(m.groupId);
+    } else if (!want.has(m.groupId) && approved) {
+      await db.update(attDutyGroupMembers).set({ status: "REVOKED", ...approver }).where(eq(attDutyGroupMembers.id, m.id));
+      changes.removed.push(m.groupId);
+    }
+  }
+  const known = new Set(current.map((m) => m.groupId));
+  const fresh = groupIds.filter((g) => !known.has(g));
+  if (fresh.length) {
+    await db.insert(attDutyGroupMembers).values(
+      fresh.map((groupId) => ({ id: newId("dgm"), groupId, employeeId, status: "APPROVED", ...approver, createdAt: now }))
+    );
+    changes.added.push(...fresh);
+  }
+  if (changes.added.length || changes.removed.length) {
+    await writeAudit(actor, { entity: "employee", entityId: employeeId, action: "DUTY_GROUPS", newValue: changes });
+  }
+}
+
+/** Lịch sử công tác của một cán bộ (điểm trạm, khoa/phòng, nơi làm việc theo ngày hiệu lực). */
+async function handleEmployeePostings(actor: ActorContext, employeeId: string) {
+  requirePermission(actor, "employees.manage");
+  const rows = await db.select().from(attEmployeePostings).where(eq(attEmployeePostings.employeeId, employeeId));
+  const catalog = await loadCatalog();
+  return json({
+    success: true,
+    postings: rows
+      .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))
+      .map((p) => ({
+        id: p.id,
+        effectiveFrom: p.effectiveFrom === BASELINE_DATE ? "" : p.effectiveFrom,
+        stationName: p.stationCode ? catalog.stations.find((s) => s.stationCode === p.stationCode)?.stationName || p.stationCode : "",
+        departmentName: p.departmentId ? catalog.departments.find((d) => d.id === p.departmentId)?.name || "" : "",
+        workplaceName: p.workplaceId ? catalog.workplaces.find((w) => w.id === p.workplaceId)?.name || "" : "",
+        reason: p.reason || "",
+        createdByName: p.createdByName || "",
+        createdAt: p.createdAt || null,
+      })),
+  });
 }
 
 /**
@@ -841,13 +1109,14 @@ async function deleteShift(actor: ActorContext, body: Record<string, unknown>) {
   requirePermission(actor, "shifts.manage");
   const id = str(body.id);
   const used = await db.select({ id: attDutyAssignments.id }).from(attDutyAssignments).where(eq(attDutyAssignments.shiftId, id)).limit(1);
-  if (used.length) {
+  const ruled = await db.select({ id: attDutyRules.id }).from(attDutyRules).where(eq(attDutyRules.shiftId, id)).limit(1);
+  if (used.length || ruled.length) {
     // Ca đã xuất hiện trên lịch trực thì xoá đi là làm rỗng lịch cũ.
     await db.update(attShifts).set({ status: "INACTIVE", updatedAt: Date.now() }).where(eq(attShifts.id, id));
     await writeAudit(actor, { entity: "shift", entityId: id, action: "DEACTIVATE" });
     return json({
       success: true,
-      message: "Ca trực đã được dùng trong lịch trực nên chỉ ngừng sử dụng, không xoá để giữ nguyên lịch cũ.",
+      message: "Ca trực đã được dùng trong lịch trực hoặc quy tắc phân trực nên chỉ ngừng sử dụng, không xoá để giữ nguyên lịch cũ.",
       deactivated: true,
     });
   }
@@ -1258,14 +1527,576 @@ async function resetAccountPassword(actor: ActorContext, body: Record<string, un
 }
 
 // ---------------------------------------------------------------------------
+//  Phân trực theo điểm trạm: danh mục, quy tắc, nhóm trực, điều động
+// ---------------------------------------------------------------------------
+
+const WORKPLACE_CODE_RE = /^[A-Z0-9_.-]{1,30}$/;
+
+/** Ngày tham chiếu để xem danh sách đủ điều kiện: hôm nay, hoặc ngày đầu tháng đang lập nếu ở tương lai. */
+function referenceDate(period: string): string {
+  const { today } = todayContext();
+  if (!isValidPeriod(period)) return today;
+  const first = `${period}-01`;
+  return first > today ? first : today;
+}
+
+/** Toàn bộ cấu hình phân trực theo điểm trạm cho màn hình "Thiết lập quy tắc". */
+async function handleRosterScope(actor: ActorContext, period: string) {
+  // Hồ sơ cán bộ cũng cần danh mục điểm trạm / nơi làm việc / nhóm trực để chọn.
+  if (!hasPermission(actor, "employees.manage")) requirePermission(actor, "roster.manage");
+  const refDate = referenceDate(period);
+  const ctx = await loadPlanContext(refDate, refDate);
+  const { conflicts } = ruleConflicts(
+    ctx.rules.filter((r) => isActive(r.status)),
+    ctx.general.scopeMode,
+    ctx
+  );
+  const empName = (id: string) => ctx.empById.get(id)?.fullName || id;
+  const memberCount = new Map<string, number>();
+  for (const m of ctx.members) {
+    if (String(m.status || "APPROVED").toUpperCase() === "APPROVED") memberCount.set(m.groupId, (memberCount.get(m.groupId) || 0) + 1);
+  }
+
+  // Cán bộ đủ điều kiện tại từng điểm vào ngày tham chiếu (người của trạm + người được điều động tới).
+  const eligibility = ctx.stations.map((st) => {
+    const rows = ctx.employees
+      .map((e) => {
+        const s = scopeCheck(ctx, e, { stationCode: st.stationCode }, refDate);
+        const posting = postingOn(e, ctx.postingsByEmp.get(e.id), refDate);
+        const home = posting.stationCode === st.stationCode;
+        if (!home && !(s.ok && s.secondmentId)) return null;
+        return {
+          employeeId: e.id,
+          code: e.code,
+          fullName: e.fullName,
+          home,
+          seconded: Boolean(s.ok && s.secondmentId),
+          departmentName: posting.departmentId ? ctx.deptById.get(posting.departmentId)?.name || "" : "",
+          workplaceName: posting.workplaceId ? ctx.workplaceById.get(posting.workplaceId)?.name || "" : "",
+          dutyStatus: dutyStatusOf(e),
+          active: isActive(e.status),
+          eligible: s.ok,
+          reason: s.ok ? "" : REASON_LABEL[s.reason] || s.reason,
+          groups: (ctx.groupsByEmp.get(e.id) || []).map((g) => ctx.groupById.get(g)?.name || g),
+          allowedShifts: parseIdList(e.allowedShiftIds).map((id) => ctx.shiftById.get(id)?.name || id),
+        };
+      })
+      .filter(Boolean);
+    return {
+      stationCode: st.stationCode,
+      stationName: st.stationName,
+      status: String(st.status || "ACTIVE").toUpperCase(),
+      employees: rows,
+      eligibleCount: rows.filter((r) => r && r.eligible).length,
+    };
+  });
+
+  return json({
+    success: true,
+    referenceDate: refDate,
+    general: ctx.general,
+    scopeModes: SCOPE_MODES.map((code) => ({ code, label: SCOPE_MODE_LABEL[code] })),
+    dutyStatuses: DUTY_STATUSES.map((code) => ({ code, label: DUTY_STATUS_LABEL[code] })),
+    canApproveSecondment: actor.role === "ADMIN",
+    stations: ctx.stations.map((s) => ({
+      stationCode: s.stationCode,
+      stationName: s.stationName,
+      status: String(s.status || "ACTIVE").toUpperCase(),
+      employeeCount: ctx.employees.filter((e) => isActive(e.status) && postingOn(e, ctx.postingsByEmp.get(e.id), refDate).stationCode === s.stationCode).length,
+      ruleCount: ctx.rules.filter((r) => r.stationCode === s.stationCode && isActive(r.status)).length,
+    })),
+    departments: ctx.departments.map((d) => ({
+      id: d.id,
+      code: d.code,
+      name: d.name,
+      status: String(d.status || "ACTIVE").toUpperCase(),
+      employeeCount: ctx.employees.filter((e) => isActive(e.status) && e.departmentId === d.id).length,
+    })),
+    workplaces: ctx.workplaces.map((w) => ({
+      id: w.id,
+      code: w.code,
+      name: w.name,
+      stationCode: w.stationCode,
+      stationName: ctx.stationById.get(w.stationCode)?.stationName || w.stationCode,
+      departmentId: w.departmentId || "",
+      departmentName: w.departmentId ? ctx.deptById.get(w.departmentId)?.name || "" : "",
+      note: w.note || "",
+      displayOrder: w.displayOrder ?? 0,
+      status: String(w.status || "ACTIVE").toUpperCase(),
+      employeeCount: ctx.employees.filter((e) => isActive(e.status) && e.workplaceId === w.id).length,
+    })),
+    groups: ctx.groups.map((g) => ({
+      id: g.id,
+      code: g.code,
+      name: g.name,
+      stationCode: g.stationCode,
+      stationName: ctx.stationById.get(g.stationCode)?.stationName || g.stationCode,
+      note: g.note || "",
+      status: String(g.status || "ACTIVE").toUpperCase(),
+      memberCount: memberCount.get(g.id) || 0,
+      memberIds: ctx.members
+        .filter((m) => m.groupId === g.id && String(m.status || "APPROVED").toUpperCase() === "APPROVED")
+        .map((m) => m.employeeId),
+    })),
+    rules: ctx.rules
+      .slice()
+      .sort((a, b) => a.stationCode.localeCompare(b.stationCode) || (b.priority ?? 0) - (a.priority ?? 0) || a.name.localeCompare(b.name, "vi"))
+      .map((r) => {
+        const eligibleIds = parseIdList(r.eligibleEmployeeIds);
+        const target = {
+          stationCode: r.stationCode,
+          departmentId: r.departmentId,
+          workplaceId: r.workplaceId,
+          dutyGroupId: r.dutyGroupId,
+          eligibleIds,
+          allowCrossStation: String(r.allowCrossStation || "false") === "true",
+        };
+        const eligibleNow = ctx.employees.filter((e) => scopeCheck(ctx, e, target, refDate).ok);
+        return {
+          id: r.id,
+          name: r.name,
+          stationCode: r.stationCode,
+          stationName: ctx.stationById.get(r.stationCode)?.stationName || r.stationCode,
+          departmentId: r.departmentId || "",
+          departmentName: r.departmentId ? ctx.deptById.get(r.departmentId)?.name || "" : "",
+          workplaceId: r.workplaceId || "",
+          workplaceName: r.workplaceId ? ctx.workplaceById.get(r.workplaceId)?.name || "" : "",
+          dutyGroupId: r.dutyGroupId || "",
+          dutyGroupName: r.dutyGroupId ? ctx.groupById.get(r.dutyGroupId)?.name || "" : "",
+          shiftId: r.shiftId,
+          shiftName: ctx.shiftById.get(r.shiftId)?.name || r.shiftId,
+          weekdayHeadcount: parseHeadcount(r.weekdayHeadcount),
+          holidayHeadcount: r.holidayHeadcount ?? null,
+          effectiveFrom: r.effectiveFrom,
+          effectiveTo: r.effectiveTo || "",
+          eligibleEmployeeIds: eligibleIds,
+          eligibleNames: eligibleIds.map(empName),
+          eligibleNow: eligibleNow.map((e) => ({ id: e.id, fullName: e.fullName })),
+          allowCrossStation: target.allowCrossStation,
+          maxPerMonth: r.maxPerMonth ?? null,
+          maxWeekendHolidayPerMonth: r.maxWeekendHolidayPerMonth ?? null,
+          priority: r.priority ?? 0,
+          status: String(r.status || "ACTIVE").toUpperCase(),
+          note: r.note || "",
+          problems: ruleProblems(r, ctx.general.scopeMode, ctx),
+        };
+      }),
+    conflicts: conflicts.map((c) => ({ ...c, stationName: c.stationCode ? ctx.stationById.get(c.stationCode)?.stationName || c.stationCode : "" })),
+    secondments: ctx.secondments
+      .slice()
+      .sort((a, b) => b.validFrom.localeCompare(a.validFrom))
+      .map((s) => ({
+        id: s.id,
+        employeeId: s.employeeId,
+        employeeName: empName(s.employeeId),
+        homeStationName: (() => {
+          const e = ctx.empById.get(s.employeeId);
+          const code = e ? postingOn(e, ctx.postingsByEmp.get(e.id), s.validFrom).stationCode : null;
+          return code ? ctx.stationById.get(code)?.stationName || code : "";
+        })(),
+        stationCode: s.stationCode,
+        stationName: ctx.stationById.get(s.stationCode)?.stationName || s.stationCode,
+        workplaceId: s.workplaceId || "",
+        workplaceName: s.workplaceId ? ctx.workplaceById.get(s.workplaceId)?.name || "" : "",
+        validFrom: s.validFrom,
+        validTo: s.validTo,
+        decisionRef: s.decisionRef || "",
+        reason: s.reason || "",
+        status: String(s.status || "PENDING").toUpperCase(),
+        requestedByName: s.requestedByName || "",
+        approvedByName: s.approvedByName || "",
+        approvedAt: s.approvedAt || null,
+      })),
+    eligibility,
+    employees: ctx.employees.map((e) => ({
+      id: e.id,
+      code: e.code,
+      fullName: e.fullName,
+      status: String(e.status || "ACTIVE").toUpperCase(),
+      dutyStatus: dutyStatusOf(e),
+      stationCode: postingOn(e, ctx.postingsByEmp.get(e.id), refDate).stationCode || "",
+    })),
+    shifts: ctx.shifts.map(publicShift),
+  });
+}
+
+/** Lấy và kiểm tra một mã điểm trạm trong danh mục station_rooms. */
+async function requireStation(code: string) {
+  if (!code) return null;
+  const rows = await db.select().from(stationRooms).where(eq(stationRooms.stationCode, code));
+  return rows[0] || null;
+}
+
+async function saveWorkplace(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const id = str(body.id);
+  const code = str(body.code).toUpperCase();
+  const name = str(body.name);
+  const stationCode = str(body.stationCode).toUpperCase();
+  const departmentId = str(body.departmentId) || null;
+  if (!WORKPLACE_CODE_RE.test(code)) return json({ success: false, error: "Mã nơi làm việc là bắt buộc (chữ, số, gạch dưới, tối đa 30 ký tự)." }, 400);
+  if (!name) return json({ success: false, error: "Tên nơi làm việc là bắt buộc." }, 400);
+  if (!(await requireStation(stationCode))) return json({ success: false, error: "Hãy chọn điểm trạm trong danh mục." }, 400);
+  if (departmentId) {
+    const d = await db.select().from(attDepartments).where(eq(attDepartments.id, departmentId));
+    if (!d.length) return json({ success: false, error: "Khoa/phòng không có trong danh mục." }, 400);
+  }
+  const clash = await db.select().from(attWorkplaces).where(eq(attWorkplaces.code, code));
+  if (clash.length && clash[0].id !== id) return json({ success: false, error: `Mã nơi làm việc "${code}" đã tồn tại.` }, 409);
+  // Không tạo danh mục trùng: cùng tên trong cùng điểm trạm là cùng một nơi làm việc.
+  const sameName = await db.select().from(attWorkplaces).where(eq(attWorkplaces.stationCode, stationCode));
+  if (sameName.some((w) => w.id !== id && w.name.trim().toLowerCase() === name.toLowerCase())) {
+    return json({ success: false, error: `Điểm trạm này đã có nơi làm việc "${name}".` }, 409);
+  }
+
+  const now = Date.now();
+  const patch = {
+    code,
+    name,
+    stationCode,
+    departmentId,
+    note: str(body.note) || null,
+    displayOrder: num(body.displayOrder, 0),
+    status: str(body.status).toUpperCase() === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+    updatedAt: now,
+  };
+  if (id) {
+    const existing = await db.select().from(attWorkplaces).where(eq(attWorkplaces.id, id));
+    if (!existing.length) return json({ success: false, error: "Không tìm thấy nơi làm việc." }, 404);
+    if (existing[0].stationCode !== stationCode) {
+      const used = await db.select({ id: attEmployees.id }).from(attEmployees).where(eq(attEmployees.workplaceId, id)).limit(1);
+      if (used.length) {
+        return json({ success: false, error: "Nơi làm việc đang có cán bộ nên không chuyển sang điểm trạm khác được. Hãy tạo nơi làm việc mới." }, 409);
+      }
+    }
+    await db.update(attWorkplaces).set(patch).where(eq(attWorkplaces.id, id));
+    await writeAudit(actor, { entity: "workplace", entityId: id, action: "UPDATE", oldValue: existing[0], newValue: patch });
+    return json({ success: true, message: "Đã cập nhật nơi làm việc.", id });
+  }
+  const newWpId = newId("wp");
+  await db.insert(attWorkplaces).values({ id: newWpId, ...patch, createdAt: now });
+  await writeAudit(actor, { entity: "workplace", entityId: newWpId, action: "CREATE", newValue: patch });
+  return json({ success: true, message: "Đã thêm nơi làm việc.", id: newWpId });
+}
+
+async function deleteWorkplace(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const id = str(body.id);
+  const [emp, post, duty, rule, sec] = await Promise.all([
+    db.select({ id: attEmployees.id }).from(attEmployees).where(eq(attEmployees.workplaceId, id)).limit(1),
+    db.select({ id: attEmployeePostings.id }).from(attEmployeePostings).where(eq(attEmployeePostings.workplaceId, id)).limit(1),
+    db.select({ id: attDutyAssignments.id }).from(attDutyAssignments).where(eq(attDutyAssignments.workplaceId, id)).limit(1),
+    db.select({ id: attDutyRules.id }).from(attDutyRules).where(eq(attDutyRules.workplaceId, id)).limit(1),
+    db.select({ id: attSecondments.id }).from(attSecondments).where(eq(attSecondments.workplaceId, id)).limit(1),
+  ]);
+  if (emp.length || post.length || duty.length || rule.length || sec.length) {
+    await db.update(attWorkplaces).set({ status: "INACTIVE", updatedAt: Date.now() }).where(eq(attWorkplaces.id, id));
+    await writeAudit(actor, { entity: "workplace", entityId: id, action: "DEACTIVATE" });
+    return json({ success: true, message: "Nơi làm việc đã được dùng trong hồ sơ, quy tắc hoặc lịch trực nên chỉ ngừng sử dụng.", deactivated: true });
+  }
+  await db.delete(attWorkplaces).where(eq(attWorkplaces.id, id));
+  await writeAudit(actor, { entity: "workplace", entityId: id, action: "DELETE" });
+  return json({ success: true, message: "Đã xoá nơi làm việc." });
+}
+
+async function saveDutyGroup(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const id = str(body.id);
+  const code = str(body.code).toUpperCase();
+  const name = str(body.name);
+  const stationCode = str(body.stationCode).toUpperCase();
+  if (!WORKPLACE_CODE_RE.test(code)) return json({ success: false, error: "Mã nhóm trực là bắt buộc (chữ, số, gạch dưới, tối đa 30 ký tự)." }, 400);
+  if (!name) return json({ success: false, error: "Tên nhóm trực là bắt buộc." }, 400);
+  if (!(await requireStation(stationCode))) return json({ success: false, error: "Hãy chọn điểm trạm của nhóm trực." }, 400);
+  const clash = await db.select().from(attDutyGroups).where(eq(attDutyGroups.code, code));
+  if (clash.length && clash[0].id !== id) return json({ success: false, error: `Mã nhóm trực "${code}" đã tồn tại.` }, 409);
+
+  const settings = await getSettings();
+  const memberIds = body.memberIds === undefined ? null : parseIdList(body.memberIds);
+  if (memberIds) {
+    const emps = memberIds.length ? await db.select().from(attEmployees).where(inArray(attEmployees.id, memberIds)) : [];
+    if (emps.length !== memberIds.length) return json({ success: false, error: "Danh sách thành viên có cán bộ không tồn tại." }, 400);
+    if (!settings.rosterRules.allowMultiGroup && memberIds.length) {
+      const others = await db
+        .select()
+        .from(attDutyGroupMembers)
+        .where(and(inArray(attDutyGroupMembers.employeeId, memberIds), eq(attDutyGroupMembers.status, "APPROVED")));
+      const dup = others.filter((m) => m.groupId !== id);
+      if (dup.length) {
+        const names = [...new Set(dup.map((m) => emps.find((e) => e.id === m.employeeId)?.fullName || m.employeeId))];
+        return json({
+          success: false,
+          error: `Cấu hình hiện không cho phép cán bộ thuộc nhiều nhóm trực: ${names.join(", ")} đã thuộc nhóm khác. Bật "Cho phép thuộc nhiều nhóm trực" trong Phạm vi phân trực hoặc gỡ họ khỏi nhóm cũ.`,
+        }, 409);
+      }
+    }
+  }
+
+  const now = Date.now();
+  const patch = {
+    code,
+    name,
+    stationCode,
+    note: str(body.note) || null,
+    status: str(body.status).toUpperCase() === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+    updatedAt: now,
+  };
+  let groupId = id;
+  if (id) {
+    const existing = await db.select().from(attDutyGroups).where(eq(attDutyGroups.id, id));
+    if (!existing.length) return json({ success: false, error: "Không tìm thấy nhóm trực." }, 404);
+    await db.update(attDutyGroups).set(patch).where(eq(attDutyGroups.id, id));
+    await writeAudit(actor, { entity: "duty_group", entityId: id, action: "UPDATE", oldValue: existing[0], newValue: patch });
+  } else {
+    groupId = newId("dgrp");
+    await db.insert(attDutyGroups).values({ id: groupId, ...patch, createdAt: now });
+    await writeAudit(actor, { entity: "duty_group", entityId: groupId, action: "CREATE", newValue: patch });
+  }
+  if (memberIds) await syncGroupMembers(actor, groupId, memberIds);
+  return json({ success: true, message: id ? "Đã cập nhật nhóm trực." : "Đã thêm nhóm trực.", id: groupId });
+}
+
+/** Đặt danh sách thành viên đã duyệt của một nhóm trực; người bị gỡ được đánh dấu REVOKED (giữ dấu vết). */
+async function syncGroupMembers(actor: ActorContext, groupId: string, memberIds: string[]) {
+  const now = Date.now();
+  const current = await db.select().from(attDutyGroupMembers).where(eq(attDutyGroupMembers.groupId, groupId));
+  const want = new Set(memberIds);
+  const approver = { approvedBy: actor.user.id, approvedByName: actor.employee?.fullName || actor.user.name, approvedAt: now };
+  const added: string[] = [];
+  const removed: string[] = [];
+  for (const m of current) {
+    const approved = String(m.status || "APPROVED").toUpperCase() === "APPROVED";
+    if (want.has(m.employeeId) && !approved) {
+      await db.update(attDutyGroupMembers).set({ status: "APPROVED", ...approver }).where(eq(attDutyGroupMembers.id, m.id));
+      added.push(m.employeeId);
+    } else if (!want.has(m.employeeId) && approved) {
+      await db.update(attDutyGroupMembers).set({ status: "REVOKED", ...approver }).where(eq(attDutyGroupMembers.id, m.id));
+      removed.push(m.employeeId);
+    }
+  }
+  const known = new Set(current.map((m) => m.employeeId));
+  const fresh = memberIds.filter((e) => !known.has(e));
+  if (fresh.length) {
+    await db.insert(attDutyGroupMembers).values(
+      fresh.map((employeeId) => ({ id: newId("dgm"), groupId, employeeId, status: "APPROVED", ...approver, createdAt: now }))
+    );
+    added.push(...fresh);
+  }
+  if (added.length || removed.length) {
+    await writeAudit(actor, { entity: "duty_group", entityId: groupId, action: "MEMBERS", newValue: { added, removed } });
+  }
+}
+
+async function deleteDutyGroup(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const id = str(body.id);
+  const used = await db.select({ id: attDutyRules.id }).from(attDutyRules).where(eq(attDutyRules.dutyGroupId, id)).limit(1);
+  if (used.length) {
+    await db.update(attDutyGroups).set({ status: "INACTIVE", updatedAt: Date.now() }).where(eq(attDutyGroups.id, id));
+    await writeAudit(actor, { entity: "duty_group", entityId: id, action: "DEACTIVATE" });
+    return json({ success: true, message: "Nhóm trực đang được quy tắc sử dụng nên chỉ ngừng sử dụng.", deactivated: true });
+  }
+  await db.delete(attDutyGroups).where(eq(attDutyGroups.id, id));
+  await writeAudit(actor, { entity: "duty_group", entityId: id, action: "DELETE" });
+  return json({ success: true, message: "Đã xoá nhóm trực." });
+}
+
+/** Thêm / sửa một quy tắc phân trực theo điểm trạm. Kiểm tra mọi mã định danh ở máy chủ. */
+async function saveDutyRule(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const id = str(body.id);
+  const name = str(body.name);
+  const stationCode = str(body.stationCode).toUpperCase();
+  const shiftId = str(body.shiftId);
+  const effectiveFrom = str(body.effectiveFrom);
+  const effectiveTo = str(body.effectiveTo);
+  if (!name) return json({ success: false, error: "Tên quy tắc là bắt buộc." }, 400);
+  if (!isValidDate(effectiveFrom)) return json({ success: false, error: "Ngày bắt đầu áp dụng không hợp lệ." }, 400);
+  if (effectiveTo && (!isValidDate(effectiveTo) || effectiveTo < effectiveFrom)) {
+    return json({ success: false, error: "Ngày kết thúc áp dụng phải sau ngày bắt đầu." }, 400);
+  }
+  const weekday = parseHeadcount(body.weekdayHeadcount);
+  const holidayRaw = body.holidayHeadcount;
+  const holidayHeadcount =
+    holidayRaw === null || holidayRaw === undefined || holidayRaw === "" ? null : Math.min(Math.max(Math.round(num(holidayRaw, 0)), 0), 20);
+  if (!weekday.some((n) => n > 0) && !holidayHeadcount) {
+    return json({ success: false, error: "Hãy đặt số người cần trực cho ít nhất một ngày." }, 400);
+  }
+  const limit = (v: unknown) => (v === null || v === undefined || v === "" ? null : Math.min(Math.max(Math.round(num(v, 0)), 0), 31));
+  const eligible = parseIdList(body.eligibleEmployeeIds);
+  if (eligible.length) {
+    const found = await db.select({ id: attEmployees.id }).from(attEmployees).where(inArray(attEmployees.id, eligible));
+    if (found.length !== eligible.length) return json({ success: false, error: "Danh sách cán bộ đủ điều kiện có mã không tồn tại." }, 400);
+  }
+  const allowCross = body.allowCrossStation === true || body.allowCrossStation === "true";
+  if (allowCross && !eligible.length) {
+    return json({ success: false, error: "Bật trực chéo thì phải ghi đích danh cán bộ được phép trong danh sách đủ điều kiện." }, 400);
+  }
+
+  const row = {
+    name,
+    stationCode,
+    departmentId: str(body.departmentId) || null,
+    workplaceId: str(body.workplaceId) || null,
+    dutyGroupId: str(body.dutyGroupId) || null,
+    shiftId,
+    weekdayHeadcount: JSON.stringify(weekday),
+    holidayHeadcount,
+    effectiveFrom,
+    effectiveTo: effectiveTo || null,
+    eligibleEmployeeIds: JSON.stringify(eligible),
+    allowCrossStation: allowCross ? "true" : "false",
+    maxPerMonth: limit(body.maxPerMonth),
+    maxWeekendHolidayPerMonth: limit(body.maxWeekendHolidayPerMonth),
+    priority: Math.min(Math.max(Math.round(num(body.priority, 0)), -100), 100),
+    status: str(body.status).toUpperCase() === "LOCKED" ? "LOCKED" : "ACTIVE",
+    note: str(body.note) || null,
+    updatedAt: Date.now(),
+  };
+  // Kiểm tra mã định danh và quan hệ giữa chúng bằng đúng hàm bộ phân lịch dùng.
+  const catalog = await loadCatalog();
+  const lookup = {
+    stationById: new Map(catalog.stations.map((s) => [s.stationCode, s])),
+    deptById: new Map(catalog.departments.map((d) => [d.id, d])),
+    workplaceById: new Map(catalog.workplaces.map((w) => [w.id, w])),
+    groupById: new Map(catalog.groups.map((g) => [g.id, g])),
+    shiftById: new Map(catalog.shifts.map((s) => [s.id, s])),
+  };
+  const settings = await getSettings();
+  const problems = ruleProblems({ id: id || "new", createdBy: null, createdAt: null, ...row } as never, settings.rosterRules.scopeMode, lookup);
+  if (problems.length) return json({ success: false, error: problems.join(" ") }, 400);
+
+  if (id) {
+    const existing = await db.select().from(attDutyRules).where(eq(attDutyRules.id, id));
+    if (!existing.length) return json({ success: false, error: "Không tìm thấy quy tắc." }, 404);
+    await db.update(attDutyRules).set(row).where(eq(attDutyRules.id, id));
+    await writeAudit(actor, { entity: "duty_rule", entityId: id, action: "UPDATE", oldValue: existing[0], newValue: row });
+    return json({ success: true, message: "Đã cập nhật quy tắc phân trực. Lịch đã lưu không thay đổi.", id });
+  }
+  const ruleId = newId("drule");
+  await db.insert(attDutyRules).values({ id: ruleId, ...row, createdBy: actor.user.id, createdAt: Date.now() });
+  await writeAudit(actor, { entity: "duty_rule", entityId: ruleId, action: "CREATE", newValue: row });
+  return json({ success: true, message: "Đã thêm quy tắc phân trực.", id: ruleId });
+}
+
+async function setDutyRuleStatus(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const id = str(body.id);
+  const status = str(body.status).toUpperCase() === "LOCKED" ? "LOCKED" : "ACTIVE";
+  const existing = await db.select().from(attDutyRules).where(eq(attDutyRules.id, id));
+  if (!existing.length) return json({ success: false, error: "Không tìm thấy quy tắc." }, 404);
+  if (status === "ACTIVE") {
+    const catalog = await loadCatalog();
+    const settings = await getSettings();
+    const problems = ruleProblems(existing[0], settings.rosterRules.scopeMode, {
+      stationById: new Map(catalog.stations.map((s) => [s.stationCode, s])),
+      deptById: new Map(catalog.departments.map((d) => [d.id, d])),
+      workplaceById: new Map(catalog.workplaces.map((w) => [w.id, w])),
+      groupById: new Map(catalog.groups.map((g) => [g.id, g])),
+      shiftById: new Map(catalog.shifts.map((s) => [s.id, s])),
+    });
+    if (problems.length) return json({ success: false, error: `Chưa kích hoạt được: ${problems.join(" ")}` }, 400);
+  }
+  await db.update(attDutyRules).set({ status, updatedAt: Date.now() }).where(eq(attDutyRules.id, id));
+  await writeAudit(actor, { entity: "duty_rule", entityId: id, action: status === "LOCKED" ? "LOCK" : "ACTIVATE" });
+  return json({ success: true, message: status === "LOCKED" ? "Đã khoá quy tắc." : "Đã kích hoạt quy tắc." });
+}
+
+async function deleteDutyRule(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const id = str(body.id);
+  const used = await db.select({ id: attDutyAssignments.id }).from(attDutyAssignments).where(eq(attDutyAssignments.ruleId, id)).limit(1);
+  if (used.length) {
+    // Suất đã phân giữ nguyên dấu vết quy tắc đã sinh ra nó: chỉ khoá.
+    await db.update(attDutyRules).set({ status: "LOCKED", updatedAt: Date.now() }).where(eq(attDutyRules.id, id));
+    await writeAudit(actor, { entity: "duty_rule", entityId: id, action: "LOCK" });
+    return json({ success: true, message: "Quy tắc đã sinh suất trực nên chỉ được khoá, không xoá.", deactivated: true });
+  }
+  await db.delete(attDutyRules).where(eq(attDutyRules.id, id));
+  await writeAudit(actor, { entity: "duty_rule", entityId: id, action: "DELETE" });
+  return json({ success: true, message: "Đã xoá quy tắc." });
+}
+
+/**
+ * Quyết định điều động / trực chéo. Quản trị hệ thống tạo thì có hiệu lực ngay;
+ * người khác có quyền lập lịch chỉ đề nghị (PENDING) và chờ Quản trị xác nhận.
+ */
+async function saveSecondment(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const employeeId = str(body.employeeId);
+  const stationCode = str(body.stationCode).toUpperCase();
+  const workplaceId = str(body.workplaceId) || null;
+  const validFrom = str(body.validFrom);
+  const validTo = str(body.validTo);
+  const emp = await db.select().from(attEmployees).where(eq(attEmployees.id, employeeId));
+  if (!emp.length) return json({ success: false, error: "Không tìm thấy cán bộ." }, 404);
+  if (!(await requireStation(stationCode))) return json({ success: false, error: "Hãy chọn điểm trạm nhận điều động." }, 400);
+  if (!isValidDate(validFrom) || !isValidDate(validTo) || validTo < validFrom) {
+    return json({ success: false, error: "Khoảng ngày điều động không hợp lệ." }, 400);
+  }
+  if (workplaceId) {
+    const w = await db.select().from(attWorkplaces).where(eq(attWorkplaces.id, workplaceId));
+    if (!w.length || w[0].stationCode !== stationCode) return json({ success: false, error: "Nơi làm việc không thuộc điểm trạm nhận điều động." }, 400);
+  }
+  const posts = await db.select().from(attEmployeePostings).where(eq(attEmployeePostings.employeeId, employeeId));
+  const home = postingOn(emp[0], posts.sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)), validFrom).stationCode;
+  if (home === stationCode) return json({ success: false, error: "Cán bộ đã thuộc điểm trạm này, không cần điều động." }, 400);
+
+  const now = Date.now();
+  const isAdmin = actor.role === "ADMIN";
+  const id = newId("sec");
+  const row = {
+    id,
+    employeeId,
+    stationCode,
+    workplaceId,
+    validFrom,
+    validTo,
+    decisionRef: str(body.decisionRef) || null,
+    reason: str(body.reason) || null,
+    status: isAdmin ? "APPROVED" : "PENDING",
+    requestedBy: actor.user.id,
+    requestedByName: actor.employee?.fullName || actor.user.name,
+    approvedBy: isAdmin ? actor.user.id : null,
+    approvedByName: isAdmin ? actor.employee?.fullName || actor.user.name : null,
+    approvedAt: isAdmin ? now : null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.insert(attSecondments).values(row);
+  await writeAudit(actor, { entity: "secondment", entityId: id, action: isAdmin ? "APPROVE" : "REQUEST", newValue: row });
+  return json({
+    success: true,
+    id,
+    message: isAdmin ? "Đã ghi nhận và xác nhận quyết định điều động." : "Đã gửi đề nghị điều động, chờ Quản trị hệ thống xác nhận.",
+  });
+}
+
+async function decideSecondment(actor: ActorContext, body: Record<string, unknown>) {
+  requireAdmin(actor);
+  const id = str(body.id);
+  const decision = str(body.decision).toUpperCase();
+  if (!["APPROVED", "REVOKED"].includes(decision)) return json({ success: false, error: "Quyết định không hợp lệ." }, 400);
+  const existing = await db.select().from(attSecondments).where(eq(attSecondments.id, id));
+  if (!existing.length) return json({ success: false, error: "Không tìm thấy quyết định điều động." }, 404);
+  const now = Date.now();
+  await db
+    .update(attSecondments)
+    .set({ status: decision, approvedBy: actor.user.id, approvedByName: actor.employee?.fullName || actor.user.name, approvedAt: now, updatedAt: now })
+    .where(eq(attSecondments.id, id));
+  await writeAudit(actor, { entity: "secondment", entityId: id, action: decision === "APPROVED" ? "APPROVE" : "REVOKE", oldValue: existing[0] });
+  return json({
+    success: true,
+    message: decision === "APPROVED"
+      ? "Đã xác nhận quyết định điều động."
+      : "Đã thu hồi quyết định điều động. Suất trực đã phân trước đó được giữ nguyên - xem lại lịch nếu cần.",
+  });
+}
+
+// ---------------------------------------------------------------------------
 //  Lịch trực tháng
 // ---------------------------------------------------------------------------
 
-/** Ca trực có được dùng cho loại ngày này không (ANY / WEEKDAY / WEEKEND / HOLIDAY). */
-function shiftFitsDay(shift: ShiftRow, dayType: DayType): boolean {
-  const scope = String(shift.dayScope || "ANY").toUpperCase();
-  return scope === "ANY" || scope === dayType;
-}
 
 async function assignDuty(actor: ActorContext, body: Record<string, unknown>) {
   requirePermission(actor, "roster.manage");
@@ -1287,6 +2118,34 @@ async function assignDuty(actor: ActorContext, body: Record<string, unknown>) {
   if (!employee.length) return json({ success: false, error: "Không tìm thấy cán bộ." }, 404);
 
   const dayType = classifyDay(dutyDate, buildHolidayMap(holidays), settings.workHours);
+
+  // Phạm vi phân trực: đúng điểm trạm của cán bộ vào ngày trực, hoặc điểm trạm
+  // khác khi có quyết định điều động đã duyệt / Quản trị hệ thống xác nhận ngay.
+  const ctx = await loadPlanContext(dutyDate, dutyDate);
+  const emp = ctx.empById.get(employeeId)!;
+  const posting = postingOn(emp, ctx.postingsByEmp.get(emp.id), dutyDate);
+  const stationCode = str(body.stationCode).toUpperCase() || posting.stationCode;
+  if (!stationCode) {
+    return json({ success: false, error: `${emp.fullName} chưa được gắn điểm trạm vào ngày ${dutyDate}. Cập nhật hồ sơ cán bộ trước khi phân trực.` }, 400);
+  }
+  if (!ctx.stationById.has(stationCode)) return json({ success: false, error: "Điểm trạm không có trong danh mục." }, 400);
+  const confirmCross = body.confirmCrossStation === true && actor.role === "ADMIN";
+  const check = checkManualAssignment(ctx, emp, dutyDate, shiftId, stationCode, confirmCross);
+  if (check.blocker) {
+    const stationName = ctx.stationById.get(stationCode)?.stationName || stationCode;
+    if (check.blocker === "OUT_OF_SCOPE") {
+      const home = posting.stationCode ? ctx.stationById.get(posting.stationCode)?.stationName || posting.stationCode : "";
+      return json({
+        success: false,
+        error: `${emp.fullName} thuộc ${home}. Chỉ phân trực tại ${stationName} khi có quyết định điều động đã được Quản trị hệ thống xác nhận${
+          actor.role === "ADMIN" ? " - hoặc xác nhận điều động ngay trong hộp thoại phân người" : ""
+        }.`,
+        needsCrossConfirm: actor.role === "ADMIN",
+      }, 409);
+    }
+    return json({ success: false, error: `Không phân được ${emp.fullName} ngày ${dutyDate}: ${REASON_LABEL[check.blocker] || check.blocker}.` }, 409);
+  }
+
   const existing = await db
     .select()
     .from(attDutyAssignments)
@@ -1317,7 +2176,10 @@ async function assignDuty(actor: ActorContext, body: Record<string, unknown>) {
     employeeId,
     dayType,
     status: "PLANNED",
-    note: str(body.note) || null,
+    note: str(body.note) || (check.cross ? "Điều động trực tại điểm trạm khác (đã xác nhận)" : null),
+    stationCode,
+    departmentId: check.departmentId,
+    workplaceId: check.workplaceId,
     createdBy: actor.user.id,
     createdAt: now,
     updatedAt: now,
@@ -1325,8 +2187,8 @@ async function assignDuty(actor: ActorContext, body: Record<string, unknown>) {
   await writeAudit(actor, {
     entity: "duty_assignment",
     entityId: id,
-    action: "CREATE",
-    newValue: { dutyDate, shiftId, employeeId, dayType },
+    action: check.cross ? "CREATE_CROSS_STATION" : "CREATE",
+    newValue: { dutyDate, shiftId, employeeId, dayType, stationCode, cross: check.cross, adminConfirmed: confirmCross },
   });
   await notify(
     employeeId,
@@ -1412,9 +2274,11 @@ async function copyPreviousRoster(actor: ActorContext, body: Record<string, unkn
     employees.filter((e) => String(e.status || "ACTIVE").toUpperCase() === "ACTIVE").map((e) => e.id)
   );
 
+  const ctx = await loadPlanContext(targetDates[0], targetDates[targetDates.length - 1]);
   const now = Date.now();
   const rows: (typeof attDutyAssignments.$inferInsert)[] = [];
   let skipped = 0;
+  let outOfScope = 0;
   for (const src of planned) {
     const day = Number(src.dutyDate.slice(8, 10));
     if (day > targetLength) {
@@ -1431,6 +2295,19 @@ async function copyPreviousRoster(actor: ActorContext, body: Record<string, unkn
       skipped += 1;
       continue;
     }
+    // Cán bộ đã chuyển điểm trạm / ngừng trực từ ngày đó thì không chép suất cũ sang.
+    const emp = ctx.empById.get(src.employeeId);
+    const stationCode = src.stationCode || (emp ? postingOn(emp, ctx.postingsByEmp.get(emp.id), dutyDate).stationCode : null);
+    let scope: { departmentId: string | null; workplaceId: string | null } = { departmentId: src.departmentId, workplaceId: src.workplaceId };
+    if (emp && stationCode) {
+      const sc = scopeCheck(ctx, emp, { stationCode, departmentId: src.departmentId, workplaceId: src.workplaceId }, dutyDate);
+      if (!sc.ok) {
+        skipped += 1;
+        outOfScope += 1;
+        continue;
+      }
+      scope = { departmentId: sc.departmentId, workplaceId: sc.workplaceId };
+    }
     taken.add(key);
     rows.push({
       id: newId("duty"),
@@ -1440,6 +2317,10 @@ async function copyPreviousRoster(actor: ActorContext, body: Record<string, unkn
       dayType: classifyDay(dutyDate, holidayMap, settings.workHours),
       status: "PLANNED",
       note: src.note || null,
+      stationCode,
+      departmentId: scope.departmentId,
+      workplaceId: scope.workplaceId,
+      ruleId: src.ruleId || null,
       createdBy: actor.user.id,
       createdAt: now,
       updatedAt: now,
@@ -1451,13 +2332,13 @@ async function copyPreviousRoster(actor: ActorContext, body: Record<string, unkn
     entity: "duty_assignment",
     entityId: period,
     action: "ROSTER_COPY",
-    newValue: { source, created: rows.length, skipped },
+    newValue: { source, created: rows.length, skipped, outOfScope },
   });
   return json({
     success: true,
     message: `Đã sao chép ${rows.length} suất trực từ tháng ${prevMonth}/${prevYear}${
       skipped ? `, bỏ qua ${skipped} suất (trùng, ngoài số ngày của tháng, hoặc ca/cán bộ đã ngừng dùng)` : ""
-    }.`,
+    }${outOfScope ? `. Trong đó ${outOfScope} suất bị bỏ vì cán bộ đã đổi phạm vi công tác hoặc không còn tham gia trực` : ""}.`,
     created: rows.length,
     skipped,
   });
@@ -1478,6 +2359,11 @@ function normalizeRosterRules(raw: Record<string, unknown>): RosterRules {
     maxWeekendHolidayPerMonth: clamp(raw.maxWeekendHolidayPerMonth, 0, 0, 31),
     skipOnLeave: raw.skipOnLeave === undefined ? DEFAULT_ROSTER_RULES.skipOnLeave : Boolean(raw.skipOnLeave),
     relaxWhenShort: raw.relaxWhenShort === undefined ? DEFAULT_ROSTER_RULES.relaxWhenShort : Boolean(raw.relaxWhenShort),
+    scopeMode: (SCOPE_MODES as readonly string[]).includes(str(raw.scopeMode).toUpperCase())
+      ? (str(raw.scopeMode).toUpperCase() as RosterRules["scopeMode"])
+      : DEFAULT_ROSTER_RULES.scopeMode,
+    allowMultiGroup: raw.allowMultiGroup === undefined ? DEFAULT_ROSTER_RULES.allowMultiGroup : Boolean(raw.allowMultiGroup),
+    minRestHours: clamp(raw.minRestHours, DEFAULT_ROSTER_RULES.minRestHours, 0, 48),
   };
 }
 
@@ -1526,220 +2412,184 @@ async function resetRosterRules(actor: ActorContext) {
 }
 
 /**
- * Phân trực tự động cho cả tháng.
+ * PHÂN LỊCH TỰ ĐỘNG THEO ĐIỂM TRẠM - hai bước: xem trước rồi xác nhận lưu.
  *
- * Dùng quy tắc đã lưu (roster_rules); những trường gửi kèm trong yêu cầu ghi
- * đè quy tắc cho riêng lần phân này. Luật phân:
- *   - ROUND_ROBIN quay vòng danh sách, BALANCED ưu tiên người ít suất nhất
- *     (tính cả suất đã có sẵn trong tháng);
- *   - mỗi người nghỉ tối thiểu minRestDays ngày giữa hai suất trực;
- *   - không vượt maxPerMonth suất/tháng và maxWeekendHolidayPerMonth suất
- *     cuối tuần/lễ/tháng (0 = không giới hạn);
- *   - bỏ qua người có đơn nghỉ đã duyệt (skipOnLeave);
- *   - thiếu người thì nới quy tắc ngày nghỉ (relaxWhenShort), giới hạn số suất
- *     thì không bao giờ nới.
- * Những ngày đã có người trực thì giữ nguyên - lịch do Quản trị đặt tay luôn thắng.
+ *   roster_auto_preview  dựng phương án từ dữ liệu thật, KHÔNG ghi gì. Trả về
+ *                        các suất đề xuất, ca thiếu người (ngày, ca, điểm trạm,
+ *                        số người thiếu, nguyên nhân, đề xuất bổ sung), xung đột
+ *                        quy tắc, vi phạm và dấu vân tay của phương án.
+ *   roster_auto          dựng lại phương án và chỉ lưu khi dấu vân tay khớp bản
+ *                        Quản trị đã xem (dữ liệu không đổi trong lúc xem), không
+ *                        có xung đột/vi phạm chặn, và nếu còn thiếu người thì
+ *                        Quản trị đã xác nhận lưu phần đã phân được.
+ *
+ * Phạm vi: tháng (period) và danh sách điểm trạm (stationCodes, rỗng = mọi điểm
+ * trạm có quy tắc). Những suất đã có luôn được giữ nguyên và tính vào nhu cầu.
  */
+type PlanRequest = { period: string; stations: string[]; rules: RosterRules; dates: string[] };
+
+async function readPlanRequest(body: Record<string, unknown>): Promise<PlanRequest | Response> {
+  const period = str(body.period);
+  if (!isValidPeriod(period)) return json({ success: false, error: "Tháng/năm cần phân lịch không hợp lệ." }, 400);
+  const settings = await getSettings();
+  const stations = parseIdList(body.stationCodes);
+  return { period, stations, rules: normalizeRosterRules(settings.rosterRules as unknown as Record<string, unknown>), dates: periodDates(period) };
+}
+
+function describePlan(ctx: PlanContext, plan: Plan) {
+  const empName = (id: string) => ctx.empById.get(id)?.fullName || id;
+  const stationName = (code: string | null) => (code ? ctx.stationById.get(code)?.stationName || code : "");
+  const shiftName = (id: string) => ctx.shiftById.get(id)?.name || id;
+  const ruleName = (id: string) => ctx.rules.find((r) => r.id === id)?.name || "";
+  const wpName = (id: string | null) => (id ? ctx.workplaceById.get(id)?.name || "" : "");
+  const deptName = (id: string | null) => (id ? ctx.deptById.get(id)?.name || "" : "");
+  const blockingConflicts = plan.conflicts.filter((c) => c.blocking);
+  const blockingViolations = plan.violations.filter((v) => v.blocking);
+  const missing = plan.shortages.reduce((n, s) => n + s.missing, 0);
+  return {
+    fingerprint: plan.fingerprint,
+    scopeMode: ctx.general.scopeMode,
+    scopeModeLabel: SCOPE_MODE_LABEL[ctx.general.scopeMode],
+    stations: plan.stations.map((code) => ({ code, name: stationName(code) })),
+    proposals: plan.proposals.map((p) => ({
+      ...p,
+      employeeName: empName(p.employeeId),
+      employeeCode: ctx.empById.get(p.employeeId)?.code || "",
+      stationName: stationName(p.stationCode),
+      shiftName: shiftName(p.shiftId),
+      ruleName: ruleName(p.ruleId),
+      workplaceName: wpName(p.workplaceId),
+      departmentName: deptName(p.departmentId),
+    })),
+    shortages: plan.shortages.map((s) => ({
+      ...s,
+      stationName: stationName(s.stationCode),
+      shiftName: shiftName(s.shiftId),
+      ruleName: ruleName(s.ruleId),
+      reasons: Object.entries(s.reasons)
+        .sort((a, b) => b[1] - a[1])
+        .map(([code, count]) => ({ code, label: REASON_LABEL[code] || code, count })),
+      suggestions: s.suggestions.map((g) => ({ ...g, employeeName: empName(g.employeeId), stationName: stationName(g.stationCode) })),
+    })),
+    conflicts: plan.conflicts.map((c) => ({ ...c, stationName: stationName(c.stationCode) })),
+    violations: plan.violations.slice(0, 300).map((v) => ({ ...v, employeeName: empName(v.employeeId), shiftName: shiftName(v.shiftId) })),
+    warnings: plan.warnings,
+    summary: {
+      proposed: plan.proposals.length,
+      employees: new Set(plan.proposals.map((p) => p.employeeId)).size,
+      cross: plan.proposals.filter((p) => p.cross).length,
+      shortageSlots: plan.shortages.length,
+      missing,
+      shortageDays: new Set(plan.shortages.map((s) => s.date)).size,
+      blockingConflicts: blockingConflicts.length,
+      blockingViolations: blockingViolations.length,
+      existingViolations: plan.violations.filter((v) => !v.blocking).length,
+      rules: plan.rulesUsed.length,
+    },
+    canSave: !blockingConflicts.length && !blockingViolations.length && plan.proposals.length > 0,
+  };
+}
+
+async function previewAutoRoster(actor: ActorContext, body: Record<string, unknown>) {
+  requirePermission(actor, "roster.manage");
+  const req = await readPlanRequest(body);
+  if (req instanceof Response) return req;
+  const ctx = await loadPlanContext(req.dates[0], req.dates[req.dates.length - 1], req.rules);
+  const plan = buildPlan(ctx, req.dates, req.stations);
+  return json({ success: true, period: req.period, locked: (await periodStatus(req.period)) === "LOCKED", ...describePlan(ctx, plan) });
+}
+
 async function autoAssignRoster(actor: ActorContext, body: Record<string, unknown>) {
   requirePermission(actor, "roster.manage");
-  const period = str(body.period);
-  if (!isValidPeriod(period)) return json({ success: false, error: "Kỳ không hợp lệ." }, 400);
-  await assertPeriodOpen(period);
-
-  const dates = periodDates(period);
-  const [allShifts, allEmployees, settings, holidays, existing, leaves] = await Promise.all([
-    listShifts(true),
-    db.select().from(attEmployees),
-    getSettings(),
-    listHolidays(),
-    db
-      .select()
-      .from(attDutyAssignments)
-      .where(and(gte(attDutyAssignments.dutyDate, dates[0]), lte(attDutyAssignments.dutyDate, dates[dates.length - 1]))),
-    db
-      .select()
-      .from(attLeaves)
-      .where(and(eq(attLeaves.status, "APPROVED"), lte(attLeaves.fromDate, dates[dates.length - 1]), gte(attLeaves.toDate, dates[0]))),
-  ]);
-
-  const overrides = Object.fromEntries(
-    Object.entries(body).filter(([k]) => k in DEFAULT_ROSTER_RULES && body[k] !== undefined && body[k] !== null)
-  );
-  const rules = normalizeRosterRules({ ...settings.rosterRules, ...overrides });
-
-  const isActiveShift = (s: ShiftRow | undefined): s is ShiftRow =>
-    Boolean(s) && String(s!.status || "ACTIVE").toUpperCase() === "ACTIVE";
-  const isActiveEmp = (e: EmployeeRow | undefined): e is EmployeeRow =>
-    Boolean(e) && String(e!.status || "ACTIVE").toUpperCase() === "ACTIVE";
-
-  const shifts = rules.shiftIds.length
-    ? rules.shiftIds.map((id) => allShifts.find((s) => s.id === id)).filter(isActiveShift)
-    : allShifts.filter(isActiveShift);
-  if (!shifts.length) return json({ success: false, error: "Chưa có ca trực nào còn hiệu lực để phân." }, 400);
-
-  const pool = rules.employeeIds.length
-    ? rules.employeeIds.map((id) => allEmployees.find((e) => e.id === id)).filter(isActiveEmp)
-    : sortEmployees(allEmployees).filter(isActiveEmp);
-  if (!pool.length) return json({ success: false, error: "Danh sách cán bộ tham gia trực không còn hiệu lực." }, 400);
-
-  const holidayMap = buildHolidayMap(holidays);
-  const dayTypeOf = new Map(dates.map((d) => [d, classifyDay(d, holidayMap, settings.workHours)]));
-  const isSpecial = (date: string) => {
-    const t = dayTypeOf.get(date) || classifyDay(date, holidayMap, settings.workHours);
-    return t === "WEEKEND" || t === "HOLIDAY";
-  };
-
-  const active = existing.filter((r) => String(r.status || "PLANNED").toUpperCase() !== "CANCELLED");
-  const taken = new Set(active.map((r) => `${r.dutyDate}|${r.shiftId}|${r.employeeId}`));
-  const filledDayShift = new Map<string, number>();
-  const total = new Map<string, number>();
-  const special = new Map<string, number>();
-  const busy = new Set<string>();
-  const markBusy = (date: string, employeeId: string) => {
-    busy.add(`${date}|${employeeId}`);
-    total.set(employeeId, (total.get(employeeId) || 0) + 1);
-    if (isSpecial(date)) special.set(employeeId, (special.get(employeeId) || 0) + 1);
-  };
-  for (const r of active) {
-    const key = `${r.dutyDate}|${r.shiftId}`;
-    filledDayShift.set(key, (filledDayShift.get(key) || 0) + 1);
-    if (!busy.has(`${r.dutyDate}|${r.employeeId}`)) markBusy(r.dutyDate, r.employeeId);
-  }
-  // Suất cuối tháng trước cũng tính cho quy tắc ngày nghỉ của đầu tháng này.
-  if (rules.minRestDays > 0) {
-    const prior = await db
-      .select()
-      .from(attDutyAssignments)
-      .where(and(gte(attDutyAssignments.dutyDate, addDays(dates[0], -rules.minRestDays)), lte(attDutyAssignments.dutyDate, addDays(dates[0], -1))));
-    for (const r of prior) {
-      if (String(r.status || "PLANNED").toUpperCase() !== "CANCELLED") busy.add(`${r.dutyDate}|${r.employeeId}`);
-    }
+  const req = await readPlanRequest(body);
+  if (req instanceof Response) return req;
+  await assertPeriodOpen(req.period);
+  const fingerprint = str(body.fingerprint);
+  if (!fingerprint) {
+    return json({ success: false, error: "Hãy xem trước phương án phân lịch rồi mới xác nhận lưu." }, 400);
   }
 
-  const onLeave = (employeeId: string, date: string) =>
-    leaves.some((l) => l.employeeId === employeeId && l.fromDate <= date && l.toDate >= date);
-  const restedEnough = (employeeId: string, date: string) => {
-    for (let d = 1; d <= rules.minRestDays; d++) {
-      if (busy.has(`${addDays(date, -d)}|${employeeId}`) || busy.has(`${addDays(date, d)}|${employeeId}`)) return false;
-    }
-    return true;
-  };
+  const ctx = await loadPlanContext(req.dates[0], req.dates[req.dates.length - 1], req.rules);
+  const plan = buildPlan(ctx, req.dates, req.stations);
+  const view = describePlan(ctx, plan);
+  if (plan.fingerprint !== fingerprint) {
+    return json(
+      { success: false, error: "Dữ liệu cán bộ, quy tắc hoặc lịch trực đã thay đổi kể từ lúc xem trước. Hãy xem trước lại.", stale: true, ...view },
+      409
+    );
+  }
+  if (view.summary.blockingConflicts) {
+    return json({ success: false, error: "Còn xung đột quy tắc chưa xử lý. Không có suất nào được lưu.", ...view }, 409);
+  }
+  if (view.summary.blockingViolations) {
+    return json({ success: false, error: "Phương án vi phạm điều kiện bắt buộc (trùng ca / thời gian nghỉ). Không có suất nào được lưu.", ...view }, 409);
+  }
+  if (!plan.proposals.length) {
+    return json({ success: false, error: "Phương án không có suất trực mới nào để lưu.", ...view }, 400);
+  }
+  if (view.summary.missing && body.acceptShortage !== true) {
+    return json(
+      { success: false, error: `Còn ${view.summary.missing} suất thiếu người. Xác nhận lưu phần đã phân được hoặc điều chỉnh quy tắc/bổ sung nhân lực.`, needsShortageAck: true, ...view },
+      409
+    );
+  }
 
   const now = Date.now();
-  const rows: (typeof attDutyAssignments.$inferInsert)[] = [];
-  let cursor = 0;
-  let unfilled = 0;
-  let relaxedRest = 0;
-  // Từng ca chưa đủ người, để Quản trị biết chính xác ngày nào cần bổ sung.
-  const unfilledSlots: { date: string; shiftId: string; shiftName: string; missing: number }[] = [];
-
-  for (const date of dates) {
-    const dayType = dayTypeOf.get(date)!;
-    const specialDay = dayType === "WEEKEND" || dayType === "HOLIDAY";
-    for (const shift of shifts) {
-      if (!shiftFitsDay(shift, dayType)) continue;
-      const key = `${date}|${shift.id}`;
-      let need = rules.peoplePerShift - (filledDayShift.get(key) || 0);
-      if (need <= 0) continue;
-
-      // Lượt đầu giữ đủ quy tắc ngày nghỉ; lượt sau (nếu cho phép) nới quy tắc
-      // đó để không bỏ trống ca khi danh sách quá ngắn.
-      const passes = rules.relaxWhenShort && rules.minRestDays > 0 ? 2 : 1;
-      for (let relax = 0; relax < passes && need > 0; relax++) {
-        let order = pool.map((_, step) => (cursor + step) % pool.length);
-        if (rules.strategy === "BALANCED") {
-          // Ít suất nhất trước; hoà nhau thì giữ thứ tự vòng để luân phiên đều.
-          order = order
-            .map((idx, rank) => ({ idx, rank }))
-            .sort((a, b) => {
-              const ea = pool[a.idx].id;
-              const eb = pool[b.idx].id;
-              if (specialDay) {
-                const ds = (special.get(ea) || 0) - (special.get(eb) || 0);
-                if (ds) return ds;
-              }
-              return (total.get(ea) || 0) - (total.get(eb) || 0) || a.rank - b.rank;
-            })
-            .map((x) => x.idx);
-        }
-        for (const idx of order) {
-          if (need <= 0) break;
-          const candidate = pool[idx];
-          if (busy.has(`${date}|${candidate.id}`)) continue;
-          if (taken.has(`${date}|${shift.id}|${candidate.id}`)) continue;
-          if (rules.skipOnLeave && onLeave(candidate.id, date)) continue;
-          if (rules.maxPerMonth && (total.get(candidate.id) || 0) >= rules.maxPerMonth) continue;
-          if (specialDay && rules.maxWeekendHolidayPerMonth && (special.get(candidate.id) || 0) >= rules.maxWeekendHolidayPerMonth) continue;
-          if (relax === 0 && !restedEnough(candidate.id, date)) continue;
-
-          rows.push({
-            id: newId("duty"),
-            dutyDate: date,
-            shiftId: shift.id,
-            employeeId: candidate.id,
-            dayType,
-            status: "PLANNED",
-            note: null,
-            createdBy: actor.user.id,
-            createdAt: now,
-            updatedAt: now,
-          });
-          taken.add(`${date}|${shift.id}|${candidate.id}`);
-          markBusy(date, candidate.id);
-          filledDayShift.set(key, (filledDayShift.get(key) || 0) + 1);
-          cursor = (idx + 1) % pool.length;
-          need -= 1;
-          if (relax === 1) relaxedRest += 1;
-        }
-      }
-      unfilled += Math.max(need, 0);
-      if (need > 0) unfilledSlots.push({ date, shiftId: shift.id, shiftName: shift.name, missing: need });
+  const rows: (typeof attDutyAssignments.$inferInsert)[] = plan.proposals.map((p) => ({
+    id: newId("duty"),
+    dutyDate: p.date,
+    shiftId: p.shiftId,
+    employeeId: p.employeeId,
+    dayType: p.dayType,
+    status: "PLANNED",
+    note: p.secondmentId ? "Điều động theo quyết định đã duyệt" : p.cross ? "Trực chéo theo quy tắc đã duyệt" : null,
+    stationCode: p.stationCode,
+    departmentId: p.departmentId,
+    workplaceId: p.workplaceId,
+    ruleId: p.ruleId,
+    createdBy: actor.user.id,
+    createdAt: now,
+    updatedAt: now,
+  }));
+  // Một giao dịch: lỗi ở bất kỳ dòng nào thì không dòng nào được ghi.
+  try {
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < rows.length; i += 500) await tx.insert(attDutyAssignments).values(rows.slice(i, i + 500));
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      return json({ success: false, error: "Lịch trực tháng này vừa được thay đổi trong lúc lưu. Không có suất nào được tạo - hãy xem trước lại." }, 409);
     }
+    throw err;
   }
-
-  // Một lệnh insert nhiều dòng là nguyên tử: lỗi thì không dòng nào được ghi,
-  // lịch không bao giờ ở trạng thái phân dở dang.
-  if (rows.length) {
-    try {
-      await db.insert(attDutyAssignments).values(rows);
-    } catch (err) {
-      if (isUniqueViolation(err)) {
-        return json({ success: false, error: "Lịch trực tháng này vừa được thay đổi trong lúc phân. Không có suất nào được tạo - hãy tải lại và phân lại." }, 409);
-      }
-      throw err;
-    }
+  for (const empId of new Set(rows.map((r) => r.employeeId))) {
+    const mine = rows.filter((r) => r.employeeId === empId).length;
+    await notify(empId, "Lịch trực mới", `Bạn được phân ${mine} suất trực trong tháng ${req.period}.`, "DUTY", req.period);
   }
-  if (body.saveRules === true) await saveSetting(SETTING_KEYS.ROSTER_RULES, rules, actor);
-  const assignedEmployees = new Set(rows.map((r) => r.employeeId)).size;
-  const unfilledDates = [...new Set(unfilledSlots.map((u) => u.date))];
   await writeAudit(actor, {
     entity: "duty_assignment",
-    entityId: period,
+    entityId: req.period,
     action: "ROSTER_AUTO",
     newValue: {
       created: rows.length,
-      unfilled,
-      unfilledDays: unfilledDates.length,
-      relaxedRest,
-      assignedEmployees,
-      employees: pool.length,
-      shifts: shifts.length,
-      rules,
-      savedRules: body.saveRules === true,
+      stations: plan.stations,
+      scopeMode: req.rules.scopeMode,
+      rules: plan.rulesUsed.length,
+      missing: view.summary.missing,
+      shortageSlots: view.summary.shortageSlots,
+      cross: view.summary.cross,
+      acceptedShortage: body.acceptShortage === true,
+      fingerprint,
     },
   });
   return json({
     success: true,
-    message: `Đã phân tự động ${rows.length} suất trực cho tháng ${period}${
-      unfilled ? `. Còn ${unfilled} suất chưa có người - hãy bổ sung cán bộ, nới quy tắc hoặc phân tay.` : "."
+    message: `Đã lưu ${rows.length} suất trực tháng ${req.period}${
+      view.summary.missing ? `. Còn ${view.summary.missing} suất thiếu người tại ${view.summary.shortageSlots} ca - xem báo cáo thiếu nhân lực.` : "."
     }`,
     created: rows.length,
-    unfilled,
-    assignedEmployees,
-    unfilledSlots,
-    unfilledDates,
-    relaxedRest,
-    rules,
+    unfilled: view.summary.missing,
+    ...view,
   });
 }
 
@@ -1794,6 +2644,15 @@ async function importRoster(actor: ActorContext, body: Record<string, unknown>) 
       .filter((r) => String(r.status || "PLANNED").toUpperCase() !== "CANCELLED")
       .map((r) => `${r.dutyDate}|${r.shiftId}|${r.employeeId}`)
   );
+  // Nhập từ Excel cũng chịu đúng phạm vi phân trực như phân tay: điểm trạm của
+  // cán bộ (hoặc cột "điểm trạm" khi có quyết định điều động), không trùng giờ,
+  // đủ giờ nghỉ, không nghỉ phép.
+  const ctx = await loadPlanContext(`${period}-01`, `${period}-${String(daysInPeriod(period)).padStart(2, "0")}`);
+  const stationLookup = new Map<string, string>();
+  for (const st of ctx.stations) {
+    stationLookup.set(norm(st.stationCode), st.stationCode);
+    stationLookup.set(norm(st.stationName), st.stationCode);
+  }
   const now = Date.now();
   const inserts: (typeof attDutyAssignments.$inferInsert)[] = [];
   const errors: string[] = [];
@@ -1827,6 +2686,20 @@ async function importRoster(actor: ActorContext, body: Record<string, unknown>) 
       errors.push(`Dòng ${line}: ${employee.fullName} đã có ca "${shift.name}" ngày ${date}.`);
       return;
     }
+    const stationText = str(row.station) || str(row.stationCode);
+    const stationCode = stationText
+      ? stationLookup.get(norm(stationText)) || ""
+      : postingOn(employee, ctx.postingsByEmp.get(employee.id), date).stationCode || "";
+    if (!stationCode) {
+      errors.push(`Dòng ${line}: ${stationText ? `không tìm thấy điểm trạm "${stationText}"` : `${employee.fullName} chưa được gắn điểm trạm`}.`);
+      return;
+    }
+    const check = checkManualAssignment(ctx, employee, date, shift.id, stationCode, false);
+    if (check.blocker) {
+      errors.push(`Dòng ${line}: ${employee.fullName} ngày ${date} - ${REASON_LABEL[check.blocker] || check.blocker}.`);
+      return;
+    }
+    ctx.existing.push({ dutyDate: date, shiftId: shift.id, employeeId: employee.id, status: "PLANNED" } as AssignmentRow);
     taken.add(key);
     inserts.push({
       id: newId("duty"),
@@ -1836,6 +2709,9 @@ async function importRoster(actor: ActorContext, body: Record<string, unknown>) 
       dayType: classifyDay(date, holidayMap, settings.workHours),
       status: "PLANNED",
       note: str(row.note) || null,
+      stationCode,
+      departmentId: check.departmentId,
+      workplaceId: check.workplaceId,
       createdBy: actor.user.id,
       createdAt: now,
       updatedAt: now,
@@ -2154,6 +3030,21 @@ async function restoreRosterSnapshot(actor: ActorContext, body: Record<string, u
       const rows = (JSON.parse(found[0].rows) as AssignmentRow[]).filter(
         (r) => periodOf(r.dutyDate) === period && !keptIds.has(r.id) && !keptKeys.has(`${r.dutyDate}|${r.shiftId}|${r.employeeId}`)
       );
+      // Danh mục có thể đã đổi sau khi chụp bản sao: liên kết tới quy tắc / nơi
+      // làm việc / điểm trạm / khoa phòng không còn thì để trống thay vì vi phạm khoá ngoại.
+      const [ruleIds, wpIds, stCodes, deptIds] = await Promise.all([
+        tx.select({ id: attDutyRules.id }).from(attDutyRules),
+        tx.select({ id: attWorkplaces.id }).from(attWorkplaces),
+        tx.select({ id: stationRooms.stationCode }).from(stationRooms),
+        tx.select({ id: attDepartments.id }).from(attDepartments),
+      ]).then((all) => all.map((list) => new Set(list.map((x) => x.id))));
+      const keep = (set: Set<string>, v: string | null | undefined) => (v && set.has(v) ? v : null);
+      for (const r of rows) {
+        r.ruleId = keep(ruleIds, r.ruleId);
+        r.workplaceId = keep(wpIds, r.workplaceId);
+        r.stationCode = keep(stCodes, r.stationCode);
+        r.departmentId = keep(deptIds, r.departmentId);
+      }
       for (let i = 0; i < rows.length; i += 500) {
         await tx.insert(attDutyAssignments).values(rows.slice(i, i + 500));
       }
@@ -2858,6 +3749,10 @@ export default async (req: Request) => {
         case "roster":
           requireManager(actor);
           return await handleRoster(actor, period);
+        case "roster_scope":
+          return await handleRosterScope(actor, str(url.searchParams.get("period")));
+        case "employee_postings":
+          return await handleEmployeePostings(actor, str(url.searchParams.get("employeeId")));
         case "roster_clear_preview":
           // Không lấy tháng mặc định: thiếu tháng là yêu cầu không hợp lệ.
           return await handleRosterClearPreview(actor, str(url.searchParams.get("period")));
@@ -2933,8 +3828,28 @@ export default async (req: Request) => {
         return await removeDuty(actor, body);
       case "roster_copy_previous":
         return await copyPreviousRoster(actor, body);
+      case "roster_auto_preview":
+        return await previewAutoRoster(actor, body);
       case "roster_auto":
         return await autoAssignRoster(actor, body);
+      case "workplace_save":
+        return await saveWorkplace(actor, body);
+      case "workplace_delete":
+        return await deleteWorkplace(actor, body);
+      case "duty_group_save":
+        return await saveDutyGroup(actor, body);
+      case "duty_group_delete":
+        return await deleteDutyGroup(actor, body);
+      case "duty_rule_save":
+        return await saveDutyRule(actor, body);
+      case "duty_rule_status":
+        return await setDutyRuleStatus(actor, body);
+      case "duty_rule_delete":
+        return await deleteDutyRule(actor, body);
+      case "secondment_save":
+        return await saveSecondment(actor, body);
+      case "secondment_decide":
+        return await decideSecondment(actor, body);
       case "roster_import":
         return await importRoster(actor, body);
       case "roster_rules_save":

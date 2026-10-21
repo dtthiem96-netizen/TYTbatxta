@@ -30,7 +30,19 @@
  * thu hồi quyền là có hiệu lực ngay, không chờ phiếu phiên hết hạn.
  */
 import { db } from "../../db/index.js";
-import { pushSubscriptions, stationReceivers, stationRoomAudits, stationRooms, telehealthPeers, users } from "../../db/schema.js";
+import {
+  attDutyAssignments,
+  attDutyRules,
+  attEmployeePostings,
+  attEmployees,
+  attWorkplaces,
+  pushSubscriptions,
+  stationReceivers,
+  stationRoomAudits,
+  stationRooms,
+  telehealthPeers,
+  users,
+} from "../../db/schema.js";
 import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { authErrorResponse, requireScope, type AuthContext } from "../lib/auth.js";
 import {
@@ -365,6 +377,23 @@ async function handleDelete(body: Record<string, any>, ctx: AuthContext, now: nu
     return json({
       success: false,
       error: `Không xoá được: đang là trạm dự phòng của ${referencing.map((r) => r.stationName).join(", ")}.`
+    }, 400);
+  }
+
+  // Điểm trạm còn trong hồ sơ cán bộ, lịch sử công tác, nơi làm việc, quy tắc
+  // hoặc lịch trực của phân hệ Chấm công thì không xoá (sẽ mất dấu vết phân
+  // công đã thực hiện) - chuyển sang trạng thái tạm dừng / ngừng hoạt động.
+  const [emp, post, wp, rule, duty] = await Promise.all([
+    db.select({ id: attEmployees.id }).from(attEmployees).where(eq(attEmployees.stationCode, code)).limit(1),
+    db.select({ id: attEmployeePostings.id }).from(attEmployeePostings).where(eq(attEmployeePostings.stationCode, code)).limit(1),
+    db.select({ id: attWorkplaces.id }).from(attWorkplaces).where(eq(attWorkplaces.stationCode, code)).limit(1),
+    db.select({ id: attDutyRules.id }).from(attDutyRules).where(eq(attDutyRules.stationCode, code)).limit(1),
+    db.select({ id: attDutyAssignments.id }).from(attDutyAssignments).where(eq(attDutyAssignments.stationCode, code)).limit(1),
+  ]);
+  if (emp.length || post.length || wp.length || rule.length || duty.length) {
+    return json({
+      success: false,
+      error: "Không xoá được: điểm trạm đang được dùng trong phân hệ Chấm công (hồ sơ cán bộ, nơi làm việc, quy tắc hoặc lịch trực). Hãy chuyển trạng thái sang Ngừng hoạt động.",
     }, 400);
   }
 
