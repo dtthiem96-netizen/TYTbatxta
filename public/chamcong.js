@@ -3016,6 +3016,7 @@
         '<button type="button" data-cc-act="roster-copy" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm"><i class="fas fa-copy mr-1"></i>Sao chép tháng trước</button>' +
         '<button type="button" data-cc-act="roster-auto" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"><i class="fas fa-wand-magic-sparkles mr-1"></i>Phân lịch tự động</button>' +
         '<button type="button" data-cc-act="roster-import" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm"><i class="fas fa-file-import mr-1"></i>Nhập từ Excel</button>' +
+        (data.canManageRoster && !data.locked ? '<button type="button" id="ccRosterClearBtn" data-cc-act="roster-clear" class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm disabled:opacity-60">🗑️ Xóa toàn bộ lịch trực tháng</button>' : '') +
         (data.locked ? badge('Kỳ đã khoá - không sửa được', 'bg-slate-800 text-white') : '') +
         '</div>';
 
@@ -3243,12 +3244,171 @@
       if (!r.anyEmployee) return toast('Chọn danh sách cán bộ tham gia trực.', 'warn');
       var body = { action: 'roster_auto', period: period };
       Object.keys(r).forEach(function (k) { if (k !== 'anyShift' && k !== 'anyEmployee') body[k] = r[k]; });
-      api('admin', { body: body }).then(function (data) {
-        closeModal();
+      runModalAction('Đang phân lịch...', api('admin', { body: body })).then(function (data) {
         toast(data.message, data.unfilled ? 'warn' : 'success', data.unfilled ? 6000 : null);
+        showRosterAutoResult(period, data);
         loadAdminRoster(el('ccAdminBody'), period);
       }).catch(fail);
     });
+  }
+
+  /**
+   * Khoá nút gửi của hộp thoại trong lúc chờ máy chủ, để không bấm hai lần.
+   * Lỗi thì mở lại nút và giữ hộp thoại; thành công thì đóng hộp thoại.
+   */
+  function runModalAction(busyLabel, promise) {
+    var btn = qs('[data-cc-act="modal-submit"]', el('ccModalBody'));
+    var label = btn ? btn.innerHTML : '';
+    var saved = modalSubmit;
+    modalSubmit = null;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>' + esc(busyLabel);
+    }
+    return promise.then(function (data) {
+      closeModal();
+      return data;
+    }, function (err) {
+      modalSubmit = saved;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = label;
+      }
+      throw err;
+    });
+  }
+
+  /** Kết quả phân tự động: số suất đã tạo, số cán bộ, các ngày/ca chưa bố trí được. */
+  function showRosterAutoResult(period, data) {
+    var slots = data.unfilledSlots || [];
+    var stat = function (label, value, cls) {
+      return '<div class="px-3 py-2 rounded-lg border ' + cls + '"><p class="text-[11px]">' + esc(label) +
+        '</p><p class="text-lg font-bold">' + esc(String(value)) + '</p></div>';
+    };
+    var html =
+      '<div class="grid grid-cols-3 gap-2 mb-3">' +
+      stat('Suất trực đã tạo', num(data.created, 0), 'bg-medical-50 border-medical-100 text-medical-800') +
+      stat('Cán bộ được phân', num(data.assignedEmployees, 0), 'bg-emerald-50 border-emerald-100 text-emerald-800') +
+      stat('Ngày chưa bố trí đủ', (data.unfilledDates || []).length, slots.length ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-100 text-slate-700') +
+      '</div>' +
+      (num(data.relaxedRest, 0) > 0
+        ? '<p class="text-xs text-amber-700 mb-2"><i class="fas fa-triangle-exclamation mr-1"></i>' + data.relaxedRest +
+          ' suất được phân với ngày nghỉ ngắn hơn quy định vì thiếu người (theo quy tắc "nới quy tắc khi thiếu" đã chọn).</p>'
+        : '') +
+      (slots.length
+        ? '<p class="text-xs font-semibold text-slate-600 mb-1">Các ca chưa có đủ người đáp ứng quy tắc - cần bổ sung cán bộ hoặc phân tay:</p>' +
+          '<ul class="text-xs text-slate-700 space-y-1 list-disc pl-5 max-h-56 overflow-y-auto">' +
+          slots.map(function (u) {
+            return '<li><strong>' + esc(fmtDateVN(u.date)) + '</strong> - ' + esc(u.shiftName) + ': thiếu ' + u.missing + ' người</li>';
+          }).join('') + '</ul>'
+        : '<p class="text-sm text-emerald-700"><i class="fas fa-circle-check mr-1"></i>Tất cả các ca trong tháng đã được bố trí đủ người.</p>') +
+      '<div class="pt-3 mt-3 border-t border-slate-200"><button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Đóng</button></div>';
+    openModal('Kết quả phân lịch ' + periodLabel(period), html, null);
+  }
+
+  // --- Xoá toàn bộ lịch trực tháng -----------------------------------------
+
+  /** "2026-09" → "09/2026", đúng chuỗi máy chủ yêu cầu gõ lại để xác nhận. */
+  function monthYearLabel(period) {
+    return String(period).slice(5, 7) + '/' + String(period).slice(0, 4);
+  }
+
+  function openRosterClear() {
+    // Chỉ xoá đúng tháng đang hiển thị: tháng vừa chọn mà chưa bấm "Xem lịch" thì dừng.
+    var period = S.rosterData && S.rosterData.period;
+    if (!period) return toast('Hãy xem lịch trực của tháng cần xoá trước.', 'warn');
+    if (rosterPeriod() !== period) {
+      return toast('Tháng đang chọn khác tháng đang hiển thị. Hãy bấm "Xem lịch" trước khi xoá.', 'warn');
+    }
+    var btn = el('ccRosterClearBtn');
+    if (btn) btn.disabled = true;
+    api('admin', { query: { view: 'roster_clear_preview', period: period } }).then(function (p) {
+      showRosterClearPreview(period, p);
+    }).catch(fail).then(function () {
+      if (btn) btn.disabled = false;
+    });
+  }
+
+  function showRosterClearPreview(period, p) {
+    var label = monthYearLabel(period);
+    var snapshots = (p.snapshots || []).map(function (sn) {
+      return '<li class="flex items-center justify-between gap-2 py-1 border-t border-slate-100">' +
+        '<span class="text-xs text-slate-600">' + esc(fmtTimestamp(sn.createdAt)) + ' - ' + esc(sn.createdByName || '') +
+        ' - ' + sn.rowCount + ' suất</span>' +
+        (sn.restoredAt
+          ? '<span class="text-[11px] text-slate-400">đã khôi phục</span>'
+          : '<button type="button" data-cc-act="roster-restore" data-id="' + esc(sn.id) + '" data-period="' + esc(period) +
+            '" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs"><i class="fas fa-rotate-left mr-1"></i>Khôi phục</button>') +
+        '</li>';
+    }).join('');
+    var backups = snapshots
+      ? '<div class="mt-3"><p class="text-xs font-semibold text-slate-600 mb-1">Bản sao lưu lịch đã xoá của tháng này</p><ul>' + snapshots + '</ul></div>'
+      : '';
+
+    if (p.locked) {
+      return openModal('Xóa lịch trực tháng ' + label,
+        '<p class="text-sm text-slate-700">Bảng công tháng ' + esc(label) + ' đã khoá nên không xoá được lịch trực.</p>' + backups +
+        '<div class="pt-3 mt-3 border-t border-slate-200"><button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Đóng</button></div>', null);
+    }
+    if (!p.records) {
+      return openModal('Xóa lịch trực tháng ' + label,
+        '<p class="text-sm text-slate-700">Tháng ' + esc(label) + ' không có suất trực nào có thể xoá' +
+        (p.kept ? ' (' + p.kept + ' suất đã phát sinh chấm trực được giữ nguyên)' : '') + '.</p>' + backups +
+        '<div class="pt-3 mt-3 border-t border-slate-200"><button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 rounded-lg text-sm">Đóng</button></div>', null);
+    }
+
+    var html =
+      '<p class="text-sm text-slate-700 mb-3">Xoá toàn bộ lịch trực đã phân của <strong>tháng ' + esc(label) + '</strong>. Lịch các tháng khác không bị ảnh hưởng.</p>' +
+      '<div class="grid grid-cols-2 gap-2 mb-3">' +
+      '<div class="px-3 py-2 rounded-lg bg-red-50 border border-red-100"><p class="text-[11px] text-red-700">Số ngày trực bị xoá</p><p class="text-lg font-bold text-red-800">' + p.days + '</p></div>' +
+      '<div class="px-3 py-2 rounded-lg bg-red-50 border border-red-100"><p class="text-[11px] text-red-700">Số lượt trực bị xoá</p><p class="text-lg font-bold text-red-800">' + p.duties + '</p></div>' +
+      '</div>' +
+      '<ul class="text-xs text-slate-600 space-y-1 list-disc pl-5 mb-2">' +
+      '<li>Ảnh hưởng ' + p.employees + ' cán bộ; mỗi người sẽ nhận thông báo lịch được lập lại.</li>' +
+      (p.cancelledRecords ? '<li>Dọn kèm ' + p.cancelledRecords + ' bản ghi suất trực đã huỷ trước đó.</li>' : '') +
+      (p.kept ? '<li class="text-amber-700"><strong>Giữ nguyên ' + p.kept + ' suất trực</strong> đã phát sinh chấm trực hoặc đang chờ duyệt điều chỉnh công - các suất này phải xử lý theo quy trình điều chỉnh riêng.</li>' : '') +
+      (p.pendingSwapRequests ? '<li>Huỷ ' + p.pendingSwapRequests + ' đề nghị đổi ca đang chờ duyệt của các suất bị xoá.</li>' : '') +
+      '<li>Không xoá cán bộ, bộ phận, tài khoản, vai trò, ca trực, quy tắc phân lịch, ngày nghỉ lễ và dữ liệu chấm công.</li>' +
+      '<li>Hệ thống tự lưu bản sao lưu trước khi xoá để có thể khôi phục.</li>' +
+      '</ul>' + backups +
+      '<div class="flex gap-2 pt-3 border-t border-slate-200 mt-3">' +
+      '<button type="button" data-cc-act="modal-submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold">Tiếp tục</button>' +
+      '<button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm">Huỷ</button></div>';
+    openModal('Xóa toàn bộ lịch trực tháng ' + label, html, function () { confirmRosterClear(period, p); });
+  }
+
+  /** Xác nhận lần cuối: gõ lại đúng tháng/năm mới được xoá. */
+  function confirmRosterClear(period, p) {
+    var label = monthYearLabel(period);
+    var html =
+      '<p class="text-sm text-slate-700 mb-2">Thao tác này xoá <strong>' + p.duties + ' lượt trực</strong> trong <strong>' + p.days +
+      ' ngày</strong> của tháng ' + esc(label) + '.</p>' +
+      field('Gõ "' + label + '" để xác nhận', input('confirm', '', 'text', 'autocomplete="off" placeholder="' + esc(label) + '"')) +
+      '<div class="flex gap-2 pt-3 border-t border-slate-200 mt-3">' +
+      '<button type="button" data-cc-act="modal-submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold disabled:opacity-60">Xóa lịch trực tháng ' + esc(label) + '</button>' +
+      '<button type="button" data-cc-act="modal-cancel" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm">Huỷ</button></div>';
+    openModal('Xác nhận lần cuối', html, function () {
+      var typed = String(modalValues().confirm || '').trim();
+      if (typed !== label) return toast('Hãy gõ đúng "' + label + '" để xác nhận.', 'warn');
+      runModalAction('Đang xoá...', api('admin', {
+        body: { action: 'roster_clear_month', period: period, confirm: typed, expectedDuties: p.duties, expectedKept: p.kept }
+      })).then(function (data) {
+        toast(data.message, 'success', 6000);
+        loadAdminRoster(el('ccAdminBody'), period);
+      }).catch(fail);
+    });
+  }
+
+  function restoreRosterSnapshot(period, snapshotId) {
+    confirmBox('Khôi phục lịch trực tháng ' + monthYearLabel(period) + ' từ bản sao lưu này? Chỉ thực hiện được khi tháng chưa có lịch trực mới.',
+      function () {
+        runModalAction('Đang khôi phục...', api('admin', {
+          body: { action: 'roster_restore_snapshot', period: period, snapshotId: snapshotId }
+        })).then(function (data) {
+          toast(data.message, 'success');
+          loadAdminRoster(el('ccAdminBody'), period);
+        }).catch(fail);
+      }, 'Khôi phục');
   }
 
   function openRosterImportForm() {
@@ -5436,6 +5596,8 @@
     'roster-rules': function () { openRosterRulesForm(); },
     'roster-rules-reset': function () { resetRosterRules(); },
     'roster-import': function () { openRosterImportForm(); },
+    'roster-clear': function () { openRosterClear(); },
+    'roster-restore': function (node) { restoreRosterSnapshot(node.getAttribute('data-period'), node.getAttribute('data-id')); },
 
     // Khoá kỳ
     'period-lock': function (node) { openPeriodLock(node.getAttribute('data-id'), true); },
