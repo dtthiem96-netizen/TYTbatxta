@@ -954,6 +954,211 @@
             .tyt-quick-text b { font-size: 1rem; }
         }
 
+        /* --- Trang Giới thiệu Trạm Y tế (Module 2) ---
+           Dựa trên khung của trang chủ (.tyt-hero, .tyt-sec-kicker, .tyt-quick-*).
+           Chỉ thêm phần bố cục riêng: mục lục, khối đánh số, thẻ danh sách. */
+        #gioi-thieu-container { background: #f4f6f9; padding-bottom: 3rem; }
+        #gioi-thieu-container :is(h1, h2, h3, h4) { line-height: 1.25; text-wrap: balance; }
+        #gioi-thieu-container p { line-height: 1.6; }
+        .tyt-about-hero { padding-bottom: 3.5rem; }
+        .tyt-about-crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; font-size: 0.875rem; font-weight: 700; color: #475569; }
+        .tyt-about-crumb a { color: #1976d2; text-decoration: none; }
+        .tyt-about-crumb a:hover { text-decoration: underline; }
+        .tyt-about-crumb > i { font-size: 0.625rem; color: #94a3b8; }
+        #gioi-thieu-container .tyt-about-h1 { font-size: clamp(2rem, 1.25rem + 3vw, 3rem); font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; }
+        #gioi-thieu-container .tyt-about-lead { font-size: 1.125rem; max-width: 40rem; }
+        .tyt-about-facts { display: grid; gap: 0.5rem; margin-top: 1rem; text-align: left; font-size: 0.875rem; font-weight: 700; color: #334155; }
+        .tyt-about-facts p { display: flex; gap: 0.5rem; line-height: 1.4; }
+        .tyt-about-facts i { width: 1rem; margin-top: 0.15rem; text-align: center; color: #1976d2; flex-shrink: 0; }
+        .tyt-about-facts a { color: #0b416b; font-weight: 900; }
+
+        .tyt-about-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; margin-top: -1.75rem; position: relative; z-index: 5; }
+        .tyt-about-toc { min-width: 0; }
+        @media (min-width: 1024px) { .tyt-about-layout { grid-template-columns: 16rem minmax(0, 1fr); gap: 2rem; align-items: start; } }
+        .tyt-about-toc { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 1.25rem; padding: 0.75rem; box-shadow: 0 20px 40px -24px rgba(11,65,107,0.35); }
+        @media (min-width: 1024px) { .tyt-about-toc { position: sticky; top: calc(var(--tyt-header-h) + 1rem); padding: 1rem; } }
+        .tyt-about-toc-title { display: none; font-size: 0.8125rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: #1976d2; margin: 0 0 0.5rem 0.5rem; }
+        @media (min-width: 1024px) { .tyt-about-toc-title { display: block; } }
+        .tyt-about-toc ol { display: flex; gap: 0.5rem; overflow-x: auto; list-style: none; margin: 0; padding: 0; scrollbar-width: thin; }
+        @media (min-width: 1024px) { .tyt-about-toc ol { display: grid; gap: 0.125rem; overflow: visible; } }
+        .tyt-about-toc a { display: flex; align-items: center; gap: 0.625rem; min-height: 2.75rem; padding: 0.5rem 0.875rem; border-radius: 0.75rem; white-space: nowrap; font-weight: 700; font-size: 0.9375rem; color: #0b416b; background: #f1f7fd; text-decoration: none; transition: background-color 0.15s, color 0.15s; }
+        @media (min-width: 1024px) { .tyt-about-toc a { white-space: normal; background: transparent; line-height: 1.3; } }
+        .tyt-about-toc a i { width: 1.125rem; text-align: center; color: #1976d2; flex-shrink: 0; }
+        .tyt-about-toc a:hover, .tyt-about-toc a:focus-visible { background: #eef6ff; }
+        .tyt-about-toc a.is-active { background: #0b416b; color: #ffffff; }
+        .tyt-about-toc a.is-active i { color: #fcd34d; }
+
+        .tyt-about-main { display: grid; gap: 1.5rem; min-width: 0; }
+        .tyt-about-sec { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 1.5rem; padding: 1.25rem; box-shadow: 0 1px 3px rgba(15,23,42,0.05); scroll-margin-top: calc(var(--tyt-header-h) + 1rem); }
+        @media (min-width: 768px) { .tyt-about-sec { padding: 1.75rem 2rem; } }
+        .tyt-about-sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
+        .tyt-about-sec-head > div { flex: 1 1 12rem; min-width: 0; }
+        .tyt-about-sec-head h3 { font-size: clamp(1.375rem, 1.1rem + 1vw, 1.75rem); font-weight: 900; color: #0f172a; margin-top: 0.125rem; }
+        .tyt-about-num { display: inline-flex; align-items: center; justify-content: center; width: 3rem; height: 3rem; flex-shrink: 0; border-radius: 1rem; font-size: 1.125rem; font-weight: 900; color: #ffffff; background: linear-gradient(135deg, #0b416b, #1976d2); box-shadow: 0 8px 16px -8px rgba(11,65,107,0.6); }
+        .tyt-about-subhead { display: flex; align-items: center; gap: 0.5rem; margin: 1.5rem 0 0.75rem; font-size: 1.125rem; font-weight: 900; color: #0b416b; }
+        .tyt-about-subhead i { color: #1976d2; }
+
+        .tyt-about-split { display: grid; gap: 1.25rem; }
+        @media (min-width: 768px) { .tyt-about-split { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; } }
+        .tyt-about-prose { font-size: 1.0625rem; color: #334155; }
+        .tyt-about-prose > * + * { margin-top: 0.75rem; }
+        .tyt-about-prose ul { list-style: disc; padding-left: 1.25rem; }
+        .tyt-about-prose ol { list-style: decimal; padding-left: 1.25rem; }
+        .tyt-about-pending { display: flex; gap: 0.625rem; align-items: flex-start; padding: 0.875rem 1rem; border-radius: 1rem; border: 1px dashed #93c5fd; background: #f1f7fd; color: #475569; font-size: 0.9375rem; font-weight: 600; }
+        .tyt-about-pending i { color: #1976d2; margin-top: 0.2rem; }
+        .tyt-about-infocard { padding: 1.25rem; border-radius: 1.25rem; background: linear-gradient(160deg, #0b416b, #135a91); color: #ffffff; }
+        .tyt-about-infocard h4 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.0625rem; font-weight: 900; margin-bottom: 0.75rem; }
+        .tyt-about-infocard ul { display: grid; gap: 0.75rem; list-style: none; margin: 0; padding: 0; font-size: 0.9375rem; }
+        .tyt-about-infocard li { display: flex; gap: 0.625rem; line-height: 1.45; color: #e0efff; }
+        .tyt-about-infocard li > i { width: 1rem; margin-top: 0.2rem; text-align: center; color: #fcd34d; flex-shrink: 0; }
+        .tyt-about-infocard a { color: #ffffff; font-weight: 800; }
+        .tyt-about-illus { display: none; align-items: center; justify-content: center; min-height: 10rem; border-radius: 1.25rem; font-size: 4.5rem; color: #1976d2; background: radial-gradient(14rem 8rem at 70% 20%, rgba(25,118,210,0.18), transparent 70%), #eef6ff; border: 1px solid #d6e6f5; }
+        @media (min-width: 768px) { .tyt-about-illus { display: flex; } }
+        .tyt-about-illus-green { color: #059669; background: radial-gradient(14rem 8rem at 70% 20%, rgba(5,150,105,0.18), transparent 70%), #ecfdf5; border-color: #bbf7d0; }
+
+        .tyt-about-duty-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+        @media (min-width: 768px) { .tyt-about-duty-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        .tyt-about-duty-grid { list-style: none; margin: 0; padding: 0; }
+        .tyt-about-duty-grid > li { display: flex; min-width: 0; }
+        .tyt-about-duty { display: flex; flex-direction: column; align-items: flex-start; gap: 0.625rem; width: 100%; padding: 1rem; border-radius: 1.25rem; border: 2px solid transparent; text-align: left; min-width: 0; overflow-wrap: anywhere; }
+        button.tyt-about-duty { cursor: pointer; transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
+        button.tyt-about-duty:hover, button.tyt-about-duty:focus-visible { transform: translateY(-2px); box-shadow: 0 12px 22px -12px rgba(11,65,107,0.45); outline: none; }
+        .tyt-about-duty small { font-size: 0.8125rem; font-weight: 700; opacity: 0.85; }
+        .tyt-about-duty small::after { content: " \2192"; }
+        .tyt-about-duty b { font-size: 1.0625rem; font-weight: 900; line-height: 1.3; }
+
+        .tyt-about-card-grid { display: grid; gap: 0.75rem; }
+        @media (min-width: 640px) { .tyt-about-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (min-width: 1280px) { .tyt-about-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        .tyt-about-card { display: flex; align-items: flex-start; gap: 0.875rem; width: 100%; padding: 1rem; border-radius: 1.25rem; background: #f8fbff; border: 1px solid #d6e6f5; text-align: left; color: #0b416b; min-width: 0; overflow-wrap: anywhere; }
+        button.tyt-about-card { cursor: pointer; transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
+        button.tyt-about-card:hover, button.tyt-about-card:focus-visible { transform: translateY(-2px); border-color: #1976d2; box-shadow: 0 12px 22px -12px rgba(11,65,107,0.45); outline: none; }
+        .tyt-about-card-icon { width: 2.75rem; height: 2.75rem; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 0.875rem; font-size: 1.25rem; color: #ffffff; background: #1976d2; }
+        .tyt-about-card b { display: block; font-size: 1.0625rem; font-weight: 900; line-height: 1.3; }
+        .tyt-about-card small { display: block; margin-top: 0.25rem; font-size: 0.875rem; font-weight: 600; line-height: 1.4; color: #475569; }
+        .tyt-about-card-body { min-width: 0; }
+        .tyt-about-card-meta { display: grid; gap: 0.25rem; margin-top: 0.625rem; padding-top: 0.625rem; border-top: 1px dashed #cbd5e1; font-size: 0.875rem; font-weight: 700; color: #334155; }
+        .tyt-about-card-meta a { color: #047857; font-weight: 900; text-decoration: none; }
+        .tyt-about-card-meta a:hover { text-decoration: underline; }
+        .tyt-about-card-meta em { font-style: normal; font-weight: 600; color: #64748b; }
+        .tyt-about-card .tyt-about-tag { display: inline-block; margin-top: 0.5rem; padding: 0.125rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 800; background: #fef3c7; color: #92400e; }
+
+        .tyt-about-staff-grid { display: grid; gap: 0.75rem; }
+        @media (min-width: 640px) { .tyt-about-staff-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (min-width: 1280px) { .tyt-about-staff-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        .tyt-about-staff { display: flex; flex-direction: column; gap: 0.75rem; padding: 1.125rem; border-radius: 1.25rem; border: 1px solid #e2e8f0; background: #ffffff; box-shadow: 0 1px 3px rgba(15,23,42,0.05); min-width: 0; overflow-wrap: anywhere; }
+        .tyt-about-staff-top { display: flex; align-items: center; gap: 0.875rem; }
+        .tyt-about-avatar { width: 3.25rem; height: 3.25rem; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-size: 1.375rem; color: #1976d2; background: #eef6ff; box-shadow: 0 0 0 4px #f8fbff; }
+        .tyt-about-staff b { display: block; font-size: 1.0625rem; font-weight: 900; color: #0f172a; line-height: 1.3; }
+        .tyt-about-staff small { display: block; margin-top: 0.125rem; font-size: 0.8125rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: #1976d2; }
+        .tyt-about-staff a { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; padding: 0.5rem 1rem; border-radius: 0.75rem; font-weight: 800; font-size: 0.9375rem; color: #ffffff; background: #059669; text-decoration: none; }
+        .tyt-about-staff a:hover { background: #047857; }
+
+        .tyt-about-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+        @media (min-width: 768px) { .tyt-about-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; } }
+        @media (min-width: 1280px) { .tyt-about-gallery { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+        .tyt-about-photo { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 1rem; background: #e2e8f0; cursor: pointer; border: 0; padding: 0; }
+        .tyt-about-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        .tyt-about-photo:hover img, .tyt-about-photo:focus-visible img { transform: scale(1.05); }
+        .tyt-about-photo span { position: absolute; inset: auto 0 0 0; padding: 1.5rem 0.75rem 0.625rem; text-align: left; font-size: 0.8125rem; font-weight: 800; line-height: 1.3; color: #ffffff; background: linear-gradient(180deg, transparent, rgba(11,65,107,0.92)); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .tyt-about-empty { grid-column: 1 / -1; }
+
+        .tyt-about-dl { display: grid; gap: 0.5rem; margin: 0; }
+        .tyt-about-dl > div { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 0.75rem; padding: 0.625rem 0.875rem; border-radius: 0.875rem; background: #f8fbff; border: 1px solid #e2ecf6; }
+        @media (max-width: 479px) { .tyt-about-dl > div { grid-template-columns: minmax(0, 1fr); gap: 0.125rem; } }
+        .tyt-about-dl dt { font-size: 0.875rem; font-weight: 800; color: #1976d2; }
+        .tyt-about-dl dd { margin: 0; font-weight: 800; color: #0f172a; }
+        .tyt-about-photo-slot { margin: 0; }
+        .tyt-about-photo-frame { display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 1.25rem; background: #eef6ff; border: 1px dashed #93c5fd; }
+        .tyt-about-photo-frame img { width: 100%; height: 100%; object-fit: cover; }
+        .tyt-about-photo-empty { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1rem; text-align: center; font-size: 0.9375rem; font-weight: 700; color: #475569; }
+        .tyt-about-photo-empty i { font-size: 2.5rem; color: #93c5fd; }
+        .tyt-about-muted { color: #64748b; font-weight: 600; font-style: italic; }
+        .tyt-about-links { margin-top: 1rem; }
+        .tyt-about-links button, .tyt-about-org-link { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; padding: 0.375rem 0.25rem; font-weight: 800; color: #1976d2; background: none; border: 0; cursor: pointer; text-align: left; }
+        .tyt-about-links button:hover, .tyt-about-org-link:hover { color: #0b416b; text-decoration: underline; }
+
+        .tyt-about-org { display: grid; gap: 1rem; }
+        @media (min-width: 900px) { .tyt-about-org { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        .tyt-about-org-col { display: flex; flex-direction: column; gap: 0.625rem; padding: 1.125rem; border-radius: 1.25rem; background: #f8fbff; border: 1px solid #d6e6f5; border-top: 4px solid #1976d2; min-width: 0; overflow-wrap: anywhere; }
+        .tyt-about-org-col h4 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.0625rem; font-weight: 900; color: #0b416b; }
+        .tyt-about-org-col h4 i { color: #1976d2; }
+        .tyt-about-org-col ul { display: grid; gap: 0.375rem; list-style: none; margin: 0; padding: 0; }
+        .tyt-about-org-col li { display: flex; gap: 0.5rem; align-items: flex-start; font-weight: 700; color: #1e293b; line-height: 1.4; }
+        .tyt-about-org-col li::before { content: ""; width: 0.5rem; height: 0.5rem; margin-top: 0.45rem; flex-shrink: 0; border-radius: 999px; background: #1976d2; }
+        .tyt-about-org-col .tyt-about-org-link { margin-top: auto; align-self: flex-start; }
+
+        .tyt-about-staff-groups { display: grid; gap: 0.75rem; }
+        @media (min-width: 768px) { .tyt-about-staff-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        .tyt-about-staff-group { padding: 1rem 1.125rem; border-radius: 1.25rem; border: 1px solid #e2e8f0; background: #ffffff; min-width: 0; overflow-wrap: anywhere; }
+        .tyt-about-staff-group h5 { display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; font-weight: 900; color: #0b416b; margin-bottom: 0.5rem; }
+        .tyt-about-staff-group h5 i { color: #1976d2; }
+        .tyt-about-staff-group ul { display: grid; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
+        .tyt-about-staff-group li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+        .tyt-about-staff-group li b { display: block; font-weight: 900; color: #0f172a; }
+        .tyt-about-staff-group li small { display: block; font-size: 0.8125rem; font-weight: 700; color: #1976d2; }
+        .tyt-about-staff-group li a { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.75rem; padding: 0.375rem 0.875rem; border-radius: 0.75rem; background: #059669; color: #ffffff; font-weight: 800; font-size: 0.875rem; text-decoration: none; }
+        .tyt-about-staff-group .tyt-about-muted { font-size: 0.9375rem; }
+        .tyt-about-staff .tyt-about-staff-unit { margin-top: 0.125rem; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: #475569; }
+
+        .tyt-about-station-grid { display: grid; gap: 1rem; }
+        @media (min-width: 768px) { .tyt-about-station-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (min-width: 1280px) { .tyt-about-station-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        .tyt-about-station { display: flex; flex-direction: column; overflow: hidden; border-radius: 1.25rem; border: 1px solid #d6e6f5; background: #ffffff; box-shadow: 0 1px 3px rgba(15,23,42,0.05); min-width: 0; overflow-wrap: anywhere; }
+        .tyt-about-station-top { display: flex; align-items: flex-start; gap: 0.875rem; padding: 1rem 1.125rem; background: linear-gradient(135deg, #0b416b, #1565a6); color: #ffffff; }
+        .tyt-about-station-top .tyt-about-card-icon { background: rgba(255,255,255,0.16); }
+        .tyt-about-station-top b { display: block; font-size: 1.0625rem; font-weight: 900; line-height: 1.3; }
+        .tyt-about-station-top small { display: block; margin-top: 0.25rem; font-size: 0.8125rem; font-weight: 700; color: #cfe3f7; }
+        .tyt-about-station dl { display: grid; gap: 0.625rem; margin: 0; padding: 1rem 1.125rem 1.125rem; }
+        .tyt-about-station dl > div { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); gap: 0.5rem; }
+        .tyt-about-station dt { grid-column: 2; font-size: 0.75rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: #64748b; }
+        .tyt-about-station dl > div > i { grid-row: 1 / span 2; margin-top: 0.2rem; color: #1976d2; text-align: center; }
+        .tyt-about-station dd { grid-column: 2; margin: 0; font-weight: 700; color: #1e293b; line-height: 1.4; }
+        .tyt-about-station dd a { color: #047857; font-weight: 900; }
+        .tyt-about-station dd ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+        .tyt-about-station dd ul a { color: #0b416b; font-weight: 700; }
+
+        .tyt-about-unit-grid, .tyt-about-facility-grid { display: grid; gap: 1rem; }
+        @media (min-width: 768px) { .tyt-about-unit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .tyt-about-facility-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        .tyt-about-unit, .tyt-about-facility { display: flex; flex-direction: column; gap: 0.375rem; padding: 1.125rem; border-radius: 1.25rem; background: #f8fbff; border: 1px solid #d6e6f5; min-width: 0; overflow-wrap: anywhere; }
+        .tyt-about-unit-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.375rem; }
+        .tyt-about-unit-head h4, .tyt-about-facility h4 { font-size: 1.0625rem; font-weight: 900; color: #0b416b; line-height: 1.3; }
+        .tyt-about-facility h4 { display: flex; align-items: center; gap: 0.5rem; }
+        .tyt-about-facility h4 i { color: #1976d2; }
+        .tyt-about-unit-label { margin-top: 0.375rem; font-size: 0.75rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #1976d2; }
+        .tyt-about-unit-text { font-size: 0.9375rem; font-weight: 600; color: #334155; }
+        .tyt-about-unit .tyt-about-org-link { margin-top: auto; align-self: flex-start; }
+
+        .tyt-about-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+        .tyt-about-chips button { min-height: 2.75rem; padding: 0.375rem 1rem; border-radius: 999px; border: 2px solid #d6e6f5; background: #ffffff; color: #0b416b; font-weight: 800; font-size: 0.875rem; cursor: pointer; }
+        .tyt-about-chips button:hover { border-color: #1976d2; }
+        .tyt-about-chips button[aria-pressed="true"] { background: #0b416b; border-color: #0b416b; color: #ffffff; }
+        .tyt-about-chips button:disabled { opacity: 0.45; cursor: not-allowed; }
+        .tyt-about-chips button span { margin-left: 0.25rem; opacity: 0.75; }
+        .tyt-about-fig { margin: 0; display: flex; flex-direction: column; min-width: 0; }
+        .tyt-about-fig figcaption { margin-top: 0.375rem; font-size: 0.8125rem; font-weight: 700; line-height: 1.35; color: #334155; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .tyt-about-fig figcaption a { color: #0b416b; text-decoration: none; }
+        .tyt-about-fig figcaption a:hover { text-decoration: underline; }
+        .tyt-about-photo span.tyt-about-photo-tag { inset: 0.5rem auto auto 0.5rem; padding: 0.125rem 0.5rem; border-radius: 999px; background: rgba(11,65,107,0.88); font-size: 0.6875rem; -webkit-line-clamp: 1; }
+
+        .tyt-about-callbig { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; padding: 0.875rem 1rem; border-radius: 1rem; background: #ffffff; color: #0b416b !important; text-decoration: none; font-size: 1.5rem; font-weight: 900; letter-spacing: 0.02em; }
+        .tyt-about-callbig i { font-size: 1.375rem; color: #059669; }
+        .tyt-about-callbig small { display: block; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #475569; }
+        .tyt-about-quicklinks { display: grid; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
+        @media (min-width: 480px) { .tyt-about-quicklinks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        .tyt-about-quicklinks button { display: flex; align-items: center; gap: 0.625rem; width: 100%; min-height: 3rem; padding: 0.5rem 0.875rem; border-radius: 0.875rem; border: 1px solid #d6e6f5; background: #f8fbff; color: #0b416b; font-weight: 800; text-align: left; cursor: pointer; }
+        .tyt-about-quicklinks button i { width: 1.25rem; text-align: center; color: #1976d2; }
+        .tyt-about-quicklinks button:hover, .tyt-about-quicklinks button:focus-visible { background: #eef6ff; border-color: #1976d2; }
+        .tyt-about-subhead.mt-0 { margin-top: 0; }
+        #gioi-thieu-container :is(a, button):focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+
+        body.high-contrast :is(#gioi-thieu-container, .tyt-about-toc, .tyt-about-toc a, .tyt-about-sec, .tyt-about-card, .tyt-about-staff, .tyt-about-staff-group, .tyt-about-infocard, .tyt-about-pending, .tyt-about-duty, .tyt-about-dl > div, .tyt-about-photo-frame, .tyt-about-org-col, .tyt-about-station, .tyt-about-station-top, .tyt-about-unit, .tyt-about-facility, .tyt-about-chips button, .tyt-about-quicklinks button, .tyt-about-callbig) {
+            background: #000000 !important;
+            border-color: #ffffff !important;
+            color: #ffffff !important;
+        }
+        body.high-contrast #gioi-thieu-container :is(dt, dd, small, b, h4, h5, .tyt-about-muted, .tyt-about-unit-text) { color: #ffffff !important; }
+        body.high-contrast #gioi-thieu-container a { color: #ffff00 !important; }
     </style>
 </head>
 <body class="bg-[#f4f6f9] text-gray-800 antialiased relative">
@@ -1042,6 +1247,9 @@
                         <li class="tyt-mainnav-item" data-nav="gioi-thieu">
                             <button type="button" class="tyt-mainnav-link" aria-expanded="false" aria-controls="tyt-dd-gioi-thieu" onclick="window.tytToggleNav(this)">Giới thiệu Trạm Y tế <i class="fas fa-chevron-down tyt-mainnav-caret" aria-hidden="true"></i></button>
                             <div id="tyt-dd-gioi-thieu" class="tyt-mainnav-dd">
+                                <a href="#gioi-thieu" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.tytShowAbout(); })"><i class="fas fa-hospital" aria-hidden="true"></i><span><b>Giới thiệu chung</b><small>Chức năng, nhiệm vụ, cơ cấu tổ chức</small></span></a>
+                                <a href="#gt-can-bo" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.tytShowAbout(&#x27;gt-can-bo&#x27;); })"><i class="fas fa-user-nurse" aria-hidden="true"></i><span><b>Đội ngũ cán bộ</b><small>Cán bộ toàn Trạm và theo điểm trạm</small></span></a>
+                                <a href="#gt-diem-tram" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.tytShowAbout(&#x27;gt-diem-tram&#x27;); })"><i class="fas fa-map-location-dot" aria-hidden="true"></i><span><b>Các điểm trạm</b><small>Mạng lưới điểm trạm của Trạm Y tế</small></span></a>
                                 <a href="#khoa-phong" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.switchPage(&#x27;dept&#x27;); })"><i class="fas fa-sitemap" aria-hidden="true"></i><span><b>Khoa &amp; phòng chức năng</b><small>Cơ cấu khoa phòng và chức năng của Trạm</small></span></a>
                                 <a href="#danh-ba" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.openModal(&#x27;modal-danhba&#x27;); })"><i class="fas fa-address-book" aria-hidden="true"></i><span><b>Danh bạ cán bộ y tế</b><small>Số điện thoại cán bộ trực ban</small></span></a>
                                 <a href="#lien-he" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.tytGoContact(); })"><i class="fas fa-location-dot" aria-hidden="true"></i><span><b>Địa chỉ &amp; liên hệ</b><small>Địa chỉ, điện thoại, bản đồ đường đi</small></span></a>
@@ -1126,6 +1334,9 @@
                 <details class="tyt-mnav-group">
                     <summary><i class="fas fa-hospital" aria-hidden="true"></i><span>Giới thiệu Trạm Y tế</span><i class="fas fa-chevron-down tyt-mnav-caret" aria-hidden="true"></i></summary>
                     <div class="tyt-mnav-items">
+                        <a href="#gioi-thieu" onclick="return window.tytNav(event, function(){ window.tytShowAbout(); })"><i class="fas fa-hospital" aria-hidden="true"></i> Giới thiệu chung</a>
+                        <a href="#gt-can-bo" onclick="return window.tytNav(event, function(){ window.tytShowAbout(&#x27;gt-can-bo&#x27;); })"><i class="fas fa-user-nurse" aria-hidden="true"></i> Đội ngũ cán bộ</a>
+                        <a href="#gt-diem-tram" onclick="return window.tytNav(event, function(){ window.tytShowAbout(&#x27;gt-diem-tram&#x27;); })"><i class="fas fa-map-location-dot" aria-hidden="true"></i> Các điểm trạm</a>
                         <a href="#khoa-phong" onclick="return window.tytNav(event, function(){ window.switchPage(&#x27;dept&#x27;); })"><i class="fas fa-sitemap" aria-hidden="true"></i> Khoa &amp; phòng chức năng</a>
                         <a href="#danh-ba" onclick="return window.tytNav(event, function(){ window.openModal(&#x27;modal-danhba&#x27;); })"><i class="fas fa-address-book" aria-hidden="true"></i> Danh bạ cán bộ y tế</a>
                         <a href="#lien-he" onclick="return window.tytNav(event, function(){ window.tytGoContact(); })"><i class="fas fa-location-dot" aria-hidden="true"></i> Địa chỉ &amp; liên hệ</a>
@@ -1543,6 +1754,310 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- ================= TRANG GIỚI THIỆU TRẠM Y TẾ (Module 2) =================
+             Dùng chung khung chữ, màu và thẻ với trang chủ mới.
+
+             NGUYÊN TẮC DỮ LIỆU - không có thông tin tự đặt:
+             - Thông tin đơn vị, liên hệ: thông tin chính thức Trạm đã cung cấp.
+             - Đoạn chữ mang data-cms-id: sửa bằng Chế độ chỉnh sửa trực quan, lưu
+               vào siteConfigs như các khối khác của website.
+             - Khoa/phòng: tên và mô tả 3 khoa phòng trên trang Dịch vụ & Khoa phòng
+               (siteConfigs dept-*). KHÔNG dùng danh mục dịch vụ.
+             - Cán bộ: chỉ dòng Danh bạ (contacts) là một NGƯỜI có chức danh. Dòng
+               mang tên địa điểm là số trực ban, không phải cán bộ.
+             - Điểm trạm: danh mục điểm trạm (/api/station-rooms); số trực ban lấy
+               từ dòng Danh bạ cùng địa điểm.
+             - Hình ảnh: ảnh đính kèm các bản tin hoạt động (news), bỏ qua thông
+               báo, cảnh báo và tin sinh hoạt chi bộ.
+             Thiếu dữ liệu thì hiện "Thông tin đang được cập nhật". -->
+        <div id="gioi-thieu-container" class="hidden animate-[fadeIn_0.3s_ease-in-out]">
+            <section class="tyt-below-header tyt-hero tyt-about-hero" aria-labelledby="tyt-about-title">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                    <nav class="tyt-about-crumb" aria-label="Đường dẫn">
+                        <a href="/" onclick="window.switchPage('home'); return false;"><i class="fas fa-house" aria-hidden="true"></i> Trang chủ</a>
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                        <span aria-current="page">Giới thiệu Trạm Y tế</span>
+                    </nav>
+                    <div class="tyt-hero-grid">
+                        <div class="tyt-hero-text">
+                            <div class="tyt-hero-badge"><i class="fas fa-hospital"></i> Giới thiệu Trạm Y tế</div>
+                            <h2 id="tyt-about-title" data-cms-id="about-hero-title" class="tyt-about-h1 text-gray-900">Trạm Y tế <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#0b416b] to-[#1976d2]">Bát Xát</span></h2>
+                            <p data-cms-id="about-hero-desc" class="tyt-about-lead text-gray-700 font-medium">Đơn vị y tế tuyến cơ sở trực thuộc Ủy ban nhân dân xã Bát Xát, thực hiện công tác chăm sóc, bảo vệ và nâng cao sức khỏe nhân dân trên địa bàn.</p>
+                            <div class="tyt-hero-cta">
+                                <a href="tel:02143909011" class="tyt-btn tyt-btn-primary px-6 py-3 text-base"><i class="fas fa-phone-alt"></i> Gọi Trạm: 02143909011</a>
+                                <button type="button" data-about-go="gt-lien-he" class="tyt-btn tyt-btn-outline px-6 py-3 text-base"><i class="fas fa-location-dot"></i> Địa chỉ &amp; liên hệ</button>
+                            </div>
+                        </div>
+                        <div class="tyt-hero-emblem">
+                            <div class="tyt-hero-emblem-card">
+                                <img src="logo.png" alt="Logo Trạm Y tế Bát Xát" class="tyt-hero-logo" width="136" height="136" onerror="this.style.display='none'">
+                                <p class="tyt-hero-emblem-name">Trạm Y tế<br>Bát Xát</p>
+                                <div class="tyt-about-facts">
+                                    <p><i class="fas fa-map-marker-alt" aria-hidden="true"></i><span>Thôn Bát Xát 4, xã Bát Xát, tỉnh Lào Cai</span></p>
+                                    <p><i class="fas fa-phone-alt" aria-hidden="true"></i><span><a href="tel:02143909011">02143909011</a></span></p>
+                                    <p><i class="fas fa-envelope" aria-hidden="true"></i><span><a href="mailto:tytbatxat@laocai.gov.vn" class="break-all">tytbatxat@laocai.gov.vn</a></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="tyt-about-layout">
+                    <!-- Mục lục: thanh trượt ngang trên điện thoại, cột ghim bên trái trên máy tính. -->
+                    <nav class="tyt-about-toc" aria-label="Mục lục trang Giới thiệu">
+                        <p class="tyt-about-toc-title">Nội dung trang</p>
+                        <ol>
+                            <li><a href="#gt-chung" data-about-go="gt-chung"><i class="fas fa-circle-info" aria-hidden="true"></i><span>Giới thiệu chung</span></a></li>
+                            <li><a href="#gt-chuc-nang" data-about-go="gt-chuc-nang"><i class="fas fa-list-check" aria-hidden="true"></i><span>Chức năng, nhiệm vụ</span></a></li>
+                            <li><a href="#gt-co-cau" data-about-go="gt-co-cau"><i class="fas fa-sitemap" aria-hidden="true"></i><span>Cơ cấu tổ chức</span></a></li>
+                            <li><a href="#gt-can-bo" data-about-go="gt-can-bo"><i class="fas fa-user-nurse" aria-hidden="true"></i><span>Đội ngũ cán bộ, nhân viên</span></a></li>
+                            <li><a href="#gt-diem-tram" data-about-go="gt-diem-tram"><i class="fas fa-map-location-dot" aria-hidden="true"></i><span>Hệ thống các điểm trạm</span></a></li>
+                            <li><a href="#gt-khoa-phong" data-about-go="gt-khoa-phong"><i class="fas fa-hospital-user" aria-hidden="true"></i><span>Phòng khám &amp; bộ phận chuyên môn</span></a></li>
+                            <li><a href="#gt-co-so" data-about-go="gt-co-so"><i class="fas fa-building-circle-check" aria-hidden="true"></i><span>Cơ sở vật chất, trang thiết bị</span></a></li>
+                            <li><a href="#gt-hinh-anh" data-about-go="gt-hinh-anh"><i class="fas fa-images" aria-hidden="true"></i><span>Hình ảnh hoạt động</span></a></li>
+                            <li><a href="#gt-lien-he" data-about-go="gt-lien-he"><i class="fas fa-address-card" aria-hidden="true"></i><span>Thông tin liên hệ</span></a></li>
+                        </ol>
+                    </nav>
+
+                    <div class="tyt-about-main">
+                        <!-- 1. GIỚI THIỆU CHUNG -->
+                        <section id="gt-chung" class="tyt-about-sec" aria-labelledby="gt-chung-h">
+                            <header class="tyt-about-sec-head">
+                                <span class="tyt-about-num" aria-hidden="true">01</span>
+                                <div>
+                                    <p class="tyt-sec-kicker">Giới thiệu chung</p>
+                                    <h3 id="gt-chung-h">Về Trạm Y tế Bát Xát</h3>
+                                </div>
+                            </header>
+                            <div class="tyt-about-split">
+                                <div>
+                                    <dl class="tyt-about-dl">
+                                        <div><dt>Tên đơn vị</dt><dd>Trạm Y tế Bát Xát</dd></div>
+                                        <div><dt>Địa chỉ</dt><dd>Thôn Bát Xát 4, xã Bát Xát, tỉnh Lào Cai</dd></div>
+                                        <div><dt>Đơn vị chủ quản</dt><dd>Ủy ban nhân dân xã Bát Xát</dd></div>
+                                    </dl>
+                                    <div data-cms-id="about-general-body" class="tyt-about-prose mt-4">
+                                        <p>Trạm Y tế Bát Xát là đơn vị y tế tuyến cơ sở, nơi người dân trên địa bàn xã tiếp cận đầu tiên với hệ thống y tế. Trạm thực hiện công tác chăm sóc, bảo vệ và nâng cao sức khỏe nhân dân: chăm sóc sức khỏe ban đầu, tiêm chủng mở rộng, khám chữa bệnh bảo hiểm y tế và phòng chống dịch bệnh.</p>
+                                        <p class="tyt-about-pending"><i class="fas fa-pen-to-square" aria-hidden="true"></i> Lịch sử hình thành và quá trình phát triển của Trạm: Thông tin đang được cập nhật.</p>
+                                    </div>
+                                </div>
+                                <figure class="tyt-about-photo-slot">
+                                    <div data-cms-id="about-general-photo" class="tyt-about-photo-frame">
+                                        <span class="tyt-about-photo-empty"><i class="fas fa-image" aria-hidden="true"></i> Hình ảnh trụ sở Trạm: Thông tin đang được cập nhật</span>
+                                    </div>
+                                </figure>
+                            </div>
+                        </section>
+
+                        <!-- 2. CHỨC NĂNG, NHIỆM VỤ - các nhóm hoạt động do Trạm cung cấp. Mỗi
+                             nhóm chỉ trỏ tới chức năng ĐÃ CÓ trên website (nếu có), không
+                             kèm mô tả kỹ thuật/dịch vụ tự đặt. -->
+                        <section id="gt-chuc-nang" class="tyt-about-sec" aria-labelledby="gt-chuc-nang-h">
+                            <header class="tyt-about-sec-head">
+                                <span class="tyt-about-num" aria-hidden="true">02</span>
+                                <div>
+                                    <p class="tyt-sec-kicker">Chức năng, nhiệm vụ</p>
+                                    <h3 id="gt-chuc-nang-h">Các nhóm hoạt động của Trạm</h3>
+                                </div>
+                            </header>
+                            <ul class="tyt-about-duty-grid" role="list">
+                                <li><button type="button" class="tyt-about-duty tyt-quick-blue" onclick="window.openModal('modal-datlich')"><span class="tyt-quick-icon"><i class="fas fa-user-doctor"></i></span><b>Khám bệnh, chữa bệnh ban đầu</b><small>Đăng ký khám bệnh</small></button></li>
+                                <li><button type="button" class="tyt-about-duty tyt-quick-amber" onclick="window.openSupportModal('Báo cáo &amp; Xử lý Dịch bệnh truyền nhiễm')"><span class="tyt-quick-icon"><i class="fas fa-shield-virus"></i></span><b>Y tế dự phòng và phòng chống dịch bệnh</b><small>Báo cáo dịch bệnh</small></button></li>
+                                <li><button type="button" class="tyt-about-duty tyt-quick-green" onclick="window.openModal('modal-tiemchung')"><span class="tyt-quick-icon"><i class="fas fa-syringe"></i></span><b>Tiêm chủng và quản lý tiêm chủng</b><small>Đăng ký tiêm chủng</small></button></li>
+                                <li><button type="button" class="tyt-about-duty tyt-quick-violet" onclick="window.openSupportModal('Chăm sóc Sức khỏe Sinh sản')"><span class="tyt-quick-icon"><i class="fas fa-baby-carriage"></i></span><b>Chăm sóc sức khỏe bà mẹ, trẻ em</b><small>Tư vấn sức khỏe sinh sản</small></button></li>
+                                <li><button type="button" class="tyt-about-duty tyt-quick-blue" onclick="window.openSupportModal('Dân số và Kế hoạch hóa')"><span class="tyt-quick-icon"><i class="fas fa-users"></i></span><b>Dân số và phát triển</b><small>Tư vấn dân số</small></button></li>
+                                <li><div class="tyt-about-duty tyt-quick-amber"><span class="tyt-quick-icon"><i class="fas fa-heart-pulse"></i></span><b>Quản lý bệnh không lây nhiễm</b></div></li>
+                                <li><button type="button" class="tyt-about-duty tyt-quick-green" onclick="window.openSupportModal('Tư vấn An toàn Thực phẩm')"><span class="tyt-quick-icon"><i class="fas fa-utensils"></i></span><b>An toàn thực phẩm</b><small>Tư vấn an toàn thực phẩm</small></button></li>
+                                <li><button type="button" class="tyt-about-duty tyt-quick-violet" onclick="window.openModal('modal-video')"><span class="tyt-quick-icon"><i class="fas fa-bullhorn"></i></span><b>Truyền thông giáo dục sức khỏe</b><small>Video y khoa</small></button></li>
+                                <li><div class="tyt-about-duty tyt-quick-blue"><span class="tyt-quick-icon"><i class="fas fa-people-roof"></i></span><b>Quản lý sức khỏe cộng đồng</b></div></li>
+                            </ul>
+                            <h4 class="tyt-about-subhead"><i class="fas fa-clipboard-list" aria-hidden="true"></i> Các nhiệm vụ chuyên môn khác</h4>
+                            <div data-cms-id="about-functions-body" class="tyt-about-prose">
+                                <p class="tyt-about-pending"><i class="fas fa-pen-to-square" aria-hidden="true"></i> Các nhiệm vụ chuyên môn khác theo chức năng thực tế của Trạm: Thông tin đang được cập nhật.</p>
+                            </div>
+                            <!-- Danh mục "services" của CMS (name, person): đây là dịch vụ/lĩnh
+                                 vực công việc kèm người phụ trách, KHÔNG phải khoa phòng và
+                                 KHÔNG phải danh sách cán bộ. -->
+                            <h4 class="tyt-about-subhead"><i class="fas fa-hand-holding-medical" aria-hidden="true"></i> Dịch vụ y tế &amp; lĩnh vực phụ trách</h4>
+                            <div id="about-service-list" class="tyt-about-card-grid"></div>
+                            <p class="tyt-about-links"><button type="button" onclick="window.switchPage('dept')"><i class="fas fa-arrow-right" aria-hidden="true"></i> Xem tất cả dịch vụ y tế</button></p>
+                        </section>
+
+                        <!-- 3. CƠ CẤU TỔ CHỨC - chỉ liệt kê các thành phần đã có dữ liệu, KHÔNG
+                             vẽ quan hệ cấp trên/cấp dưới khi chưa có sơ đồ chính thức. -->
+                        <section id="gt-co-cau" class="tyt-about-sec" aria-labelledby="gt-co-cau-h">
+                            <header class="tyt-about-sec-head">
+                                <span class="tyt-about-num" aria-hidden="true">03</span>
+                                <div>
+                                    <p class="tyt-sec-kicker">Cơ cấu tổ chức</p>
+                                    <h3 id="gt-co-cau-h">Bộ máy tổ chức của Trạm</h3>
+                                </div>
+                            </header>
+                            <div class="tyt-about-org">
+                                <div class="tyt-about-org-col">
+                                    <h4><i class="fas fa-user-tie" aria-hidden="true"></i> Ban lãnh đạo</h4>
+                                    <div id="about-org-leaders"></div>
+                                    <button type="button" data-about-go="gt-can-bo" class="tyt-about-org-link">Xem đội ngũ cán bộ <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                                </div>
+                                <div class="tyt-about-org-col">
+                                    <h4><i class="fas fa-hospital-user" aria-hidden="true"></i> Khoa, phòng, bộ phận chuyên môn</h4>
+                                    <ul id="about-org-units"></ul>
+                                    <button type="button" data-about-go="gt-khoa-phong" class="tyt-about-org-link">Xem chức năng từng bộ phận <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                                </div>
+                                <div class="tyt-about-org-col">
+                                    <h4><i class="fas fa-map-location-dot" aria-hidden="true"></i> Hệ thống điểm trạm</h4>
+                                    <ul id="about-org-stations"></ul>
+                                    <button type="button" data-about-go="gt-diem-tram" class="tyt-about-org-link">Xem từng điểm trạm <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
+                            <h4 class="tyt-about-subhead"><i class="fas fa-sitemap" aria-hidden="true"></i> Sơ đồ tổ chức</h4>
+                            <div data-cms-id="about-structure-body" class="tyt-about-prose">
+                                <p class="tyt-about-pending"><i class="fas fa-pen-to-square" aria-hidden="true"></i> Sơ đồ cơ cấu tổ chức chính thức của Trạm: Thông tin đang được cập nhật.</p>
+                            </div>
+                        </section>
+
+                        <!-- 4. ĐỘI NGŨ CÁN BỘ, NHÂN VIÊN - hai cấp: toàn Trạm / theo điểm trạm. -->
+                        <section id="gt-can-bo" class="tyt-about-sec" aria-labelledby="gt-can-bo-h">
+                            <header class="tyt-about-sec-head">
+                                <span class="tyt-about-num" aria-hidden="true">04</span>
+                                <div>
+                                    <p class="tyt-sec-kicker">Đội ngũ cán bộ, nhân viên</p>
+                                    <h3 id="gt-can-bo-h">Cán bộ y tế của Trạm</h3>
+                                </div>
+                            </header>
+                            <h4 class="tyt-about-subhead"><i class="fas fa-user-tie" aria-hidden="true"></i> Ban lãnh đạo và cán bộ phụ trách chuyên môn toàn Trạm</h4>
+                            <div id="about-staff-list" class="tyt-about-staff-grid"></div>
+                            <h4 class="tyt-about-subhead"><i class="fas fa-house-medical" aria-hidden="true"></i> Đội ngũ cán bộ theo từng điểm trạm</h4>
+                            <div id="about-staff-stations" class="tyt-about-staff-groups"></div>
+                        </section>
+
+                        <!-- 5. HỆ THỐNG CÁC ĐIỂM TRẠM -->
+                        <section id="gt-diem-tram" class="tyt-about-sec" aria-labelledby="gt-diem-tram-h">
+                            <header class="tyt-about-sec-head">
+                                <span class="tyt-about-num" aria-hidden="true">05</span>
+                                <div>
+                                    <p class="tyt-sec-kicker">Hệ thống các điểm trạm</p>
+                                    <h3 id="gt-diem-tram-h">Mạng lưới điểm trạm</h3>
+                                </div>
+                            </header>
+                            <div id="about-station-list" class="tyt-about-station-grid"></div>
+                        </section>
+
+                        <!-- 6. PHÒNG KHÁM & BỘ PHẬN CHUYÊN MÔN - viết tĩnh để mỗi bộ phận có
+                             khối "Nhiệm vụ" sửa được bằng Chế độ chỉnh sửa trực quan. Tên và
+                             chức năng chép từ đúng khối CMS của trang Dịch vụ & Khoa phòng. -->
+                        <section id="gt-khoa-phong" class="tyt-about-sec" aria-labelledby="gt-khoa-phong-h">
+                            <header class="tyt-about-sec-head">
+                                <span class="tyt-about-num" aria-hidden="true">06</span>
+                                <div>
+                                    <p class="tyt-sec-kicker">Phòng khám &amp; bộ phận chuyên môn</p>
+                                    <h3 id="gt-khoa-phong-h">Các khoa, phòng của Trạm</h3>
+                                </div>
+                            </header>
+                            <div class="tyt-about-unit-grid">
+                                <article class="tyt-about-unit" data-about-unit="dept-khambenh">
+                                    <div class="tyt-about-unit-head"><span class="tyt-about-card-icon" style="background:#059669"><i class="fas fa-stethoscope"></i></span><h4 data-about-unit-title>Thông tin đang được cập nhật</h4></div>
+                                    <p class="tyt-about-unit-label">Chức năng</p>
+                                    <p data-about-unit-desc class="tyt-about-unit-text">Thông tin đang được cập nhật</p>
+                                    <p class="tyt-about-unit-label">Nhiệm vụ</p>
+                                    <div data-cms-id="about-unit-khambenh-tasks" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div>
+                                    <button type="button" class="tyt-about-org-link" onclick="window.tytShowTab('kham-benh')">Dịch vụ của bộ phận <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                                </article>
+                                <article class="tyt-about-unit" data-about-unit="dept-hanhchinh">
+                                    <div class="tyt-about-unit-head"><span class="tyt-about-card-icon" style="background:#1976d2"><i class="fas fa-building"></i></span><h4 data-about-unit-title>Thông tin đang được cập nhật</h4></div>
+                                    <p class="tyt-about-unit-label">Chức năng</p>
+                                    <p data-about-unit-desc class="tyt-about-unit-text">Thông tin đang được cập nhật</p>
+                                    <p class="tyt-about-unit-label">Nhiệm vụ</p>
+                                    <div data-cms-id="about-unit-hanhchinh-tasks" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div>
+                                    <button type="button" class="tyt-about-org-link" onclick="window.tytShowTab('hanh-chinh')">Dịch vụ của bộ phận <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                                </article>
+                                <article class="tyt-about-unit" data-about-unit="dept-phongbenh">
+                                    <div class="tyt-about-unit-head"><span class="tyt-about-card-icon" style="background:#ea580c"><i class="fas fa-shield-virus"></i></span><h4 data-about-unit-title>Thông tin đang được cập nhật</h4></div>
+                                    <p class="tyt-about-unit-label">Chức năng</p>
+                                    <p data-about-unit-desc class="tyt-about-unit-text">Thông tin đang được cập nhật</p>
+                                    <p class="tyt-about-unit-label">Nhiệm vụ</p>
+                                    <div data-cms-id="about-unit-phongbenh-tasks" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div>
+                                    <button type="button" class="tyt-about-org-link" onclick="window.tytShowTab('phong-benh')">Dịch vụ của bộ phận <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+                                </article>
+                            </div>
+                        </section>
+
+                        <!-- 7. CƠ SỞ VẬT CHẤT, TRANG THIẾT BỊ - không dùng ảnh minh họa của
+                             cơ sở khác; chỉ hiện ảnh/nội dung Trạm tự nhập trên CMS. -->
+                        <section id="gt-co-so" class="tyt-about-sec" aria-labelledby="gt-co-so-h">
+                            <header class="tyt-about-sec-head">
+                                <span class="tyt-about-num" aria-hidden="true">07</span>
+                                <div>
+                                    <p class="tyt-sec-kicker">Cơ sở vật chất, trang thiết bị</p>
+                                    <h3 id="gt-co-so-h">Cơ sở vật chất của Trạm</h3>
+                                </div>
+                            </header>
+                            <div class="tyt-about-facility-grid">
+                                <article class="tyt-about-facility"><h4><i class="fas fa-user-doctor" aria-hidden="true"></i> Khu vực khám bệnh</h4><div data-cms-id="about-facility-kham" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div></article>
+                                <article class="tyt-about-facility"><h4><i class="fas fa-door-open" aria-hidden="true"></i> Phòng chức năng</h4><div data-cms-id="about-facility-phong" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div></article>
+                                <article class="tyt-about-facility"><h4><i class="fas fa-kit-medical" aria-hidden="true"></i> Trang thiết bị y tế</h4><div data-cms-id="about-facility-thietbi" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div></article>
+                                <article class="tyt-about-facility"><h4><i class="fas fa-syringe" aria-hidden="true"></i> Khu vực tiêm chủng và khu vực chuyên môn khác</h4><div data-cms-id="about-facility-tiem" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div></article>
+                            </div>
+                            <h4 class="tyt-about-subhead"><i class="fas fa-camera" aria-hidden="true"></i> Hình ảnh thực tế của Trạm</h4>
+                            <div data-cms-id="about-facility-body" class="tyt-about-prose">
+                                <p class="tyt-about-pending"><i class="fas fa-pen-to-square" aria-hidden="true"></i> Hình ảnh cơ sở vật chất, trang thiết bị của Trạm: Thông tin đang được cập nhật.</p>
+                            </div>
+                        </section>
+
+                        <!-- 8. HÌNH ẢNH HOẠT ĐỘNG - ảnh của bản tin hoạt động, lọc theo nhóm. -->
+                        <section id="gt-hinh-anh" class="tyt-about-sec" aria-labelledby="gt-hinh-anh-h">
+                            <header class="tyt-about-sec-head">
+                                <span class="tyt-about-num" aria-hidden="true">08</span>
+                                <div>
+                                    <p class="tyt-sec-kicker">Hình ảnh hoạt động</p>
+                                    <h3 id="gt-hinh-anh-h">Hoạt động của Trạm</h3>
+                                </div>
+                                <button type="button" onclick="window.switchPage('news')" class="tyt-more-btn"><span>Tin tức và hoạt động</span> <i class="fas fa-arrow-right"></i></button>
+                            </header>
+                            <div id="about-gallery-filter" class="tyt-about-chips" role="group" aria-label="Lọc hình ảnh theo nhóm hoạt động"></div>
+                            <div id="about-gallery" class="tyt-about-gallery"></div>
+                        </section>
+
+                        <!-- 9. THÔNG TIN LIÊN HỆ - thông tin chính thức, số 02143909011 ưu tiên. -->
+                        <section id="gt-lien-he" class="tyt-about-sec" aria-labelledby="gt-lien-he-h">
+                            <header class="tyt-about-sec-head">
+                                <span class="tyt-about-num" aria-hidden="true">09</span>
+                                <div>
+                                    <p class="tyt-sec-kicker">Thông tin liên hệ</p>
+                                    <h3 id="gt-lien-he-h">Liên hệ Trạm Y tế Bát Xát</h3>
+                                </div>
+                            </header>
+                            <div class="tyt-about-split">
+                                <div class="tyt-about-infocard">
+                                    <h4><i class="fas fa-hospital" aria-hidden="true"></i> Trạm Y tế Bát Xát</h4>
+                                    <a href="tel:02143909011" class="tyt-about-callbig"><i class="fas fa-phone-alt" aria-hidden="true"></i><span><small>Điện thoại chính thức</small>02143909011</span></a>
+                                    <ul>
+                                        <li><i class="fas fa-map-marker-alt" aria-hidden="true"></i><span>Thôn Bát Xát 4, xã Bát Xát, tỉnh Lào Cai</span></li>
+                                        <li><i class="fas fa-envelope" aria-hidden="true"></i><span><a href="mailto:tytbatxat@laocai.gov.vn" class="break-all">tytbatxat@laocai.gov.vn</a></span></li>
+                                        <li><i class="fas fa-globe" aria-hidden="true"></i><span><a href="https://tytbatxat.org.vn/">https://tytbatxat.org.vn/</a></span></li>
+                                        <li><i class="far fa-clock" aria-hidden="true"></i><span>Sáng 07:30 - 12:00 · Chiều 13:30 - 17:00<br><b>Trực cấp cứu 24/24h (kể cả Lễ, Tết)</b></span></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="tyt-about-subhead mt-0"><i class="fas fa-link" aria-hidden="true"></i> Liên kết nhanh</h4>
+                                    <ul class="tyt-about-quicklinks">
+                                        <li><button type="button" onclick="window.switchPage('news')"><i class="fas fa-newspaper" aria-hidden="true"></i> Tin tức và hoạt động</button></li>
+                                        <li><button type="button" onclick="window.switchPage('dept')"><i class="fas fa-briefcase-medical" aria-hidden="true"></i> Dịch vụ y tế</button></li>
+                                        <li><button type="button" onclick="window.openModal('modal-datlich')"><i class="fas fa-calendar-check" aria-hidden="true"></i> Đăng ký khám bệnh</button></li>
+                                        <li><button type="button" onclick="window.openModal('modal-gopy')"><i class="fas fa-comment-medical" aria-hidden="true"></i> Hòm thư góp ý, phản ánh</button></li>
+                                        <li><button type="button" onclick="window.openModal('modal-danhba')"><i class="fas fa-address-book" aria-hidden="true"></i> Danh bạ liên hệ</button></li>
+                                        <li><button type="button" onclick="window.switchPage('home')"><i class="fas fa-house" aria-hidden="true"></i> Về trang chủ</button></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -4824,6 +5339,8 @@
                     if (document.getElementById(id)) window.renderStationOptions(id, null, id === 'quick-call-station');
                 });
                 if (window.updateQuickCallStationHint) window.updateQuickCallStationHint();
+                const aboutPage = document.getElementById('gioi-thieu-container');
+                if (aboutPage && !aboutPage.classList.contains('hidden') && window.tytRenderAbout) window.tytRenderAbout();
                 return true;
             } catch (err) {
                 // Mất mạng thì giữ nguyên danh mục dự phòng, không làm hỏng màn hình.
@@ -5095,6 +5612,28 @@
             const home = document.getElementById('trang-chu-container');
             const dept = document.getElementById('khoa-phong-container');
             const newsPage = document.getElementById('tin-tuc-container');
+            const about = document.getElementById('gioi-thieu-container');
+            if (about) about.classList.toggle('hidden', page !== 'about');
+            if (page === 'about') {
+                if (home) home.classList.add('hidden');
+                if (dept) dept.classList.add('hidden');
+                if (newsPage) newsPage.classList.add('hidden');
+                if (window.tytRenderAbout) window.tytRenderAbout();
+            }
+            /* Tiêu đề & mô tả trang theo trang đang xem; rời trang Giới thiệu thì bỏ
+               #gioi-thieu / #gt-... khỏi địa chỉ để liên kết chia sẻ không sai trang. */
+            const metaDesc = document.querySelector('meta[name="description"]');
+            if (!window.__tytBaseTitle) { window.__tytBaseTitle = document.title; window.__tytBaseDesc = metaDesc ? metaDesc.getAttribute('content') : ''; }
+            if (page === 'about') {
+                document.title = 'Giới thiệu Trạm Y tế Bát Xát - Chức năng, cơ cấu tổ chức, điểm trạm';
+                if (metaDesc) metaDesc.setAttribute('content', 'Giới thiệu Trạm Y tế Bát Xát, xã Bát Xát, tỉnh Lào Cai: chức năng nhiệm vụ, cơ cấu tổ chức, đội ngũ cán bộ, hệ thống điểm trạm, hình ảnh hoạt động và thông tin liên hệ.');
+            } else {
+                document.title = window.__tytBaseTitle;
+                if (metaDesc) metaDesc.setAttribute('content', window.__tytBaseDesc);
+                if (/^#(gioi-thieu|gt-)/.test(window.location.hash || '')) {
+                    try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
+                }
+            }
             const navHome = document.getElementById('nav-home');
             const navDept = document.getElementById('nav-dept');
             const navNews = document.getElementById('nav-news');
@@ -5174,6 +5713,286 @@
         };
         /* Chân trang (liên hệ) có mặt ở mọi trang nên chỉ cần cuộn tới. */
         window.tytGoContact = function() { tytScrollTo(document.getElementById('lien-he')); };
+        /* MODULE 2 - TRANG GIỚI THIỆU TRẠM Y TẾ
+           Không có dữ liệu riêng: mọi danh sách đọc lại đúng nguồn đang dùng ở nơi
+           khác, lọc theo BẢN CHẤT nội dung:
+             - contacts (Danh bạ): dòng mang tên địa điểm = số trực ban của điểm
+               trạm; dòng là một người có chức danh = cán bộ.
+             - services: dịch vụ / lĩnh vực phụ trách - không dùng làm khoa phòng
+               hay danh sách cán bộ.
+             - siteConfigs dept-*: tên, chức năng 3 khoa phòng.
+             - TELEHEALTH_STATIONS (/api/station-rooms): danh mục điểm trạm.
+             - news: ảnh của bản tin HOẠT ĐỘNG (bỏ thông báo, cảnh báo, chi bộ).
+           Dữ liệu dự phòng viết sẵn trong mã (dùng khi mất mạng) KHÔNG được hiển
+           thị ở trang này: chưa tải được CMS thì báo "đang được cập nhật".
+           Dữ liệu từ CMS được thoát ký tự trước khi chèn vào trang. */
+        const TYT_ABOUT_PENDING = 'Thông tin đang được cập nhật';
+        function tytAboutEsc(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+        /* Khoá so khớp không dấu, chữ thường. */
+        function tytAboutKey(v) {
+            return String(v || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd')
+                .replace(/\(.*?\)/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+        }
+        /* Khoá địa điểm: bỏ tiền tố "Điểm trạm" / "Điểm phòng khám" để
+           "Điểm trạm Bản Vược" (danh bạ) khớp "Điểm phòng khám Bản Vược" (danh mục trạm). */
+        function tytAboutPlaceKey(v) {
+            return tytAboutKey(v).replace(/^(diem tram|diem phong kham)\s+/, '');
+        }
+        function tytAboutHas(text, key) {
+            return !!key && (' ' + tytAboutKey(text) + ' ').indexOf(' ' + key + ' ') !== -1;
+        }
+        function tytAboutEmpty(text) {
+            return `<p class="tyt-about-pending tyt-about-empty"><i class="fas fa-pen-to-square" aria-hidden="true"></i> ${text || TYT_ABOUT_PENDING}</p>`;
+        }
+        function tytAboutTel(phone) { return String(phone || '').replace(/[^0-9+]/g, ''); }
+        function tytAboutImages(n) {
+            if (!n || !n.image) return [];
+            const raw = String(n.image);
+            if (raw.charAt(0) === '[') {
+                try { const list = JSON.parse(raw); return Array.isArray(list) ? list.filter(Boolean) : []; } catch (e) { return []; }
+            }
+            return [raw];
+        }
+        /* Chỉ dữ liệu đã tải từ CMS - không bao giờ là bộ dự phòng trong mã. */
+        function tytAboutCms(list) {
+            return window.__tytCmsLoaded === true && Array.isArray(list) ? list : [];
+        }
+        const TYT_ABOUT_LEADER = /\b(tram truong|truong tram|pho tram truong|giam doc|pho giam doc|lanh dao)\b/;
+        const TYT_ABOUT_NOT_ACTIVITY = /^(thong bao|canh bao|bo y te thong tin|chi bo)\b/;
+        const TYT_ABOUT_CATS = [
+            { id: 'kham', label: 'Khám chữa bệnh', re: /\bkham (benh|chua benh|sang loc|suc khoe)\b/ },
+            { id: 'tiem', label: 'Tiêm chủng', re: /\b(tiem chung|tiem phong|vac xin|vaccine)\b/ },
+            { id: 'truyen-thong', label: 'Truyền thông giáo dục sức khỏe', re: /\b(truyen thong|tuyen truyen|giao duc suc khoe|huong dan)\b/ },
+            { id: 'phong-dich', label: 'Phòng chống dịch bệnh', re: /\b(phong chong dich|phong dich|dich benh|sot xuat huyet)\b/ },
+            { id: 'cong-dong', label: 'Chăm sóc sức khỏe cộng đồng', re: /\b(cong dong|nang cao suc khoe|ve sinh yeu nuoc|an toan thuc pham)\b/ },
+            { id: 'diem-tram', label: 'Hoạt động tại các điểm trạm', re: null }
+        ];
+        let tytAboutGalleryFilter = 'all';
+
+        /** Phân loại Danh bạ: số trực ban theo địa điểm / cán bộ toàn Trạm / cán bộ theo điểm trạm. */
+        function tytAboutClassify(stations) {
+            const stKeys = stations.map(st => ({ st: st, key: tytAboutPlaceKey(st.name) })).filter(x => x.key)
+                .sort((a, b) => b.key.length - a.key.length);
+            const out = { hotlines: {}, staffByStation: {}, leaders: [], general: [] };
+            tytAboutCms(typeof contactsData !== 'undefined' ? contactsData : null).forEach(c => {
+                const name = String(c.name || '').trim();
+                const role = String(c.role || '').trim();
+                if (!name) return;
+                const nameKey = tytAboutPlaceKey(name);
+                const place = stKeys.find(x => x.key === nameKey);
+                if (place || /^(diem tram|diem phong kham|tram y te)\b/.test(tytAboutKey(name))) {
+                    if (place) (out.hotlines[place.st.code] = out.hotlines[place.st.code] || []).push(c);
+                    return;
+                }
+                if (!role) return; // cán bộ phải có chức danh
+                if (TYT_ABOUT_LEADER.test(tytAboutKey(role))) { out.leaders.push(c); return; }
+                const at = stKeys.find(x => tytAboutHas(role, x.key));
+                if (at) (out.staffByStation[at.st.code] = out.staffByStation[at.st.code] || []).push(c);
+                else out.general.push(c);
+            });
+            return out;
+        }
+
+        function tytAboutStaffCard(c) {
+            const tel = tytAboutTel(c.phone);
+            return `<div class="tyt-about-staff">
+                <div class="tyt-about-staff-top">
+                    <span class="tyt-about-avatar" aria-hidden="true"><i class="fas fa-user-doctor"></i></span>
+                    <span><b>${tytAboutEsc(c.name)}</b><small>${tytAboutEsc(c.role)}</small></span>
+                </div>
+                ${tel ? `<a href="tel:${tel}"><i class="fas fa-phone-alt" aria-hidden="true"></i> Gọi ${tytAboutEsc(c.phone)}</a>` : ''}
+            </div>`;
+        }
+
+        function tytAboutRenderGallery(stations) {
+            const gal = document.getElementById('about-gallery');
+            const bar = document.getElementById('about-gallery-filter');
+            if (!gal || !bar) return;
+            const satellite = stations.map(st => tytAboutPlaceKey(st.name)).filter(k => k && k.split(' ').length <= 3);
+            const posts = [];
+            tytAboutCms(typeof newsData !== 'undefined' ? newsData : null).slice()
+                .sort((a, b) => (b.ts || 0) - (a.ts || 0)).forEach(n => {
+                    const imgs = tytAboutImages(n);
+                    if (!imgs.length || TYT_ABOUT_NOT_ACTIVITY.test(tytAboutKey(n.title))) return;
+                    const text = tytAboutKey((n.title || '') + ' ' + String(n.description || '').slice(0, 400));
+                    const cats = TYT_ABOUT_CATS.filter(c => c.re ? c.re.test(text)
+                        : (/\bdiem tram\b/.test(text) || satellite.some(k => tytAboutHas(text, k)))).map(c => c.id);
+                    posts.push({ n: n, imgs: imgs.slice(0, 4), cats: cats });
+                });
+            if (tytAboutGalleryFilter !== 'all' && !posts.some(p => p.cats.indexOf(tytAboutGalleryFilter) !== -1)) tytAboutGalleryFilter = 'all';
+            const count = id => posts.filter(p => id === 'all' || p.cats.indexOf(id) !== -1).length;
+            bar.innerHTML = posts.length ? [{ id: 'all', label: 'Tất cả' }].concat(TYT_ABOUT_CATS).map(c => {
+                const k = count(c.id);
+                return `<button type="button" data-about-cat="${c.id}" aria-pressed="${c.id === tytAboutGalleryFilter}" ${k ? '' : 'disabled'}>${c.label}<span>(${k})</span></button>`;
+            }).join('') : '';
+            bar.querySelectorAll('[data-about-cat]').forEach(b => b.addEventListener('click', function() {
+                tytAboutGalleryFilter = b.getAttribute('data-about-cat');
+                tytAboutRenderGallery(stations);
+            }));
+            const items = [];
+            posts.filter(p => tytAboutGalleryFilter === 'all' || p.cats.indexOf(tytAboutGalleryFilter) !== -1)
+                .forEach(p => p.imgs.forEach(src => { if (items.length < 16) items.push({ src: src, n: p.n, cat: TYT_ABOUT_CATS.find(c => c.id === p.cats[0]) }); }));
+            gal.innerHTML = items.length ? items.map((it, i) => `
+                <figure class="tyt-about-fig">
+                    <button type="button" class="tyt-about-photo" data-about-photo="${i}" aria-label="Xem ảnh lớn: ${tytAboutEsc(it.n.title)}">
+                        <img src="${tytAboutEsc(it.src)}" alt="${tytAboutEsc(it.n.title)}" loading="lazy" decoding="async" width="400" height="300">
+                        ${it.cat ? `<span class="tyt-about-photo-tag">${it.cat.label}</span>` : ''}
+                    </button>
+                    <figcaption><a href="/?news=${encodeURIComponent(it.n.id)}">${tytAboutEsc(it.n.title)}</a></figcaption>
+                </figure>`).join('') : tytAboutEmpty();
+            gal.querySelectorAll('[data-about-photo]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const it = items[Number(btn.getAttribute('data-about-photo'))];
+                    if (it && typeof window.viewImageFull === 'function') window.viewImageFull(it.src);
+                });
+            });
+        }
+
+        window.tytRenderAbout = function() {
+            const stations = Array.isArray(window.TELEHEALTH_STATIONS) ? window.TELEHEALTH_STATIONS : [];
+            const people = tytAboutClassify(stations);
+
+            /* Khoa phòng: đúng tên + mô tả của 3 khối CMS trên trang Dịch vụ & Khoa phòng. */
+            const deptText = id => { const el = document.querySelector(`#khoa-phong-container [data-cms-id="${id}"]`); return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; };
+            const unitNames = [];
+            document.querySelectorAll('#gioi-thieu-container [data-about-unit]').forEach(card => {
+                const base = card.getAttribute('data-about-unit');
+                const title = deptText(base + '-title');
+                const desc = deptText(base + '-desc');
+                const t = card.querySelector('[data-about-unit-title]');
+                const d = card.querySelector('[data-about-unit-desc]');
+                if (t) t.textContent = title || TYT_ABOUT_PENDING;
+                if (d) { d.textContent = desc || TYT_ABOUT_PENDING; d.classList.toggle('tyt-about-muted', !desc); }
+                if (title) unitNames.push(title);
+            });
+
+            /* Cơ cấu tổ chức: liệt kê thành phần, không vẽ quan hệ cấp bậc. */
+            const orgLeaders = document.getElementById('about-org-leaders');
+            if (orgLeaders) orgLeaders.innerHTML = people.leaders.length
+                ? `<ul>${people.leaders.map(c => `<li><span><b>${tytAboutEsc(c.name)}</b><br><small>${tytAboutEsc(c.role)}</small></span></li>`).join('')}</ul>`
+                : `<p class="tyt-about-muted">${TYT_ABOUT_PENDING}</p>`;
+            const orgUnits = document.getElementById('about-org-units');
+            if (orgUnits) orgUnits.innerHTML = unitNames.length ? unitNames.map(n => `<li>${tytAboutEsc(n)}</li>`).join('') : `<li class="tyt-about-muted">${TYT_ABOUT_PENDING}</li>`;
+            const orgSt = document.getElementById('about-org-stations');
+            if (orgSt) orgSt.innerHTML = stations.length ? stations.map(st => `<li>${tytAboutEsc(st.name)}</li>`).join('') : `<li class="tyt-about-muted">${TYT_ABOUT_PENDING}</li>`;
+
+            /* Dịch vụ y tế & lĩnh vực phụ trách - gộp các dòng trùng tên. */
+            const svcBox = document.getElementById('about-service-list');
+            if (svcBox) {
+                const groups = [];
+                tytAboutCms(typeof serviceManagers !== 'undefined' ? serviceManagers : null).slice()
+                    .sort((a, b) => (a.ts || 0) - (b.ts || 0)).forEach(sv => {
+                        const name = String(sv.name || '').trim();
+                        if (!name) return;
+                        const key = tytAboutKey(name);
+                        let g = groups.find(x => x.key === key);
+                        if (!g) { g = { key: key, name: name, people: [] }; groups.push(g); }
+                        const person = String(sv.person || '').trim();
+                        if (person && g.people.indexOf(person) === -1) g.people.push(person);
+                    });
+                svcBox.innerHTML = groups.length ? groups.map(g => `
+                    <div class="tyt-about-card">
+                        <span class="tyt-about-card-icon"><i class="fas fa-hand-holding-medical"></i></span>
+                        <span class="tyt-about-card-body"><b>${tytAboutEsc(g.name)}</b>${g.people.length ? `<small>Người phụ trách: ${g.people.map(tytAboutEsc).join('; ')}</small>` : ''}</span>
+                    </div>`).join('') : tytAboutEmpty();
+            }
+
+            /* Đội ngũ - cấp A: ban lãnh đạo + cán bộ không gắn điểm trạm cụ thể. */
+            const staffBox = document.getElementById('about-staff-list');
+            if (staffBox) {
+                const all = people.leaders.concat(people.general);
+                staffBox.innerHTML = all.length ? all.map(tytAboutStaffCard).join('') : tytAboutEmpty();
+            }
+            /* Đội ngũ - cấp B: theo từng điểm trạm. */
+            const groupBox = document.getElementById('about-staff-stations');
+            if (groupBox) {
+                groupBox.innerHTML = stations.length ? stations.map(st => {
+                    const list = people.staffByStation[st.code] || [];
+                    return `<div class="tyt-about-staff-group">
+                        <h5><i class="fas fa-house-medical" aria-hidden="true"></i> ${tytAboutEsc(st.name)}</h5>
+                        ${list.length ? `<ul>${list.map(c => {
+                            const tel = tytAboutTel(c.phone);
+                            return `<li><span><b>${tytAboutEsc(c.name)}</b><small>${tytAboutEsc(c.role)}</small></span>${tel ? `<a href="tel:${tel}"><i class="fas fa-phone-alt" aria-hidden="true"></i> ${tytAboutEsc(c.phone)}</a>` : ''}</li>`;
+                        }).join('')}</ul>` : `<p class="tyt-about-muted">${TYT_ABOUT_PENDING}</p>`}
+                    </div>`;
+                }).join('') : tytAboutEmpty();
+            }
+
+            /* Hệ thống điểm trạm: thẻ riêng cho từng địa điểm. */
+            const stBox = document.getElementById('about-station-list');
+            if (stBox) {
+                const news = tytAboutCms(typeof newsData !== 'undefined' ? newsData : null);
+                const pending = `<span class="tyt-about-muted">${TYT_ABOUT_PENDING}</span>`;
+                stBox.innerHTML = stations.length ? stations.map(st => {
+                    const key = tytAboutPlaceKey(st.name);
+                    const lines = (people.hotlines[st.code] || []).map(c => {
+                        const tel = tytAboutTel(c.phone);
+                        return tel ? `<li>${tytAboutEsc(String(c.role || '').trim() || 'Liên hệ')}: <a href="tel:${tel}">${tytAboutEsc(c.phone)}</a></li>` : '';
+                    }).filter(Boolean);
+                    const staff = people.staffByStation[st.code] || [];
+                    /* Tin hoạt động nhắc đúng tên địa bàn (chỉ với điểm trạm có tên
+                       địa danh ngắn - tên trạm trung tâm trùng gần như mọi bản tin). */
+                    const local = key && key.split(' ').length <= 3
+                        ? news.filter(n => !TYT_ABOUT_NOT_ACTIVITY.test(tytAboutKey(n.title)) && tytAboutHas((n.title || '') + ' ' + (n.description || ''), key)).slice(0, 3)
+                        : [];
+                    return `<article class="tyt-about-station">
+                        <div class="tyt-about-station-top">
+                            <span class="tyt-about-card-icon"><i class="fas fa-house-medical"></i></span>
+                            <span><b>${tytAboutEsc(st.name)}</b>${st.note ? `<small>${tytAboutEsc(st.note)}</small>` : ''}${st.status === 'PAUSED' ? '<span class="tyt-about-tag">Tạm ngưng</span>' : ''}</span>
+                        </div>
+                        <dl>
+                            <div><i class="fas fa-map-marker-alt" aria-hidden="true"></i><dt>Địa chỉ</dt><dd>${pending}</dd></div>
+                            <div><i class="fas fa-user-nurse" aria-hidden="true"></i><dt>Cán bộ phụ trách</dt><dd>${staff.length ? staff.map(c => tytAboutEsc(c.name)).join(', ') : pending}</dd></div>
+                            <div><i class="fas fa-phone-alt" aria-hidden="true"></i><dt>Liên hệ</dt><dd>${lines.length ? `<ul>${lines.join('')}</ul>` : pending}</dd></div>
+                            <div><i class="fas fa-notes-medical" aria-hidden="true"></i><dt>Hoạt động tại địa bàn</dt><dd>${local.length ? `<ul>${local.map(n => `<li><a href="/?news=${encodeURIComponent(n.id)}">${tytAboutEsc(n.title)}</a></li>`).join('')}</ul>` : pending}</dd></div>
+                        </dl>
+                    </article>`;
+                }).join('') : tytAboutEmpty();
+            }
+
+            tytAboutRenderGallery(stations);
+        };
+
+        /* Mở trang Giới thiệu, có thể cuộn thẳng tới một mục (vd 'gt-diem-tram').
+           Địa chỉ trên thanh trình duyệt đổi theo (#gioi-thieu / #gt-...) để chia
+           sẻ được đúng mục. */
+        window.tytShowAbout = function(sectionId) {
+            window.switchPage('about');
+            try { history.replaceState(null, '', '#' + (sectionId || 'gioi-thieu')); } catch (e) {}
+            if (sectionId) requestAnimationFrame(function() { tytScrollTo(document.getElementById(sectionId)); });
+        };
+        (function aboutNav() {
+            const init = function() {
+                const page = document.getElementById('gioi-thieu-container');
+                if (!page) return;
+                page.addEventListener('click', function(e) {
+                    const a = e.target.closest('[data-about-go]');
+                    if (!a) return;
+                    e.preventDefault();
+                    const id = a.getAttribute('data-about-go');
+                    try { history.replaceState(null, '', '#' + id); } catch (err) {}
+                    tytScrollTo(document.getElementById(id));
+                });
+                if (!('IntersectionObserver' in window)) return;
+                const links = Array.from(page.querySelectorAll('.tyt-about-toc [data-about-go]'));
+                const io = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(en) {
+                        if (!en.isIntersecting) return;
+                        links.forEach(function(l) {
+                            const on = l.getAttribute('data-about-go') === en.target.id;
+                            l.classList.toggle('is-active', on);
+                            if (on) l.setAttribute('aria-current', 'true'); else l.removeAttribute('aria-current');
+                        });
+                    });
+                }, { rootMargin: '-35% 0px -55% 0px' });
+                links.forEach(function(l) { const s = document.getElementById(l.getAttribute('data-about-go')); if (s) io.observe(s); });
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+        })();
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.tyt-mainnav-item')) window.tytCloseNav();
         });
@@ -5186,7 +6005,7 @@
         /* Gạch chân vàng cho nhóm menu ứng với trang đang xem. */
         (function markCurrentPage() {
             const original = window.switchPage;
-            const groups = { home: '#nav-home', news: '[data-nav="tin-tuc-hoat-dong"] > .tyt-mainnav-link', dept: '[data-nav="dich-vu-menu"] > .tyt-mainnav-link' };
+            const groups = { home: '#nav-home', about: '[data-nav="gioi-thieu"] > .tyt-mainnav-link', news: '[data-nav="tin-tuc-hoat-dong"] > .tyt-mainnav-link', dept: '[data-nav="dich-vu-menu"] > .tyt-mainnav-link' };
             const mark = function(page) {
                 document.querySelectorAll('.tyt-mainnav .is-current').forEach(function(el) { el.classList.remove('is-current'); el.removeAttribute('aria-current'); });
                 const el = document.querySelector(groups[page] || '');
@@ -12986,6 +13805,8 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                     if (data.videos) videosData = data.videos;
                     if (data.appointments) appointmentsData = data.appointments;
                     if (data.prescriptionSigners) prescriptionSignersData = data.prescriptionSigners;
+                    // Trang Giới thiệu chỉ hiển thị dữ liệu đã tải từ CMS, không dùng bộ dự phòng.
+                    window.__tytCmsLoaded = true;
                     
                     if (data.siteConfigs) {
                         data.siteConfigs.forEach(conf => {
@@ -13010,6 +13831,12 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             }
             window.renderAll();
             window.applyStationClinicName();
+
+            // Liên kết chia sẻ #gioi-thieu (hoặc #gt-<mục>) mở thẳng trang Giới thiệu.
+            try {
+                const aboutHash = (window.location.hash || '').slice(1);
+                if (aboutHash === 'gioi-thieu' || /^gt-[a-z-]+$/.test(aboutHash)) window.tytShowAbout(aboutHash === 'gioi-thieu' ? null : aboutHash);
+            } catch (e) { console.warn('Không mở được trang Giới thiệu:', e); }
 
             // Đổ danh mục điểm phòng khám dùng chung vào mọi ô chọn liên quan.
             try {
