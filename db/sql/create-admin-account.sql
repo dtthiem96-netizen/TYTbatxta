@@ -8,7 +8,7 @@
 --  Mật khẩu    : nạp dưới dạng CHUỖI BĂM bcrypt, cost factor = 10.
 --                Cơ sở dữ liệu không bao giờ giữ mật khẩu dạng rõ, kể cả trong
 --                tệp script này. Chuỗi băm bên dưới được sinh bằng:
---                    node auth/tools/generate-hash.mjs 'Admin123@'
+--                    node auth/tools/generate-hash.mjs '<mật khẩu>'
 --                và đối chiếu lại được bằng bcrypt.compare().
 --
 --  Cách chạy:
@@ -42,7 +42,7 @@ VALUES (
   'admin-tytbatxat',
   'Quản trị viên CMS Trạm Y tế Bát Xát',
   'admin',
-  -- bcrypt('Admin123@', 10)
+  -- bcrypt(<mật khẩu mặc định ĐÃ BỊ CÔNG KHAI - luôn bị từ chối khi đăng nhập>, 10)
   '$2b$10$1323U8CdUjVB7/v72SnQC.1yuch8Nvrp.9NQ9Wgw0vq17WkN3gYLC',
   'tytbatxat@laocai.gov.vn',
   'TYT-BATXAT-01',

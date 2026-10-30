@@ -185,7 +185,7 @@ function stubBrowser(win, note) {
       // /api/cms trả các bộ sưu tập ở cấp cao nhất (không bọc trong "data").
       return jsonRes(200, {
         success: true,
-        users: CMS_USERS,
+        users: [], // máy chủ không trả danh sách tài khoản cho lượt ẩn danh
         siteConfigs: [{ id: 'station-clinic-name', value: CLINIC_NAME }]
       });
     }
@@ -338,28 +338,15 @@ async function runPage(pageFile, route) {
   if (isHidden('login-modal')) note('rào chắn đăng nhập', 'chưa đăng nhập mà không hiện #login-modal');
   if (!isHidden('modal-station-panel')) note('rào chắn đăng nhập', '#modal-station-panel mở khi chưa đăng nhập');
 
-  // Danh sách tài khoản chỉ gợi ý người đã được CMS Quản trị cấp quyền.
+  /* Ô tài khoản là ô nhập tên đăng nhập, không còn là danh sách chọn dựng từ
+     /api/cms: trang không được liệt kê tài khoản nội bộ cho người chưa đăng nhập. */
   const accountSelect = $('input-cms-account');
   if (!accountSelect) note('không có phần tử', '#input-cms-account');
-  else {
-    const values = Array.from(accountSelect.options).map((o) => o.value);
-    if (!values.includes(GRANTED_USER.username)) {
-      note('danh sách tài khoản', 'tài khoản đã được cấp quyền không có trong #input-cms-account');
-    }
-    if (values.includes(DENIED_USER.username)) {
-      note('danh sách tài khoản', 'tài khoản chưa được cấp quyền vẫn hiện trong #input-cms-account');
-    }
+  else if (accountSelect.tagName === 'SELECT') {
+    note('lộ tài khoản', '#input-cms-account vẫn là danh sách chọn tài khoản');
   }
 
   const tryLogin = async (username, password, label) => {
-    if (accountSelect && !Array.from(accountSelect.options).some((o) => o.value === username)) {
-      // Thêm tay để mô phỏng người dùng can thiệp danh sách phía trình duyệt:
-      // máy chủ vẫn phải là nơi quyết định cuối cùng.
-      const forged = win.document.createElement('option');
-      forged.value = username;
-      forged.textContent = username;
-      accountSelect.appendChild(forged);
-    }
     if (accountSelect) accountSelect.value = username;
     setVal('input-station-password', password);
     try {

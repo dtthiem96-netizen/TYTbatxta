@@ -471,69 +471,18 @@ async function loadCmsData() {
   }
 }
 
-// Populate CMS Accounts Dropdown in Login Modal
+/* Cổng đăng nhập Bảng điều khiển / Module Bác sĩ tuyến trên.
+   Trước đây ô tài khoản là danh sách chọn dựng từ data.users của /api/cms lượt
+   ẩn danh - tức là bất kỳ ai mở trang cũng đọc được toàn bộ tên đăng nhập, vai
+   trò và mã điểm trạm. Máy chủ nay chỉ trả danh sách tài khoản cho Quản trị
+   viên, nên cán bộ tự gõ tên đăng nhập; quyền module và điểm trạm vẫn do
+   /api/station-auth quyết định khi xác thực. Hàm giữ tên cũ vì còn được gọi từ
+   window. */
 function populateCmsAccountsDropdown() {
-  const selectEl = document.getElementById('input-cms-account');
-  if (!selectEl) return;
-
-  /* Chỉ liệt kê tài khoản đã được CMS Quản trị cấp quyền vào Bảng điều khiển trạm.
-     Cột stationAccess mới thêm nên tài khoản cũ có thể còn trống - khi đó suy ra từ
-     vai trò, đúng như quy tắc mà /api/station-auth áp dụng ở phía máy chủ. Máy chủ
-     vẫn là nơi quyết định cuối cùng, danh sách này chỉ để tránh chọn nhầm. */
-  const hasStationAccess = (u) => {
-    if (!u) return false;
-    if ((u.status || 'ACTIVE').toUpperCase() === 'DISABLED') return false;
-    /* Bảng điều khiển đã gộp khu Quản trị điểm trạm vào, nên Quản trị viên luôn
-       có lối vào kể cả khi không được cấp quyền trực khám - họ vào để cấu hình
-       điểm trạm, tài khoản nhận cuộc gọi và định tuyến. Cùng quy tắc với nhánh
-       scope "control" ở /api/station-auth. */
-    if (/Admin|Quản trị|Quan tri/i.test(u.role || '')) return true;
-    if (u.stationAccess === 'true') return true;
-    if (u.stationAccess === 'false') return false;
-    return /Điểm trạm|Station/i.test(u.role || '');
-  };
-
-  /* Module Bác sĩ tuyến trên đọc cột doctor_access - quyền này được CMS cấp
-     RIÊNG, không đi kèm quyền điểm trạm, nên hai module không bao giờ dùng
-     nhầm danh sách tài khoản của nhau. */
-  const hasDoctorAccess = (u) => {
-    if (!u) return false;
-    if ((u.status || 'ACTIVE').toUpperCase() === 'DISABLED') return false;
-    if (u.doctorAccess === 'true') return true;
-    if (u.doctorAccess === 'false') return false;
-    return /bác s|bac s|doctor|tuyến trên|tuyen tren|admin|quản trị|quan tri/i.test(u.role || '');
-  };
-
-  const eligible = IS_DOCTOR_MODULE ? hasDoctorAccess : hasStationAccess;
-  const stationAccounts = cmsUsers.filter(eligible);
-  /* Nếu chưa tài khoản nào được tích quyền thì vẫn liệt kê hết để Quản trị đăng nhập
-     lần đầu mà thiết lập; máy chủ vẫn từ chối tài khoản không có quyền. */
-  const accountsToRender = stationAccounts.length > 0
-    ? stationAccounts
-    : cmsUsers.filter(u => (u.status || 'ACTIVE').toUpperCase() !== 'DISABLED');
-
-  const placeholder = IS_DOCTOR_MODULE
-    ? '-- Chọn tài khoản Bác sĩ tuyến trên --'
-    : '-- Chọn tài khoản cán bộ trực trạm --';
-  selectEl.innerHTML = `<option value="">${placeholder}</option>` +
-    accountsToRender.map(u => `<option value="${u.username}">${u.name} (${u.role}) - ${u.username}</option>`).join('');
-
-  // Tự động chọn tài khoản cán bộ trạm mặc định nếu có
-  const preferredUsername = IS_DOCTOR_MODULE ? 'bstuyentren@laocai.gov.vn' : 'canbotram@laocai.gov.vn';
-  const defaultAcc = accountsToRender.find(u => u.username === preferredUsername) || accountsToRender[0];
-  if (defaultAcc) {
-    selectEl.value = defaultAcc.username;
-    onCmsAccountSelect(defaultAcc.username);
-  }
-
-  /* Chưa tài khoản nào được cấp quyền của module này: nói thẳng nguyên nhân ngay tại
-     cổng đăng nhập. Nếu không, bác sĩ chỉ thấy "Tên đăng nhập hoặc mật khẩu không
-     đúng" rồi đi đổi mật khẩu, trong khi thứ còn thiếu là ô cấp quyền bên CMS. */
-  if (stationAccounts.length === 0 && typeof setStationLoginStatus === 'function') {
-    setStationLoginStatus(IS_DOCTOR_MODULE
-      ? 'Chưa có tài khoản nào được CMS Quản trị cấp quyền "Module Bác sĩ tuyến trên". Đề nghị Quản trị mở CMS → Quản trị hệ thống → Phân quyền hệ thống để cấp quyền.'
-      : 'Chưa có tài khoản nào được CMS Quản trị cấp quyền "Mod Bảng điều khiển điểm trạm". Đề nghị Quản trị cấp quyền trước khi đăng nhập.', 'error');
-  }
+  const inputEl = document.getElementById('input-cms-account');
+  if (!inputEl || inputEl.value) return;
+  const remembered = (typeof window.getStationSession === 'function' && window.getStationSession()) || null;
+  if (remembered && remembered.username) inputEl.value = remembered.username;
 }
 
 function onCmsAccountSelect(username) {
@@ -550,8 +499,8 @@ function onCmsAccountSelect(username) {
      và thấy luôn nếu chưa được gán để đi hỏi Quản trị thay vì đăng nhập rồi bị
      máy chủ từ chối. Giá trị chốt vẫn là do máy chủ trả về lúc đăng nhập. */
   const el = document.getElementById('login-bound-station-name');
-  if (el) {
-    const code = String((found && found.stationCode) || '').trim();
+  if (el && found) {
+    const code = String(found.stationCode || '').trim();
     el.textContent = code
       ? `${stationName(code)} [${code}]`
       : 'Chưa được CMS Quản trị gán điểm trạm';
@@ -4612,8 +4561,8 @@ async function submitLogin() {
   const submitBtn = document.getElementById('station-login-submit');
 
   if (!selectedCmsUsername) return setStationLoginStatus(IS_DOCTOR_MODULE
-    ? 'Vui lòng chọn tài khoản Bác sĩ tuyến trên đã được CMS Quản trị cấp quyền.'
-    : 'Vui lòng chọn tài khoản cán bộ đã được CMS Quản trị cấp quyền.', 'error');
+    ? 'Vui lòng nhập tên đăng nhập Bác sĩ tuyến trên đã được CMS Quản trị cấp quyền.'
+    : 'Vui lòng nhập tên đăng nhập cán bộ đã được CMS Quản trị cấp quyền.', 'error');
   if (!password) return setStationLoginStatus('Vui lòng nhập mật khẩu truy cập.', 'error');
 
   if (submitBtn) submitBtn.disabled = true;

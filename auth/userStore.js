@@ -25,9 +25,10 @@
 /**
  * Tài khoản Quản trị khởi tạo.
  *
- * Chuỗi băm bên dưới là kết quả bcrypt của mật khẩu `Admin123@` với cost
- * factor = 10, sinh bằng `node auth/tools/generate-hash.mjs`. Giá trị này khớp
- * từng ký tự với bản di trú và với db/sql/create-admin-account.sql.
+ * Chuỗi băm bên dưới khớp với bản di trú và db/sql/create-admin-account.sql.
+ * CẢNH BÁO: mật khẩu ứng với chuỗi băm này đã bị công khai trong lịch sử Git -
+ * verifyPassword (netlify/lib/auth.ts) luôn từ chối nó. Chỉ dùng cho môi trường
+ * thử nghiệm cục bộ; tài khoản thật phải được Quản trị đặt mật khẩu riêng.
  */
 const SEEDED_USERS = [
   {

@@ -843,7 +843,9 @@
         /* --- Mở đầu trang chủ --- */
         .tyt-hero { position: relative; overflow: hidden; padding-bottom: 5rem;
             background: radial-gradient(60rem 30rem at 85% -10%, rgba(25,118,210,0.18), transparent 60%), linear-gradient(180deg, #e8f3fc 0%, #f4f8fc 70%, #f4f6f9 100%); }
-        .tyt-hero::after { content: ""; position: absolute; inset: auto 0 0 0; height: 6px; background: linear-gradient(90deg, #0b416b, #1976d2 45%, #10b981 75%, #e53935); opacity: 0.85; }
+        /* Đã bỏ dải màu 6px .tyt-hero::after: nó trải hết chiều ngang ở đáy khối mở
+           đầu, đúng chỗ thẻ Truy cập nhanh (margin-top âm) đè lên, nên hiện thành
+           một đường kẻ chạy xuyên phía sau các thẻ mà không phân nhóm nội dung gì. */
         .tyt-hero-grid { display: grid; gap: 2rem; align-items: center; }
         @media (min-width: 768px) { .tyt-hero-grid { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
         .tyt-hero-text { text-align: center; display: grid; gap: 1rem; justify-items: center; }
@@ -892,7 +894,9 @@
 
         /* --- Khối nội dung trang chủ --- */
         .tyt-home-sec { padding: 2.25rem 0; background: #ffffff; }
-        .tyt-home-sec-alt { background: #f4f7fb; border-top: 1px solid #e5edf5; border-bottom: 1px solid #e5edf5; }
+        /* Khối xen kẽ chỉ đổi màu nền; hai đường kẻ 1px tràn hết màn hình ở mép trên/
+           dưới trùng lặp với chính sự đổi nền đó nên đã được bỏ. */
+        .tyt-home-sec-alt { background: #f4f7fb; }
         @media (min-width: 768px) { .tyt-home-sec { padding: 3rem 0; } }
         .tyt-sec-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 1.5rem; margin-bottom: 1.25rem; }
         .tyt-sec-kicker { font-size: 0.8125rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: #1976d2; }
@@ -924,7 +928,6 @@
             border-color: #ffffff !important;
         }
         body.high-contrast :is(.tyt-quick-tile, .tyt-svc, .tyt-emerg-card) { border: 2px solid #ffff00 !important; }
-        body.high-contrast .tyt-hero::after { display: none; }
 
         /* --- Tinh chỉnh responsive trang chủ (Module 1 - vòng 2) --- */
         /* 768-1023px: cột chữ của khối mở đầu chỉ còn ~420px, hai nút cạnh nhau
@@ -2153,7 +2156,7 @@
                         <ul class="tyt-footer-list">
                             <li>
                                 <i class="fas fa-map-marker-alt"></i>
-                                <span>Thôn Bát Xát 04, Xã Bát Xát, tỉnh Lào Cai</span>
+                                <span>Thôn Bát Xát 4, xã Bát Xát, tỉnh Lào Cai</span>
                             </li>
                             <li>
                                 <i class="fas fa-phone-alt"></i>
@@ -3194,19 +3197,17 @@
                 </div>
                 <!-- Điểm trạm KHÔNG còn do cán bộ tự chọn: mỗi tài khoản được CMS Quản trị
                      gắn với đúng MỘT điểm trạm, và cũng chỉ trực đúng phòng gọi của điểm trạm
-                     đó. Ô này chỉ hiển thị lại nơi đã được chỉ định sau khi chọn tài khoản. -->
+                     đó. Ô này hiển thị nơi đã được chỉ định sau khi máy chủ xác thực đăng nhập. -->
                 <div>
                     <label class="block text-slate-300 font-bold mb-1">Điểm trạm y tế được CMS chỉ định</label>
                     <div class="w-full bg-slate-800/70 border border-slate-700 rounded-xl px-3 py-2 text-blue-200 font-mono font-bold">
-                        <span id="login-bound-station-name">Chọn tài khoản cán bộ để xem điểm trạm được gán</span>
+                        <span id="login-bound-station-name">Hiển thị sau khi đăng nhập</span>
                     </div>
                     <p class="text-[10px] text-slate-500 mt-1 italic">Cuộc gọi của người dân chọn đúng điểm trạm này sẽ đổ chuông về tài khoản. Muốn đổi nơi trực, liên hệ CMS Quản trị.</p>
                 </div>
                 <div>
-                    <label class="block text-slate-300 font-bold mb-1" for="input-cms-account">Tài khoản Cán bộ CMS (Hệ thống)</label>
-                    <select id="input-cms-account" onchange="window.onCmsAccountSelect(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
-                        <option value="">-- Chọn tài khoản cán bộ trực trạm --</option>
-                    </select>
+                    <label class="block text-slate-300 font-bold mb-1" for="input-cms-account">Tên đăng nhập cán bộ (tài khoản CMS cấp)</label>
+                    <input type="text" id="input-cms-account" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="Tên đăng nhập do CMS Quản trị cấp" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-blue-500">
                 </div>
                 <div>
                     <label class="block text-slate-300 font-bold mb-1" for="input-operator-name">Tên Cán bộ trực điểm trạm</label>
@@ -4097,7 +4098,7 @@
                 <div class="flex justify-between items-start border-b border-gray-300 pb-3">
                     <div>
                         <h2 class="text-sm md:text-base font-black text-gray-900 uppercase tracking-wide">UBND XÃ BÁT XÁT _ TRẠM Y TẾ BÁT XÁT</h2>
-                        <p class="text-[11px] text-gray-600">Thôn Bát Xát 4, Xã Bát Xát, Lào Cai</p>
+                        <p class="text-[11px] text-gray-600">Thôn Bát Xát 4, xã Bát Xát, tỉnh Lào Cai</p>
                         <p class="text-[10px] text-blue-800 font-bold">Hệ thống Khám chữa bệnh Từ xa (Telehealth)</p>
                     </div>
                     <div class="text-right">
@@ -4396,9 +4397,11 @@
 
                         <!-- Tab Content 1: Post News -->
                         <div id="subtab-news-content" class="space-y-4">
-                            <form onsubmit="window.handleAddNews(event)">
+                            <form id="admin-news-form" onsubmit="window.handleAddNews(event)">
+                                <input type="hidden" id="news-edit-id" value="">
+                                <p id="news-edit-banner" class="hidden mb-4 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2"><i class="fas fa-pen mr-1"></i> Đang chỉnh sửa bản tin đã đăng. Không chọn ảnh/tài liệu mới thì ảnh và tài liệu cũ được giữ nguyên.</p>
                                 <div class="mb-4">
-                                    <label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase">Tiêu đề bản tin</label>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase" for="news-title">Tiêu đề bản tin</label>
                                     <input type="text" id="news-title" required class="w-full border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:border-medical-500 font-medium text-sm text-gray-950">
                                 </div>
                                 <div class="mb-4">
@@ -4425,9 +4428,12 @@
                                         <input type="file" id="news-document-files" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" multiple class="w-full border border-gray-300 rounded-lg px-3 py-1 text-xs bg-white text-gray-950">
                                     </div>
                                 </details>
-                                <div class="flex justify-end">
+                                <div class="flex justify-end gap-2">
+                                    <button type="button" id="news-cancel-edit" onclick="window.cancelNewsEdit()" class="hidden bg-white text-gray-700 font-bold px-5 py-2 rounded-xl border border-gray-300 hover:bg-gray-50 text-sm transition">
+                                        Huỷ chỉnh sửa
+                                    </button>
                                     <button type="submit" class="bg-medical-600 text-white font-bold px-6 py-2 rounded-xl hover:bg-medical-700 text-sm transition shadow flex items-center gap-2">
-                                        <i class="fas fa-paper-plane"></i> Xuất bản bài viết
+                                        <i class="fas fa-paper-plane"></i> <span id="news-submit-text">Xuất bản bài viết</span>
                                     </button>
                                 </div>
                             </form>
@@ -4463,7 +4469,7 @@
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                         <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                             <h3 class="font-bold text-sm text-gray-700 uppercase tracking-wider"><i class="fas fa-list mr-1.5"></i>Danh sách Bản tin & Thông báo đã đăng</h3>
-                            <span class="text-xs bg-medical-100 text-medical-700 font-bold px-2.5 py-1 rounded-full"><i class="fas fa-chart-line mr-1"></i>Thống kê xem trực tiếp</span>
+                            <span class="text-xs bg-medical-100 text-medical-700 font-bold px-2.5 py-1 rounded-full"><i class="fas fa-circle-info mr-1"></i>Lượt xem: chưa có dữ liệu thật</span>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
@@ -4472,7 +4478,7 @@
                                         <th class="p-4 font-bold">Tiêu đề / Lịch đăng</th>
                                         <th class="p-4 font-bold w-36 text-center">Phân loại</th>
                                         <th class="p-4 font-bold w-32 text-center">Lượt xem</th>
-                                        <th class="p-4 font-bold w-24 text-center">Xóa</th>
+                                        <th class="p-4 font-bold w-40 text-center">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="admin-news-list" class="bg-white divide-y divide-gray-100"></tbody>
@@ -5355,11 +5361,10 @@
             { id: 'S3', name: 'Phòng Y Học Cổ Truyền', person: 'Cán bộ Đông Y', zalo: '0382103002' }
         ];
 
-        let adminUsers = [
-            { id: 'U1', username: 'tytbatxat@laocai.gov.vn', name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true' },
-            { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true' },
-            { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false' }
-        ];
+        /* Danh sách tài khoản chỉ nạp từ máy chủ sau khi Quản trị viên đăng nhập
+           (/api/admin-users hoặc /api/cms kèm phiếu Quản trị). Trang công khai
+           không mang sẵn tên đăng nhập nào. */
+        let adminUsers = [];
 
         // Danh sách người ký đơn thuốc kèm chữ ký số lưu sẵn (tải từ Postgres khi mở trang)
         let prescriptionSignersData = [];
@@ -6834,7 +6839,7 @@
                         date: n.date,
                         type: 'Bản tin Y tế',
                         typeClass: 'bg-blue-100 text-blue-800 border-blue-200',
-                        views: Math.floor((n.ts || 10) * 17) + 3, // Thống kê lượt xem giả lập dựa trên ts sinh động
+                        ts: n.ts || 0,
                         collection: 'news'
                     });
                 });
@@ -6845,12 +6850,15 @@
                         date: v.date,
                         type: 'Thông báo Trạm',
                         typeClass: 'bg-green-100 text-green-800 border-green-200',
-                        views: Math.floor((v.ts || 5) * 23) + 7,
+                        ts: v.ts || 0,
                         collection: 'vaccines'
                     });
                 });
-                // Sắp xếp giảm dần theo thời gian/lượt xem
-                combinedList.sort((a, b) => b.views - a.views);
+                /* Trước đây cột "Lượt xem" là số GIẢ LẬP tính từ ts (ts*17+3, ts*23+7),
+                   không đo lượt xem nào cả. Hệ thống chưa có nơi lưu lượt xem thật nên
+                   cột này ghi rõ "Chưa ghi nhận" thay vì tự tạo số liệu; danh sách xếp
+                   theo thời gian đăng, mới nhất lên đầu. */
+                combinedList.sort((a, b) => b.ts - a.ts);
 
                 newsAdm.innerHTML = combinedList.map(item => `
                     <tr class="hover:bg-blue-50/50 transition">
@@ -6861,10 +6869,11 @@
                         <td class="p-4 text-center">
                             <span class="px-2.5 py-1 text-xs font-bold rounded-full border ${item.typeClass}">${item.type}</span>
                         </td>
-                        <td class="p-4 text-center font-bold text-gray-700 text-sm">
-                            <i class="far fa-eye text-gray-400 mr-1"></i> ${item.views}
+                        <td class="p-4 text-center text-xs font-semibold text-gray-400" title="Hệ thống chưa lưu lượt xem thật của nội dung này">
+                            <i class="far fa-eye-slash mr-1"></i> Chưa ghi nhận
                         </td>
-                        <td class="p-4 text-center">
+                        <td class="p-4 text-center whitespace-nowrap">
+                            ${item.collection === 'news' ? `<button type="button" onclick="window.editNews('${item.id}')" class="text-medical-700 bg-white hover:bg-medical-600 hover:text-white px-3 py-1.5 rounded-lg transition text-xs font-bold border border-medical-200 shadow-sm mr-1"><i class="fas fa-pen"></i> Sửa</button>` : ''}
                             <button type="button" onclick="window.deleteItem('${item.collection}', '${item.id}')" class="text-red-500 bg-white hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg transition text-xs font-bold border border-red-200 shadow-sm"><i class="fas fa-trash-alt"></i> Xóa</button>
                         </td>
                     </tr>
@@ -7149,36 +7158,46 @@
         window.deleteItem = async function(collectionName, id) {
             // Xoá tài khoản phải qua /api/admin-users (có kiểm tra quyền Quản trị).
             if (collectionName === 'users') return window.deleteAccount(id);
-            if(confirm("Xác nhận xóa dữ liệu này khỏi hệ thống?")) {
-                try {
-                    // Xóa trên local trước
-                    if(collectionName==='news') newsData = newsData.filter(x => x.id !== id);
-                    if(collectionName==='vaccines') vaccineScheduleData = vaccineScheduleData.filter(x => x.id !== id);
-                    if(collectionName==='documents') documentsData = documentsData.filter(x => x.id !== id);
-                    if(collectionName==='services') serviceManagers = serviceManagers.filter(x => x.id !== id);
-                    if(collectionName==='contacts') contactsData = contactsData.filter(x => x.id !== id);
-                    if(collectionName==='videos') videosData = videosData.filter(x => x.id !== id);
-                    if(collectionName==='users') adminUsers = adminUsers.filter(x => x.id !== id);
-                    if(collectionName==='prescriptionSigners') prescriptionSignersData = prescriptionSignersData.filter(x => x.id !== id);
-                    window.renderAll();
-
-                    // Gửi lệnh xóa tới Postgres DB qua Netlify Function
-                    const res = await fetch('/api/cms', {
-                        method: 'POST',
-                        headers: window.cmsAuthHeaders(),
-                        body: JSON.stringify({ action: "delete", type: collectionName, id: id })
-                    });
-                    if (res.status === 401 || res.status === 403) {
-                        const info = await res.json().catch(() => null);
-                        window.showToast((info && info.error) || 'Tài khoản không có quyền xoá dữ liệu này.');
-                        return;
-                    }
-                    if (!res.ok) throw new Error();
-                    window.showToast("Đã xóa dữ liệu thành công!");
-                } catch(e) {
-                    console.error(e);
-                    window.showToast("Lỗi xóa dữ liệu đám mây (đã xóa tạm local)!");
+            const lists = {
+                news: () => newsData, vaccines: () => vaccineScheduleData, documents: () => documentsData,
+                services: () => serviceManagers, contacts: () => contactsData, videos: () => videosData,
+                prescriptionSigners: () => prescriptionSignersData
+            };
+            const labels = {
+                news: 'Bản tin', vaccines: 'Lịch tiêm / Thông báo', documents: 'Tài liệu', services: 'Dịch vụ',
+                contacts: 'Danh bạ cán bộ', videos: 'Video', prescriptionSigners: 'Người ký đơn thuốc'
+            };
+            const item = lists[collectionName] ? lists[collectionName]().find(x => x.id === id) : null;
+            const name = item ? (item.title || item.name || [item.date, item.target].filter(Boolean).join(' - ') || id) : id;
+            /* Hiện rõ nội dung sắp xoá. Xoá là vĩnh viễn: các bảng nội dung hiện chưa
+               có thùng rác/xoá mềm (cần thêm cột trạng thái - chờ phê duyệt migration). */
+            if (!confirm(`Xoá vĩnh viễn ${labels[collectionName] || 'mục'} sau khỏi hệ thống?\n\n"${String(name).slice(0, 200)}"\n\nThao tác này không hoàn tác được.`)) return;
+            try {
+                // Chỉ gỡ khỏi giao diện SAU khi máy chủ xác nhận đã xoá. Trước đây mục
+                // biến mất ngay cả khi máy chủ từ chối (không đủ quyền / mất mạng).
+                const res = await fetch('/api/cms', {
+                    method: 'POST',
+                    headers: window.cmsAuthHeaders(),
+                    body: JSON.stringify({ action: "delete", type: collectionName, id: id })
+                });
+                if (res.status === 401 || res.status === 403) {
+                    const info = await res.json().catch(() => null);
+                    window.showToast((info && info.error) || 'Tài khoản không có quyền xoá dữ liệu này.');
+                    return;
                 }
+                if (!res.ok) throw new Error();
+                if(collectionName==='news') newsData = newsData.filter(x => x.id !== id);
+                if(collectionName==='vaccines') vaccineScheduleData = vaccineScheduleData.filter(x => x.id !== id);
+                if(collectionName==='documents') documentsData = documentsData.filter(x => x.id !== id);
+                if(collectionName==='services') serviceManagers = serviceManagers.filter(x => x.id !== id);
+                if(collectionName==='contacts') contactsData = contactsData.filter(x => x.id !== id);
+                if(collectionName==='videos') videosData = videosData.filter(x => x.id !== id);
+                if(collectionName==='prescriptionSigners') prescriptionSignersData = prescriptionSignersData.filter(x => x.id !== id);
+                window.renderAll();
+                window.showToast("Đã xóa dữ liệu thành công!");
+            } catch(e) {
+                console.error(e);
+                window.showToast("Không xoá được: mất kết nối máy chủ. Dữ liệu vẫn còn nguyên, vui lòng thử lại.");
             }
         };
 
@@ -7285,18 +7304,58 @@
             const finalImageValue = finalImages.length > 0 ? JSON.stringify(finalImages) : null;
             const finalAttachmentValue = finalAttachments.length > 0 ? JSON.stringify(finalAttachments) : null;
             
-            window.saveToDb('news', {
-                id: 'N'+Date.now(),
-                title: title,
-                description: desc,
-                date: new Date().toLocaleDateString('vi-VN'),
-                ts: Date.now(),
-                icon: 'fa-bullhorn',
-                color: 'medical',
-                image: finalImageValue,
-                attachments: finalAttachmentValue
-            });
+            /* Sửa bản tin: giữ nguyên id, ngày đăng, thứ tự, biểu tượng; ảnh và tài
+               liệu cũ chỉ bị thay khi cán bộ chọn ảnh/tài liệu mới. */
+            const editId = (document.getElementById('news-edit-id') || {}).value || '';
+            const existing = editId ? newsData.find(x => x.id === editId) : null;
+            if (editId && !existing) {
+                window.showToast('Không tìm thấy bản tin đang sửa (có thể đã bị xoá). Vui lòng tải lại trang.');
+                return;
+            }
+            const record = existing
+                ? Object.assign({}, existing, {
+                    title: title,
+                    description: desc,
+                    image: finalImageValue !== null ? finalImageValue : (existing.image || null),
+                    attachments: finalAttachmentValue !== null ? finalAttachmentValue : (existing.attachments || null)
+                })
+                : {
+                    id: 'N'+Date.now(),
+                    title: title,
+                    description: desc,
+                    date: new Date().toLocaleDateString('vi-VN'),
+                    ts: Date.now(),
+                    icon: 'fa-bullhorn',
+                    color: 'medical',
+                    image: finalImageValue,
+                    attachments: finalAttachmentValue
+                };
+            await window.saveToDb('news', record);
             e.target.reset();
+            window.cancelNewsEdit();
+        };
+        window.editNews = function(id) {
+            const n = newsData.find(x => x.id === id);
+            if (!n) return;
+            if (typeof window.switchAdminTab === 'function') window.switchAdminTab('news');
+            if (typeof window.switchNewsSubTab === 'function') window.switchNewsSubTab('post-news');
+            document.getElementById('news-edit-id').value = n.id;
+            document.getElementById('news-title').value = n.title || '';
+            document.getElementById('news-desc').value = n.description || '';
+            document.getElementById('news-submit-text').innerText = 'Lưu thay đổi';
+            document.getElementById('news-cancel-edit').classList.remove('hidden');
+            document.getElementById('news-edit-banner').classList.remove('hidden');
+            document.getElementById('admin-news-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('news-title').focus({ preventScroll: true });
+        };
+        window.cancelNewsEdit = function() {
+            const form = document.getElementById('admin-news-form');
+            if (form) form.reset();
+            const idEl = document.getElementById('news-edit-id');
+            if (idEl) idEl.value = '';
+            const label = document.getElementById('news-submit-text');
+            if (label) label.innerText = 'Xuất bản bài viết';
+            ['news-cancel-edit', 'news-edit-banner'].forEach(x => { const el = document.getElementById(x); if (el) el.classList.add('hidden'); });
         };
         window.handleAddVaccine = function(e) { e.preventDefault(); window.saveToDb('vaccines', { id: 'V'+Date.now(), date: document.getElementById('vac-date').value, time: document.getElementById('vac-time').value, target: document.getElementById('vac-target').value, ts: Date.now() }); e.target.reset(); };
         window.handleAddDoc = function(e) {
