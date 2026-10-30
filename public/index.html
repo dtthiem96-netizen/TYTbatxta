@@ -257,6 +257,12 @@
             background-color: #047857 !important;
             color: #ffffff !important;
         }
+        /* Số phụ hiển thị dạng chữ liên kết (chân trang, menu điện thoại), không
+           tô thành nút xanh như nút "Gọi Trạm". */
+        a.tyt-phone-alt[href^="tel:"], a.tyt-phone-alt[href^="tel:"]:hover {
+            background-color: transparent !important;
+            color: inherit !important;
+        }
 
         /* FOOTER / CHÂN TRANG Y TẾ SỐ */
         footer, #lien-he {
@@ -779,23 +785,30 @@
 
         /* --- Menu chính (máy tính) --- */
         .tyt-mainnav { background: #ffffff; border-top: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 6px rgba(11,65,107,0.12); }
-        .tyt-mainnav-list { max-width: 80rem; margin: 0 auto; padding: 0 1rem; display: flex; flex-wrap: wrap; align-items: stretch; justify-content: space-between; list-style: none; }
-        @media (min-width: 640px) { .tyt-mainnav-list { padding: 0 2rem; } }
-        .tyt-mainnav-list > li { position: relative; }
+        /* Một hàng duy nhất, không xuống dòng cả menu: 9 mục chia đều bề ngang
+           (flex 1 1 0). Nhãn dài như "Giới thiệu Trạm Y tế" tự ngắt thành hai
+           dòng căn giữa trong ô của nó, còn mọi ô luôn cao bằng nhau (stretch)
+           nên hàng menu đều đặn ở 1024px, 1280px lẫn màn hình rộng. Trước đây
+           flex-wrap + nowrap đẩy 1-2 mục cuối xuống hàng thứ hai lệch lạc. */
+        .tyt-mainnav-list { max-width: 80rem; margin: 0 auto; padding: 0 1rem; display: flex; flex-wrap: nowrap; align-items: stretch; list-style: none; }
+        @media (min-width: 1280px) { .tyt-mainnav-list { padding: 0 2rem; } }
+        .tyt-mainnav-list > li { position: relative; flex: 1 1 0; min-width: 0; }
+        .tyt-mainnav-list > li:first-child { flex: 0 0 auto; }
         #tyt-header .tyt-mainnav .tyt-mainnav-link {
-            display: flex; align-items: center; gap: 0.375rem; height: 100%; min-height: 3rem; padding: 0 0.55rem;
-            font-size: 0.875rem; font-weight: 800; color: #0b416b; white-space: nowrap; background: transparent;
+            display: flex; align-items: center; justify-content: center; gap: 0.375rem; width: 100%; height: 100%; min-height: 3.25rem; padding: 0.375rem 0.5rem;
+            font-size: 0.875rem; font-weight: 800; line-height: 1.2; text-align: center; color: #0b416b; white-space: normal; background: transparent;
             border-bottom: 3px solid transparent; text-decoration: none; transform: none; box-shadow: none; cursor: pointer;
         }
-        @media (min-width: 1280px) { #tyt-header .tyt-mainnav .tyt-mainnav-link { padding: 0 0.8rem; font-size: 0.9375rem; } }
+        #tyt-header .tyt-mainnav .tyt-mainnav-home { padding: 0.375rem 0.875rem; }
+        @media (min-width: 1280px) { #tyt-header .tyt-mainnav .tyt-mainnav-link { padding: 0.375rem 0.625rem; font-size: 0.9375rem; } }
         #tyt-header .tyt-mainnav .tyt-mainnav-link:hover,
         #tyt-header .tyt-mainnav .tyt-mainnav-item.is-open > .tyt-mainnav-link,
         #tyt-header .tyt-mainnav .tyt-mainnav-link:focus-visible { color: #1976d2; background: #eef6ff; border-bottom-color: #1976d2; transform: none; box-shadow: none; outline: none; }
         #tyt-header .tyt-mainnav .tyt-mainnav-link.is-current { border-bottom-color: #f59e0b; }
-        .tyt-mainnav-caret { font-size: 0.6875rem; transition: transform 0.18s; }
+        .tyt-mainnav-caret { flex-shrink: 0; font-size: 0.6875rem; transition: transform 0.18s; }
         .tyt-mainnav-item.is-open .tyt-mainnav-caret { transform: rotate(180deg); }
-        .tyt-mainnav-home-text { display: none; }
-        @media (min-width: 1280px) { .tyt-mainnav-home-text { display: inline; } }
+        .tyt-mainnav-home-text { display: none; white-space: nowrap; }
+        @media (min-width: 1440px) { .tyt-mainnav-home-text { display: inline; } }
         .tyt-mainnav-dd {
             display: none; position: absolute; top: 100%; left: 0; z-index: 60; min-width: 19rem; padding: 0.5rem;
             background: #ffffff; border: 1px solid #dbe7f3; border-top: 3px solid #1976d2; border-radius: 0 0 1rem 1rem;
@@ -913,6 +926,34 @@
         body.high-contrast :is(.tyt-quick-tile, .tyt-svc, .tyt-emerg-card) { border: 2px solid #ffff00 !important; }
         body.high-contrast .tyt-hero::after { display: none; }
 
+        /* --- Tinh chỉnh responsive trang chủ (Module 1 - vòng 2) --- */
+        /* 768-1023px: cột chữ của khối mở đầu chỉ còn ~420px, hai nút cạnh nhau
+           tràn ra ngoài; cho xuống dòng và chia đều bề ngang. */
+        .tyt-hero-cta { flex-wrap: wrap; }
+        .tyt-hero-cta .tyt-btn { min-height: 3rem; justify-content: center; }
+        @media (min-width: 640px) { .tyt-hero-cta .tyt-btn { flex: 1 1 15rem; } }
+        @media (min-width: 1024px) { .tyt-hero-cta .tyt-btn { flex: 0 1 auto; } }
+        .tyt-hero-duty a { white-space: nowrap; }
+        /* Ô truy cập nhanh, thẻ dịch vụ: chữ dài tự xuống dòng trong ô, không đẩy
+           ô rộng ra ngoài lưới 2 cột trên điện thoại. */
+        .tyt-quick-tile, .tyt-svc { min-width: 0; overflow-wrap: anywhere; }
+        .tyt-quick-text { min-width: 0; }
+        .tyt-emerg-row .tyt-emerg-card > span { min-width: 0; }
+        .tyt-emerg-row .tyt-emerg-card { min-height: 3.5rem; }
+        /* Máy tính bảng dọc: ba thẻ khẩn cấp chỉ rộng ~210px, số 02143909011 cỡ
+           1.5rem bị tràn; thu nhỏ cỡ số và khoảng đệm trong khoảng này. */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .tyt-emerg-row .tyt-emerg-card { gap: 0.625rem; padding: 0.75rem; }
+            .tyt-emerg-row .tyt-emerg-card > i { font-size: 1.375rem; width: 1.75rem; }
+            .tyt-emerg-label { font-size: 0.9375rem; }
+            .tyt-emerg-num { font-size: 1.125rem; letter-spacing: 0; }
+        }
+        @media (max-width: 380px) {
+            .tyt-quick-card { padding: 1rem; }
+            .tyt-quick-tile { padding: 0.875rem; }
+            .tyt-quick-text b { font-size: 1rem; }
+        }
+
     </style>
 </head>
 <body class="bg-[#f4f6f9] text-gray-800 antialiased relative">
@@ -972,7 +1013,7 @@
 
                         <button onclick="window.openTelehealthQuickCall()" class="bg-[#1976d2] hover:bg-[#1565c0] text-white font-bold transition text-base flex items-center gap-2 px-5 py-2 rounded-full shadow-md border border-blue-400/40" aria-label="Gọi khám từ xa với cán bộ y tế đang trực">
                             <i class="fas fa-video text-lg"></i> Gọi khám từ xa
-                            <span id="nav-on-duty-dot" class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" title="Đang kiểm tra cán bộ trực"></span>
+                            <span id="nav-on-duty-dot" class="w-2 h-2 rounded-full bg-blue-200" title="Bấm &quot;Gọi khám từ xa&quot; để kết nối cán bộ y tế đang trực"></span>
                         </button>
                     </div>
 
@@ -1155,7 +1196,8 @@
                 <a href="#" onclick="window.toggleAIChat(); window.closeMobileMenu()" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50"><i class="fas fa-sparkles mr-2 text-purple-300"></i> Hỏi Trợ lý Y tế AI</a>
                 <a href="https://zalo.me/0382103002" target="_blank" rel="noopener noreferrer" onclick="window.closeMobileMenu()" class="block px-3 py-3 font-bold text-blue-100 hover:text-white border-b border-blue-800/50"><i class="fas fa-comment-sms mr-2 text-sky-300"></i> Tư vấn qua Zalo</a>
                 <a href="tel:115" class="btn-call-emergency block mt-2 text-center px-4 py-3 text-white font-bold bg-[#e53935] hover:bg-[#d32f2f] rounded-xl shadow-md"><i class="fas fa-truck-medical mr-2"></i> Gọi Cấp Cứu 115</a>
-                <a href="tel:0382103002" class="btn-call-station block mt-2 text-center px-4 py-3 text-white font-bold bg-emerald-600 rounded-xl shadow-md"><i class="fas fa-phone-volume mr-2"></i> Gọi Trạm Y tế Bát Xát: 0382.103.002</a>
+                <a href="tel:02143909011" class="btn-call-station block mt-2 text-center px-4 py-3 text-white font-bold bg-emerald-600 rounded-xl shadow-md"><i class="fas fa-phone-volume mr-2"></i> Gọi Trạm Y tế Bát Xát: 02143909011</a>
+                <p class="mt-2 text-center text-sm text-blue-100">Số phụ: <a href="tel:0382103002" class="tyt-phone-alt font-bold underline">0382.103.002</a></p>
             </div>
         </header>
 
@@ -1187,7 +1229,7 @@
                                     <i class="fas fa-hospital text-xl"></i> Dịch vụ & Khoa phòng
                                 </button>
                             </div>
-                            <p id="hero-on-duty" class="tyt-hero-duty"><i class="fas fa-circle-notch fa-spin mr-1"></i> Đang kiểm tra cán bộ y tế trực trực tuyến...</p>
+                            <p id="hero-on-duty" class="tyt-hero-duty"><i class="fas fa-phone-volume mr-1 text-emerald-600"></i> Điện thoại Trạm Y tế Bát Xát: <a href="tel:02143909011" class="font-black text-[#0b416b] underline">02143909011</a></p>
                         </div>
                         <div class="tyt-hero-emblem" aria-hidden="true">
                             <div class="tyt-hero-emblem-card">
@@ -1217,9 +1259,11 @@
                             <span class="tyt-quick-icon"><i class="fas fa-calendar-days"></i></span>
                             <span class="tyt-quick-text"><b>Lịch khám & tiêm chủng</b><small>Xem thông báo lịch theo thôn bản</small></span>
                         </button>
+                        <!-- Ô này chỉ mở Trợ lý AI (modal-aisearch), KHÔNG tra cứu hồ sơ
+                             CCCD/BHYT: chưa có API và cơ chế xác thực cho việc đó. -->
                         <button type="button" onclick="window.openModal('modal-aisearch')" class="tyt-quick-tile tyt-quick-violet">
-                            <span class="tyt-quick-icon"><i class="fas fa-magnifying-glass"></i></span>
-                            <span class="tyt-quick-text"><b>Tra cứu thông tin</b><small>Tìm thông tin y tế, thuốc, dịch vụ</small></span>
+                            <span class="tyt-quick-icon"><i class="fas fa-robot"></i></span>
+                            <span class="tyt-quick-text"><b>Hỏi đáp sức khỏe với AI</b><small>Hỏi về triệu chứng, thuốc, dịch vụ y tế</small></span>
                         </button>
                         <button type="button" onclick="window.tytGoContact()" class="tyt-quick-tile tyt-quick-amber">
                             <span class="tyt-quick-icon"><i class="fas fa-location-dot"></i></span>
@@ -1598,7 +1642,7 @@
                             </li>
                             <li>
                                 <i class="fas fa-phone-alt"></i>
-                                <span>Điện thoại: <a href="tel:02143909011" class="font-black">0382.103.002</a></span>
+                                <span>Điện thoại: <a href="tel:02143909011" class="font-black">02143909011</a><br><span class="text-sm">Số phụ: <a href="tel:0382103002" class="tyt-phone-alt font-bold">0382.103.002</a></span></span>
                             </li>
                             <li>
                                 <i class="fas fa-envelope"></i>
@@ -1700,9 +1744,9 @@
             <i class="fas fa-video text-2xl"></i>
             <span class="flex flex-col items-start leading-tight text-left">
                 <span class="text-base font-black">Gọi khám từ xa</span>
-                <span id="fab-on-duty-text" class="text-[11px] font-bold text-blue-100">Đang kiểm tra cán bộ trực...</span>
+                <span id="fab-on-duty-text" class="text-[11px] font-bold text-blue-100">Bấm để gọi cán bộ trực</span>
             </span>
-            <span id="fab-on-duty-dot" class="w-3 h-3 rounded-full bg-emerald-300 animate-pulse"></span>
+            <span id="fab-on-duty-dot" class="w-3 h-3 rounded-full bg-blue-200"></span>
         </button>
     </div> <!-- KẾT THÚC #main-website -->
 
@@ -1969,8 +2013,8 @@
                                     Chưa có cán bộ tiếp nhận. Bạn có thể gọi trực tiếp qua điện thoại hoặc Zalo trong lúc chờ.
                                 </p>
                                 <div class="flex gap-2">
-                                    <a href="tel:0382103002" class="btn-call-station flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
-                                        <i class="fas fa-phone-alt"></i> Gọi Trạm: 0382 103 002
+                                    <a href="tel:02143909011" class="btn-call-station flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
+                                        <i class="fas fa-phone-alt"></i> Gọi Trạm: 02143909011
                                     </a>
                                     <a href="https://zalo.me/0382103002" target="_blank" rel="noopener noreferrer" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
                                         <i class="fas fa-comment-sms"></i> Nhắn Zalo trạm
@@ -8198,6 +8242,11 @@
             hint.innerHTML = `<i class="fas fa-location-dot mr-1 text-blue-500"></i> Cuộc gọi sẽ đổ chuông tại <b>${teleEscape(station.name)}</b> <span class="font-mono">(${teleEscape(station.code)})</span>${station.note ? ' — ' + teleEscape(station.note) : ''}.<br>${state}`;
         };
 
+        /* Dòng liên hệ cố định ở khối mở đầu trang chủ. Dùng khi CHƯA có dữ liệu
+           trực thật từ máy chủ (lúc mới vào trang, lỗi mạng) và khi máy chủ báo
+           không ai trực: trang chủ chỉ báo "đang trực" khi có số liệu thật. */
+        const HERO_DUTY_CONTACT = '<i class="fas fa-phone-volume mr-1 text-emerald-600"></i> Điện thoại Trạm Y tế Bát Xát: <a href="tel:02143909011" class="font-black text-[#0b416b] underline">02143909011</a>';
+
         function renderDutyStatus(count) {
             const online = Number(count) > 0;
             const label = online ? `${count} cán bộ y tế đang trực` : 'Chưa có cán bộ trực trực tuyến';
@@ -8216,7 +8265,7 @@
             if (hero) {
                 hero.innerHTML = online
                     ? `<span class="text-emerald-600"><i class="fas fa-circle-check mr-1"></i> ${label} - bấm nút <b>Gọi khám từ xa</b> để kết nối.</span>`
-                    : `<span class="text-amber-600"><i class="fas fa-circle-exclamation mr-1"></i> ${label}. Bạn vẫn có thể gọi để đổ chuông, hoặc để lại lịch khám.</span>`;
+                    : HERO_DUTY_CONTACT;
             }
 
             const box = document.getElementById('quick-call-duty');
@@ -8247,8 +8296,15 @@
                 renderDutyStatus(publicDutyCount);
                 window.updateQuickCallStationHint();
             } catch (err) {
+                // Không lấy được dữ liệu thật: không đoán "chưa có ai trực", chỉ
+                // về trạng thái chờ và đưa số điện thoại cố định của Trạm.
                 publicDutyByStation = {};
-                renderDutyStatus(0);
+                window.renderDutyIdleState();
+                const box = document.getElementById('quick-call-duty');
+                if (box) {
+                    box.className = 'mb-4 rounded-2xl border p-3.5 text-xs font-bold flex items-center gap-2 bg-slate-50 border-slate-200 text-slate-700';
+                    box.innerHTML = '<i class="fas fa-phone-volume"></i> Chưa lấy được trạng thái cán bộ trực. Bạn vẫn có thể gọi, hoặc liên hệ Trạm qua số <a href="tel:02143909011" class="underline">02143909011</a>.';
+                }
             }
         };
 
@@ -8279,7 +8335,7 @@
 
             const hero = document.getElementById('hero-on-duty');
             if (hero) {
-                hero.innerHTML = '<span class="text-gray-600"><i class="fas fa-circle-info mr-1"></i> Bấm nút <b>Gọi khám từ xa</b> để kiểm tra cán bộ đang trực và bắt đầu cuộc gọi.</span>';
+                hero.innerHTML = HERO_DUTY_CONTACT;
             }
         };
 
@@ -12521,7 +12577,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
 
         window.lookupResultAI = function(e) {
             e.preventDefault(); const id = document.getElementById('lookup-id').value; const box = document.getElementById('lookup-result-box'); box.classList.remove('hidden'); box.innerHTML = `<div class="bg-gray-100 p-4 rounded-xl text-center"><i class="fas fa-spinner fa-spin text-blue-500 text-2xl mb-2"></i><p>Đang truy xuất hệ thống...</p></div>`;
-            setTimeout(() => { box.innerHTML = `<div class="bg-green-50 border border-green-200 p-4 rounded-xl"><h4 class="font-bold text-green-800 mb-2"><i class="fas fa-check-circle mr-1"></i> Trạng thái Hồ sơ</h4><p class="text-sm text-gray-700">Mã BHYT/CCCD: <b>${id.toUpperCase()}</b></p><p class="text-sm text-gray-700 mt-1">Kết quả: <b>Đã có kết quả khám gần nhất.</b> Vui lòng mang sổ khám bệnh đến Trạm để lấy bản cứng.</p></div>`; }, 1500);
+            /* Chưa có API và cơ chế xác thực tra cứu hồ sơ thật: không dựng kết quả
+               mẫu (trước đây luôn báo "Đã có kết quả khám" với mọi mã nhập vào). */
+            void id;
+            box.innerHTML = `<div class="bg-amber-50 border border-amber-200 p-4 rounded-xl"><p class="text-sm text-gray-800 font-bold"><i class="fas fa-circle-info mr-1 text-amber-600"></i> Chức năng tra cứu hồ sơ trực tuyến chưa được kết nối.</p><p class="text-sm text-gray-700 mt-1">Vui lòng liên hệ Trạm Y tế Bát Xát: <a href="tel:02143909011" class="font-black text-[#0b416b] underline">02143909011</a>.</p></div>`;
         };
 
         // 8. GEMINI AI GATEWAY CLIENT (KHÔNG LỘ API KEY)
