@@ -251,6 +251,24 @@ dữ liệu giả và chạy các Netlify Function thật để kiểm tra phân
 điểm trạm, rò rỉ dữ liệu cá nhân, giới hạn tần suất và tệp tải lên. Không chạm tới
 database thật.
 
+Sau khi có Deploy Preview, kiểm tra trực tiếp (ẩn danh, chỉ đọc, script tự từ chối
+tên miền Production):
+
+```bash
+npm run test:preview -- https://deploy-preview-NN--soft-churros-077805.netlify.app
+```
+
+### Tệp đính kèm công khai và riêng tư
+
+- **Công khai** (mặc định): tài liệu, hình ảnh đính kèm tin tức, video y khoa. Chỉ
+  Quản trị/Biên tập viên tải lên; ai cũng xem được qua `/api/attachment?id=`.
+- **Riêng tư** (`visibility: "private"` khi tải lên qua `/api/cms`): tệp chứa thông
+  tin cá nhân/sức khoẻ, lưu ở kho riêng `private-attachments`. Chỉ cán bộ y tế tải
+  lên; chỉ cán bộ cùng điểm trạm, người tải lên, bác sĩ tuyến trên và Quản trị xem
+  được (gửi phiếu ở header `Authorization` hoặc `?token=`); không cache.
+- Không tải đè lên tệp đã có (trừ "Sửa video" dùng lại mã video cũ). Không có API
+  xoá tệp: xoá tin tức không xoá tệp đính kèm.
+
 ---
 
 ## 5. Quản Lý Tài Khoản & Phân Quyền Module Bảng Điều Khiển Điểm Trạm

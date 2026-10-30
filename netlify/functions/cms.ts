@@ -123,6 +123,8 @@ const ATTACHMENT_MIME = new Set([
 const VIDEO_MIME = new Set(["video/mp4", "video/webm", "video/ogg", "video/quicktime"]);
 const MAX_ATTACHMENT_CHUNKS = 8; // 8 x 3MB, giao diện đã giới hạn 15MB
 const MAX_VIDEO_CHUNKS = 120;
+/** Kho tệp chứa thông tin cá nhân/sức khoẻ - tách khỏi kho công khai "attachments". */
+const PRIVATE_ATTACHMENT_STORE = "private-attachments";
 
 /* Đặc tả trường cho phép ghi của từng bảng. Trường không có trong đặc tả bị bỏ
    qua (chống gán hàng loạt); trường không gửi lên thì không đụng tới, nên lệnh
@@ -387,8 +389,18 @@ export default async (req: Request) => {
     const { action, type } = body;
 
     if (action === "upload_chunk" || action === "upload_attachment_chunk") {
-      if (!canEditContent(ctx)) return deny();
+      /* HAI LOẠI TỆP ĐÍNH KÈM
+         - Công khai (mặc định): tài liệu, hình ảnh đính kèm tin tức và video y khoa.
+           Chỉ Quản trị/Biên tập viên tải lên; ai cũng xem được qua /api/attachment.
+         - Riêng tư (visibility: "private"): tệp chứa thông tin cá nhân/sức khoẻ.
+           Chỉ cán bộ y tế tải lên; lưu ở kho riêng PRIVATE_ATTACHMENT_STORE kèm
+           điểm trạm và người tải, /api/attachment chỉ trả cho cán bộ đúng phạm vi.
+         Hai kho tách hẳn nhau: mã tệp công khai không bao giờ trỏ được vào kho
+         riêng tư, và không ai tải đè lên tệp đã có (trừ video - xem dưới). */
       const isVideo = action === "upload_chunk";
+      const isPrivate = !isVideo && String(body.visibility || "").toLowerCase() === "private";
+      if (!(isPrivate ? canHandleAppointments(ctx) : canEditContent(ctx))) return deny();
+      const actor = ctx as AuthContext;
       const fileId = safeId(body.id);
       const index = Number(body.index);
       const total = Number(body.total);
@@ -402,17 +414,30 @@ export default async (req: Request) => {
         return json({ error: "Loại tệp không được phép tải lên." }, 415);
       }
 
+      /* Không tải đè lên tệp đã có, ở cả hai kho: tệp đính kèm luôn được giao diện
+         cấp mã mới, nên trùng mã nghĩa là đang cố thay tệp của người khác. Video là
+         ngoại lệ có chủ đích: "Sửa video" trong CMS tải tệp mới lên đúng mã cũ. */
+      if (!isVideo) {
+        const [inPublic, inPrivate] = await Promise.all([
+          getStore("attachments").getMetadata(fileId),
+          getStore(PRIVATE_ATTACHMENT_STORE).getMetadata(fileId)
+        ]);
+        if (inPublic || inPrivate) return json({ error: "Mã tệp đã tồn tại. Vui lòng tải lại tệp." }, 409);
+      }
+
       const base64Data = chunk.split(",")[1] || chunk;
       const buffer = Buffer.from(base64Data, "base64");
       if (buffer.length > 3.5 * 1024 * 1024) return json({ error: "Phần tệp quá lớn." }, 413);
 
-      const chunkStore = getStore(isVideo ? "video-chunks" : "attachment-chunks");
-      await chunkStore.set(`${fileId}/${index}`, new Blob([buffer]));
+      // Phần tệp tách theo người tải: không ai chen phần của mình vào tệp người khác.
+      const chunkStore = getStore(isVideo ? "video-chunks" : isPrivate ? "private-attachment-chunks" : "attachment-chunks");
+      const chunkKey = (i: number) => `${actor.user.id}/${fileId}/${i}`;
+      await chunkStore.set(chunkKey(index), new Blob([buffer]));
 
       let allUploaded = true;
       const chunkList: Buffer[] = [];
       for (let i = 0; i < total; i++) {
-        const got = await chunkStore.get(`${fileId}/${i}`, { type: "arrayBuffer" });
+        const got = await chunkStore.get(chunkKey(i), { type: "arrayBuffer" });
         if (!got) {
           allUploaded = false;
           break;
@@ -423,14 +448,22 @@ export default async (req: Request) => {
       if (!allUploaded) return json({ success: true, complete: false });
 
       const finalBuffer = Buffer.concat(chunkList);
-      const finalStore = getStore(isVideo ? "videos" : "attachments");
-      await finalStore.set(fileId, new Blob([finalBuffer]), { metadata: { contentType: mimeType } });
+      const finalStore = getStore(isVideo ? "videos" : isPrivate ? PRIVATE_ATTACHMENT_STORE : "attachments");
+      await finalStore.set(fileId, new Blob([finalBuffer]), {
+        metadata: {
+          contentType: mimeType,
+          visibility: isPrivate ? "private" : "public",
+          uploadedBy: actor.user.id,
+          stationCode: boundStationOf(actor),
+          uploadedAt: Date.now()
+        }
+      });
       for (let i = 0; i < total; i++) {
-        await chunkStore.delete(`${fileId}/${i}`);
+        await chunkStore.delete(chunkKey(i));
       }
       return isVideo
         ? json({ success: true, complete: true, url: `/api/video?id=${fileId}` })
-        : json({ success: true, complete: true, url: `/api/attachment?id=${fileId}`, name: plainText(body.fileName, 255) });
+        : json({ success: true, complete: true, url: `/api/attachment?id=${fileId}`, name: plainText(body.fileName, 255), visibility: isPrivate ? "private" : "public" });
     }
 
     if (action !== "save" && action !== "delete") {

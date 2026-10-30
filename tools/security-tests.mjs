@@ -97,7 +97,7 @@ const stubPlugin = {
   }
 };
 
-const FUNCTIONS = ["cms", "station-auth", "signal", "vitals", "examination-report", "call-logs", "attachment", "ai", "clinical-ai", "admin-users", "cms-dashboard"];
+const FUNCTIONS = ["cms", "video", "station-auth", "signal", "vitals", "examination-report", "call-logs", "attachment", "ai", "clinical-ai", "admin-users", "cms-dashboard"];
 const fn = {};
 for (const name of FUNCTIONS) {
   const outfile = path.join(OUT, `${name}.mjs`);
@@ -455,6 +455,81 @@ await check("ATT-02", "Tệp PDF hợp lệ vẫn tải về bình thường", a
   await getStore("attachments").set("PDF1", new Blob(["%PDF-1.4"]), { metadata: { contentType: "application/pdf" } });
   const r = await call("attachment", { path: "attachment?id=PDF1" });
   return { ok: r.status === 200 && /pdf/.test(r.headers.get("content-type") || ""), detail: `HTTP ${r.status}` };
+});
+
+console.log("\n== Tệp đính kèm: công khai / riêng tư ==");
+const up = (as, id, extra = {}) => call("cms", { method: "POST", as, body: { action: "upload_attachment_chunk", id, index: 0, total: 1, chunk: "data:application/pdf;base64,JVBERi0xLjQgVEhVLVRFU1Q=", mimeType: "application/pdf", fileName: "x.pdf", ...extra } });
+const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+await check("FILE-01", "Biên tập viên tải tài liệu công khai; ai cũng xem được, cache công khai", async () => {
+  const u = await up("editor", "DOC_PUB1");
+  const g = await call("attachment", { path: "attachment?id=DOC_PUB1" });
+  return { ok: u.status === 200 && u.data.visibility === "public" && g.status === 200 && /pdf/.test(g.headers.get("content-type") || "") && /public/.test(g.headers.get("cache-control") || ""), detail: `tải lên=${u.status}, xem ẩn danh=${g.status}` };
+});
+await check("FILE-02", "Tệp riêng tư: chỉ cán bộ y tế tải lên được (ẩn danh 401, tài khoản thường 403, biên tập viên 403)", async () => {
+  const a = await up(undefined, "PRIV_X1", { visibility: "private" });
+  const b = await up("plain", "PRIV_X2", { visibility: "private" });
+  const c = await up("editor", "PRIV_X3", { visibility: "private" });
+  const d = await up("stationA", "PRIV_A1", { visibility: "private", chunk: PNG, mimeType: "image/png" });
+  return { ok: a.status === 401 && b.status === 403 && c.status === 403 && d.status === 200 && d.data.visibility === "private", detail: `ẩn danh=${a.status}, thường=${b.status}, biên tập=${c.status}, cán bộ trạm A=${d.status}` };
+});
+await check("FILE-03", "Tệp riêng tư không xem được khi chưa đăng nhập / không quyền / khác trạm", async () => {
+  const a = await call("attachment", { path: "attachment?id=PRIV_A1" });
+  const b = await call("attachment", { path: "attachment?id=PRIV_A1", as: "plain" });
+  const c = await call("attachment", { path: "attachment?id=PRIV_A1", as: "editor" });
+  const d = await call("attachment", { path: "attachment?id=PRIV_A1", as: "stationB" });
+  const leaked = [a, b, c, d].some((r) => /image\/png/.test(r.headers.get("content-type") || ""));
+  return { ok: a.status === 401 && b.status === 403 && c.status === 403 && d.status === 403 && !leaked, detail: `ẩn danh=${a.status}, thường=${b.status}, biên tập=${c.status}, trạm B=${d.status}` };
+});
+await check("FILE-04", "Tệp riêng tư xem được bởi cán bộ cùng trạm, bác sĩ tuyến trên, Quản trị; không cache", async () => {
+  const a = await call("attachment", { path: "attachment?id=PRIV_A1", as: "stationA" });
+  const b = await call("attachment", { path: "attachment?id=PRIV_A1", as: "doctor" });
+  const c = await call("attachment", { path: "attachment?id=PRIV_A1", as: "admin" });
+  return { ok: [a, b, c].every((r) => r.status === 200) && /no-store/.test(a.headers.get("cache-control") || ""), detail: `trạm A=${a.status}, bác sĩ=${b.status}, QT=${c.status}, cache=${a.headers.get("cache-control")}` };
+});
+await check("FILE-05", "Không tải đè lên tệp đã có bằng cách đổi ID (công khai ↔ riêng tư, cùng loại)", async () => {
+  const a = await up("editor", "PRIV_A1");
+  const b = await up("stationB", "DOC_T1", { visibility: "private" });
+  const c = await up("editor", "DOC_PUB1");
+  const g = await call("attachment", { path: "attachment?id=PRIV_A1", as: "stationA" });
+  return { ok: a.status === 409 && b.status === 409 && c.status === 409 && /image\/png/.test(g.headers.get("content-type") || ""), detail: `đè riêng tư=${a.status}, đè công khai=${b.status}, đè cùng loại=${c.status}, tệp gốc còn nguyên=${/png/.test(g.headers.get("content-type") || "")}` };
+});
+await check("FILE-06", "Không chen phần tệp vào lượt tải của người khác", async () => {
+  const half = "data:application/pdf;base64,JVBERi0=";
+  const a0 = await call("cms", { method: "POST", as: "stationA", body: { action: "upload_attachment_chunk", visibility: "private", id: "PRIV_A2", index: 0, total: 2, chunk: half, mimeType: "application/pdf" } });
+  const b1 = await call("cms", { method: "POST", as: "stationB", body: { action: "upload_attachment_chunk", visibility: "private", id: "PRIV_A2", index: 1, total: 2, chunk: "data:application/pdf;base64,R0lBTkdJQQ==", mimeType: "application/pdf" } });
+  const a1 = await call("cms", { method: "POST", as: "stationA", body: { action: "upload_attachment_chunk", visibility: "private", id: "PRIV_A2", index: 1, total: 2, chunk: "data:application/pdf;base64,MS40", mimeType: "application/pdf" } });
+  const g = await call("attachment", { path: "attachment?id=PRIV_A2", as: "stationA" });
+  return { ok: a0.data.complete === false && b1.data.complete === false && a1.data.complete === true && g.text === "%PDF-1.4", detail: `B chen phần: complete=${b1.data.complete}; nội dung cuối đúng của A=${g.text === "%PDF-1.4"}` };
+});
+await check("FILE-07", "Mã tệp sai định dạng / đường dẫn ../ trả 404 (không còn 500), thiếu mã trả 400", async () => {
+  const codes = [];
+  for (const id of ["../../etc/passwd", "a/b", "x%00y", "<script>", "PRIV_A1/../DOC_T1"]) codes.push((await call("attachment", { path: `attachment?id=${encodeURIComponent(id)}` })).status);
+  const v = await call("video", { path: `video?id=${encodeURIComponent("../../x")}` });
+  const m = await call("attachment", { path: "attachment" });
+  return { ok: codes.every((c) => c === 404) && v.status === 404 && m.status === 400, detail: `attachment=[${codes}], video=${v.status}, thiếu mã=${m.status}` };
+});
+await check("FILE-08", "Không có lối xoá/ghi tệp qua /api/attachment, /api/video (POST/PUT/DELETE → 405), tệp còn nguyên", async () => {
+  const codes = [];
+  for (const m of ["POST", "PUT", "PATCH", "DELETE"]) {
+    codes.push((await call("attachment", { method: m, path: "attachment?id=DOC_T1", as: "admin" })).status);
+    codes.push((await call("video", { method: m, path: "video?id=VID_T1", as: "admin" })).status);
+  }
+  const still = (await call("attachment", { path: "attachment?id=DOC_T1" })).status === 200 && (await call("video", { path: "video?id=VID_T1" })).status === 200;
+  return { ok: codes.every((c) => c === 405) && still, detail: `[${codes}], tệp còn=${still}` };
+});
+await check("FILE-09", "Tệp cũ (tải lên trước Module 0, không có nhãn) vẫn mở được; Sửa video vẫn thay được tệp", async () => {
+  const { getStore } = await import(pathToFileURL(path.join(WORK, "stub-blobs.mjs")).href);
+  await getStore("attachments").set("DOC_1700000000000_old01", new Blob(["%PDF-1.3"]), { metadata: { contentType: "application/pdf" } });
+  await getStore("attachments").set("OLDIMG", new Blob(["\x89PNG"]), { metadata: { contentType: "image/jpeg" } });
+  const a = await call("attachment", { path: "attachment?id=DOC_1700000000000_old01" });
+  const i = await call("attachment", { path: "attachment?id=OLDIMG" });
+  const v = await call("cms", { method: "POST", as: "editor", body: { action: "upload_chunk", id: "VID_T1", index: 0, total: 1, chunk: "data:video/mp4;base64,BBBB", mimeType: "video/mp4" } });
+  return { ok: a.status === 200 && i.status === 200 && /image\/jpeg/.test(i.headers.get("content-type") || "") && v.status === 200 && v.data.complete === true, detail: `PDF cũ=${a.status}, ảnh cũ=${i.status}, sửa video=${v.status}` };
+});
+await check("FILE-10", "Phiếu tệp riêng tư qua ?token= (cho thẻ <img>) cũng phải đúng quyền", async () => {
+  const ok = await call("attachment", { path: `attachment?id=PRIV_A1&token=${tokenFor("stationA")}` });
+  const no = await call("attachment", { path: `attachment?id=PRIV_A1&token=${tokenFor("stationB")}` });
+  return { ok: ok.status === 200 && no.status === 403, detail: `trạm A=${ok.status}, trạm B=${no.status}` };
 });
 
 console.log("\n== /api/ai ==");

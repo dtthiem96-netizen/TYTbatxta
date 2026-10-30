@@ -1,4 +1,5 @@
 import { getStore } from "@netlify/blobs";
+import { safeId } from "../lib/guard.js";
 
 /**
  * Metadata của Netlify Blobs có kiểu Record<string, unknown>, nên contentType
@@ -36,10 +37,24 @@ export default async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers, status: 204 });
   }
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      headers: { ...headers, "Content-Type": "application/json" },
+      status: 405
+    });
+  }
 
   try {
     const url = new URL(req.url);
-    const id = url.searchParams.get("id");
+    const rawId = url.searchParams.get("id");
+    // Mã video sai định dạng (có "../", ký tự lạ) được coi như không tồn tại.
+    const id = rawId ? safeId(rawId, 200) : "";
+    if (rawId && !id) {
+      return new Response(JSON.stringify({ error: "Video not found" }), {
+        headers: { ...headers, "Content-Type": "application/json" },
+        status: 404
+      });
+    }
     if (!id) {
       return new Response(JSON.stringify({ error: "Missing video id" }), {
         headers: { ...headers, "Content-Type": "application/json" },
