@@ -97,7 +97,7 @@ const stubPlugin = {
   }
 };
 
-const FUNCTIONS = ["cms", "video", "station-auth", "signal", "vitals", "examination-report", "call-logs", "attachment", "ai", "clinical-ai", "admin-users", "cms-dashboard"];
+const FUNCTIONS = ["cms", "video", "station-auth", "signal", "vitals", "examination-report", "call-logs", "attachment", "ai", "clinical-ai", "admin-users", "cms-dashboard", "auth-login"];
 const fn = {};
 for (const name of FUNCTIONS) {
   const outfile = path.join(OUT, `${name}.mjs`);
@@ -561,6 +561,117 @@ await check("ADM-02", "Thống kê CMS: tài khoản thường bị từ chối"
   const b = await call("cms-dashboard", { path: "cms/dashboard", as: "plain" });
   return { ok: a.status === 401 && b.status === 403, detail: `${a.status}/${b.status}` };
 });
+
+console.log("\n== Mật khẩu & phiên (tài khoản giả lập) ==");
+{
+  const PW_USERS = {
+    temp:  { id: "T-PW-TEMP", username: "t-pwtemp@test.local", station_access: "true", doctor_access: "false", must: "true" },
+    own:   { id: "T-PW-OWN", username: "t-pwown@test.local", station_access: "true", doctor_access: "false", must: "false" },
+    reset: { id: "T-PW-RESET", username: "t-pwreset@test.local", station_access: "false", doctor_access: "true", must: "false" }
+  };
+  const tempPassword = "TamThoi-2026x";
+  for (const u of Object.values(PW_USERS)) {
+    await pg.query(
+      `insert into users (id, username, name, role, can_receive_video, station_access, doctor_access, attendance_access, password_hash, email, station_code, status, must_change_password, created_at)
+       values ($1,$2,'Tài khoản giả lập','Cán bộ Điểm trạm (Station Operator)','true',$3,$4,'true',$5,$2,$6,'ACTIVE',$7,$8)`,
+      [u.id, u.username, u.station_access, u.doctor_access, u.must === "true" ? await bcrypt.hash(tempPassword, 4) : testHash, ST_A, u.must, now]
+    );
+  }
+  const login = (username, password, scope = "station", ip) =>
+    call("station-auth", { method: "POST", ip, body: { username, password, scope } });
+  const chpw = (username, currentPassword, newPassword, ip) =>
+    call("station-auth", { method: "POST", ip, body: { action: "change_password", username, currentPassword, newPassword } });
+  const withToken = (name, token, p) => {
+    const h = { authorization: `Bearer ${token}`, "x-nf-client-connection-ip": "10.9.0.1", "content-type": "application/json" };
+    return fn[name](new Request(`http://localhost/api/${p || name}`, { headers: h }), {}).then(async (r) => ({ status: r.status, text: await r.text() }));
+  };
+
+  await check("PW-01", "Mật khẩu tạm KHÔNG mở được phiên ở cả hai cổng đăng nhập (403 PASSWORD_CHANGE_REQUIRED, không có phiếu)", async () => {
+    const a = await login(PW_USERS.temp.username, tempPassword, "station", "10.9.1.1");
+    const b = await call("auth-login", { method: "POST", ip: "10.9.1.2", body: { username: PW_USERS.temp.username, password: tempPassword } });
+    const ok = [a, b].every((r) => r.status === 403 && r.data?.code === "PASSWORD_CHANGE_REQUIRED" && !r.data?.token);
+    return { ok, detail: `station-auth=${a.status}/${a.data?.code}, auth/login=${b.status}/${b.data?.code}` };
+  });
+  await check("PW-02", "Đổi mật khẩu bị từ chối khi: sai mật khẩu hiện tại, mật khẩu đã công khai, trùng mật khẩu cũ, chứa tên đăng nhập, quá ngắn", async () => {
+    const u = PW_USERS.temp.username;
+    const r = [
+      await chpw(u, "sai-mat-khau-1", "MoiHoanToan-77", "10.9.2.1"),
+      await chpw(u, tempPassword, "Admin123@", "10.9.2.2"),
+      await chpw(u, tempPassword, tempPassword, "10.9.2.3"),
+      await chpw(u, tempPassword, "t-pwtemp-2026", "10.9.2.4"),
+      await chpw(u, tempPassword, "Ab1", "10.9.2.5")
+    ].map((x) => x.status);
+    return { ok: JSON.stringify(r) === JSON.stringify([401, 400, 400, 400, 400]), detail: `[${r.join(",")}]` };
+  });
+  let ownToken = "";
+  await check("PW-03", "Đặt mật khẩu riêng từ mật khẩu tạm → đăng nhập được bằng mật khẩu mới, mật khẩu tạm hết dùng được, băm bcrypt 12 vòng", async () => {
+    const c = await chpw(PW_USERS.temp.username, tempPassword, "RiengToi-2026q", "10.9.3.1");
+    const a = await login(PW_USERS.temp.username, "RiengToi-2026q", "station", "10.9.3.2");
+    const b = await login(PW_USERS.temp.username, tempPassword, "station", "10.9.3.3");
+    const row = await one("select must_change_password m, substr(password_hash,1,7) h from users where id=$1", [PW_USERS.temp.id]);
+    return { ok: c.status === 200 && a.status === 200 && Boolean(a.data?.token) && b.status === 401 && row.m === "false" && row.h === "$2b$12$", detail: `đổi=${c.status}, mới=${a.status}, tạm=${b.status}, cờ=${row.m}, băm=${row.h}…` };
+  });
+  await check("PW-04", "Phiếu cấp TRƯỚC khi tự đổi mật khẩu mất hiệu lực ngay (API bắt buộc đăng nhập 401, API công khai coi như khách)", async () => {
+    const l = await login(PW_USERS.own.username, testPassword, "station", "10.9.4.1");
+    ownToken = l.data?.token || "";
+    const before = await withToken("station-auth", ownToken);
+    const c = await chpw(PW_USERS.own.username, testPassword, "DoiMoi-2026z", "10.9.4.2");
+    const after = await withToken("station-auth", ownToken);
+    const vit = await withToken("vitals", ownToken, `vitals/${ROOM_A}`);
+    const cms = await withToken("cms", ownToken);
+    const appts = JSON.parse(cms.text).appointments?.length;
+    return { ok: before.status === 200 && c.status === 200 && after.status === 401 && vit.status === 401 && appts === 0, detail: `trước=${before.status}, sau: phiên=${after.status}, sinh hiệu=${vit.status}, đăng ký khám thấy=${appts}` };
+  });
+  await check("PW-05", "Quản trị đặt lại mật khẩu: phiếu & phiên cũ bị thu hồi, mật khẩu tạm buộc đổi, không lộ chuỗi băm", async () => {
+    const l = await call("auth-login", { method: "POST", ip: "10.9.5.1", body: { username: PW_USERS.reset.username, password: testPassword } });
+    const oldToken = l.data?.token || "";
+    const r = await call("admin-users", { method: "POST", as: "admin", body: { action: "reset_password", id: PW_USERS.reset.id } });
+    const temp = r.data?.temporaryPassword || "";
+    const old = await withToken("vitals", oldToken, `vitals/${ROOM_A}`);
+    const sess = await one("select count(*)::int n from auth_sessions where user_id=$1 and revoked_at is null", [PW_USERS.reset.id]);
+    const relog = await login(PW_USERS.reset.username, temp, "doctor", "10.9.5.2");
+    const leak = /\$2[aby]\$/.test(r.text) || /password_?hash/i.test(r.text);
+    return { ok: l.status === 200 && r.status === 200 && temp.length >= 12 && old.status === 401 && sess.n === 0 && relog.data?.code === "PASSWORD_CHANGE_REQUIRED" && !leak, detail: `đặt lại=${r.status}, phiếu cũ=${old.status}, phiên còn sống=${sess.n}, đăng nhập bằng mật khẩu tạm=${relog.data?.code}, lộ băm=${leak}` };
+  });
+  await check("PW-06", "Quản trị không tự cấp mật khẩu tạm / tự đặt mật khẩu cho chính mình qua lối quản lý tài khoản", async () => {
+    const a = await call("admin-users", { method: "POST", as: "admin", body: { action: "reset_password", id: USERS.admin.id } });
+    const b = await call("admin-users", { method: "POST", as: "admin", body: { action: "update", id: USERS.admin.id, password: "TuDat-2026abc" } });
+    const row = await one("select password_hash = $2 same from users where id=$1", [USERS.admin.id, testHash]);
+    return { ok: a.status === 400 && b.status === 400 && row.same === true, detail: `reset=${a.status}, update=${b.status}, mật khẩu Quản trị giữ nguyên=${row.same}` };
+  });
+  await check("PW-07", "Không còn mật khẩu dùng chung: tài khoản chưa có mật khẩu riêng không vào được kể cả khi đặt biến STATION_PASSWORD", async () => {
+    process.env.STATION_PASSWORD = "DungChung-2026";
+    const a = await login(USERS.nopass.username, "DungChung-2026", "station", "10.9.7.1");
+    const b = await chpw(USERS.nopass.username, "DungChung-2026", "RiengToi-2026w", "10.9.7.2");
+    delete process.env.STATION_PASSWORD;
+    return { ok: a.status === 401 && b.status === 401, detail: `đăng nhập=${a.status}, đổi mật khẩu=${b.status}` };
+  });
+  await check("PW-08", "Tài khoản mới do Quản trị tạo luôn mang cờ bắt buộc đổi mật khẩu (kể cả khi biểu mẫu gửi false); mật khẩu đã công khai bị từ chối", async () => {
+    const base = { action: "create", name: "Giả lập mới", email: "t-new@test.local", stationCode: ST_A, mustChangePassword: false };
+    const weak = await call("admin-users", { method: "POST", as: "admin", body: { ...base, username: "t-new0@test.local", password: "Admin123@" } });
+    const r = await call("admin-users", { method: "POST", as: "admin", body: { ...base, username: "t-new1@test.local", password: "BanDau-2026k" } });
+    const row = await one("select must_change_password m from users where username='t-new1@test.local'");
+    return { ok: weak.status === 400 && r.status === 200 && row?.m === "true", detail: `mật khẩu công khai=${weak.status}, tạo=${r.status}, cờ=${row?.m}` };
+  });
+  await check("PW-09", "Phiếu cũ (cấp trước bản vá, không mang dấu mật khẩu) vẫn dùng được tới khi hết hạn - không đẩy cán bộ đang trực ra ngoài", async () => {
+    const r = await call("vitals", { path: `vitals/${ROOM_A}`, as: "stationA" });
+    return { ok: r.status === 200, detail: `HTTP ${r.status}` };
+  });
+  await check("PW-10", "Dò mật khẩu qua lối đổi mật khẩu bị chặn (429)", async () => {
+    let last = 0;
+    for (let i = 0; i < 12; i++) {
+      last = (await chpw(PW_USERS.own.username, "doan-" + i, "KhongQuanTrong-1", "10.9.10.1")).status;
+      if (last === 429) break;
+    }
+    return { ok: last === 429, detail: `trạng thái cuối=${last}` };
+  });
+  await check("PW-11", "Không phản hồi nào chứa chuỗi băm mật khẩu (đăng nhập, phiên, danh sách tài khoản, /api/cms)", async () => {
+    const l = await login(PW_USERS.temp.username, "RiengToi-2026q", "station", "10.9.11.1");
+    const texts = [l.text, (await withToken("station-auth", l.data?.token)).text, (await call("admin-users", { as: "admin" })).text, (await call("cms", { as: "admin" })).text, (await call("cms")).text];
+    const leaks = texts.filter((t) => /\$2[aby]\$\d\d\$/.test(t) || /"password_?hash"/i.test(t)).length;
+    return { ok: leaks === 0, detail: `phản hồi lộ băm=${leaks}/${texts.length}` };
+  });
+}
 
 const failed = results.filter((r) => !r.ok);
 console.log(`\nTổng: ${results.length} kịch bản, ${results.length - failed.length} đạt, ${failed.length} không đạt.`);

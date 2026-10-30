@@ -163,55 +163,34 @@ người bệnh đang nguy kịch. Sửa ngưỡng ở một tệp thì phải s
 
 ### Tài khoản Quản trị viên hệ thống (Admin)
 
-- **Tên đăng nhập**: `tytbatxat@laocai.gov.vn`
-- **Mật khẩu mặc định**: mật khẩu khởi tạo do đơn vị quy định (`Admin123@`), đã được
-  nạp sẵn dưới dạng **băm bcrypt** trong bản di trú
-  `netlify/database/migrations/20260806035628_set_default_admin_account` và được
-  **đặt lại** trong bản di trú
-  `netlify/database/migrations/20260807120000_reset_default_admin_credentials`
-  (xem [Đặt lại tài khoản Quản trị](#đặt-lại-tài-khoản-quản-trị-khi-mất-quyền-truy-cập)).
-- **Quyền**: Quản trị viên (Admin) - vào được CMS Quản trị (`/admin`), Module Bảng
-  điều khiển điểm trạm và nhận cuộc gọi Telehealth.
+- **Tên đăng nhập**: `tytbatxat@laocai.gov.vn` (và tài khoản CMS `admin-tytbatxat`).
+- **Mật khẩu**: mỗi Quản trị viên giữ mật khẩu riêng. Mật khẩu khởi tạo từng ghi
+  trong các bản di trú `20260806035628_set_default_admin_account`,
+  `20260807010000_add_cms_admin_account` và
+  `20260807120000_reset_default_admin_credentials` **đã bị công khai**, hệ thống
+  từ chối đặt lại mật khẩu đó, và không được dùng lại.
+- **Quyền**: Quản trị viên (Admin) - vào được CMS Quản trị, Module Bảng điều khiển
+  điểm trạm và nhận cuộc gọi Telehealth.
 
-> **Bắt buộc đổi mật khẩu ngay sau lần đăng nhập đầu tiên** trong
-> *CMS Quản trị → Quản trị hệ thống → Quản lý tài khoản & Phân quyền hệ thống*.
-> Mật khẩu mặc định chỉ dùng để mở khoá hệ thống lần đầu; mật khẩu mới ghi đè giá
-> trị cũ và bản di trú không bao giờ khôi phục lại mật khẩu mặc định.
+### Mật khẩu tạm và bắt buộc đổi mật khẩu
 
-### Tài khoản Quản trị viên CMS (Mô-đun Xác thực)
+- Quản trị cấp mật khẩu tạm trong *CMS → Quản trị hệ thống → Phân quyền hệ thống →
+  Đặt lại mật khẩu*. Mật khẩu tạm chỉ hiện **một lần**; bàn giao trực tiếp hoặc
+  qua kênh riêng với cán bộ, không gửi vào nhóm chat chung.
+- Tài khoản giữ mật khẩu tạm (`must_change_password = 'true'`) **không nhận được
+  phiếu phiên** ở bất kỳ cổng nào (`403 PASSWORD_CHANGE_REQUIRED`). Trang đăng nhập
+  tự mở hộp *Đặt mật khẩu riêng*; đổi xong thì đăng nhập tiếp bằng mật khẩu mới.
+- Đổi hoặc đặt lại mật khẩu làm mọi phiên đang mở của tài khoản mất hiệu lực.
+- Không còn mật khẩu dùng chung: tài khoản chưa có mật khẩu riêng không đăng nhập
+  được cho tới khi Quản trị cấp mật khẩu tạm.
 
-- **Tên đăng nhập**: `tytbatxat@laocai.gov.vn`
-- **Mật khẩu khởi tạo**: `Admin123@`, nạp sẵn dưới dạng **băm bcrypt (cost factor 10)**
-  trong bản di trú `netlify/database/migrations/20260807010000_add_cms_admin_account`
-  và được **đặt lại** trong bản di trú
-  `netlify/database/migrations/20260807120000_reset_default_admin_credentials`
-  (bản sao đọc được: `db/sql/create-admin-account.sql`).
-- **Vai trò**: `admin` - dùng cho các tuyến `/api/auth/*` và `/api/cms/*` của
-  [Mô-đun Xác thực](#6-mô-đun-xác-thực-authentication-module).
+### Khi mất quyền truy cập Quản trị
 
-> Đây cũng là mật khẩu khởi tạo, **bắt buộc đổi ngay sau lần đăng nhập đầu tiên**.
-
-### Đặt lại tài khoản Quản trị khi mất quyền truy cập
-
-Bản di trú chỉ chạy **một lần trên mỗi nhánh** cơ sở dữ liệu. Vì vậy khi mật khẩu
-Quản trị bị đổi rồi quên, tài khoản bị khoá (`status = DISABLED`), bị thu hồi quyền
-hoặc bị xoá, hai bản di trú khởi tạo ở trên **không tự chạy lại** để sửa - và không
-được phép sửa hay xoá chúng, vì nhánh nào đã áp dụng thì bắt buộc tệp phải còn
-nguyên trên đĩa.
-
-Cách xử lý an toàn duy nhất là **tiến về phía trước bằng một bản di trú mới**:
-
-| | |
-|---|---|
-| Bản di trú | `netlify/database/migrations/20260807120000_reset_default_admin_credentials` |
-| Tác dụng | Đặt lại **cả hai** tài khoản Quản trị về mật khẩu mặc định `Admin123@`, mở khoá (`ACTIVE`), trả lại quyền Quản trị + quyền vào Bảng điều khiển điểm trạm; tạo lại tài khoản nếu đã bị xoá |
-| Phạm vi | Chạy đúng một lần trên **mọi nhánh** (xem trước và chính thức) ở lần triển khai kế tiếp |
-| Chạy tay | Trên PostgreSQL ngoài Netlify: `psql "$DATABASE_URL" -f db/sql/reset-admin-credentials.sql` |
-
-Sau khi đặt lại, cả hai tài khoản mang cờ `must_change_password = 'true'`: giao diện
-hiện lời nhắc đổi mật khẩu riêng ngay sau khi đăng nhập (chỉ nhắc, không chặn đăng
-nhập). **Hãy đổi mật khẩu ngay** trong *CMS Quản trị → Quản trị hệ thống → Quản lý
-tài khoản & Phân quyền hệ thống*.
+Không chạy lại `db/sql/reset-admin-credentials.sql` - tệp đó đưa tài khoản về mật
+khẩu đã công khai. Sinh chuỗi băm cho một mật khẩu tạm mới bằng
+`node auth/tools/generate-hash.mjs '<mật khẩu tạm>' tytbatxat@laocai.gov.vn`, cập
+nhật bằng một bản di trú mới (đặt `must_change_password = 'true'`), rồi đăng nhập
+và đặt mật khẩu riêng ngay.
 
 Cần đặt lại lần nữa về sau thì **chép bản di trú này thành một thư mục mới** với dấu
 thời gian mới hơn (ví dụ `20260901090000_reset_default_admin_credentials`), đừng sửa
@@ -360,7 +339,7 @@ nào có thật), và `403 ACCOUNT_DISABLED` khi tài khoản bị khoá.
 # 1. Đăng nhập, lấy phiếu phiên
 TOKEN=$(curl -s -X POST http://localhost:8889/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"tytbatxat@laocai.gov.vn","password":"Admin123@"}' | jq -r .token)
+  -d '{"username":"<tên đăng nhập>","password":"<mật khẩu>"}' | jq -r .token)
 
 # 2. Gọi tuyến được bảo vệ
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8889/api/cms/dashboard

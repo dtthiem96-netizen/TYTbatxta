@@ -19,8 +19,9 @@ import { db } from "../../db/index.js";
 import { users, siteConfigs } from "../../db/schema.js";
 import { eq, sql } from "drizzle-orm";
 
-/** Số vòng bcrypt. 10 là mức cân bằng giữa an toàn và thời gian chạy hàm. */
-const BCRYPT_ROUNDS = 10;
+/** Số vòng bcrypt cho mật khẩu MỚI. Chuỗi băm cũ (10 vòng) vẫn đối chiếu được
+ *  bình thường; chúng lên 12 vòng ở lần đổi/đặt lại mật khẩu kế tiếp. */
+const BCRYPT_ROUNDS = 12;
 
 /** Tên đăng nhập của Quản trị viên hệ thống (tài khoản gốc của Trạm Y tế Bát Xát). */
 export const DEFAULT_ADMIN_USERNAME = "tytbatxat@laocai.gov.vn";
@@ -59,6 +60,13 @@ export type TokenClaims = {
   iat: number;
   exp: number;
   /**
+   * Dấu phiên bản mật khẩu (passwordVersion). Đổi hoặc đặt lại mật khẩu là mọi
+   * phiếu cấp trước đó mất hiệu lực ngay. Phiếu cũ không có trường này vẫn được
+   * nhận tới khi hết hạn (tối đa 8 giờ) để không đẩy cán bộ đang trực ra ngoài
+   * lúc triển khai.
+   */
+  pwv?: string;
+  /**
    * Mã phiên (auth_sessions.id). Phiếu cấp qua /api/auth/login luôn có; phân hệ
    * Chấm công từ chối phiếu không có jti hoặc có jti đã bị thu hồi.
    */
@@ -89,11 +97,18 @@ export async function verifyPassword(plain: string, hash: string | null | undefi
   }
 }
 
+/** Mật khẩu từng xuất hiện công khai (README, mã nguồn) hoặc quá phổ biến. */
+const BLOCKED_PASSWORDS = new Set([
+  "admin123@", "admin123", "admin@123", "123456789", "12345678", "password", "password1",
+  "matkhau123", "tytbatxat", "tytbatxat123", "batxat123", "qwerty123", "abc12345"
+]);
+
 /**
- * Kiểm tra độ mạnh tối thiểu của mật khẩu do Quản trị đặt.
- * Trả về thông báo lỗi tiếng Việt, hoặc null nếu hợp lệ.
+ * Kiểm tra độ mạnh tối thiểu của mật khẩu mới (Quản trị đặt hoặc cán bộ tự đổi).
+ * Trả về thông báo lỗi tiếng Việt, hoặc null nếu hợp lệ. Truyền username để
+ * chặn mật khẩu chứa chính tên đăng nhập.
  */
-export function validatePasswordStrength(plain: string): string | null {
+export function validatePasswordStrength(plain: string, username?: string | null): string | null {
   if (typeof plain !== "string" || plain.length < 8) {
     return "Mật khẩu phải có tối thiểu 8 ký tự.";
   }
@@ -103,7 +118,30 @@ export function validatePasswordStrength(plain: string): string | null {
   if (!/[A-Za-z]/.test(plain) || !/[0-9]/.test(plain)) {
     return "Mật khẩu phải gồm cả chữ và số.";
   }
+  if (BLOCKED_PASSWORDS.has(plain.toLowerCase())) {
+    return "Mật khẩu này đã bị công khai hoặc quá phổ biến. Vui lòng chọn mật khẩu khác.";
+  }
+  const name = String(username || "").trim().toLowerCase().split("@")[0];
+  if (name.length >= 4 && plain.toLowerCase().includes(name)) {
+    return "Mật khẩu không được chứa tên đăng nhập.";
+  }
   return null;
+}
+
+/**
+ * Dấu phiên bản mật khẩu: 16 ký tự đầu của SHA-256(chuỗi băm bcrypt). Không lộ
+ * gì về mật khẩu (chuỗi băm đã có muối ngẫu nhiên), nhưng đổi mỗi lần mật khẩu
+ * đổi - nên nhúng vào phiếu để thu hồi phiếu cũ mà không cần thêm cột.
+ */
+export async function passwordVersion(hash: string | null | undefined): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(String(hash || ""))));
+  return Array.from(digest.slice(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Phiếu còn khớp mật khẩu hiện tại của tài khoản (phiếu cũ không mang pwv được nhận). */
+export async function tokenMatchesPassword(claims: TokenClaims, user: Pick<UserRow, "passwordHash">): Promise<boolean> {
+  if (!claims.pwv) return true;
+  return claims.pwv === (await passwordVersion(user.passwordHash));
 }
 
 /** Sinh mật khẩu tạm khi Quản trị bấm "Đặt lại mật khẩu". */
@@ -203,6 +241,7 @@ export async function signToken(
     stationCode: user.stationCode || null,
     iat: nowSec,
     exp: nowSec + ttlSeconds,
+    pwv: await passwordVersion(user.passwordHash),
     ...(jti ? { jti } : {})
   };
 
@@ -302,6 +341,22 @@ export function hasStationAccess(user: Pick<UserRow, "stationAccess" | "role">):
   if (granted === "true") return true;
   if (granted === "false") return false;
   return /điểm trạm|diem tram|station|admin|quản trị|quan tri/i.test(String(user.role || ""));
+}
+
+/** Tài khoản đang giữ mật khẩu tạm (Quản trị vừa cấp/đặt lại) - phải đổi trước khi vào. */
+export function needsPasswordChange(user: Pick<UserRow, "mustChangePassword">): boolean {
+  return String(user.mustChangePassword || "false").trim().toLowerCase() === "true";
+}
+
+/**
+ * Phản hồi chung của mọi cổng đăng nhập khi tài khoản còn dùng mật khẩu tạm.
+ * KHÔNG cấp phiếu: cán bộ phải đổi mật khẩu (POST /api/station-auth,
+ * action=change_password) rồi đăng nhập lại bằng mật khẩu mới. Trang đăng nhập
+ * nạp /assets/password-change.js để mở hộp đổi mật khẩu ngay tại chỗ.
+ */
+export function passwordChangeRequiredBody() {
+  const message = "Tài khoản đang dùng mật khẩu tạm. Vui lòng đặt mật khẩu riêng để tiếp tục đăng nhập.";
+  return { success: false, code: "PASSWORD_CHANGE_REQUIRED", mustChangePassword: true, error: message, message };
 }
 
 /** Tài khoản bị khoá thì không đăng nhập được ở bất kỳ cổng nào. */
@@ -450,6 +505,9 @@ export async function requireAnyScope(req: Request, scopes: AuthScope[]): Promis
   const user = found[0];
   if (!isActive(user)) {
     throw new AuthError(403, "ACCOUNT_DISABLED", "Tài khoản đã bị Quản trị khoá.");
+  }
+  if (!(await tokenMatchesPassword(claims, user))) {
+    throw new AuthError(401, "PASSWORD_CHANGED", "Mật khẩu tài khoản vừa được đổi. Vui lòng đăng nhập lại.");
   }
 
   // Đọc lại quyền từ cơ sở dữ liệu: thu hồi quyền có hiệu lực tức thì.
