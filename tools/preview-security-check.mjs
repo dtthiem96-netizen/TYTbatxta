@@ -33,6 +33,13 @@ await t("LV-CMS-01", "GET /api/cms ẩn danh: không có đăng ký khám, khôn
   const apptKeyLeak = /"(idCard|patientName|symptoms)"\s*:/.test(r.text);
   return { ok: r.s === 200 && Array.isArray(r.j.appointments) && r.j.appointments.length === 0 && !sens.length && !sig && !apptKeyLeak, d: `HTTP ${r.s}, appointments=${r.j.appointments?.length}, users=${r.j.users?.length} (trường: ${userKeys.join(",")}), chữ ký hiện=${sig}, có trường idCard/symptoms=${apptKeyLeak}` };
 });
+await t("LV-CMS-01A", "GET /api/cms ẩn danh và phiếu giả mạo: không có danh sách tài khoản nội bộ, không có người ký đơn thuốc", async () => {
+  const a = await req("/api/cms");
+  const b = await req("/api/cms", { headers: { authorization: `Bearer ${FAKE}` } });
+  const n = (r) => (Array.isArray(r.j.users) ? r.j.users.length : -1);
+  const sg = (r) => (Array.isArray(r.j.prescriptionSigners) ? r.j.prescriptionSigners.length : -1);
+  return { ok: a.s === 200 && n(a) === 0 && n(b) === 0 && sg(a) === 0 && sg(b) === 0, d: `ẩn danh users=${n(a)}, phiếu giả users=${n(b)}, người ký đơn ẩn danh=${sg(a)}, phiếu giả=${sg(b)}` };
+});
 await t("LV-CMS-02", "GET /api/cms ẩn danh: không chuỗi nào có dạng CCCD/BHYT trong toàn bộ phản hồi", async () => {
   const r = await req("/api/cms");
   // Bỏ ảnh nhúng base64 và mã bản ghi dạng tiền tố + mốc thời gian (VD1793…) - nguồn báo nhầm đã xác minh.

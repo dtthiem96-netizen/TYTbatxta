@@ -221,6 +221,37 @@ await check("CMS-02", "GET ẩn danh không lộ email/SĐT/trạng thái mật 
   const bad = ["email", "phone", "hasPassword", "lastLoginAt", "mustChangePassword"].filter((k) => k in u);
   return { ok: bad.length === 0 && !s.signature, detail: `trường lộ: [${bad.join(", ")}], chữ ký=${Boolean(s.signature)}` };
 });
+await check("CMS-02A", "GET ẩn danh không nhận danh sách tài khoản (tên đăng nhập, vai trò, mã điểm trạm)", async () => {
+  const r = await call("cms");
+  const leaked = Object.values(USERS).filter((u) => r.text.includes(u.username)).length;
+  return { ok: r.status === 200 && Array.isArray(r.data.users) && r.data.users.length === 0 && leaked === 0, detail: `users=${r.data.users?.length}, tên đăng nhập lộ=${leaked}` };
+});
+await check("CMS-02B", "GET bằng tài khoản không phải Quản trị (thường/biên tập/điểm trạm/bác sĩ) không nhận danh sách tài khoản", async () => {
+  const counts = [];
+  for (const as of ["plain", "editor", "stationA", "doctor"]) counts.push(`${as}=${(await call("cms", { as })).data.users?.length}`);
+  return { ok: counts.every((c) => c.endsWith("=0")), detail: counts.join(", ") };
+});
+await check("CMS-02C", "GET bằng Quản trị viên vẫn nhận danh sách tài khoản, không có chuỗi băm", async () => {
+  const r = await call("cms", { as: "admin" });
+  const list = r.data.users || [];
+  return { ok: list.length >= Object.keys(USERS).length && !/passwordHash|\$2[aby]\$/.test(r.text), detail: `users=${list.length}` };
+});
+await check("CMS-02D", "GET ẩn danh không nhận danh sách người ký đơn thuốc; cán bộ y tế vẫn nhận", async () => {
+  const a = await call("cms");
+  const b = await call("cms", { as: "doctor" });
+  return { ok: Array.isArray(a.data.prescriptionSigners) && a.data.prescriptionSigners.length === 0 && (b.data.prescriptionSigners || []).length > 0, detail: `ẩn danh=${a.data.prescriptionSigners?.length}, bác sĩ=${b.data.prescriptionSigners?.length}` };
+});
+await check("CMS-02E", "Bảng tài khoản trống: GET ẩn danh KHÔNG tự tạo tài khoản mặc định", async () => {
+  const saved = (await pg.query("select * from users")).rows;
+  await pg.query("delete from users");
+  await call("cms");
+  const n = Number((await one("select count(*)::int n from users")).n);
+  for (const r of saved) {
+    const cols = Object.keys(r);
+    await pg.query(`insert into users (${cols.map((c) => `"${c}"`).join(",")}) values (${cols.map((_, i) => `$${i + 1}`).join(",")})`, cols.map((c) => r[c]));
+  }
+  return { ok: n === 0, detail: `số tài khoản sau lượt GET=${n}` };
+});
 await check("CMS-03", "GET bằng Quản trị viên vẫn nhận đủ danh sách đăng ký khám", async () => {
   const r = await call("cms", { as: "admin" });
   return { ok: r.data.appointments?.length >= 2 && r.text.includes(FAKE_ID), detail: `appointments=${r.data.appointments?.length}` };
@@ -645,6 +676,21 @@ console.log("\n== Mật khẩu & phiên (tài khoản giả lập) ==");
     const b = await chpw(USERS.nopass.username, "DungChung-2026", "RiengToi-2026w", "10.9.7.2");
     delete process.env.STATION_PASSWORD;
     return { ok: a.status === 401 && b.status === 401, detail: `đăng nhập=${a.status}, đổi mật khẩu=${b.status}` };
+  });
+  await check("PW-12", "Mật khẩu mặc định đã bị công khai: không đăng nhập được, không dùng được để đổi mật khẩu (chống chiếm tài khoản)", async () => {
+    const leaked = "Admin123@";
+    await pg.query(
+      `insert into users (id, username, name, role, can_receive_video, station_access, doctor_access, password_hash, status, must_change_password, created_at)
+       values ('T-LEAK','t-leak@test.local','Quản trị mật khẩu lộ','Quản trị viên (Admin)','true','true','true',$1,'ACTIVE','true',$2)`,
+      [await bcrypt.hash(leaked, 4), now]
+    );
+    const before = await one("select password_hash h from users where id='T-LEAK'");
+    const a = await call("station-auth", { method: "POST", ip: "10.9.12.1", body: { username: "t-leak@test.local", password: leaked, scope: "cms" } });
+    const b = await chpw("t-leak@test.local", leaked, "KeLa-ChiemQuyen-2026", "10.9.12.2");
+    const c = await call("auth-login", { method: "POST", ip: "10.9.12.3", body: { username: "t-leak@test.local", password: leaked } });
+    const after = await one("select password_hash h from users where id='T-LEAK'");
+    await pg.query("delete from users where id='T-LEAK'");
+    return { ok: a.status === 401 && b.status === 401 && c.status >= 400 && !a.data?.token && !c.data?.token && before.h === after.h, detail: `đăng nhập=${a.status}, đổi mật khẩu=${b.status}, auth-login=${c.status}, băm giữ nguyên=${before.h === after.h}` };
   });
   await check("PW-08", "Tài khoản mới do Quản trị tạo luôn mang cờ bắt buộc đổi mật khẩu (kể cả khi biểu mẫu gửi false); mật khẩu đã công khai bị từ chối", async () => {
     const base = { action: "create", name: "Giả lập mới", email: "t-new@test.local", stationCode: ST_A, mustChangePassword: false };

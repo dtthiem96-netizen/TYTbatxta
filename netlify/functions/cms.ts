@@ -2,7 +2,7 @@ import { db } from "../../db/index.js";
 import { news, vaccines, documents, services, users, siteConfigs, contacts, videos, appointments, prescriptionSigners } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 import { getStore } from "@netlify/blobs";
-import { isAdminRole, publicUser, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD_HASH, type AuthContext } from "../lib/auth.js";
+import { isAdminRole, publicUser, scopesFor, type AuthContext } from "../lib/auth.js";
 import { stationFromRoomId, stationMapCached } from "../lib/stations.js";
 import {
   boundStationOf,
@@ -18,17 +18,11 @@ import {
   throttle
 } from "../lib/guard.js";
 
-/* Bộ tài khoản gieo hạt khi bảng users còn trống.
-   Riêng Quản trị viên (U1) được nạp sẵn chuỗi băm bcrypt của mật khẩu mặc định
-   để site mới dựng là đăng nhập được ngay; các tài khoản còn lại chưa có mật
-   khẩu riêng và đi theo luồng mật khẩu khởi tạo trong station-auth.ts. */
-const defaultUsers = [
-  { id: 'U1', username: DEFAULT_ADMIN_USERNAME, name: 'Trạm trưởng', role: 'Quản trị viên (Admin)', canReceiveVideo: 'true', stationAccess: 'true', doctorAccess: 'true', passwordHash: DEFAULT_ADMIN_PASSWORD_HASH, email: DEFAULT_ADMIN_USERNAME, stationCode: 'TYT-BATXAT-01', status: 'ACTIVE', mustChangePassword: 'true' },
-  { id: 'U2', username: 'bacsituvan@laocai.gov.vn', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', role: 'Bác sĩ nhận cuộc gọi', canReceiveVideo: 'true', stationAccess: 'false', doctorAccess: 'true', passwordHash: null, email: 'bacsituvan@laocai.gov.vn', stationCode: 'TYT-BATXAT-01', status: 'ACTIVE', mustChangePassword: 'false' },
-  { id: 'U3', username: 'bientapvien@laocai.gov.vn', name: 'Cán bộ Truyền thông', role: 'Cán bộ biên tập (Editor)', canReceiveVideo: 'false', stationAccess: 'false', doctorAccess: 'false', passwordHash: null, email: 'bientapvien@laocai.gov.vn', stationCode: 'TYT-BATXAT-01', status: 'ACTIVE', mustChangePassword: 'false' },
-  { id: 'U4', username: 'canbotram@laocai.gov.vn', name: 'Y sĩ Cán bộ Điểm trạm', role: 'Cán bộ Điểm trạm (Station Operator)', canReceiveVideo: 'true', stationAccess: 'true', doctorAccess: 'false', passwordHash: null, email: 'canbotram@laocai.gov.vn', stationCode: 'TYT-BATXAT-01', status: 'ACTIVE', mustChangePassword: 'false' },
-  { id: 'U5', username: 'bstuyentren@laocai.gov.vn', name: 'BS. CKI Tuyến trên (Hội chẩn từ xa)', role: 'Bác sĩ tuyến trên (Superior Doctor)', canReceiveVideo: 'true', stationAccess: 'false', doctorAccess: 'true', passwordHash: null, email: 'bstuyentren@laocai.gov.vn', stationCode: 'TYT-BATXAT-01', status: 'ACTIVE', mustChangePassword: 'true' }
-];
+/* KHÔNG gieo tài khoản mặc định. Trước đây bảng users trống thì một lượt GET
+   ẩn danh tự tạo 5 tài khoản có tên đăng nhập cố định, trong đó tài khoản Quản
+   trị mang chuỗi băm của một mật khẩu đã bị công khai - ai làm trống được bảng
+   là chiếm được quyền Quản trị. Tài khoản Quản trị đầu tiên của một cơ sở dữ
+   liệu mới phải được người vận hành tạo có kiểm soát (xem SECURITY.md). */
 
 /* Khoá cấu hình mang bí mật của hệ thống, không được đi ra trình duyệt cùng
    phần cấu hình công khai (tên phòng khám, ...). */
@@ -80,10 +74,12 @@ const defaultVideos = [
    các action/type và định dạng phản hồi giữ nguyên để giao diện cũ chạy tiếp;
    thứ thay đổi là AI được làm gì:
 
-     GET  ẩn danh          nội dung công khai; appointments = [], danh sách cán bộ
-                           rút gọn (không email/SĐT/trạng thái mật khẩu), người ký
-                           đơn không kèm ảnh chữ ký.
-     GET  cán bộ y tế      (station/doctor/admin) thêm đăng ký khám và chữ ký số;
+     GET  ẩn danh          nội dung công khai; appointments = [], users = [] (bảng
+                           tài khoản đăng nhập không bao giờ ra API công khai),
+                           prescriptionSigners = [].
+     GET  Quản trị viên    thêm danh sách tài khoản (publicUser, không chuỗi băm).
+                           Mọi vai trò khác nhận users = [].
+     GET  cán bộ y tế      (station/doctor/admin) thêm đăng ký khám và người ký đơn;
                            cán bộ điểm trạm chỉ thấy đăng ký của trạm mình.
      POST nội dung         Quản trị viên hoặc Biên tập viên.
      POST người ký đơn     Quản trị viên hoặc Bác sĩ.
@@ -220,21 +216,9 @@ const TABLES: Record<string, any> = {
   news, vaccines, documents, services, contacts, videos, siteConfigs, appointments, prescriptionSigners
 };
 
-/** Danh sách cán bộ cho người chưa đăng nhập: đủ để dựng ô chọn tài khoản trực. */
-function rosterUser(u: any) {
-  const p = publicUser(u);
-  return {
-    id: p.id,
-    username: p.username,
-    name: p.name,
-    role: p.role,
-    stationCode: p.stationCode,
-    canReceiveVideo: p.canReceiveVideo,
-    stationAccess: p.stationAccess,
-    doctorAccess: p.doctorAccess,
-    attendanceAccess: p.attendanceAccess,
-    status: p.status
-  };
+/** Danh sách tài khoản đăng nhập chỉ dành cho phiếu phiên có phạm vi "admin". */
+function canListAccounts(ctx: AuthContext | null): boolean {
+  return Boolean(ctx && scopesFor(ctx.user).includes("admin"));
 }
 
 async function appointmentStation(roomId: string | null | undefined): Promise<string> {
@@ -310,9 +294,6 @@ export default async (req: Request) => {
       if (servicesList.length === 0) {
         seedJobs.push(db.insert(services).values(defaultServices).then(async () => { servicesList = await db.select().from(services); }));
       }
-      if (usersList.length === 0) {
-        seedJobs.push(db.insert(users).values(defaultUsers).then(async () => { usersList = await db.select().from(users); }));
-      }
       if (contactsList.length === 0) {
         seedJobs.push(db.insert(contacts).values(defaultContacts).then(async () => { contactsList = await db.select().from(contacts); }));
       }
@@ -367,16 +348,20 @@ export default async (req: Request) => {
         vaccines: vaccinesList,
         documents: docsList,
         services: servicesList,
-        /* Chuỗi băm mật khẩu không bao giờ rời máy chủ (publicUser). Người chưa
-           đăng nhập chỉ nhận bản rút gọn: không email, SĐT, trạng thái mật khẩu
-           hay giờ đăng nhập - những thứ chỉ giúp kẻ dò tài khoản. */
-        users: ctx && servesAllStations(ctx) ? usersList.map(publicUser) : usersList.map(rosterUser),
+        /* Bảng users là bảng TÀI KHOẢN ĐĂNG NHẬP (tên đăng nhập, vai trò, mã điểm
+           trạm, quyền module) - không phải danh bạ. Chỉ Quản trị viên nhận danh
+           sách (đã lọc chuỗi băm qua publicUser); người chưa đăng nhập và mọi vai
+           trò khác nhận mảng rỗng. Danh bạ công khai đi qua bảng contacts. */
+        users: canListAccounts(ctx) ? usersList.map(publicUser) : [],
         contacts: contactsList,
         videos: videosList,
         appointments: appointmentsList,
         siteConfigs: configsList,
-        // Ảnh chữ ký số chỉ đi tới cán bộ y tế đã đăng nhập (chống giả mạo đơn thuốc).
-        prescriptionSigners: staff ? signersList : signersList.map((s) => ({ ...s, signature: "" }))
+        /* Người ký đơn thuốc (họ tên, chức danh, số chứng chỉ hành nghề, chữ ký số)
+           chỉ phục vụ kê đơn và in phiếu khám của cán bộ y tế đã đăng nhập; trang
+           công khai không có chức năng nào cần tới, nên lượt ẩn danh nhận [].
+           Sau khi đăng nhập, giao diện tự nạp lại bản đầy đủ kèm phiếu phiên. */
+        prescriptionSigners: staff ? signersList : []
       });
     }
 

@@ -26,21 +26,6 @@ const BCRYPT_ROUNDS = 12;
 /** Tên đăng nhập của Quản trị viên hệ thống (tài khoản gốc của Trạm Y tế Bát Xát). */
 export const DEFAULT_ADMIN_USERNAME = "tytbatxat@laocai.gov.vn";
 
-/**
- * Chuỗi băm bcrypt của mật khẩu Quản trị mặc định.
- *
- * Hệ thống chỉ giữ chuỗi băm, không bao giờ giữ mật khẩu dạng rõ - kể cả trong
- * mã nguồn. Giá trị này khớp với hai bản di trú
- * netlify/database/migrations/20260806035628_set_default_admin_account và
- * netlify/database/migrations/20260807120000_reset_default_admin_credentials
- * (bản đặt lại khi mất quyền truy cập CMS), dùng cho trường hợp cơ sở dữ liệu
- * còn trống và bộ dữ liệu gieo hạt trong cms.ts phải tạo lại tài khoản Quản trị.
- * Sau khi Quản trị đổi mật khẩu, giá trị đã lưu trong bảng users mới là nguồn
- * duy nhất - hằng số này không ghi đè lên nó.
- */
-export const DEFAULT_ADMIN_PASSWORD_HASH =
-  "$2b$10$sU8HOOtV7CpoeNOjpUtEuODFWYMoFGuurqXf0/Lf2oCXuAuks1UVG";
-
 /** Thời hạn phiếu phiên: 8 giờ, đủ một ca trực tại điểm trạm. */
 export const TOKEN_TTL_SECONDS = 8 * 60 * 60;
 
@@ -87,9 +72,19 @@ export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, BCRYPT_ROUNDS);
 }
 
-/** Đối chiếu mật khẩu rõ với chuỗi băm đã lưu. Không bao giờ ném lỗi ra ngoài. */
+/**
+ * Đối chiếu mật khẩu rõ với chuỗi băm đã lưu. Không bao giờ ném lỗi ra ngoài.
+ *
+ * Mật khẩu nằm trong BLOCKED_PASSWORDS luôn bị coi là sai, kể cả khi khớp chuỗi
+ * băm: các mật khẩu mặc định của tài khoản Quản trị từng được ghi rõ trong mã
+ * nguồn công khai và vẫn còn trong lịch sử Git, nên ai cũng biết. Không chặn ở
+ * đây thì người lạ đăng nhập thẳng, hoặc dùng lối đổi mật khẩu (chỉ đòi mật khẩu
+ * hiện tại) để chiếm tài khoản còn giữ mật khẩu mặc định. Tài khoản bị ảnh hưởng
+ * được Quản trị khác đặt lại mật khẩu tạm như bình thường.
+ */
 export async function verifyPassword(plain: string, hash: string | null | undefined): Promise<boolean> {
   if (!plain || !hash) return false;
+  if (BLOCKED_PASSWORDS.has(plain.toLowerCase())) return false;
   try {
     return await bcrypt.compare(plain, hash);
   } catch {
