@@ -450,9 +450,14 @@ async function loadCmsData() {
        tốn một lượt đi - về mạng thay vì hai. Module Bác sĩ tuyến trên (bacsi.html)
        không có sẵn lời hứa này nên vẫn tự gọi như cũ. */
     const shared = (typeof window !== 'undefined') ? window.cmsBootstrapPromise : null;
-    const data = shared
-      ? await shared
-      : await fetch('/api/cms').then(res => res.ok ? res.json() : null);
+    const token = (typeof window.getStationToken === 'function') ? window.getStationToken() : '';
+    /* Có phiếu phiên thì đọc thẳng bản dành cho cán bộ (kèm chữ ký số người ký
+       đơn); lượt nạp sẵn đầu trang là ẩn danh nên không có phần đó. */
+    const data = token
+      ? await fetch('/api/cms', { headers: { 'Authorization': 'Bearer ' + token } }).then(res => res.ok ? res.json() : null)
+      : shared
+        ? await shared
+        : await fetch('/api/cms').then(res => res.ok ? res.json() : null);
 
     if (data) {
       if (data.users && Array.isArray(data.users)) cmsUsers = data.users;
@@ -836,7 +841,8 @@ async function refreshIncomingCallsQueue(wait) {
       params.set('wait', '1');
       params.set('sig', queueSignature);
     }
-    const res = await fetch(`/api/signal?${params.toString()}`);
+    // Hàng đợi mang dữ liệu người bệnh: máy chủ chỉ trả cho phiếu cán bộ hợp lệ.
+    const res = await fetch(`/api/signal?${params.toString()}`, { headers: signalHeaders() });
     if (!res.ok) throw new Error('rooms ' + res.status);
     data = await res.json();
   }

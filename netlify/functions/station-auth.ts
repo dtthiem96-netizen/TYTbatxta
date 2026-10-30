@@ -39,13 +39,12 @@ import {
   hashPassword,
   findUserByUsername
 } from "../lib/auth.js";
+import { clientIp, throttle } from "../lib/guard.js";
+import { resetRateLimit } from "../lib/sessions.js";
 
 const headers = {
   "Content-Type": "application/json",
-  "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+  "Cache-Control": "no-store"
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { headers, status });
@@ -58,11 +57,37 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
  * (tytbatxat@laocai.gov.vn) đã có chuỗi băm riêng nạp sẵn từ bản di trú
  * 20260806035628_set_default_admin_account nên KHÔNG còn đi qua lối này. Ngay
  * khi Quản trị đặt mật khẩu cho một tài khoản trong CMS (Quản trị hệ thống →
- * Phân quyền hệ thống), lối này cũng đóng lại vĩnh viễn với tài khoản đó. Đặt
- * biến môi trường STATION_PASSWORD để thay giá trị mặc định.
+ * Phân quyền hệ thống), lối này cũng đóng lại vĩnh viễn với tài khoản đó.
+ *
+ * Module 0: KHÔNG còn giá trị mặc định viết cứng. Mật khẩu "Admin123@" đã nằm
+ * công khai trong README, nên để nó làm mật khẩu khởi tạo là mở cửa cho mọi tài
+ * khoản chưa đặt mật khẩu. Lối này chỉ mở khi Quản trị chủ động đặt biến môi
+ * trường bí mật STATION_PASSWORD; không đặt thì tài khoản chưa có mật khẩu phải
+ * được Quản trị cấp mật khẩu tạm (CMS → Phân quyền hệ thống → Đặt lại mật khẩu).
  */
-function bootstrapPassword(): string {
-  return process.env.STATION_PASSWORD || process.env.STATION_DEFAULT_PASSWORD || "Admin123@";
+function bootstrapPassword(): string | null {
+  const value = process.env.STATION_PASSWORD || process.env.STATION_DEFAULT_PASSWORD || "";
+  return value.length >= 8 ? value : null;
+}
+
+/** Chống dò mật khẩu: 8 lần / 15 phút cho mỗi IP + tài khoản, 40 lần / 15 phút cho mỗi IP. */
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_LIMIT_PER_ACCOUNT = 8;
+const LOGIN_LIMIT_PER_IP = 40;
+
+async function loginThrottled(req: Request, username: string, kind: string): Promise<Response | null> {
+  const ip = clientIp(req);
+  const [perAccount, perIp] = await Promise.all([
+    throttle(`${kind}:${ip}:${username.toLowerCase()}`, LOGIN_LIMIT_PER_ACCOUNT, LOGIN_WINDOW_MS),
+    throttle(`${kind}-ip:${ip}`, LOGIN_LIMIT_PER_IP, LOGIN_WINDOW_MS)
+  ]);
+  const wait = Math.max(perAccount, perIp);
+  if (!wait) return null;
+  return json({
+    success: false,
+    code: "TOO_MANY_ATTEMPTS",
+    error: `Nhập sai quá nhiều lần. Vui lòng thử lại sau ${Math.ceil(wait / 60)} phút.`
+  }, 429);
 }
 
 /**
@@ -92,9 +117,9 @@ async function touchLastLogin(id: string) {
   }
 }
 
-async function handleLogin(body: Record<string, any>) {
-  const username = String(body.username || "").trim();
-  const password = String(body.password || "");
+async function handleLogin(req: Request, body: Record<string, any>) {
+  const username = String(body.username || "").trim().slice(0, 200);
+  const password = String(body.password || "").slice(0, 256);
   /* Các cổng đăng nhập:
        "control" = Bảng điều khiển trạm y tế (module hợp nhất ở chân trang, gồm
                    khu Trực khám và khu Quản trị điểm trạm),
@@ -110,6 +135,10 @@ async function handleLogin(body: Record<string, any>) {
     return json({ success: false, error: "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu." }, 400);
   }
 
+  // Chặn dò mật khẩu TRƯỚC khi chạy bcrypt (bcrypt tốn CPU có chủ ý).
+  const throttled = await loginThrottled(req, username, "station-login");
+  if (throttled) return throttled;
+
   const found = await findUserByUsername(username);
   if (!found) {
     // Không tiết lộ tài khoản có tồn tại hay không.
@@ -123,7 +152,8 @@ async function handleLogin(body: Record<string, any>) {
   if (user.passwordHash) {
     passwordOk = await verifyPassword(password, user.passwordHash);
   } else {
-    passwordOk = password === bootstrapPassword();
+    const bootstrap = bootstrapPassword();
+    passwordOk = Boolean(bootstrap) && password === bootstrap;
     usedBootstrap = passwordOk;
   }
 
@@ -185,6 +215,7 @@ async function handleLogin(body: Record<string, any>) {
     console.info(`Tài khoản ${user.username} đăng nhập CMS không có quyền Quản trị.`);
   }
 
+  await resetRateLimit(`station-login:${clientIp(req)}:${username.toLowerCase()}`);
   const scopes = scopesFor(user);
   const [{ token, expiresAt }, station] = await Promise.all([signToken(user, scopes), boundStationOf(user)]);
   await touchLastLogin(user.id);
@@ -204,7 +235,7 @@ async function handleLogin(body: Record<string, any>) {
 }
 
 /** Cán bộ tự đổi mật khẩu - phải chứng minh mật khẩu hiện tại. */
-async function handleChangePassword(body: Record<string, any>) {
+async function handleChangePassword(req: Request, body: Record<string, any>) {
   const username = String(body.username || "").trim();
   const currentPassword = String(body.currentPassword || "");
   const newPassword = String(body.newPassword || "");
@@ -216,13 +247,16 @@ async function handleChangePassword(body: Record<string, any>) {
   const weak = validatePasswordStrength(newPassword);
   if (weak) return json({ success: false, error: weak }, 400);
 
+  const throttled = await loginThrottled(req, username, "station-chpw");
+  if (throttled) return throttled;
+
   const found = await findUserByUsername(username);
   if (!found) return json({ success: false, error: "Tên đăng nhập hoặc mật khẩu không đúng." }, 401);
 
   const user = found;
   const ok = user.passwordHash
     ? await verifyPassword(currentPassword, user.passwordHash)
-    : currentPassword === bootstrapPassword();
+    : Boolean(bootstrapPassword()) && currentPassword === bootstrapPassword();
   if (!ok) return json({ success: false, error: "Mật khẩu hiện tại không đúng." }, 401);
   if (!isActive(user)) return json({ success: false, error: "Tài khoản đã bị khoá." }, 403);
 
@@ -278,9 +312,9 @@ export default async (req: Request) => {
     if (!body) return json({ success: false, error: "Body không hợp lệ" }, 400);
 
     if (String(body.action || "") === "change_password") {
-      return await handleChangePassword(body);
+      return await handleChangePassword(req, body);
     }
-    return await handleLogin(body);
+    return await handleLogin(req, body);
   } catch (err: any) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;

@@ -2,6 +2,7 @@ import { db } from "../../db/index.js";
 import { stationVitals, telehealthRooms, telehealthSignals } from "../../db/schema.js";
 import { desc, eq } from "drizzle-orm";
 import { authErrorResponse, requireAnyScope, type AuthContext } from "../lib/auth.js";
+import { canAccessRoom, roomForbidden } from "../lib/guard.js";
 
 /**
  * Sinh hiệu bệnh nhân do Bảng điều khiển điểm trạm (public/index.html) gửi lên.
@@ -20,7 +21,6 @@ import { authErrorResponse, requireAnyScope, type AuthContext } from "../lib/aut
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
 };
@@ -92,11 +92,12 @@ function evaluateVitals(v: Vitals) {
   return { status, alerts };
 }
 
-async function handleGet(url: URL) {
+async function handleGet(url: URL, ctx: AuthContext) {
   // Hỗ trợ cả /api/vitals/:roomId lẫn /api/vitals?roomId=...
   const fromPath = url.pathname.replace(/^\/api\/vitals\/?/, "");
   const roomId = decodeURIComponent(fromPath) || url.searchParams.get("roomId") || "";
   if (!roomId) return json({ success: false, message: "Thiếu roomId" }, 400);
+  if (!(await canAccessRoom(ctx, roomId))) return roomForbidden(headers);
 
   const records = await db
     .select()
@@ -118,6 +119,7 @@ async function handlePost(req: Request, ctx: AuthContext) {
   };
 
   const roomId = String(body.roomId || "default-room");
+  if (!(await canAccessRoom(ctx, roomId))) return roomForbidden(headers);
   const peerId = String(body.peerId || "station");
   const stationCode = String(body.stationCode || "TYT-BATXAT");
   // Cán bộ đo sinh hiệu lấy từ phiếu phiên đã xác thực, không lấy theo thân yêu cầu.
@@ -216,14 +218,14 @@ export default async (req: Request) => {
   try {
     // Cả cán bộ điểm trạm lẫn bác sĩ tuyến trên cùng đọc/ghi sinh hiệu của một lượt khám.
     const ctx = await requireAnyScope(req, ["station", "doctor"]);
-    if (req.method === "GET") return await handleGet(new URL(req.url));
+    if (req.method === "GET") return await handleGet(new URL(req.url), ctx);
     if (req.method === "POST") return await handlePost(req, ctx);
     return json({ success: false, message: "Method not allowed" }, 405);
   } catch (err: any) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;
-    console.error("vitals error", err);
-    return json({ success: false, message: err?.message || "Lỗi xử lý sinh hiệu" }, 500);
+    console.error("vitals error", err?.name || "Error", err?.cause?.code || err?.code || "");
+    return json({ success: false, message: "Lỗi xử lý sinh hiệu" }, 500);
   }
 };
 

@@ -11,7 +11,6 @@
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
@@ -157,7 +156,7 @@ export default async (req: Request) => {
       }
     });
   } catch (err: any) {
-    console.error("clinical-ai error", err);
+    console.error("clinical-ai error", err?.name || "Error", err?.cause?.code || err?.code || "");
     return json({ success: false, message: "Không thể khởi tạo gợi ý lâm sàng." }, 500);
   }
 };

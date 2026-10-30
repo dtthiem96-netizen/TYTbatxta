@@ -27,7 +27,16 @@
          khoản và người ký số thường đã về sẵn, màn hình đăng nhập hiện tức thì thay
          vì phải chờ thêm một lượt đi - về mạng. -->
     <script>
-        window.cmsBootstrapPromise = fetch('/api/cms')
+        window.cmsBootstrapPromise = (function() {
+                /* Còn phiên Bác sĩ trong tab này thì gắn phiếu để nhận bản dành cho
+                   cán bộ (kèm chữ ký số người ký đơn). */
+                let token = '';
+                try {
+                    const v = JSON.parse(sessionStorage.getItem('tyt-doctor-session') || 'null');
+                    if (v && v.token && (!v.expiresAt || Date.now() < Number(v.expiresAt))) token = v.token;
+                } catch (err) {}
+                return fetch('/api/cms', { headers: token ? { 'Authorization': 'Bearer ' + token } : {} });
+            })()
             .then(res => res.ok ? res.json() : null)
             .catch(err => {
                 console.warn('Không nạp trước được kho dữ liệu CMS:', err && err.message);

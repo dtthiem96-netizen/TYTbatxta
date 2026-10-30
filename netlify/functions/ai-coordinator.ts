@@ -50,7 +50,6 @@ import {
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
@@ -600,7 +599,7 @@ export default async (req: Request) => {
     // Lỗi phân quyền có phản hồi riêng (401/403); còn lại là sự cố máy chủ.
     const denied = authErrorResponse(err, headers);
     if (denied) return denied;
-    console.error("ai-coordinator error", err);
+    console.error("ai-coordinator error", err?.name || "Error", err?.cause?.code || err?.code || "");
     return json({ success: false, message: "Không dựng được nội dung điều phối." }, 500);
   }
 };

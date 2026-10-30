@@ -60,7 +60,6 @@ import {
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
 };
@@ -642,7 +641,7 @@ export default async (req: Request) => {
   } catch (err: any) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;
-    console.error("station-rooms error", err);
+    console.error("station-rooms error", err?.name || "Error", err?.cause?.code || err?.code || "");
     return json({ success: false, error: "Không thực hiện được thao tác với điểm trạm." }, 500);
   }
 };

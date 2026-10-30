@@ -2,6 +2,7 @@ import { db } from "../../db/index.js";
 import { examinationReports } from "../../db/schema.js";
 import { desc, eq } from "drizzle-orm";
 import { authErrorResponse, requireAnyScope } from "../lib/auth.js";
+import { canAccessRoom, roomForbidden } from "../lib/guard.js";
 
 /**
  * Phiếu khám bệnh từ xa.
@@ -18,7 +19,6 @@ import { authErrorResponse, requireAnyScope } from "../lib/auth.js";
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
 };
@@ -38,6 +38,7 @@ export default async (req: Request) => {
     if (req.method === "GET") {
       const roomId = new URL(req.url).searchParams.get("roomId");
       if (!roomId) return json({ success: false, message: "Thiếu roomId" }, 400);
+      if (!(await canAccessRoom(ctx, roomId))) return roomForbidden(headers);
       const rows = await db
         .select()
         .from(examinationReports)
@@ -53,6 +54,8 @@ export default async (req: Request) => {
 
     const body = (await req.json().catch(() => null)) as Record<string, any> | null;
     if (!body) return json({ success: false, message: "Body không hợp lệ" }, 400);
+
+    if (!(await canAccessRoom(ctx, String(body.roomId || "room-01")))) return roomForbidden(headers);
 
     const now = Date.now();
     const reportCode = `PKTX-${String(now).slice(-6)}-${Math.trunc(now % 997)}`;
@@ -97,8 +100,8 @@ export default async (req: Request) => {
   } catch (err: any) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;
-    console.error("examination-report error", err);
-    return json({ success: false, message: err?.message || "Không xuất được phiếu khám" }, 500);
+    console.error("examination-report error", err?.name || "Error", err?.cause?.code || err?.code || "");
+    return json({ success: false, message: "Không xuất được phiếu khám" }, 500);
   }
 };
 

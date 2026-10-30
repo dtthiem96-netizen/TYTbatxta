@@ -31,7 +31,6 @@ import {
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
 };
@@ -312,7 +311,7 @@ export default async (req: Request) => {
   } catch (err: any) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;
-    console.error("admin-users error", err);
+    console.error("admin-users error", err?.name || "Error", err?.cause?.code || err?.code || "");
     return json({ success: false, error: "Không thực hiện được thao tác quản lý tài khoản." }, 500);
   }
 };
