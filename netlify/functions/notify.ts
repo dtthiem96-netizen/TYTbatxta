@@ -21,7 +21,6 @@ import { ringPlan, stationMapCached } from "../lib/stations.js";
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
 };
@@ -176,7 +175,7 @@ export default async (req: Request) => {
   } catch (err: any) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;
-    console.error("notify error", err);
+    console.error("notify error", err?.name || "Error", err?.cause?.code || err?.code || "");
     return json({ success: false, error: "Không xử lý được yêu cầu thông báo." }, 500);
   }
 };

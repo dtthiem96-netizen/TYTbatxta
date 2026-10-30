@@ -12,7 +12,9 @@
     "test:vitals": "node tools/vitals-parity.mjs",
     "test:media": "node tools/media-consent-check.mjs",
     "test:smoke": "node tools/smoke-test.mjs",
-    "test:antifraud": "node tools/anti-fraud-tests.mjs"
+    "test:antifraud": "node tools/anti-fraud-tests.mjs",
+    "test:security": "node tools/security-tests.mjs",
+    "test:preview": "node tools/preview-security-check.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",

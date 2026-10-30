@@ -231,12 +231,43 @@ thư mục cũ.
 Mật khẩu của từng tài khoản do Quản trị đặt trong CMS và được lưu dưới dạng **băm
 bcrypt** (10 vòng) - không nơi nào trong hệ thống giữ mật khẩu dạng rõ.
 
-Với các tài khoản có từ trước (chưa có mật khẩu riêng), hệ thống tạm chấp nhận mật
-khẩu dùng chung lấy từ biến môi trường `STATION_PASSWORD` (hoặc
-`STATION_DEFAULT_PASSWORD`) để Quản trị đăng nhập lần đầu mà thiết lập. **Bắt buộc
-đặt `STATION_PASSWORD` trước khi chạy thật**, và ngay khi Quản trị đặt mật khẩu riêng
-cho một tài khoản thì lối tạm này đóng vĩnh viễn với tài khoản đó. Tài khoản Quản trị
-ở trên đã có mật khẩu riêng nên không còn đi qua lối tạm này.
+Tài khoản chưa có mật khẩu riêng **không đăng nhập được** cho tới khi Quản trị cấp
+mật khẩu tạm trong *CMS → Phân quyền hệ thống → Đặt lại mật khẩu* (danh sách tài
+khoản hiện nhãn "Chưa đặt mật khẩu riêng"). Từ Module 0 không còn mật khẩu dùng
+chung mặc định viết cứng trong mã: lối tạm chỉ mở nếu Quản trị chủ động đặt biến môi
+trường **bí mật** `STATION_PASSWORD` (tối thiểu 8 ký tự, không dùng giá trị đã công
+khai), và đóng vĩnh viễn với tài khoản ngay khi tài khoản đó có mật khẩu riêng. Cổng
+đăng nhập chặn dò mật khẩu: 8 lần sai / 15 phút cho mỗi IP + tài khoản.
+
+### Kiểm thử bảo mật (Module 0)
+
+```bash
+mkdir -p /tmp/sectest && (cd /tmp/sectest && npm init -y && npm i @electric-sql/pglite@0.3)
+npm run test:security
+```
+
+Bộ kiểm thử dựng một PostgreSQL nhúng trong bộ nhớ, áp toàn bộ migration, chỉ nạp
+dữ liệu giả và chạy các Netlify Function thật để kiểm tra phân quyền, IDOR giữa các
+điểm trạm, rò rỉ dữ liệu cá nhân, giới hạn tần suất và tệp tải lên. Không chạm tới
+database thật.
+
+Sau khi có Deploy Preview, kiểm tra trực tiếp (ẩn danh, chỉ đọc, script tự từ chối
+tên miền Production):
+
+```bash
+npm run test:preview -- https://deploy-preview-NN--soft-churros-077805.netlify.app
+```
+
+### Tệp đính kèm công khai và riêng tư
+
+- **Công khai** (mặc định): tài liệu, hình ảnh đính kèm tin tức, video y khoa. Chỉ
+  Quản trị/Biên tập viên tải lên; ai cũng xem được qua `/api/attachment?id=`.
+- **Riêng tư** (`visibility: "private"` khi tải lên qua `/api/cms`): tệp chứa thông
+  tin cá nhân/sức khoẻ, lưu ở kho riêng `private-attachments`. Chỉ cán bộ y tế tải
+  lên; chỉ cán bộ cùng điểm trạm, người tải lên, bác sĩ tuyến trên và Quản trị xem
+  được (gửi phiếu ở header `Authorization` hoặc `?token=`); không cache.
+- Không tải đè lên tệp đã có (trừ "Sửa video" dùng lại mã video cũ). Không có API
+  xoá tệp: xoá tin tức không xoá tệp đính kèm.
 
 ---
 

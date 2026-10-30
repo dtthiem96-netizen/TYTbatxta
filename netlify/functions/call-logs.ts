@@ -22,11 +22,11 @@ import { db } from "../../db/index.js";
 import { callLogs } from "../../db/schema.js";
 import { and, desc, eq, ilike, or, type SQL } from "drizzle-orm";
 import { authErrorResponse, requireScope, type AuthContext } from "../lib/auth.js";
+import { boundStationOf, servesAllStations } from "../lib/guard.js";
 
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
 };
@@ -149,6 +149,13 @@ export default async (req: Request) => {
       const q = text(url.searchParams.get("q"));
 
       const filters: SQL[] = [];
+      /* Cán bộ điểm trạm chỉ đọc nhật ký của trạm mình (hoặc cuộc gọi chính mình
+         nhận). Bản ghi chứa đơn thuốc và toàn văn trò chuyện với người bệnh. */
+      if (!servesAllStations(auth)) {
+        filters.push(
+          or(eq(callLogs.stationCode, boundStationOf(auth) || "__none__"), eq(callLogs.operatorUsername, auth.user.username)) as SQL
+        );
+      }
       if (roomId) filters.push(eq(callLogs.roomId, roomId));
       if (station) filters.push(eq(callLogs.stationCode, station));
       if (q) {
@@ -195,6 +202,14 @@ export default async (req: Request) => {
       if (!record.roomId) return json({ success: false, error: "Thiếu mã phòng khám." }, 400);
 
       const existing = await db.select().from(callLogs).where(eq(callLogs.id, id));
+      if (existing.length && !servesAllStations(auth)) {
+        const row = existing[0];
+        const own = row.operatorUsername === auth.user.username
+          || (row.stationCode && String(row.stationCode).toUpperCase() === boundStationOf(auth));
+        if (!own) {
+          return json({ success: false, code: "STATION_MISMATCH", error: "Nhật ký cuộc gọi này không thuộc điểm trạm của tài khoản." }, 403);
+        }
+      }
 
       if (action === "start") {
         if (existing.length) {
@@ -238,8 +253,8 @@ export default async (req: Request) => {
   } catch (err: any) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;
-    console.error("call-logs", err);
-    return json({ success: false, error: err?.message || "Lỗi máy chủ lịch sử cuộc gọi." }, 500);
+    console.error("call-logs", err?.name || "Error", err?.cause?.code || err?.code || "");
+    return json({ success: false, error: "Lỗi máy chủ lịch sử cuộc gọi." }, 500);
   }
 };
 

@@ -1,9 +1,10 @@
 import { db } from "../../db/index.js";
 import { telehealthPeers, telehealthRooms, telehealthSignals, appointments } from "../../db/schema.js";
 import { and, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
-import { ringPlan, ringTimeoutSec, stationFromRoomId, stationMapCached, type StationRow } from "../lib/stations.js";
+import { ringPlan, ringTimeoutSec, stationFromRoomId, stationMapCached, stationRoomId, type StationRow } from "../lib/stations.js";
 import { pushToDoctors, pushToStation } from "../lib/push.js";
 import { authErrorResponse, requireAnyScope, scopesFor, type AuthContext } from "../lib/auth.js";
+import { clientIp, throttle } from "../lib/guard.js";
 
 /**
  * Signaling WebRTC không dùng WebSocket (Netlify không giữ kết nối socket lâu dài).
@@ -131,10 +132,7 @@ function pollInterval(elapsedMs: number) {
 
 const headers = {
   "Content-Type": "application/json",
-  "Cache-Control": "no-store",
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+  "Cache-Control": "no-store"
 };
 
 const json = (body: unknown, status = 200) =>
@@ -170,6 +168,23 @@ async function getPeer(peerId: string) {
   const rows = await db.select().from(telehealthPeers).where(eq(telehealthPeers.id, peerId));
   return rows[0] || null;
 }
+
+/* CHỈ THÀNH VIÊN CỦA PHÒNG MỚI ĐỌC/GHI ĐƯỢC PHÒNG ĐÓ (chống IDOR)
+   Trước Module 0, ai biết mã phòng cũng tự đặt một peerId bất kỳ rồi đọc được
+   họ tên, số CCCD, sinh hiệu, ghi chép của người bệnh, hoặc ghi sinh hiệu giả
+   vào phòng. Nay peerId phải là một thành viên đã vào phòng qua lệnh "join"
+   (vai người dân, cán bộ hay giám sát đều ghi một dòng telehealth_peers). */
+async function isRoomMember(roomId: string, peerId: string): Promise<boolean> {
+  const peer = await getPeer(peerId);
+  return Boolean(peer && peer.roomId === roomId);
+}
+
+const notInRoom = () =>
+  json({ ok: false, code: "NOT_IN_ROOM", error: "Phiên kết nối không thuộc phòng khám này. Vui lòng vào lại phòng." }, 403);
+
+/** Người dân bắt đầu cuộc gọi: 30 lượt vào phòng / 10 phút / IP. */
+const PATIENT_JOIN_LIMIT = 30;
+const PATIENT_JOIN_WINDOW_MS = 10 * 60 * 1000;
 
 async function getRoom(roomId: string) {
   const rows = await db.select().from(telehealthRooms).where(eq(telehealthRooms.id, roomId));
@@ -426,10 +441,16 @@ function roomView(
   };
 }
 
-async function handleGet(url: URL) {
+async function handleGet(req: Request) {
+  const url = new URL(req.url);
   const now = Date.now();
 
   if (url.searchParams.get("action") === "rooms") {
+    /* Hàng đợi mang họ tên, số CCCD, triệu chứng và sinh hiệu của mọi người
+       đang gọi: chỉ cán bộ đã đăng nhập mới được xem. */
+    if (!(await readOfficer(req))) {
+      return json({ ok: false, code: "UNAUTHENTICATED", error: "Vui lòng đăng nhập để xem hàng đợi cuộc gọi." }, 401);
+    }
     await pruneStale(now);
     let snap = await queueSnapshot(Date.now());
 
@@ -473,6 +494,7 @@ async function handleGet(url: URL) {
     return json({ error: "Thiếu roomId hoặc peerId" }, 400);
   }
   const cursor = Number(url.searchParams.get("cursor") || 0);
+  if (!(await isRoomMember(roomId, peerId))) return notInRoom();
 
   // Báo còn sống và lấy bản tin cùng lúc: hai việc không phụ thuộc nhau, và lượt
   // hỏi đầu tiên chính là lượt mang offer/answer nên phải trả về sớm nhất có thể.
@@ -1000,6 +1022,24 @@ async function handlePost(req: Request) {
       }, 401);
     }
 
+    if (!officer) {
+      /* Người dân không đăng nhập: không được chiếm mã đầu cầu của cán bộ đang
+         ở trong phòng (ghi đè vai), và có giới hạn tần suất để không ai dùng lối
+         này quét dò mã phòng. */
+      const current = await getPeer(peerId);
+      if (current && current.userId) return notInRoom();
+      /* Phòng cố định "room-<mã trạm>" là phòng làm việc của Bảng điều khiển
+         trạm, tên đoán được. Người dân luôn gọi vào phòng phiên riêng
+         (room-<mã trạm>-<thời điểm>-<ngẫu nhiên>), nên chặn vai ẩn danh vào
+         phòng cố định để không ai ngồi chờ sẵn trong đó nghe lén. */
+      const fixedRoom = Array.from(stations.keys()).some((code) => stationRoomId(code) === roomId.toLowerCase());
+      if (fixedRoom) return notInRoom();
+      const wait = await throttle(`signal-join:${clientIp(req)}`, PATIENT_JOIN_LIMIT, PATIENT_JOIN_WINDOW_MS);
+      if (wait) {
+        return json({ ok: false, code: "TOO_MANY_REQUESTS", error: "Thao tác quá nhanh. Vui lòng thử lại sau ít phút." }, 429);
+      }
+    }
+
     let role = requestedRole;
     let joinStation = String((body as any).stationCode || "").trim().toUpperCase();
     let joinUserId = String((body as any).userId || "").trim();
@@ -1184,6 +1224,12 @@ async function handlePost(req: Request) {
     return await handleDecline(body as Record<string, any>, officer as AuthContext, roomId, peerId, now);
   }
 
+  /* Các hành động trong phòng khám: chỉ thành viên của chính phòng đó. Rời phòng
+     khi không còn là thành viên thì coi như đã rời, không báo lỗi. */
+  if (["signal", "vitals", "notes", "complete", "leave"].includes(action) && !(await isRoomMember(roomId, peerId))) {
+    return action === "leave" ? json({ ok: true }) : notInRoom();
+  }
+
   if (action === "signal") {
     const type = String((body as any).type || "");
     if (!type) return json({ error: "Thiếu type" }, 400);
@@ -1225,8 +1271,10 @@ async function handlePost(req: Request) {
   if (action === "complete") {
     await touchRoom(roomId, { status: "COMPLETED", routingState: "ENDED" }, now);
     await pushSignal({ roomId, fromPeer: peerId, type: "call-ended", payload: { reason: "completed" }, now });
+    /* Đổi trạng thái đăng ký khám là việc của cán bộ: người dân kết thúc cuộc
+       gọi không được (và không cần) đánh dấu hồ sơ nào là đã khám xong. */
     const apptId = (body as any).appointmentId;
-    if (apptId) {
+    if (apptId && (await readOfficer(req))) {
       await db.update(appointments).set({ status: "COMPLETED" }).where(eq(appointments.id, String(apptId)));
     }
     return json({ ok: true });
@@ -1270,14 +1318,14 @@ export default async (req: Request) => {
   }
 
   try {
-    if (req.method === "GET") return await handleGet(new URL(req.url));
+    if (req.method === "GET") return await handleGet(req);
     if (req.method === "POST") return await handlePost(req);
     return json({ error: "Method not allowed" }, 405);
   } catch (err: any) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;
-    console.error("signal error", err);
-    return json({ error: err?.message || "Lỗi signaling" }, 500);
+    console.error("signal error", err?.name || "Error", err?.cause?.code || err?.code || "");
+    return json({ error: "Lỗi signaling" }, 500);
   }
 };
 

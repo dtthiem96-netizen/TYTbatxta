@@ -99,6 +99,8 @@
     session = value || null;
     writeStoredSession(session);
     renderAuthUserBadge();
+    // Vừa đăng nhập: nạp lại người ký đơn kèm ảnh chữ ký (chỉ trả cho cán bộ).
+    if (session && session.token) loadSigners();
   };
 
   /** Máy chủ trả 401/403: phiên không còn hiệu lực, đóng buồng khám ngay. */
@@ -288,9 +290,14 @@
          kết quả sẵn có thay vì gọi /api/cms thêm một lượt nữa: danh sách người ký
          hiện ngay, và cả trang chỉ tốn đúng một lượt đi - về mạng. */
       const shared = (typeof window !== 'undefined') ? window.cmsBootstrapPromise : null;
-      const data = shared
-        ? await shared
-        : await fetch('/api/cms').then(res => res.ok ? res.json() : null);
+      const token = window.getStationToken ? window.getStationToken() : '';
+      /* Ảnh chữ ký số chỉ được trả cho phiếu cán bộ hợp lệ: đã đăng nhập thì đọc
+         thẳng bản đầy đủ, chưa đăng nhập thì dùng lượt nạp sẵn (ẩn danh). */
+      const data = token
+        ? await fetch('/api/cms', { headers: { 'Authorization': 'Bearer ' + token } }).then(res => res.ok ? res.json() : null)
+        : shared
+          ? await shared
+          : await fetch('/api/cms').then(res => res.ok ? res.json() : null);
       if (!data) return;
       if (Array.isArray(data.prescriptionSigners)) signers = data.prescriptionSigners;
       window.renderSignerSelectors();

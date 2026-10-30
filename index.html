@@ -4317,10 +4317,21 @@
             return String(code || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         };
 
-        /** Sinh mã phòng khám mang theo mã điểm trạm đích: room-<slug>-<thời điểm>. */
+        /** Phần ngẫu nhiên khó đoán của mã phòng (chống dò mã phòng khám của người khác). */
+        window.teleRandomSuffix = function() {
+            try {
+                const bytes = new Uint8Array(6);
+                crypto.getRandomValues(bytes);
+                return Array.from(bytes, b => b.toString(36).padStart(2, '0')).join('').slice(0, 10);
+            } catch (err) {
+                return Math.random().toString(36).slice(2, 12);
+            }
+        };
+
+        /** Sinh mã phòng khám mang theo mã điểm trạm đích: room-<slug>-<thời điểm>-<ngẫu nhiên>. */
         window.teleRoomIdForStation = function(code) {
             const slug = window.teleStationSlug(code);
-            return 'room-' + (slug ? slug + '-' : '') + Date.now().toString(36);
+            return 'room-' + (slug ? slug + '-' : '') + Date.now().toString(36) + '-' + window.teleRandomSuffix();
         };
 
         /** Đọc ngược điểm phòng khám đích từ mã phòng khám. */
@@ -5635,18 +5646,18 @@
                         if (a.status === 'COMPLETED') statusBadge = `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-xs font-bold">Hoàn thành</span>`;
 
                         return `<tr class="hover:bg-gray-50">
-                            <td class="p-3 font-bold text-gray-900">${a.patientName}<br><span class="text-[11px] font-normal text-gray-500"><i class="fas fa-id-card mr-1"></i>${a.idCard || 'Chưa có BHYT/CCCD'}</span></td>
-                            <td class="p-3 font-mono text-gray-700">${a.phone}</td>
+                            <td class="p-3 font-bold text-gray-900">${teleEscape(a.patientName)}<br><span class="text-[11px] font-normal text-gray-500"><i class="fas fa-id-card mr-1"></i>${teleEscape(a.idCard || 'Chưa có BHYT/CCCD')}</span></td>
+                            <td class="p-3 font-mono text-gray-700">${teleEscape(a.phone)}</td>
                             <td class="p-3">${typeBadge}</td>
-                            <td class="p-3 text-gray-600">${a.service || 'Khám chung'}<br><span class="text-[11px] text-gray-400 italic">${a.symptoms || ''}</span></td>
-                            <td class="p-3 font-medium text-gray-500">${a.appointmentDate}</td>
+                            <td class="p-3 text-gray-600">${teleEscape(a.service || 'Khám chung')}<br><span class="text-[11px] text-gray-400 italic">${teleEscape(a.symptoms || '')}</span></td>
+                            <td class="p-3 font-medium text-gray-500">${teleEscape(a.appointmentDate)}</td>
                             <td class="p-3 text-center">${statusBadge}</td>
                             <td class="p-3 text-center">
                                 <div class="flex items-center justify-center gap-2">
                                     ${isTele ? `<button type="button" class="cms-accept-call bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-lg text-xs transition flex items-center gap-1 shadow-sm" data-room="${teleEscape(a.roomId || 'room-' + a.id)}" data-patient="${teleEscape(a.patientName || 'Bệnh nhân')}" data-symptoms="${teleEscape(a.symptoms || '')}" data-idcard="${teleEscape(a.idCard || '')}" data-appointment="${teleEscape(a.id)}"><i class="fas fa-video"></i> Gọi ngay</button>` : ''}
-                                    <button onclick="window.completeAppointment('${a.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-lg text-xs transition" title="Đánh dấu hoàn thành"><i class="fas fa-check"></i></button>
+                                    <button onclick="window.completeAppointment('${teleEscape(a.id)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-lg text-xs transition" title="Đánh dấu hoàn thành"><i class="fas fa-check"></i></button>
                                     <button onclick="window.showCallLogsForPatient('${teleEscape(a.patientName || '')}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2 py-1 rounded-lg text-xs transition" title="Xem lịch sử cuộc gọi của bệnh nhân này"><i class="fas fa-clock-rotate-left"></i></button>
-                                    <button onclick="window.deleteItem('appointments', '${a.id}')" class="text-red-500 hover:text-red-700 p-1" title="Xóa"><i class="fas fa-trash-alt"></i></button>
+                                    <button onclick="window.deleteItem('appointments', '${teleEscape(a.id)}')" class="text-red-500 hover:text-red-700 p-1" title="Xóa"><i class="fas fa-trash-alt"></i></button>
                                 </div>
                             </td>
                         </tr>`;
@@ -5708,6 +5719,48 @@
             window.renderSignerSelectors();
         };
 
+        /* Phiếu phiên đi kèm mọi lệnh ghi /api/cms (Module 0). Máy chủ chỉ cho Quản
+           trị/Biên tập viên sửa nội dung, cán bộ y tế xử lý đăng ký khám; người dân
+           không đăng nhập vẫn gửi được đăng ký khám MỚI. Ưu tiên phiếu CMS, sau đó
+           tới phiếu Bảng điều khiển trạm. */
+        window.cmsAuthToken = function() {
+            const read = (key) => {
+                try {
+                    const v = JSON.parse(sessionStorage.getItem(key) || 'null');
+                    if (!v || !v.token) return '';
+                    if (v.expiresAt && v.expiresAt <= Date.now()) return '';
+                    return v.token;
+                } catch (err) { return ''; }
+            };
+            return read('tyt-cms-admin-session') || read('tyt-station-session');
+        };
+        window.cmsAuthHeaders = function() {
+            const headers = { 'Content-Type': 'application/json' };
+            const token = window.cmsAuthToken();
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            return headers;
+        };
+
+        /* Sau khi đăng nhập, đọc lại phần dữ liệu chỉ dành cho cán bộ (đăng ký khám,
+           ảnh chữ ký số). Lượt nạp đầu trang là ẩn danh nên không có phần này. */
+        let cmsPrivateToken = '';
+        window.refreshPrivateCmsData = async function(force) {
+            const token = window.cmsAuthToken();
+            if (!token || (!force && token === cmsPrivateToken)) return;
+            cmsPrivateToken = token;
+            try {
+                const res = await fetch('/api/cms', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (Array.isArray(data.appointments)) appointmentsData = data.appointments;
+                if (Array.isArray(data.prescriptionSigners)) prescriptionSignersData = data.prescriptionSigners;
+                if (Array.isArray(data.users) && data.users.length && 'email' in data.users[0]) adminUsers = data.users;
+                if (typeof window.renderAll === 'function') window.renderAll();
+            } catch (err) {
+                console.warn('Không nạp lại được dữ liệu nội bộ CMS:', err && err.message);
+            }
+        };
+
         // 5. QUẢN TRỊ CMS: XỬ LÝ THÊM & XÓA ĐỒNG BỘ TOÀN DIỆN QUA API POSTGRES
         window.saveToDb = async function(collectionName, dataObj) {
             /* Tài khoản không đi lối này nữa: /api/cms là tuyến công khai, nếu còn cho
@@ -5759,9 +5812,14 @@
                 // Lưu dữ liệu vào Postgres DB qua Netlify Function
                 const res = await fetch('/api/cms', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: window.cmsAuthHeaders(),
                     body: JSON.stringify({ action: "save", type: collectionName, data: dataObj })
                 });
+                if (res.status === 401 || res.status === 403 || res.status === 429) {
+                    const info = await res.json().catch(() => null);
+                    window.showToast((info && info.error) || 'Tài khoản không có quyền lưu dữ liệu này.');
+                    return;
+                }
                 if (!res.ok) throw new Error();
                 window.showToast("Lưu dữ liệu thành công!");
             } catch(e) {
@@ -5789,9 +5847,14 @@
                     // Gửi lệnh xóa tới Postgres DB qua Netlify Function
                     const res = await fetch('/api/cms', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: window.cmsAuthHeaders(),
                         body: JSON.stringify({ action: "delete", type: collectionName, id: id })
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        const info = await res.json().catch(() => null);
+                        window.showToast((info && info.error) || 'Tài khoản không có quyền xoá dữ liệu này.');
+                        return;
+                    }
                     if (!res.ok) throw new Error();
                     window.showToast("Đã xóa dữ liệu thành công!");
                 } catch(e) {
@@ -5867,7 +5930,7 @@
                         try {
                             const res = await fetch('/api/cms', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: window.cmsAuthHeaders(),
                                 body: JSON.stringify({
                                     action: "upload_attachment_chunk",
                                     id: fileId,
@@ -5971,6 +6034,7 @@
         window.setCmsAdminSession = function(session) {
             try { sessionStorage.setItem(CMS_ADMIN_SESSION_KEY, JSON.stringify(session || {})); } catch (err) {}
             window.renderAccountAuthWarning();
+            if (window.refreshPrivateCmsData) window.refreshPrivateCmsData();
         };
 
         window.clearCmsAdminSession = function() {
@@ -6368,7 +6432,7 @@
             try {
                 const res = await fetch('/api/cms', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: window.cmsAuthHeaders(),
                     body: JSON.stringify({ action: 'save', type: 'siteConfigs', data: { id: 'station-clinic-name', value: value } })
                 });
                 if (!res.ok) throw new Error('Không lưu được cấu hình');
@@ -6748,7 +6812,7 @@
                     try {
                         const res = await fetch('/api/cms', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: window.cmsAuthHeaders(),
                             body: JSON.stringify({
                                 action: "upload_chunk",
                                 id: id,
@@ -11830,7 +11894,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 } else {
                     const params = new URLSearchParams({ action: 'rooms' });
                     if (canWait) { params.set('wait', '1'); params.set('sig', cmsQueueSig); }
-                    const res = await fetch(`/api/signal?${params.toString()}`);
+                    const res = await fetch(`/api/signal?${params.toString()}`, { headers: signalAuthHeaders() });
                     if (!res.ok) throw new Error('rooms ' + res.status);
                     data = await res.json();
                 }
@@ -11891,7 +11955,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 }
             }
 
-            const roomId = 'room-' + Date.now();
+            const roomId = 'room-' + Date.now().toString(36) + '-' + window.teleRandomSuffix();
             const apptObj = {
                 id: 'APP' + Date.now(),
                 patientName: name,
@@ -12010,7 +12074,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
         async function callGemini(prompt, sys, isJson=false) {
             const res = await fetch('/api/ai', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: window.cmsAuthHeaders(),
                 body: JSON.stringify({ prompt, sys, isJson })
             });
             if(!res.ok) throw new Error();
@@ -12119,7 +12183,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 try {
                     const res = await fetch('/api/ai', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: window.cmsAuthHeaders(),
                         body: JSON.stringify({
                             prompt: "Hãy phân tích đơn thuốc, phiếu xét nghiệm hoặc vỉ thuốc này. Đọc rõ các loại thuốc, liều lượng, công dụng và giải thích các chỉ số xét nghiệm nếu có bằng tiếng Việt bình dân dễ hiểu.",
                             sys: "Bạn là Bác sĩ Trí tuệ Nhân tạo có khả năng thị giác phân tích ảnh y tế cực tốt.",
@@ -12192,7 +12256,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 try {
                     const res = await fetch('/api/ai', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: window.cmsAuthHeaders(),
                         body: JSON.stringify({
                             prompt: "Hãy nhận diện cây thuốc trong ảnh này. Cho biết tên khoa học/tên dân gian, công dụng chữa bệnh và cách dùng hoặc lưu ý độc tính nếu có.",
                             sys: "Bạn là Chuyên gia Thảo dược và Y học cổ truyền Tây Bắc có kiến thức sâu rộng về các cây thuốc Nam.",
@@ -12359,7 +12423,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                     
                     const res = await fetch('/api/cms', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: window.cmsAuthHeaders(),
                         body: JSON.stringify({
                             action: "save",
                             type: "siteConfigs",
@@ -12381,7 +12445,9 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
            văn bản - danh bạ - video - lịch hẹn phải xếp hàng sau chúng. Nay lượt gọi
            mạng chạy song song với phần tải giao diện, tới lúc onload chạy thì dữ
            liệu thường đã nằm sẵn trong tay. */
-        const cmsBootstrapPromise = fetch('/api/cms')
+        const cmsBootstrapPromise = fetch('/api/cms', {
+                headers: window.cmsAuthToken() ? { 'Authorization': 'Bearer ' + window.cmsAuthToken() } : {}
+            })
             .then(res => res.ok ? res.json() : null)
             .catch(err => {
                 console.warn("Lỗi kết nối API Postgres, sử dụng dữ liệu mặc định", err);
@@ -12656,6 +12722,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             window.setStationSession = function(user) {
                 try { sessionStorage.setItem(STATION_SESSION_KEY, JSON.stringify(user || {})); } catch (err) {}
                 window.renderStationAuthBadge();
+                if (window.refreshPrivateCmsData) window.refreshPrivateCmsData();
             };
 
             window.clearStationSession = function() {
