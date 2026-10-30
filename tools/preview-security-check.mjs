@@ -113,8 +113,13 @@ await t("LV-AUTH-02", "SQL Injection qua tên đăng nhập → 401", async () =
   return { ok: r.s === 401 || r.s === 429, d: `HTTP ${r.s}` };
 });
 await t("LV-RL-01", "Rate limit đăng nhập: tài khoản không tồn tại, sai liên tục → 429", async () => {
+  /* Tên đăng nhập mới cho mỗi lần chạy: bộ đếm tính theo khung cố định 15 phút,
+     dùng lại một tên cố định thì các lần chạy trước còn đếm dở, và nếu lần chạy
+     rơi đúng ranh giới khung thì các lượt thử bị chia đôi. Tối đa 20 lượt (ngưỡng
+     là 8) để luôn vượt ngưỡng trong một khung, kể cả khi khung vừa đổi. */
+  const user = `sectest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}@example.invalid`;
   let last = 0, n = 0;
-  for (; n < 12; n++) { last = (await post("/api/station-auth", { username: "sectest-khong-ton-tai@example.invalid", password: "sai-" + n, scope: "station" })).s; if (last === 429) break; }
+  for (; n < 20; n++) { last = (await post("/api/station-auth", { username: user, password: "sai-" + n, scope: "station" })).s; if (last === 429) break; }
   return { ok: last === 429, d: `bị chặn ở lần thứ ${n + 1}, HTTP ${last}` };
 });
 await t("LV-CORS-01", "CORS: preflight từ tên miền lạ không được cấp quyền", async () => {
@@ -139,7 +144,14 @@ await t("LV-SRC-01", "Mã nguồn máy chủ, sơ đồ CSDL, bộ kiểm thử 
 });
 await t("LV-HDR-01", "HTTPS/HSTS và header bảo mật có mặt", async () => {
   const r = await req("/");
-  const h = ["strict-transport-security", "x-content-type-options", "x-frame-options", "referrer-policy"].map((k) => `${k}=${r.h.get(k) ? "có" : "THIẾU"}`);
+  const h = ["strict-transport-security", "x-content-type-options", "referrer-policy"].map((k) => `${k}=${r.h.get(k) ? "có" : "THIẾU"}`);
+  /* Chống nhúng trang (clickjacking): X-Frame-Options (theo netlify.toml) HOẶC CSP
+     frame-ancestors. Bản Preview do agent Netlify tạo được nền tảng thay
+     X-Frame-Options bằng "frame-ancestors https://*.netlify.com" để giao diện
+     Netlify nhúng được; Preview của PR và Production vẫn trả X-Frame-Options. */
+  const xfo = r.h.get("x-frame-options");
+  const fa = /frame-ancestors/.test(r.h.get("content-security-policy") || "");
+  h.push(`chống nhúng=${xfo ? "X-Frame-Options " + xfo : fa ? "CSP " + (r.h.get("content-security-policy") || "").match(/frame-ancestors[^;]*/)[0] : "THIẾU"}`);
   return { ok: !h.some((x) => x.endsWith("THIẾU")), d: h.join(", ") };
 });
 await t("LV-HDR-02", "/admin không trả nội dung quản trị khi chưa đăng nhập Netlify Identity", async () => {
