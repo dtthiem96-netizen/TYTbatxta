@@ -28,6 +28,9 @@ import {
   hasDoctorAccess,
   hasStationAccess,
   isActive,
+  needsPasswordChange,
+  passwordChangeRequiredBody,
+  tokenMatchesPassword,
   isAdminRole,
   publicUser,
   readBearerToken,
@@ -40,7 +43,7 @@ import {
   findUserByUsername
 } from "../lib/auth.js";
 import { clientIp, throttle } from "../lib/guard.js";
-import { resetRateLimit } from "../lib/sessions.js";
+import { resetRateLimit, revokeOtherSessions } from "../lib/sessions.js";
 
 const headers = {
   "Content-Type": "application/json",
@@ -49,26 +52,12 @@ const headers = {
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { headers, status });
 
-/**
- * Mật khẩu khởi tạo cho những tài khoản CHƯA từng được đặt mật khẩu riêng.
- *
- * Đây là lối vào duy nhất còn lại của cơ chế "một mật khẩu dùng chung" cũ, và
- * nó chỉ áp dụng khi cột password_hash còn trống. Tài khoản Quản trị
- * (tytbatxat@laocai.gov.vn) đã có chuỗi băm riêng nạp sẵn từ bản di trú
- * 20260806035628_set_default_admin_account nên KHÔNG còn đi qua lối này. Ngay
- * khi Quản trị đặt mật khẩu cho một tài khoản trong CMS (Quản trị hệ thống →
- * Phân quyền hệ thống), lối này cũng đóng lại vĩnh viễn với tài khoản đó.
- *
- * Module 0: KHÔNG còn giá trị mặc định viết cứng. Mật khẩu "Admin123@" đã nằm
- * công khai trong README, nên để nó làm mật khẩu khởi tạo là mở cửa cho mọi tài
- * khoản chưa đặt mật khẩu. Lối này chỉ mở khi Quản trị chủ động đặt biến môi
- * trường bí mật STATION_PASSWORD; không đặt thì tài khoản chưa có mật khẩu phải
- * được Quản trị cấp mật khẩu tạm (CMS → Phân quyền hệ thống → Đặt lại mật khẩu).
- */
-function bootstrapPassword(): string | null {
-  const value = process.env.STATION_PASSWORD || process.env.STATION_DEFAULT_PASSWORD || "";
-  return value.length >= 8 ? value : null;
-}
+/* Không còn "mật khẩu khởi tạo dùng chung". Trước đây tài khoản chưa có
+   password_hash đăng nhập được bằng một mật khẩu chung (biến môi trường
+   STATION_PASSWORD) - trái nguyên tắc mỗi tài khoản một mật khẩu riêng. Nay tài
+   khoản chưa có chuỗi băm KHÔNG đăng nhập được ở bất kỳ cổng nào cho tới khi
+   Quản trị cấp mật khẩu tạm (CMS → Phân quyền hệ thống → Đặt lại mật khẩu); lần
+   đăng nhập đầu tiên bằng mật khẩu tạm buộc cán bộ đặt mật khẩu riêng. */
 
 /** Chống dò mật khẩu: 8 lần / 15 phút cho mỗi IP + tài khoản, 40 lần / 15 phút cho mỗi IP. */
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -113,7 +102,7 @@ async function touchLastLogin(id: string) {
   try {
     await db.update(users).set({ lastLoginAt: Date.now() }).where(eq(users.id, id));
   } catch (err) {
-    console.warn("Không ghi được lastLoginAt:", err);
+    console.warn("Không ghi được lastLoginAt:", (err as any)?.name || "Error");
   }
 }
 
@@ -147,16 +136,7 @@ async function handleLogin(req: Request, body: Record<string, any>) {
 
   const user = found;
 
-  let passwordOk = false;
-  let usedBootstrap = false;
-  if (user.passwordHash) {
-    passwordOk = await verifyPassword(password, user.passwordHash);
-  } else {
-    const bootstrap = bootstrapPassword();
-    passwordOk = Boolean(bootstrap) && password === bootstrap;
-    usedBootstrap = passwordOk;
-  }
-
+  const passwordOk = await verifyPassword(password, user.passwordHash);
   if (!passwordOk) {
     return json({ success: false, error: "Tên đăng nhập hoặc mật khẩu không đúng." }, 401);
   }
@@ -216,6 +196,10 @@ async function handleLogin(req: Request, body: Record<string, any>) {
   }
 
   await resetRateLimit(`station-login:${clientIp(req)}:${username.toLowerCase()}`);
+
+  // Mật khẩu tạm chỉ dùng để đặt mật khẩu riêng - không mở được phiên làm việc.
+  if (needsPasswordChange(user)) return json(passwordChangeRequiredBody(), 403);
+
   const scopes = scopesFor(user);
   const [{ token, expiresAt }, station] = await Promise.all([signToken(user, scopes), boundStationOf(user)]);
   await touchLastLogin(user.id);
@@ -227,25 +211,27 @@ async function handleLogin(req: Request, body: Record<string, any>) {
     scopes,
     // Điểm trạm duy nhất tài khoản này được trực - giao diện không cho chọn khác.
     station,
-    // mustChangePassword bật khi tài khoản đăng nhập bằng mật khẩu khởi tạo
-    // hoặc vừa được Quản trị đặt lại mật khẩu.
-    mustChangePassword: usedBootstrap || String(user.mustChangePassword || "false") === "true",
+    // Luôn false: tài khoản còn mật khẩu tạm đã bị chặn ở trên. Giữ trường này
+    // cho giao diện cũ đang đọc nó.
+    mustChangePassword: false,
     user: publicUser(user)
   });
 }
 
-/** Cán bộ tự đổi mật khẩu - phải chứng minh mật khẩu hiện tại. */
+/**
+ * Cán bộ tự đổi mật khẩu - phải chứng minh mật khẩu hiện tại (hoặc mật khẩu
+ * tạm vừa được cấp). Không cần phiếu phiên: đây cũng là lối duy nhất để tài
+ * khoản đang giữ mật khẩu tạm đặt mật khẩu riêng. Đổi xong thì mọi phiếu và
+ * phiên đang mở của tài khoản mất hiệu lực (xem passwordVersion trong auth.ts).
+ */
 async function handleChangePassword(req: Request, body: Record<string, any>) {
-  const username = String(body.username || "").trim();
-  const currentPassword = String(body.currentPassword || "");
+  const username = String(body.username || "").trim().slice(0, 200);
+  const currentPassword = String(body.currentPassword || "").slice(0, 256);
   const newPassword = String(body.newPassword || "");
 
   if (!username || !currentPassword || !newPassword) {
     return json({ success: false, error: "Thiếu thông tin đổi mật khẩu." }, 400);
   }
-
-  const weak = validatePasswordStrength(newPassword);
-  if (weak) return json({ success: false, error: weak }, 400);
 
   const throttled = await loginThrottled(req, username, "station-chpw");
   if (throttled) return throttled;
@@ -254,11 +240,17 @@ async function handleChangePassword(req: Request, body: Record<string, any>) {
   if (!found) return json({ success: false, error: "Tên đăng nhập hoặc mật khẩu không đúng." }, 401);
 
   const user = found;
-  const ok = user.passwordHash
-    ? await verifyPassword(currentPassword, user.passwordHash)
-    : Boolean(bootstrapPassword()) && currentPassword === bootstrapPassword();
+  const ok = await verifyPassword(currentPassword, user.passwordHash);
   if (!ok) return json({ success: false, error: "Mật khẩu hiện tại không đúng." }, 401);
   if (!isActive(user)) return json({ success: false, error: "Tài khoản đã bị khoá." }, 403);
+
+  // Kiểm tra độ mạnh SAU khi xác minh mật khẩu hiện tại: người lạ không dùng
+  // được thông báo lỗi này để dò tên đăng nhập.
+  const weak = validatePasswordStrength(newPassword, user.username);
+  if (weak) return json({ success: false, error: weak }, 400);
+  if (newPassword === currentPassword) {
+    return json({ success: false, error: "Mật khẩu mới phải khác mật khẩu hiện tại." }, 400);
+  }
 
   await db
     .update(users)
@@ -268,8 +260,12 @@ async function handleChangePassword(req: Request, body: Record<string, any>) {
       updatedAt: Date.now()
     })
     .where(eq(users.id, user.id));
+  await Promise.all([
+    revokeOtherSessions(user.id, null, "PASSWORD_CHANGED").catch(() => 0),
+    resetRateLimit(`station-chpw:${clientIp(req)}:${username.toLowerCase()}`)
+  ]);
 
-  return json({ success: true, message: "Đã đổi mật khẩu thành công." });
+  return json({ success: true, message: "Đã đổi mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới." });
 }
 
 /** Kiểm tra phiếu phiên: giao diện gọi trước khi mở thân Module. */
@@ -287,6 +283,9 @@ async function handleSession(req: Request) {
   const user = found[0];
   if (!isActive(user)) {
     return json({ success: false, code: "ACCOUNT_DISABLED", error: "Tài khoản đã bị Quản trị khoá." }, 403);
+  }
+  if (!(await tokenMatchesPassword(claims, user))) {
+    return json({ success: false, code: "PASSWORD_CHANGED", error: "Mật khẩu tài khoản vừa được đổi. Vui lòng đăng nhập lại." }, 401);
   }
 
   // Quyền đọc lại từ cơ sở dữ liệu, không lấy theo phiếu: Quản trị thu hồi
@@ -318,7 +317,7 @@ export default async (req: Request) => {
   } catch (err: any) {
     const authResponse = authErrorResponse(err, headers);
     if (authResponse) return authResponse;
-    console.error("station-auth error", err);
+    console.error("station-auth error", (err as any)?.name || "Error", (err as any)?.cause?.code || (err as any)?.code || "");
     // Chi tiết kỹ thuật chỉ nằm trong log, không trả ra trình duyệt.
     return json({ success: false, error: "Hệ thống xác thực đang gián đoạn. Vui lòng thử lại." }, 500);
   }

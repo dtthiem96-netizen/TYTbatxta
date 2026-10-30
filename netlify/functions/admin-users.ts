@@ -27,6 +27,7 @@ import {
   type AuthContext,
   type UserRow
 } from "../lib/auth.js";
+import { revokeOtherSessions } from "../lib/sessions.js";
 
 const headers = {
   "Content-Type": "application/json",
@@ -81,7 +82,7 @@ async function handleCreate(body: Record<string, any>) {
   if (!name) return json({ success: false, error: "Họ và tên là bắt buộc." }, 400);
   const usernameError = validateUsername(username);
   if (usernameError) return json({ success: false, error: usernameError }, 400);
-  const passwordError = validatePasswordStrength(password);
+  const passwordError = validatePasswordStrength(password, username);
   if (passwordError) return json({ success: false, error: passwordError }, 400);
   const contactError = validateContact(email, phone);
   if (contactError) return json({ success: false, error: contactError }, 400);
@@ -107,7 +108,9 @@ async function handleCreate(body: Record<string, any>) {
     attendanceAccess: flag(body.attendanceAccess, "false"),
     status: VALID_STATUS.has(text(body.status).toUpperCase()) ? text(body.status).toUpperCase() : "ACTIVE",
     passwordHash: await hashPassword(password),
-    mustChangePassword: flag(body.mustChangePassword, "true"),
+    // Mật khẩu ban đầu do Quản trị đặt luôn là mật khẩu tạm: Quản trị biết nó,
+    // nên cán bộ phải tự đặt mật khẩu riêng ở lần đăng nhập đầu tiên.
+    mustChangePassword: "true",
     createdAt: now,
     updatedAt: now,
     lastLoginAt: null
@@ -117,7 +120,7 @@ async function handleCreate(body: Record<string, any>) {
   return json({ success: true, message: "Đã tạo tài khoản thành công.", user: publicUser(row as UserRow) });
 }
 
-async function handleUpdate(body: Record<string, any>) {
+async function handleUpdate(body: Record<string, any>, ctx: AuthContext) {
   const target = await findById(text(body.id));
   if (!target) return json({ success: false, error: "Không tìm thấy tài khoản." }, 404);
 
@@ -160,14 +163,18 @@ async function handleUpdate(body: Record<string, any>) {
 
   // Mật khẩu chỉ đổi khi Quản trị chủ động nhập giá trị mới trong biểu mẫu sửa.
   const newPassword = String(body.password || "");
+  if (newPassword && target.id === ctx.user.id) {
+    return json({ success: false, error: "Không tự đặt mật khẩu của chính mình ở đây. Hãy dùng chức năng Đổi mật khẩu." }, 400);
+  }
   if (newPassword) {
-    const passwordError = validatePasswordStrength(newPassword);
+    const passwordError = validatePasswordStrength(newPassword, username);
     if (passwordError) return json({ success: false, error: passwordError }, 400);
     patch.passwordHash = await hashPassword(newPassword);
-    patch.mustChangePassword = flag(body.mustChangePassword, "true");
+    patch.mustChangePassword = "true";
   }
 
   await db.update(users).set(patch).where(eq(users.id, target.id));
+  if (patch.passwordHash) await revokeOtherSessions(target.id, null, "PASSWORD_RESET").catch(() => 0);
   return json({
     success: true,
     message: "Đã cập nhật tài khoản.",
@@ -175,20 +182,28 @@ async function handleUpdate(body: Record<string, any>) {
   });
 }
 
-async function handleResetPassword(body: Record<string, any>) {
+async function handleResetPassword(body: Record<string, any>, ctx: AuthContext) {
   const target = await findById(text(body.id));
   if (!target) return json({ success: false, error: "Không tìm thấy tài khoản." }, 404);
+  /* Đặt lại mật khẩu của chính mình sẽ khoá Quản trị vào vòng "mật khẩu tạm" và
+     thu hồi phiên đang dùng. Quản trị tự đổi mật khẩu qua hộp Đổi mật khẩu
+     (phải nhập mật khẩu hiện tại), không qua lối cấp mật khẩu tạm. */
+  if (target.id === ctx.user.id) {
+    return json({ success: false, error: "Không tự đặt lại mật khẩu của chính mình. Hãy dùng chức năng Đổi mật khẩu." }, 400);
+  }
 
   // Quản trị có thể tự đặt mật khẩu mới, hoặc để hệ thống sinh mật khẩu tạm.
   const provided = String(body.password || "");
   const password = provided || generateTemporaryPassword();
-  const passwordError = validatePasswordStrength(password);
+  const passwordError = validatePasswordStrength(password, target.username);
   if (passwordError) return json({ success: false, error: passwordError }, 400);
 
   await db
     .update(users)
     .set({ passwordHash: await hashPassword(password), mustChangePassword: "true", updatedAt: Date.now() })
     .where(eq(users.id, target.id));
+  // Phiếu cũ đã mất hiệu lực nhờ dấu phiên bản mật khẩu; đóng luôn các phiên chấm công.
+  await revokeOtherSessions(target.id, null, "PASSWORD_RESET").catch(() => 0);
 
   return json({
     success: true,
@@ -296,9 +311,9 @@ export default async (req: Request) => {
       case "create":
         return await handleCreate(body);
       case "update":
-        return await handleUpdate(body);
+        return await handleUpdate(body, ctx);
       case "reset_password":
-        return await handleResetPassword(body);
+        return await handleResetPassword(body, ctx);
       case "set_status":
         return await handleSetStatus(body, ctx);
       case "set_permission":

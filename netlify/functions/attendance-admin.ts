@@ -104,6 +104,7 @@ import {
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { AdjustmentConflict, applyDutyLogChange, applyPunchChange, type Approval, type PunchRow } from "../lib/adjustments.js";
 import { getSecurity, raiseAlert } from "../lib/security.js";
+import { revokeOtherSessions } from "../lib/sessions.js";
 import { isImmutableViolation, isUniqueViolation } from "../lib/presence.js";
 import {
   authErrorResponse,
@@ -1466,7 +1467,7 @@ async function createAccount(actor: ActorContext, body: Record<string, unknown>)
   if (clash.length) return json({ success: false, error: `Tên đăng nhập "${username}" đã tồn tại.` }, 409);
 
   const password = str(body.password) || generateTemporaryPassword();
-  const weak = validatePasswordStrength(password);
+  const weak = validatePasswordStrength(password, username);
   if (weak) return json({ success: false, error: weak }, 400);
 
   const now = Date.now();
@@ -1511,13 +1512,18 @@ async function resetAccountPassword(actor: ActorContext, body: Record<string, un
   const account = await db.select().from(users).where(eq(users.id, userId));
   if (!account.length) return json({ success: false, error: "Không tìm thấy tài khoản." }, 404);
   await assertCanTouchAccount(actor, account[0]);
+  // Tự đổi mật khẩu của mình phải qua hộp Đổi mật khẩu (có mật khẩu hiện tại).
+  if (account[0].id === actor.user.id) {
+    return json({ success: false, error: "Không tự đặt lại mật khẩu của chính mình. Hãy dùng chức năng Đổi mật khẩu." }, 400);
+  }
   const password = str(body.password) || generateTemporaryPassword();
-  const weak = validatePasswordStrength(password);
+  const weak = validatePasswordStrength(password, account[0].username);
   if (weak) return json({ success: false, error: weak }, 400);
   await db
     .update(users)
     .set({ passwordHash: await hashPassword(password), mustChangePassword: "true", updatedAt: Date.now() })
     .where(eq(users.id, userId));
+  await revokeOtherSessions(userId, null, "PASSWORD_RESET").catch(() => 0);
   await writeAudit(actor, { entity: "account", entityId: userId, action: "RESET_PASSWORD", newValue: { username: account[0].username } });
   return json({
     success: true,

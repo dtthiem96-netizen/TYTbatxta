@@ -6,13 +6,17 @@
  *
  *   node auth/tools/generate-hash.mjs 'MatKhauMoi@123'
  *
- * Không truyền tham số thì công cụ dùng mật khẩu khởi tạo `Admin123@` để in lại
- * đúng lệnh INSERT đang nằm trong db/sql/create-admin-account.sql.
+ * Bắt buộc truyền mật khẩu: mật khẩu khởi tạo cũ đã bị công khai nên không còn
+ * giá trị mặc định.
  */
 import bcrypt from "bcryptjs";
 import { BCRYPT_COST_FACTOR } from "../authConfig.js";
 
-const password = process.argv[2] || "Admin123@";
+const password = process.argv[2] || "";
+if (password.length < 8) {
+  console.error("Cách dùng: node auth/tools/generate-hash.mjs '<mật khẩu, tối thiểu 8 ký tự>' [tên đăng nhập]");
+  process.exit(1);
+}
 const username = process.argv[3] || "admin-tytbatxat";
 
 try {

@@ -20,6 +20,8 @@ import { users } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
 import {
   isActive,
+  needsPasswordChange,
+  passwordChangeRequiredBody,
   publicUser,
   scopesFor,
   signToken,
@@ -54,7 +56,7 @@ async function touchLastLogin(id: string) {
   try {
     await db.update(users).set({ lastLoginAt: Date.now() }).where(eq(users.id, id));
   } catch (err) {
-    console.warn("[auth-login] Không ghi được lastLoginAt:", err);
+    console.warn("[auth-login] Không ghi được lastLoginAt:", (err as any)?.name || "Error");
   }
 }
 
@@ -172,6 +174,12 @@ export default async (req: Request) => {
       }, 403);
     }
 
+    // Bước 4b: mật khẩu tạm chỉ dùng để đặt mật khẩu riêng, không mở phiên.
+    if (needsPasswordChange(user)) {
+      await resetRateLimit(accountKey);
+      return json(passwordChangeRequiredBody(), 403);
+    }
+
     // Bước 5: mở một phiên thu hồi được rồi cấp phiếu 8 giờ mang mã phiên (jti).
     const scopes = scopesFor(user);
     const sessionExpiresAt = Date.now() + TOKEN_TTL_SECONDS * 1000;
@@ -194,7 +202,8 @@ export default async (req: Request) => {
     });
   } catch (err) {
     // Chi tiết kỹ thuật chỉ nằm trong log, không trả ra trình duyệt.
-    console.error("[auth-login] Lỗi khi xử lý đăng nhập:", err);
+    // Chỉ ghi tên/mã lỗi: lỗi truy vấn có thể kèm tham số (tên đăng nhập, chuỗi băm).
+    console.error("[auth-login] Lỗi khi xử lý đăng nhập:", (err as any)?.name || "Error", (err as any)?.cause?.code || (err as any)?.code || "");
     return json({
       success: false,
       code: "LOGIN_FAILED",

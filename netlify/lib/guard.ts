@@ -15,7 +15,7 @@
 import { db } from "../../db/index.js";
 import { telehealthRooms, users } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
-import { isActive, isAdminRole, readBearerToken, scopesFor, verifyToken, type AuthContext } from "./auth.js";
+import { isActive, isAdminRole, readBearerToken, scopesFor, tokenMatchesPassword, verifyToken, type AuthContext } from "./auth.js";
 import { rateLimit } from "./sessions.js";
 import { stationFromRoomId, stationMapCached } from "./stations.js";
 
@@ -30,6 +30,8 @@ export async function optionalAuth(req: Request): Promise<AuthContext | null> {
   const found = await db.select().from(users).where(eq(users.id, claims.sub));
   const user = found[0];
   if (!user || !isActive(user)) return null;
+  // Phiếu cấp trước lần đổi/đặt lại mật khẩu gần nhất bị coi như chưa đăng nhập.
+  if (!(await tokenMatchesPassword(claims, user))) return null;
   return { user, claims };
 }
 

@@ -18,6 +18,8 @@
     <!-- THƯ VIỆN GIAO DIỆN - dùng đúng bộ của trang chính để hai module nhìn giống nhau.
          Tailwind nạp đồng bộ rồi mới tới khối cấu hình: đặt tailwind.config trước khi
          thư viện có mặt sẽ ném lỗi và bảng màu tuỳ biến không được áp dụng. -->
+    <!-- Hộp đổi mật khẩu dùng chung: bắt buộc đổi mật khẩu tạm ở mọi cổng đăng nhập. -->
+    <script src="/assets/password-change.js" defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
@@ -388,6 +390,9 @@
                 </span>
                 <button onclick="window.openLoginModal()" class="bg-slate-800 hover:bg-slate-700 text-blue-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700">
                     <i class="fas fa-user-gear"></i> Đổi tài khoản
+                </button>
+                <button onclick="window.TytPasswordChange && window.TytPasswordChange.open({ username: (typeof loggedInCmsUser !== 'undefined' && loggedInCmsUser && loggedInCmsUser.username) || '', onDone: window.logoutStationPanel })" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700" title="Đổi mật khẩu tài khoản đang đăng nhập">
+                    <i class="fas fa-key"></i> Đổi mật khẩu
                 </button>
                 <button onclick="window.logoutStationPanel()" class="bg-slate-800 hover:bg-rose-900 text-rose-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 hover:border-rose-700" title="Thoát khỏi Module Bác sĩ tuyến trên">
                     <i class="fas fa-right-from-bracket"></i> Đăng xuất
