@@ -102,7 +102,7 @@ export default async (req: Request) => {
       model,
       contents: "Trả lời đúng một từ: SUCCESS",
       // Giới hạn đầu ra để lần gọi thử gần như không tốn hạn mức. Không đặt quá
-      // thấp: gemini-2.5-flash tiêu tốn một phần ngân sách token cho bước suy
+      // thấp: các mô hình Gemini Flash tiêu tốn một phần ngân sách token cho bước suy
       // luận nội bộ, cắt sát quá thì phần văn bản trả về sẽ rỗng dù kết nối tốt.
       config: { responseMimeType: "text/plain", maxOutputTokens: 256 }
     });

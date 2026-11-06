@@ -33,8 +33,13 @@
 import fs from "node:fs";
 import { GoogleGenAI } from "@google/genai";
 
-/** Mô hình mặc định cho toàn hệ thống. Có mặt ở cả Vertex AI lẫn AI Gateway. */
-export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+/**
+ * Mô hình mặc định cho toàn hệ thống.
+ * Trước đây là "gemini-2.5-flash", nhưng Netlify AI Gateway đã ngừng phục vụ
+ * dòng 2.5 nên mọi lời gọi /api/ai đều nhận 502 ("Lỗi tìm kiếm AI!"). Đổi sang
+ * gemini-3.5-flash - đã gọi thử trực tiếp trên bản triển khai và chạy tốt.
+ */
+export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 
 /**
  * Các mô hình được phép gọi. Danh sách bám theo những gì Netlify AI Gateway
@@ -42,17 +47,14 @@ export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
  * lúc dựng, nên chặn ngay tại cổng vào thay vì để cán bộ trạm nhận lỗi 500.
  */
 export const SUPPORTED_GEMINI_MODELS: readonly string[] = [
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.5-pro",
   "gemini-3-flash-preview",
   "gemini-3.1-flash-lite",
   "gemini-3.1-pro-preview",
   "gemini-3.5-flash",
   "gemini-3.5-flash-lite",
   "gemini-3.6-flash",
-  "gemini-flash-latest",
-  "gemini-flash-lite-latest"
+  "gemini-3.7-flash",
+  "gemini-3.8-flash"
 ];
 
 export type GoogleAiSource =
