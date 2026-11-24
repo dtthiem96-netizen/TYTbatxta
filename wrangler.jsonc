@@ -37,6 +37,13 @@
     "@netlify/blobs": "./cloudflare/shims/blobs.ts",
     "drizzle-orm/netlify-db": "./cloudflare/shims/netlify-db.ts"
   },
+  // Cơ sở dữ liệu đi qua Hyperdrive: Worker không nối thẳng được Supabase vì
+  // Supabase dùng chứng chỉ TLS riêng. Cấu hình "tytbatxat-db" (chuỗi kết nối
+  // nằm trong Cloudflare, không ở đây). Chạy wrangler dev thì đặt biến môi trường
+  // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://...
+  "hyperdrive": [
+    { "binding": "HYPERDRIVE", "id": "16f55098c1fd453da17bcd58e5187248" }
+  ],
   "r2_buckets": [
     { "binding": "BLOBS", "bucket_name": "tytbatxat-tep" }
   ],
