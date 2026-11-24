@@ -1498,7 +1498,7 @@
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="tyt-sec-head">
                         <div>
-                            <p class="tyt-sec-kicker">Dịch vụ y tế</p>
+                            <p class="tyt-sec-kicker" data-cms-id="auto-dich-vu-y-te-e59f4">Dịch vụ y tế</p>
                             <h3 id="tyt-dv-title">Dịch vụ dành cho người dân</h3>
                         </div>
                         <button onclick="window.switchPage('dept')" class="tyt-more-btn"><span>Tất cả dịch vụ</span> <i class="fas fa-arrow-right"></i></button>
@@ -1564,7 +1564,7 @@
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="tyt-trio">
                         <div class="tyt-link-card">
-                            <h3><span class="tyt-panel-icon bg-orange-100 text-orange-600"><i class="fas fa-people-group"></i></span> Sức khỏe cộng đồng</h3>
+                            <h3 data-cms-id="auto-suc-khoe-cong-ong-03ead"><span class="tyt-panel-icon bg-orange-100 text-orange-600"><i class="fas fa-people-group"></i></span> Sức khỏe cộng đồng</h3>
                             <ul>
                                 <li><button type="button" onclick="window.openSupportModal('Báo cáo & Xử lý Dịch bệnh truyền nhiễm')"><i class="fas fa-mosquito"></i> Phòng chống dịch bệnh</button></li>
                                 <li><button type="button" onclick="window.openSupportModal('Tư vấn An toàn Thực phẩm')"><i class="fas fa-utensils"></i> An toàn thực phẩm</button></li>
@@ -1574,7 +1574,7 @@
                             </ul>
                         </div>
                         <div class="tyt-link-card">
-                            <h3><span class="tyt-panel-icon bg-sky-100 text-sky-700"><i class="fas fa-folder-open"></i></span> Văn bản và tài liệu</h3>
+                            <h3 data-cms-id="auto-van-ban-va-tai-lieu-f7a77"><span class="tyt-panel-icon bg-sky-100 text-sky-700"><i class="fas fa-folder-open"></i></span> Văn bản và tài liệu</h3>
                             <ul>
                                 <li><button type="button" onclick="window.openDocsModal('Biểu mẫu y tế')"><i class="fas fa-file-lines"></i> Biểu mẫu y tế</button></li>
                                 <li><button type="button" onclick="window.openDocsModal('Tài liệu y tế')"><i class="fas fa-book-medical"></i> Tài liệu y tế</button></li>
@@ -1582,7 +1582,7 @@
                             </ul>
                         </div>
                         <div class="tyt-link-card">
-                            <h3><span class="tyt-panel-icon bg-emerald-100 text-emerald-700"><i class="fas fa-hands-holding-child"></i></span> Hỗ trợ người dân</h3>
+                            <h3 data-cms-id="auto-ho-tro-nguoi-dan-0ac75"><span class="tyt-panel-icon bg-emerald-100 text-emerald-700"><i class="fas fa-hands-holding-child"></i></span> Hỗ trợ người dân</h3>
                             <ul>
                                 <li><button type="button" onclick="window.openModal('modal-gopy')"><i class="fas fa-comment-medical"></i> Hòm thư góp ý, phản ánh</button></li>
                                 <li><a href="https://zalo.me/0382103002" target="_blank" rel="noopener noreferrer"><i class="fas fa-comment-sms"></i> Tư vấn qua Zalo</a></li>
@@ -1599,8 +1599,8 @@
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="tyt-sec-head">
                         <div>
-                            <p class="tyt-sec-kicker">Y tế số</p>
-                            <h3>Tiện ích số của Trạm Y tế</h3>
+                            <p class="tyt-sec-kicker" data-cms-id="auto-y-te-so-cc597">Y tế số</p>
+                            <h3 data-cms-id="auto-tien-ich-so-cua-tram-eec53">Tiện ích số của Trạm Y tế</h3>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
@@ -1660,20 +1660,20 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            <div onclick="window.openModal('modal-datlich')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-user-md text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Đăng ký khám</h4></div>
+                            <div onclick="window.openModal('modal-datlich')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-user-md text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base" data-cms-id="auto-ang-ky-kham-58fcb">Đăng ký khám</h4></div>
                             <!-- Thẻ này mở PHIẾU ĐẶT LỊCH với hình thức "khám từ xa" chọn sẵn - đặt hẹn
                                  trước, khác hẳn nút "Gọi khám từ xa" là gọi thẳng cán bộ đang trực. Trước
                                  đây nó gắn nhãn "CALL", biểu tượng tai nghe nhấp nháy và viền xanh dày nên
                                  trông y như một nút gọi thứ hai; nhãn và huy hiệu đã được đổi cho đúng việc
                                  nó làm, để chức năng gọi chỉ còn một nút duy nhất trên toàn trang. -->
-                            <div onclick="window.openTelehealthDirectModal()" class="service-card bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border border-blue-300 cursor-pointer text-center relative overflow-hidden shadow-sm hover:shadow-md transition transform hover:-translate-y-1"><div class="absolute -right-2 -top-2 bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-bl-xl font-black flex items-center gap-1"><i class="fas fa-calendar-check"></i> ĐẶT HẸN</div><i class="fas fa-laptop-medical text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base">Đặt lịch Khám từ xa</h4></div>
-                            <div onclick="window.openModal('modal-tiemchung')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-syringe text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Tiêm chủng mở rộng</h4></div>
-                            <div onclick="window.openSupportModal('Chăm sóc Sức khỏe Sinh sản')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-baby-carriage text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Sức khỏe sinh sản</h4></div>
-                            <div onclick="window.openSupportModal('Chăm sóc Người cao tuổi')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-person-cane text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Người cao tuổi</h4></div>
-                            <div onclick="window.openSupportModal('Dân số và Kế hoạch hóa')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-users text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Dân số phát triển</h4></div>
-                            <div onclick="window.openSupportModal('Chính sách Bảo trợ Y tế')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-wheelchair text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Bảo trợ y tế</h4></div>
-                            <div onclick="window.openModal('modal-chiso')" class="service-card bg-gradient-to-br from-green-50 to-teal-50 p-5 rounded-2xl border border-teal-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-teal-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-file-medical-alt text-3xl text-teal-600 mb-3"></i><h4 class="font-bold text-teal-900 text-sm md:text-base">Đọc chỉ số bệnh</h4></div>
-                            <div onclick="window.openModal('modal-tuvansuckhoe')" class="service-card bg-gradient-to-br from-green-50 to-teal-50 p-5 rounded-2xl border border-teal-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-teal-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-headset text-3xl text-teal-600 mb-3"></i><h4 class="font-bold text-teal-900 text-sm md:text-base">Tư vấn Dinh dưỡng</h4></div>
+                            <div onclick="window.openTelehealthDirectModal()" class="service-card bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border border-blue-300 cursor-pointer text-center relative overflow-hidden shadow-sm hover:shadow-md transition transform hover:-translate-y-1"><div class="absolute -right-2 -top-2 bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-bl-xl font-black flex items-center gap-1"><i class="fas fa-calendar-check"></i> ĐẶT HẸN</div><i class="fas fa-laptop-medical text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base" data-cms-id="auto-at-lich-kham-tu-xa-cc8c9">Đặt lịch Khám từ xa</h4></div>
+                            <div onclick="window.openModal('modal-tiemchung')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-syringe text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base" data-cms-id="auto-tiem-chung-mo-rong-6c4d1">Tiêm chủng mở rộng</h4></div>
+                            <div onclick="window.openSupportModal('Chăm sóc Sức khỏe Sinh sản')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-baby-carriage text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base" data-cms-id="auto-suc-khoe-sinh-san-fb68d">Sức khỏe sinh sản</h4></div>
+                            <div onclick="window.openSupportModal('Chăm sóc Người cao tuổi')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-person-cane text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base" data-cms-id="auto-nguoi-cao-tuoi-5f0f1">Người cao tuổi</h4></div>
+                            <div onclick="window.openSupportModal('Dân số và Kế hoạch hóa')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-users text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base" data-cms-id="auto-dan-so-phat-trien-de029">Dân số phát triển</h4></div>
+                            <div onclick="window.openSupportModal('Chính sách Bảo trợ Y tế')" class="service-card bg-green-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-wheelchair text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base" data-cms-id="auto-bao-tro-y-te-060ab">Bảo trợ y tế</h4></div>
+                            <div onclick="window.openModal('modal-chiso')" class="service-card bg-gradient-to-br from-green-50 to-teal-50 p-5 rounded-2xl border border-teal-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-teal-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-file-medical-alt text-3xl text-teal-600 mb-3"></i><h4 class="font-bold text-teal-900 text-sm md:text-base" data-cms-id="auto-oc-chi-so-benh-6255f">Đọc chỉ số bệnh</h4></div>
+                            <div onclick="window.openModal('modal-tuvansuckhoe')" class="service-card bg-gradient-to-br from-green-50 to-teal-50 p-5 rounded-2xl border border-teal-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-teal-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-headset text-3xl text-teal-600 mb-3"></i><h4 class="font-bold text-teal-900 text-sm md:text-base" data-cms-id="auto-tu-van-dinh-duong-27a22">Tư vấn Dinh dưỡng</h4></div>
                         </div>
                     </div>
                 </div>
@@ -1689,13 +1689,13 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            <div onclick="window.openDocsModal('Biểu mẫu y tế')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-id-card text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base">Thủ tục BHYT</h4></div>
-                            <div onclick="window.openDocsModal('Biểu mẫu y tế')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-folder-open text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base">Thủ tục hành chính</h4></div>
-                            <div onclick="window.openDocsModal('Biểu mẫu y tế')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-file-invoice text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base">Tải Biểu mẫu</h4></div>
-                            <div onclick="window.openModal('modal-gopy')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-comment-medical text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base">Hòm thư Góp ý</h4></div>
-                            <div onclick="window.openModal('modal-danhba')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-address-book text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base">Danh bạ Cán bộ</h4></div>
-                            <div onclick="window.openModal('modal-tracuuthuoc')" class="service-card bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border border-indigo-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-indigo-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-pills text-3xl text-indigo-600 mb-3"></i><h4 class="font-bold text-indigo-900 text-sm md:text-base">Tra cứu Thuốc</h4></div>
-                            <div onclick="window.openModal('modal-lichuongthuoc')" class="service-card bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border border-indigo-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-indigo-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-calendar-plus text-3xl text-indigo-600 mb-3"></i><h4 class="font-bold text-indigo-900 text-sm md:text-base">Lên lịch Thuốc</h4></div>
+                            <div onclick="window.openDocsModal('Biểu mẫu y tế')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-id-card text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base" data-cms-id="auto-thu-tuc-bhyt-7a301">Thủ tục BHYT</h4></div>
+                            <div onclick="window.openDocsModal('Biểu mẫu y tế')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-folder-open text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base" data-cms-id="auto-thu-tuc-hanh-chinh-671fa">Thủ tục hành chính</h4></div>
+                            <div onclick="window.openDocsModal('Biểu mẫu y tế')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-file-invoice text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base" data-cms-id="auto-tai-bieu-mau-84232">Tải Biểu mẫu</h4></div>
+                            <div onclick="window.openModal('modal-gopy')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-comment-medical text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base" data-cms-id="auto-hom-thu-gop-y-2873c">Hòm thư Góp ý</h4></div>
+                            <div onclick="window.openModal('modal-danhba')" class="service-card bg-blue-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-address-book text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base" data-cms-id="auto-danh-ba-can-bo-cd6aa">Danh bạ Cán bộ</h4></div>
+                            <div onclick="window.openModal('modal-tracuuthuoc')" class="service-card bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border border-indigo-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-indigo-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-pills text-3xl text-indigo-600 mb-3"></i><h4 class="font-bold text-indigo-900 text-sm md:text-base" data-cms-id="auto-tra-cuu-thuoc-67ac7">Tra cứu Thuốc</h4></div>
+                            <div onclick="window.openModal('modal-lichuongthuoc')" class="service-card bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border border-indigo-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-indigo-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-calendar-plus text-3xl text-indigo-600 mb-3"></i><h4 class="font-bold text-indigo-900 text-sm md:text-base" data-cms-id="auto-len-lich-thuoc-8e845">Lên lịch Thuốc</h4></div>
                         </div>
                     </div>
                 </div>
@@ -1711,14 +1711,14 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            <div onclick="window.openSupportModal('Báo cáo & Xử lý Dịch bệnh truyền nhiễm')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-mosquito text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Phòng chống dịch</h4></div>
-                            <div onclick="window.openSupportModal('Ý kiến ATTP')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-skull-crossbones text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Ý kiến ATTP</h4></div>
-                            <div onclick="window.openSupportModal('Tư vấn An toàn Thực phẩm')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-utensils text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">An toàn thực phẩm</h4></div>
-                            <div onclick="window.openSupportModal('Phòng bệnh theo mùa/ Thiên tai')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-cloud-showers-heavy text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Phòng bệnh theo mùa/ Thiên tai</h4></div>
-                            <div onclick="window.openDocsModal('Tài liệu y tế')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-book-medical text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Tài liệu sức khỏe</h4></div>
-                            <div onclick="window.openModal('modal-video')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fab fa-youtube text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base">Video Y khoa</h4></div>
-                            <div onclick="window.openModal('modal-socuu')" class="service-card bg-gradient-to-br from-red-50 to-orange-50 p-5 rounded-2xl border border-red-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-red-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-briefcase-medical text-3xl text-red-600 mb-3"></i><h4 class="font-bold text-red-900 text-sm md:text-base">Sơ cứu Khẩn cấp</h4></div>
-                            <div onclick="window.openModal('modal-caythuoc')" class="service-card bg-gradient-to-br from-green-50 to-orange-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-green-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-leaf text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Nhận diện Cây thuốc</h4></div>
+                            <div onclick="window.openSupportModal('Báo cáo & Xử lý Dịch bệnh truyền nhiễm')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-mosquito text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base" data-cms-id="auto-phong-chong-dich-3ee0d">Phòng chống dịch</h4></div>
+                            <div onclick="window.openSupportModal('Ý kiến ATTP')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-skull-crossbones text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base" data-cms-id="auto-y-kien-attp-6dac8">Ý kiến ATTP</h4></div>
+                            <div onclick="window.openSupportModal('Tư vấn An toàn Thực phẩm')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-utensils text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base" data-cms-id="auto-an-toan-thuc-pham-9ca30">An toàn thực phẩm</h4></div>
+                            <div onclick="window.openSupportModal('Phòng bệnh theo mùa/ Thiên tai')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-cloud-showers-heavy text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base" data-cms-id="auto-phong-benh-theo-mua-thien-c25ae">Phòng bệnh theo mùa/ Thiên tai</h4></div>
+                            <div onclick="window.openDocsModal('Tài liệu y tế')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fas fa-book-medical text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base" data-cms-id="auto-tai-lieu-suc-khoe-029f4">Tài liệu sức khỏe</h4></div>
+                            <div onclick="window.openModal('modal-video')" class="service-card bg-orange-50 p-5 rounded-2xl border border-orange-200 cursor-pointer text-center"><i class="fab fa-youtube text-3xl text-orange-600 mb-3"></i><h4 class="font-bold text-orange-900 text-sm md:text-base" data-cms-id="auto-video-y-khoa-d66c5">Video Y khoa</h4></div>
+                            <div onclick="window.openModal('modal-socuu')" class="service-card bg-gradient-to-br from-red-50 to-orange-50 p-5 rounded-2xl border border-red-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-red-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-briefcase-medical text-3xl text-red-600 mb-3"></i><h4 class="font-bold text-red-900 text-sm md:text-base" data-cms-id="auto-so-cuu-khan-cap-dc92d">Sơ cứu Khẩn cấp</h4></div>
+                            <div onclick="window.openModal('modal-caythuoc')" class="service-card bg-gradient-to-br from-green-50 to-orange-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-green-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-leaf text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base" data-cms-id="auto-nhan-dien-cay-thuoc-3e6c6">Nhận diện Cây thuốc</h4></div>
                         </div>
                     </div>
                 </div>
@@ -1729,17 +1729,17 @@
                         <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-purple-100 text-purple-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-robot"></i></div>
                             <div>
-                                <h3 class="text-2xl font-black text-gray-900">Trung tâm Trợ lý Y Tế AI</h3>
-                                <p class="text-sm font-bold text-purple-600">Được cung cấp sức mạnh bởi Gemini LLM</p>
+                                <h3 class="text-2xl font-black text-gray-900" data-cms-id="auto-trung-tam-tro-ly-y-645a5">Trung tâm Trợ lý Y Tế AI</h3>
+                                <p class="text-sm font-bold text-purple-600" data-cms-id="auto-uoc-cung-cap-suc-manh-2cbb1">Được cung cấp sức mạnh bởi Gemini LLM</p>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            <div onclick="window.openModal('modal-aisearch')" class="service-card bg-gradient-to-br from-purple-50 to-fuchsia-50 p-5 rounded-2xl border border-purple-200 cursor-pointer text-center"><i class="fas fa-search text-3xl text-purple-600 mb-3"></i><h4 class="font-bold text-purple-900 text-sm md:text-base">Tìm kiếm AI Toàn cục</h4></div>
-                            <div onclick="window.openModal('modal-aivision')" class="service-card bg-gradient-to-br from-blue-50 to-cyan-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-camera text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base">Đọc ảnh Đơn thuốc</h4></div>
-                            <div onclick="window.openModal('modal-aidich')" class="service-card bg-gradient-to-br from-teal-50 to-emerald-50 p-5 rounded-2xl border border-teal-200 cursor-pointer text-center"><i class="fas fa-language text-3xl text-teal-600 mb-3"></i><h4 class="font-bold text-teal-900 text-sm md:text-base">Thông dịch Y khoa</h4></div>
-                            <div onclick="window.openModal('modal-chiso')" class="service-card bg-gradient-to-br from-green-50 to-teal-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-file-medical-alt text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base">Đọc chỉ số Sức khỏe</h4></div>
-                            <div onclick="window.openModal('modal-tracuuthuoc')" class="service-card bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-2xl border border-indigo-200 cursor-pointer text-center"><i class="fas fa-pills text-3xl text-indigo-600 mb-3"></i><h4 class="font-bold text-indigo-900 text-sm md:text-base">Dược sĩ AI</h4></div>
-                            <div onclick="window.openModal('modal-tuongtacthuoc')" class="service-card bg-gradient-to-br from-rose-50 to-red-50 p-5 rounded-2xl border border-rose-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-rose-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-exclamation-triangle text-3xl text-rose-600 mb-3"></i><h4 class="font-bold text-rose-900 text-sm md:text-base">Kiểm tra Tương tác Thuốc</h4></div>
+                            <div onclick="window.openModal('modal-aisearch')" class="service-card bg-gradient-to-br from-purple-50 to-fuchsia-50 p-5 rounded-2xl border border-purple-200 cursor-pointer text-center"><i class="fas fa-search text-3xl text-purple-600 mb-3"></i><h4 class="font-bold text-purple-900 text-sm md:text-base" data-cms-id="auto-tim-kiem-ai-toan-cuc-3bac6">Tìm kiếm AI Toàn cục</h4></div>
+                            <div onclick="window.openModal('modal-aivision')" class="service-card bg-gradient-to-br from-blue-50 to-cyan-50 p-5 rounded-2xl border border-blue-200 cursor-pointer text-center"><i class="fas fa-camera text-3xl text-blue-600 mb-3"></i><h4 class="font-bold text-blue-900 text-sm md:text-base" data-cms-id="auto-oc-anh-on-thuoc-35b9c">Đọc ảnh Đơn thuốc</h4></div>
+                            <div onclick="window.openModal('modal-aidich')" class="service-card bg-gradient-to-br from-teal-50 to-emerald-50 p-5 rounded-2xl border border-teal-200 cursor-pointer text-center"><i class="fas fa-language text-3xl text-teal-600 mb-3"></i><h4 class="font-bold text-teal-900 text-sm md:text-base" data-cms-id="auto-thong-dich-y-khoa-3c532">Thông dịch Y khoa</h4></div>
+                            <div onclick="window.openModal('modal-chiso')" class="service-card bg-gradient-to-br from-green-50 to-teal-50 p-5 rounded-2xl border border-green-200 cursor-pointer text-center"><i class="fas fa-file-medical-alt text-3xl text-green-600 mb-3"></i><h4 class="font-bold text-green-900 text-sm md:text-base" data-cms-id="auto-oc-chi-so-suc-khoe-1b769">Đọc chỉ số Sức khỏe</h4></div>
+                            <div onclick="window.openModal('modal-tracuuthuoc')" class="service-card bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-2xl border border-indigo-200 cursor-pointer text-center"><i class="fas fa-pills text-3xl text-indigo-600 mb-3"></i><h4 class="font-bold text-indigo-900 text-sm md:text-base" data-cms-id="auto-duoc-si-ai-0e327">Dược sĩ AI</h4></div>
+                            <div onclick="window.openModal('modal-tuongtacthuoc')" class="service-card bg-gradient-to-br from-rose-50 to-red-50 p-5 rounded-2xl border border-rose-200 cursor-pointer text-center relative overflow-hidden"><div class="absolute -right-2 -top-2 bg-rose-500 text-white text-[10px] px-3 py-1 rounded-bl-xl font-black">AI</div><i class="fas fa-exclamation-triangle text-3xl text-rose-600 mb-3"></i><h4 class="font-bold text-rose-900 text-sm md:text-base" data-cms-id="auto-kiem-tra-tuong-tac-thuoc-0c00b">Kiểm tra Tương tác Thuốc</h4></div>
                         </div>
                     </div>
                 </div>
@@ -1784,7 +1784,7 @@
                         <div class="tyt-hero-emblem">
                             <div class="tyt-hero-emblem-card">
                                 <img src="logo.png" alt="Logo Trạm Y tế Bát Xát" class="tyt-hero-logo" width="136" height="136" onerror="this.style.display='none'">
-                                <p class="tyt-hero-emblem-name">Trạm Y tế<br>Bát Xát</p>
+                                <p class="tyt-hero-emblem-name" data-cms-id="auto-tram-y-tebat-xat-6cb31">Trạm Y tế<br>Bát Xát</p>
                                 <div class="tyt-about-facts">
                                     <p><i class="fas fa-map-marker-alt" aria-hidden="true"></i><span>Thôn Bát Xát 4, xã Bát Xát, tỉnh Lào Cai</span></p>
                                     <p><i class="fas fa-phone-alt" aria-hidden="true"></i><span><a href="tel:02143909011">02143909011</a></span></p>
@@ -1800,7 +1800,7 @@
                 <div class="tyt-about-layout">
                     <!-- Mục lục: thanh trượt ngang trên điện thoại, cột ghim bên trái trên máy tính. -->
                     <nav class="tyt-about-toc" aria-label="Mục lục trang Giới thiệu">
-                        <p class="tyt-about-toc-title">Nội dung trang</p>
+                        <p class="tyt-about-toc-title" data-cms-id="auto-noi-dung-trang-1f4f5">Nội dung trang</p>
                         <ol>
                             <li><a href="#gt-chung" data-about-go="gt-chung"><i class="fas fa-circle-info" aria-hidden="true"></i><span>Giới thiệu chung</span></a></li>
                             <li><a href="#gt-chuc-nang" data-about-go="gt-chuc-nang"><i class="fas fa-list-check" aria-hidden="true"></i><span>Chức năng, nhiệm vụ</span></a></li>
@@ -1820,7 +1820,7 @@
                             <header class="tyt-about-sec-head">
                                 <span class="tyt-about-num" aria-hidden="true">01</span>
                                 <div>
-                                    <p class="tyt-sec-kicker">Giới thiệu chung</p>
+                                    <p class="tyt-sec-kicker" data-cms-id="auto-gioi-thieu-chung-a375c">Giới thiệu chung</p>
                                     <h3 id="gt-chung-h">Về Trạm Y tế Bát Xát</h3>
                                 </div>
                             </header>
@@ -1832,7 +1832,7 @@
                                         <div><dt>Đơn vị chủ quản</dt><dd>Ủy ban nhân dân xã Bát Xát</dd></div>
                                     </dl>
                                     <div data-cms-id="about-general-body" class="tyt-about-prose mt-4">
-                                        <p>Trạm Y tế Bát Xát là đơn vị y tế tuyến cơ sở, nơi người dân trên địa bàn xã tiếp cận đầu tiên với hệ thống y tế. Trạm thực hiện công tác chăm sóc, bảo vệ và nâng cao sức khỏe nhân dân: chăm sóc sức khỏe ban đầu, tiêm chủng mở rộng, khám chữa bệnh bảo hiểm y tế và phòng chống dịch bệnh.</p>
+                                        <p data-cms-id="auto-tram-y-te-bat-xat-5471a">Trạm Y tế Bát Xát là đơn vị y tế tuyến cơ sở, nơi người dân trên địa bàn xã tiếp cận đầu tiên với hệ thống y tế. Trạm thực hiện công tác chăm sóc, bảo vệ và nâng cao sức khỏe nhân dân: chăm sóc sức khỏe ban đầu, tiêm chủng mở rộng, khám chữa bệnh bảo hiểm y tế và phòng chống dịch bệnh.</p>
                                         <p class="tyt-about-pending"><i class="fas fa-pen-to-square" aria-hidden="true"></i> Lịch sử hình thành và quá trình phát triển của Trạm: Thông tin đang được cập nhật.</p>
                                     </div>
                                 </div>
@@ -1851,7 +1851,7 @@
                             <header class="tyt-about-sec-head">
                                 <span class="tyt-about-num" aria-hidden="true">02</span>
                                 <div>
-                                    <p class="tyt-sec-kicker">Chức năng, nhiệm vụ</p>
+                                    <p class="tyt-sec-kicker" data-cms-id="auto-chuc-nang-nhiem-vu-5fea3">Chức năng, nhiệm vụ</p>
                                     <h3 id="gt-chuc-nang-h">Các nhóm hoạt động của Trạm</h3>
                                 </div>
                             </header>
@@ -1884,7 +1884,7 @@
                             <header class="tyt-about-sec-head">
                                 <span class="tyt-about-num" aria-hidden="true">03</span>
                                 <div>
-                                    <p class="tyt-sec-kicker">Cơ cấu tổ chức</p>
+                                    <p class="tyt-sec-kicker" data-cms-id="auto-co-cau-to-chuc-a18b1">Cơ cấu tổ chức</p>
                                     <h3 id="gt-co-cau-h">Bộ máy tổ chức của Trạm</h3>
                                 </div>
                             </header>
@@ -1916,7 +1916,7 @@
                             <header class="tyt-about-sec-head">
                                 <span class="tyt-about-num" aria-hidden="true">04</span>
                                 <div>
-                                    <p class="tyt-sec-kicker">Đội ngũ cán bộ, nhân viên</p>
+                                    <p class="tyt-sec-kicker" data-cms-id="auto-oi-ngu-can-bo-nhan-7b8a7">Đội ngũ cán bộ, nhân viên</p>
                                     <h3 id="gt-can-bo-h">Cán bộ y tế của Trạm</h3>
                                 </div>
                             </header>
@@ -1931,7 +1931,7 @@
                             <header class="tyt-about-sec-head">
                                 <span class="tyt-about-num" aria-hidden="true">05</span>
                                 <div>
-                                    <p class="tyt-sec-kicker">Hệ thống các điểm trạm</p>
+                                    <p class="tyt-sec-kicker" data-cms-id="auto-he-thong-cac-iem-tram-0141b">Hệ thống các điểm trạm</p>
                                     <h3 id="gt-diem-tram-h">Mạng lưới điểm trạm</h3>
                                 </div>
                             </header>
@@ -1945,32 +1945,32 @@
                             <header class="tyt-about-sec-head">
                                 <span class="tyt-about-num" aria-hidden="true">06</span>
                                 <div>
-                                    <p class="tyt-sec-kicker">Phòng khám &amp; bộ phận chuyên môn</p>
+                                    <p class="tyt-sec-kicker" data-cms-id="auto-phong-kham-amp-bo-phan-55849">Phòng khám &amp; bộ phận chuyên môn</p>
                                     <h3 id="gt-khoa-phong-h">Các khoa, phòng của Trạm</h3>
                                 </div>
                             </header>
                             <div class="tyt-about-unit-grid">
                                 <article class="tyt-about-unit" data-about-unit="dept-khambenh">
                                     <div class="tyt-about-unit-head"><span class="tyt-about-card-icon" style="background:#059669"><i class="fas fa-stethoscope"></i></span><h4 data-about-unit-title>Thông tin đang được cập nhật</h4></div>
-                                    <p class="tyt-about-unit-label">Chức năng</p>
+                                    <p class="tyt-about-unit-label" data-cms-id="auto-chuc-nang-c96e7">Chức năng</p>
                                     <p data-about-unit-desc class="tyt-about-unit-text">Thông tin đang được cập nhật</p>
-                                    <p class="tyt-about-unit-label">Nhiệm vụ</p>
+                                    <p class="tyt-about-unit-label" data-cms-id="auto-nhiem-vu-f87d0">Nhiệm vụ</p>
                                     <div data-cms-id="about-unit-khambenh-tasks" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div>
                                     <button type="button" class="tyt-about-org-link" onclick="window.tytShowTab('kham-benh')">Dịch vụ của bộ phận <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
                                 </article>
                                 <article class="tyt-about-unit" data-about-unit="dept-hanhchinh">
                                     <div class="tyt-about-unit-head"><span class="tyt-about-card-icon" style="background:#1976d2"><i class="fas fa-building"></i></span><h4 data-about-unit-title>Thông tin đang được cập nhật</h4></div>
-                                    <p class="tyt-about-unit-label">Chức năng</p>
+                                    <p class="tyt-about-unit-label" data-cms-id="auto-chuc-nang-c96e7-2">Chức năng</p>
                                     <p data-about-unit-desc class="tyt-about-unit-text">Thông tin đang được cập nhật</p>
-                                    <p class="tyt-about-unit-label">Nhiệm vụ</p>
+                                    <p class="tyt-about-unit-label" data-cms-id="auto-nhiem-vu-f87d0-2">Nhiệm vụ</p>
                                     <div data-cms-id="about-unit-hanhchinh-tasks" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div>
                                     <button type="button" class="tyt-about-org-link" onclick="window.tytShowTab('hanh-chinh')">Dịch vụ của bộ phận <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
                                 </article>
                                 <article class="tyt-about-unit" data-about-unit="dept-phongbenh">
                                     <div class="tyt-about-unit-head"><span class="tyt-about-card-icon" style="background:#ea580c"><i class="fas fa-shield-virus"></i></span><h4 data-about-unit-title>Thông tin đang được cập nhật</h4></div>
-                                    <p class="tyt-about-unit-label">Chức năng</p>
+                                    <p class="tyt-about-unit-label" data-cms-id="auto-chuc-nang-c96e7-3">Chức năng</p>
                                     <p data-about-unit-desc class="tyt-about-unit-text">Thông tin đang được cập nhật</p>
-                                    <p class="tyt-about-unit-label">Nhiệm vụ</p>
+                                    <p class="tyt-about-unit-label" data-cms-id="auto-nhiem-vu-f87d0-3">Nhiệm vụ</p>
                                     <div data-cms-id="about-unit-phongbenh-tasks" class="tyt-about-unit-text"><span class="tyt-about-muted">Thông tin đang được cập nhật</span></div>
                                     <button type="button" class="tyt-about-org-link" onclick="window.tytShowTab('phong-benh')">Dịch vụ của bộ phận <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
                                 </article>
@@ -1983,7 +1983,7 @@
                             <header class="tyt-about-sec-head">
                                 <span class="tyt-about-num" aria-hidden="true">07</span>
                                 <div>
-                                    <p class="tyt-sec-kicker">Cơ sở vật chất, trang thiết bị</p>
+                                    <p class="tyt-sec-kicker" data-cms-id="auto-co-so-vat-chat-trang-04590">Cơ sở vật chất, trang thiết bị</p>
                                     <h3 id="gt-co-so-h">Cơ sở vật chất của Trạm</h3>
                                 </div>
                             </header>
@@ -2004,7 +2004,7 @@
                             <header class="tyt-about-sec-head">
                                 <span class="tyt-about-num" aria-hidden="true">08</span>
                                 <div>
-                                    <p class="tyt-sec-kicker">Hình ảnh hoạt động</p>
+                                    <p class="tyt-sec-kicker" data-cms-id="auto-hinh-anh-hoat-ong-60e45">Hình ảnh hoạt động</p>
                                     <h3 id="gt-hinh-anh-h">Hoạt động của Trạm</h3>
                                 </div>
                                 <button type="button" onclick="window.switchPage('news')" class="tyt-more-btn"><span>Tin tức và hoạt động</span> <i class="fas fa-arrow-right"></i></button>
@@ -2018,7 +2018,7 @@
                             <header class="tyt-about-sec-head">
                                 <span class="tyt-about-num" aria-hidden="true">09</span>
                                 <div>
-                                    <p class="tyt-sec-kicker">Thông tin liên hệ</p>
+                                    <p class="tyt-sec-kicker" data-cms-id="auto-thong-tin-lien-he-9253b">Thông tin liên hệ</p>
                                     <h3 id="gt-lien-he-h">Liên hệ Trạm Y tế Bát Xát</h3>
                                 </div>
                             </header>
@@ -2055,8 +2055,8 @@
         <div id="tin-tuc-container" class="hidden tyt-below-header pb-10 bg-gray-50 min-h-screen animate-[fadeIn_0.3s_ease-in-out]">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-6 md:mb-8">
-                    <h2 class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide"><i class="fas fa-newspaper text-medical-600 mr-2"></i>Tin tức & Lịch tiêm</h2>
-                    <p class="text-medical-600 font-bold mt-2 text-lg">Cập nhật tin tức phòng dịch, bảo vệ sức khỏe và lịch tiêm chủng mới nhất</p>
+                    <h2 class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-wide" data-cms-id="auto-tin-tuc-lich-tiem-55cef"><i class="fas fa-newspaper text-medical-600 mr-2"></i>Tin tức & Lịch tiêm</h2>
+                    <p class="text-medical-600 font-bold mt-2 text-lg" data-cms-id="auto-cap-nhat-tin-tuc-phong-684bd">Cập nhật tin tức phòng dịch, bảo vệ sức khỏe và lịch tiêm chủng mới nhất</p>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
@@ -2065,7 +2065,7 @@
                         <div class="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
                             <div class="flex items-center gap-3 mb-4 border-b pb-3">
                                 <i class="fas fa-calendar-alt text-3xl text-medical-600"></i>
-                                <h3 class="text-2xl font-black text-gray-900">Thông báo & Lịch tiêm chủng</h3>
+                                <h3 class="text-2xl font-black text-gray-900" data-cms-id="auto-thong-bao-lich-tiem-chung-7eba9">Thông báo & Lịch tiêm chủng</h3>
                             </div>
                             <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                                 <table class="w-full text-left border-collapse">
@@ -2092,7 +2092,7 @@
                             <div class="flex items-center justify-between mb-4 border-b pb-3">
                                 <div class="flex items-center gap-3">
                                     <i class="fas fa-archive text-3xl text-orange-500"></i>
-                                    <h3 class="text-2xl font-black text-gray-900">Kho lưu trữ tin bài (Tin tức tổng hợp)</h3>
+                                    <h3 class="text-2xl font-black text-gray-900" data-cms-id="auto-kho-luu-tru-tin-bai-c19e9">Kho lưu trữ tin bài (Tin tức tổng hợp)</h3>
                                 </div>
                             </div>
                             
@@ -2126,8 +2126,8 @@
                                 <img src="logo.png" alt="Logo Trạm Y tế Bát Xát" class="w-10 h-10 object-contain rounded-full" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%230b416b\'/><path d=\'M50 20v60M20 50h60\' stroke=\'white\' stroke-width=\'15\' stroke-linecap=\'round\'/></svg>'">
                             </div>
                             <div>
-                                <h3 class="tyt-footer-brand uppercase text-white">Trạm Y tế Bát Xát</h3>
-                                <p class="text-sm text-blue-100 font-bold">Cổng thông tin &amp; Dịch vụ Y tế số</p>
+                                <h3 class="tyt-footer-brand uppercase text-white" data-cms-id="auto-tram-y-te-bat-xat-793f0">Trạm Y tế Bát Xát</h3>
+                                <p class="text-sm text-blue-100 font-bold" data-cms-id="auto-cong-thong-tin-amp-dich-fedcd">Cổng thông tin &amp; Dịch vụ Y tế số</p>
                             </div>
                         </div>
                         <p class="text-blue-50 text-sm mb-3">
@@ -2139,7 +2139,7 @@
                     </div>
 
                     <div>
-                        <h3 class="tyt-footer-title">Thông tin liên hệ</h3>
+                        <h3 class="tyt-footer-title" data-cms-id="auto-thong-tin-lien-he-9253b-2">Thông tin liên hệ</h3>
                         <ul class="tyt-footer-list">
                             <li>
                                 <i class="fas fa-map-marker-alt"></i>
@@ -2160,7 +2160,7 @@
                     </div>
 
                     <div>
-                        <h3 class="tyt-footer-title">Giờ làm việc</h3>
+                        <h3 class="tyt-footer-title" data-cms-id="auto-gio-lam-viec-db297">Giờ làm việc</h3>
                         <ul class="tyt-footer-list">
                             <li>
                                 <i class="far fa-sun"></i>
@@ -2178,7 +2178,7 @@
                     </div>
 
                     <div>
-                        <h3 class="tyt-footer-title">Dành cho cán bộ</h3>
+                        <h3 class="tyt-footer-title" data-cms-id="auto-danh-cho-can-bo-4edfa">Dành cho cán bộ</h3>
                         <ul class="tyt-footer-staff">
                             <li>
                                 <!-- ===== MODULE HỢP NHẤT: BẢNG ĐIỀU KHIỂN TRẠM Y TẾ =====
@@ -2226,7 +2226,7 @@
                 </div>
 
                 <div class="tyt-footer-bottom">
-                    <p>&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
+                    <p data-cms-id="auto-copy-2026-tram-y-te-3251d">&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
                     <a href="/chinh-sach-bao-mat.html">Chính sách bảo mật</a>
                 </div>
             </div>
@@ -4342,11 +4342,11 @@
                     <li><a href="#" onclick="window.switchAdminTab('signature')" id="tab-btn-signature" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-file-signature mr-3 w-4 text-center"></i> Chữ ký số &amp; Người ký đơn</span></a></li>
 
                     <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1" data-nav-group="content">Nội dung trang</li>
+                    <li><a href="#" onclick="window.enableVisualEditingMode(); return false;" class="flex items-center gap-2 px-3 py-2.5 rounded-xl font-black text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 shadow-sm transition"><i class="fas fa-laptop-code mr-1 w-4 text-center"></i> Chỉnh sửa Giao diện trực quan</a></li>
                     <li><a href="#" onclick="window.switchAdminTab('news')" id="tab-btn-news" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-newspaper mr-3 w-4 text-center"></i> Bản tin, lịch tiêm &amp; thông báo</span></a></li>
                     <li class="hidden"><a href="#" onclick="window.switchAdminTab('vaccine')" id="tab-btn-vaccine" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-bullhorn mr-3 w-4 text-center"></i> Quản lý Thông báo Trạm</span></a></li>
                     <li><a href="#" onclick="window.switchAdminTab('docs')" id="tab-btn-docs" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-file-pdf mr-3 w-4 text-center"></i> Tài liệu &amp; Biểu mẫu</span></a></li>
                     <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fab fa-youtube mr-3 w-4 text-center"></i> Video Y khoa</span></a></li>
-                    <li><a href="#" onclick="window.enableVisualEditingMode()" class="flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-sm text-purple-700 hover:bg-purple-50 border border-purple-200 transition"><i class="fas fa-laptop-code mr-1 w-4 text-center"></i> Sửa chữ trên trang (trực quan)</a></li>
 
                     <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1" data-nav-group="people">Nhân sự &amp; dịch vụ</li>
                     <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-address-book mr-3 w-4 text-center"></i> Danh bạ Cán bộ &amp; Ban lãnh đạo</span></a></li>
@@ -13825,6 +13825,8 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             }
             
             document.querySelectorAll('[data-cms-id]').forEach(el => {
+                /* Ghi lại nội dung lúc bật chế độ sửa để khi lưu chỉ gửi các vùng đã đổi. */
+                if (!el.hasAttribute('data-cms-orig-set')) { el.__cmsOrig = el.innerHTML; el.setAttribute('data-cms-orig-set', ''); }
                 el.contentEditable = "true";
                 el.style.outline = "2px dashed #9333ea";
                 el.style.outlineOffset = "4px";
@@ -13856,7 +13858,9 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
         window.saveVisualPageChanges = async function() {
             window.showToast("Đang kết nối lưu trang...");
             try {
-                const elements = document.querySelectorAll('[data-cms-id]');
+                /* Chỉ lưu vùng đã sửa (trước đây gửi lại toàn bộ, nay số vùng sửa được tăng nhiều). */
+                const elements = Array.from(document.querySelectorAll('[data-cms-id]')).filter(el => el.__cmsOrig === undefined || el.innerHTML !== el.__cmsOrig);
+                if (!elements.length) { window.showToast("Chưa có nội dung nào thay đổi."); return; }
                 for (let el of elements) {
                     const cmsId = el.getAttribute('data-cms-id');
                     const value = el.innerHTML;
@@ -13871,8 +13875,9 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                         })
                     });
                     if (!res.ok) throw new Error();
+                    el.__cmsOrig = value;
                 }
-                window.showToast("🎉 Lưu toàn bộ nội dung trang thành công!");
+                window.showToast(`🎉 Đã lưu ${elements.length} vùng nội dung lên đám mây!`);
             } catch(e) {
                 console.error(e);
                 window.showToast("Lỗi khi lưu dữ liệu trang lên Postgres!");
