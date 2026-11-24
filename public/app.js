@@ -1774,7 +1774,8 @@ const CallAudio = (function createCallAudioEngine() {
     howlCount: 0,
     active: false,
     processing: false,  // true khi tiếng đi thực sự chạy qua chuỗi lọc
-    bypassed: false     // true khi đã chuyển sang gửi thẳng tiếng micro gốc
+    bypassed: false,    // true khi đã chuyển sang gửi thẳng tiếng micro gốc
+    micSilent: false    // true khi micro không đưa ra tín hiệu nào suốt vài giây
   };
 
   let ctx = null;
@@ -2016,8 +2017,14 @@ const CallAudio = (function createCallAudioEngine() {
       analyser.fftSize = 2048;
       analyser.smoothingTimeConstant = 0.5;
 
+      // Bộ đo thứ hai đặt NGAY sau micro, trước mọi bộ lọc: phân biệt được micro
+      // không thu gì (lỗi thiết bị/quyền) với bộ lọc làm mất tiếng (lỗi phần mềm).
+      const rawAnalyser = audioCtx.createAnalyser();
+      rawAnalyser.fftSize = 2048;
+
       const dest = audioCtx.createMediaStreamDestination();
 
+      source.connect(rawAnalyser);
       source.connect(highpass);
       highpass.connect(notch);
       notch.connect(lowpass);
@@ -2028,7 +2035,9 @@ const CallAudio = (function createCallAudioEngine() {
       makeup.connect(dest);
 
       chain = {
-        source, highpass, notch, lowpass, comp, gate, makeup, analyser, dest,
+        source, highpass, notch, lowpass, comp, gate, makeup, analyser, rawAnalyser, dest,
+        rawData: new Float32Array(rawAnalyser.fftSize),
+        silentMs: 0,
         micOnly,
         freqData: new Float32Array(analyser.frequencyBinCount),
         timeData: new Float32Array(analyser.fftSize),
@@ -2089,6 +2098,7 @@ const CallAudio = (function createCallAudioEngine() {
     metrics.active = false;
     metrics.processing = false;
     metrics.bypassed = false;
+    metrics.micSilent = false;
     metrics.micLevel = 0;
     metrics.remoteLevel = 0;
     metrics.gateOpen = false;
@@ -2164,6 +2174,13 @@ const CallAudio = (function createCallAudioEngine() {
     if (ticker) { clearInterval(ticker); ticker = null; }
   }
 
+  /** Quy dBFS ra 0..1 cho vạch mức: -70 dB (lặng) -> 0, -20 dB (nói to) -> 1.
+      Thang tuyến tính cũ (rms x 6) khiến giọng nói thường chỉ nhích vài phần
+      trăm, trông như micro "không chạy". */
+  function levelFromDb(db) {
+    return Math.max(0, Math.min(1, (db + 70) / 50));
+  }
+
   /** Mức hiệu dụng (RMS) của một khung mẫu, quy ra dBFS. */
   function rmsDb(analyser, buffer) {
     if (!analyser || typeof analyser.getFloatTimeDomainData !== 'function') return { db: -120, rms: 0 };
@@ -2215,8 +2232,25 @@ const CallAudio = (function createCallAudioEngine() {
     const dt = chain.lastTick ? now - chain.lastTick : 45;
     chain.lastTick = now;
 
-    if (metrics.bypassed) return;
     const ctxDown = !ctx || ctx.state !== 'running';
+
+    let raw = { db: -120, rms: 0 };
+    try { raw = rmsDb(chain.rawAnalyser, chain.rawData); } catch (err) {}
+
+    // Micro không đưa ra tín hiệu nào (đúng bằng 0) trong khi bộ xử lý vẫn chạy:
+    // lỗi ở thiết bị/quyền micro, không phải ở bộ lọc - báo cho người dùng.
+    if (!ctxDown) {
+      chain.silentMs = raw.rms === 0 ? chain.silentMs + dt : 0;
+      const silent = chain.silentMs > 3000;
+      if (silent !== !!metrics.micSilent) { metrics.micSilent = silent; notify(true); }
+    }
+
+    if (metrics.bypassed) {
+      // Không còn bộ lọc: vạch mức đo thẳng tiếng micro (nếu bộ xử lý còn chạy).
+      metrics.micLevel = ctxDown ? 0 : levelFromDb(raw.db);
+      notify(false);
+      return;
+    }
 
     let mic;
     try {
@@ -2225,12 +2259,14 @@ const CallAudio = (function createCallAudioEngine() {
       return;
     }
 
-    chain.deadMs = (ctxDown || mic.rms === 0) ? chain.deadMs + dt : 0;
+    // Bộ lọc hỏng: bộ xử lý bị tạm dừng, hoặc micro có tiếng mà đầu ra lọc im bặt.
+    const filterDead = ctxDown || (raw.rms > 0 && mic.rms === 0);
+    chain.deadMs = filterDead ? chain.deadMs + dt : 0;
     if (now - chain.attachedAt > 2500 && chain.deadMs > 2500) {
-      bypassFilters(ctxDown ? 'trình duyệt tạm dừng bộ xử lý' : 'đầu ra im lặng tuyệt đối');
+      bypassFilters(ctxDown ? 'trình duyệt tạm dừng bộ xử lý' : 'bộ lọc trả về tiếng câm');
       return;
     }
-    metrics.micLevel = Math.min(1, mic.rms * 6);
+    metrics.micLevel = levelFromDb(mic.db);
 
     // Nền ồn: tụt nhanh theo chỗ lặng, dâng lên rất chậm. Nhờ vậy ngưỡng mở cổng
     // tự bám theo phòng khám lúc vắng lẫn lúc đông mà không cần chỉnh tay.
@@ -2471,9 +2507,19 @@ const CallAudio = (function createCallAudioEngine() {
         try { chain.source.disconnect(); } catch (e) {}
         chain.micOnly = new MediaStream([newTrack]);
         chain.source = ctx.createMediaStreamSource(chain.micOnly);
+        chain.source.connect(chain.rawAnalyser);
         chain.source.connect(chain.highpass);
         chain.noiseFloorDb = -70;
         chain.calibrateUntil = Date.now() + 1200;
+        chain.silentMs = 0;
+        metrics.micSilent = false;
+        const oldRaw = chain.rawTrack;
+        chain.rawTrack = newTrack;
+        // Đã chuyển sang micro trực tiếp thì phải thay luôn track đang gửi đi.
+        if (metrics.bypassed) {
+          try { chain.outbound.removeTrack(oldRaw); chain.outbound.addTrack(newTrack); } catch (e) {}
+          try { (window.__teleMeshes || new Set()).forEach(m => { try { m.swapTrack(oldRaw, newTrack); } catch (e) {} }); } catch (e) {}
+        }
       }
       notify(true);
       // Chuỗi lọc vẫn phát ra đúng track cũ nên WebRTC không cần thương lượng lại.
@@ -2639,7 +2685,9 @@ function renderAudioPanel(state) {
   if (status) {
     let text;
     if (!s.active) text = 'Chưa gọi - bộ lọc sẽ chạy khi bắt đầu cuộc gọi.';
+    else if (s.micSilent) text = 'Micro không thu được âm thanh - kiểm tra micro đã cắm, chưa bị tắt tiếng trong máy, hoặc chọn micro khác.';
     else if (s.suspended) text = 'Trình duyệt đang tạm dừng micro - bấm vào bất kỳ đâu trên trang để bật lại.';
+    else if (s.bypassed) text = 'Đang gửi thẳng tiếng micro (bộ lọc của trang không chạy trên trình duyệt này).';
     else if (s.howling) text = `Vừa chặn một cú hú ở ~${s.howlHz} Hz - đã hạ loa một nấc.`;
     else if (s.ducking) text = 'Bác sĩ đang nói - mic hạ tạm để không dội tiếng ngược lại.';
     else if (s.gateOpen) text = 'Đang truyền lời thoại.';

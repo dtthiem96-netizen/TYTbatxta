@@ -4822,6 +4822,9 @@
                                         <div class="h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700" style="flex:1 1 8rem;min-width:8rem">
                                             <div id="cms-mic-meter" class="h-full rounded-full bg-slate-600 transition-all duration-75" style="width: 0%"></div>
                                         </div>
+                                        <select id="cms-mic-select" onchange="window.cmsSetMicDevice(this.value)" title="Chọn micro thu tiếng" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500" style="max-width:14rem">
+                                            <option value="">Micro mặc định của máy</option>
+                                        </select>
                                         <span id="cms-audio-status" class="text-slate-400" style="flex:1 1 14rem">Chưa gọi - micro và bộ lọc chạy khi tiếp nhận cuộc gọi.</span>
                                         <label class="flex items-center gap-2" for="cms-noise-select">
                                             <i class="fas fa-wave-square text-blue-400"></i> Lọc tạp âm
@@ -10333,7 +10336,8 @@
             if (sel && sel.value !== s.profile) sel.value = s.profile;
             const hint = document.getElementById('patient-audio-hint');
             if (hint) {
-                if (s.suspended) hint.textContent = 'Micro đang bị trình duyệt tạm dừng - chạm vào màn hình một lần để bật lại.';
+                if (s.micSilent) hint.textContent = 'Micro không thu được âm thanh - kiểm tra quyền micro của trình duyệt trong Cài đặt của máy.';
+                else if (s.suspended) hint.textContent = 'Micro đang bị trình duyệt tạm dừng - chạm vào màn hình một lần để bật lại.';
                 else if (s.howling) hint.textContent = 'Đang có tiếng hú - máy đã tự hạ loa. Hãy đưa điện thoại ra xa loa ngoài.';
                 else if (s.ducking) hint.textContent = 'Cán bộ y tế đang nói - micro tạm hạ để không dội tiếng.';
                 else hint.textContent = 'Nếu nghe vang hoặc hú: hạ âm lượng loa hoặc dùng tai nghe.';
@@ -10345,12 +10349,15 @@
             const meter = document.getElementById('cms-mic-meter');
             if (!meter) return;
             meter.style.width = `${Math.round(Math.min(1, s.micLevel || 0) * 100)}%`;
-            meter.className = 'h-full rounded-full transition-all duration-75 ' + (s.howling ? 'bg-rose-500' : (s.gateOpen ? 'bg-emerald-500' : 'bg-slate-600'));
+            meter.className = 'h-full rounded-full transition-all duration-75 ' + (s.micSilent || s.howling ? 'bg-rose-500' : (s.gateOpen ? 'bg-emerald-500' : 'bg-slate-600'));
             const status = document.getElementById('cms-audio-status');
+            if (status) status.style.color = s.micSilent ? '#fda4af' : '';
             if (status) {
                 let text;
                 if (!s.active) text = 'Chưa gọi - micro và bộ lọc chạy khi tiếp nhận cuộc gọi.';
+                else if (s.micSilent) text = 'Micro KHÔNG thu được âm thanh. Chọn đúng micro ở ô bên cạnh; kiểm tra micro đã cắm, không bị tắt tiếng (Windows: Cài đặt > Quyền riêng tư > Micro), và Chrome được phép dùng micro (biểu tượng ổ khoá cạnh địa chỉ trang).';
                 else if (s.suspended) text = 'Trình duyệt đang tạm dừng micro - bấm vào bất kỳ đâu trên trang để bật lại.';
+                else if (s.bypassed) text = 'Đang gửi thẳng tiếng micro (bộ lọc không chạy trên trình duyệt này).';
                 else if (s.howling) text = `Vừa chặn tiếng hú ~${s.howlHz} Hz.`;
                 else if (s.ducking) text = 'Đầu bên kia đang nói - micro tạm hạ để không dội tiếng.';
                 else if (s.gateOpen) text = 'Micro đang bắt tiếng nói.';
@@ -10367,12 +10374,39 @@
             const howl = document.getElementById('cms-howl-check');
             if (howl) howl.checked = !!s.antiHowl;
         }
+        /* Danh sách micro để cán bộ chọn đúng thiết bị: máy tính để bàn thường có
+           vài nguồn (micro webcam, tai nghe, "Stereo Mix"...), chọn nhầm nguồn
+           câm là vạch mức đứng yên và đầu bên kia không nghe thấy gì. Tên thiết
+           bị chỉ hiện sau khi trình duyệt đã được cấp quyền micro. */
+        async function cmsFillMicList() {
+            const sel = document.getElementById('cms-mic-select');
+            const engine = window.CallAudio;
+            if (!sel || !engine || !engine.listDevices) return;
+            const { mics } = await engine.listDevices();
+            const current = (engine.getState && engine.getState().micDeviceId) || '';
+            sel.innerHTML = '<option value="">Micro mặc định của máy</option>' + mics
+                .filter(m => m.deviceId && m.deviceId !== 'default' && m.deviceId !== 'communications')
+                .map((m, i) => `<option value="${teleEscape(m.deviceId)}">${teleEscape(m.label || ('Micro ' + (i + 1)))}</option>`).join('');
+            sel.value = mics.some(m => m.deviceId === current) ? current : '';
+        }
+        window.cmsSetMicDevice = async function(deviceId) {
+            const engine = window.CallAudio;
+            if (!engine || !engine.setMicDevice) return;
+            const replaced = await engine.setMicDevice(deviceId);
+            // Không có chuỗi lọc thì setMicDevice trả về track mới: thay trên mọi phiên.
+            if (replaced) {
+                CMS_CALLS.forEach(session => { if (session.mesh && !session.muted) session.mesh.replaceAudioTrack(replaced); });
+            }
+            window.showToast('Đã chuyển micro. Hãy nói thử và xem vạch mức.');
+        };
         function cmsBindAudioStrip() {
             const engine = window.CallAudio;
             if (!engine || !engine.onUpdate || cmsBindAudioStrip.done) return;
             cmsBindAudioStrip.done = true;
             engine.onUpdate(cmsPaintAudioStrip);
             cmsPaintAudioStrip(engine.getState());
+            cmsFillMicList();
+            try { navigator.mediaDevices.addEventListener('devicechange', cmsFillMicList); } catch (e) {}
         }
         // app.js (nơi có bộ xử lý tiếng) nạp kiểu defer, chạy xong trước DOMContentLoaded.
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cmsBindAudioStrip);
@@ -12285,9 +12319,15 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 .getUserMedia({ video: videoConstraints, audio: audioConstraints })
                 .catch(() => navigator.mediaDevices.getUserMedia({ video: true, audio: true }))
                 .catch(() => navigator.mediaDevices.getUserMedia({ audio: true }))
+                // Máy không có micro (hoặc micro bị chặn) vẫn phải lên được hình.
+                .catch(() => navigator.mediaDevices.getUserMedia({ video: true }).then(st => {
+                    window.showToast('Không mở được micro - kiểm tra micro đã cắm và Chrome được phép dùng micro.');
+                    return st;
+                }))
                 .catch(() => null)
                 .then(stream => {
                     cmsSharedStream = stream;
+                    cmsFillMicList();
                     cmsSharedStreamPromise = null;
                     teleTuneLocalTracks(stream);
                     // Một luồng lọc dùng chung cho cả bốn cuộc gọi song song:
