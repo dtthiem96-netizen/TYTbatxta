@@ -84,7 +84,7 @@
     <!-- THƯ VIỆN GIAO DIỆN -->
     <!-- Hộp đổi mật khẩu dùng chung: bắt buộc đổi mật khẩu tạm ở mọi cổng đăng nhập. -->
     <script src="/assets/password-change.js" defer></script>
-    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124b">
+    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124c">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     
@@ -884,6 +884,15 @@
         /* Khối xen kẽ chỉ đổi màu nền; hai đường kẻ 1px tràn hết màn hình ở mép trên/
            dưới trùng lặp với chính sự đổi nền đó nên đã được bỏ. */
         .tyt-home-sec-alt { background: #f4f7fb; }
+        /* Liên kết trang: banner tới các cơ quan liên quan (CMS quản lý). */
+        .tyt-link-banner { display: flex; align-items: center; gap: .85rem; min-height: 5.25rem; padding: .9rem 1.1rem; border-radius: 1rem; color: #fff; text-decoration: none; box-shadow: 0 4px 14px rgba(15, 23, 42, .12); transition: transform .15s ease, box-shadow .15s ease; overflow: hidden; }
+        .tyt-link-banner:hover, .tyt-link-banner:focus-visible { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15, 23, 42, .18); }
+        .tyt-link-banner.has-img { padding: 0; background: #fff; border: 1px solid #e5e7eb; }
+        .tyt-link-img { display: block; width: 100%; height: 5.25rem; object-fit: contain; }
+        .tyt-link-ico { flex: none; display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 9999px; background: rgba(255, 255, 255, .18); font-size: 1.35rem; }
+        .tyt-link-txt { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+        .tyt-link-txt b { font-size: 1.05rem; font-weight: 900; text-transform: uppercase; letter-spacing: .01em; }
+        .tyt-link-txt small { font-size: .85rem; opacity: .92; font-weight: 600; }
         @media (min-width: 768px) { .tyt-home-sec { padding: 3rem 0; } }
         .tyt-sec-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 1.5rem; margin-bottom: 1.25rem; }
         .tyt-sec-kicker { font-size: 0.8125rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: #1976d2; }
@@ -1629,6 +1638,20 @@
                             </a>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <!-- LIÊN KẾT TRANG: banner tới các cơ quan liên quan. Quản trị CMS thêm/sửa/xoá
+                 trong tab "Liên kết trang"; dữ liệu ở siteConfigs "site-links". -->
+            <section id="lien-ket-trang" class="tyt-home-sec" aria-labelledby="lien-ket-trang-h">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="tyt-sec-head">
+                        <div>
+                            <p class="tyt-sec-kicker" data-cms-id="links-kicker">Cơ quan liên quan</p>
+                            <h3 id="lien-ket-trang-h" data-cms-id="links-title">Liên kết trang</h3>
+                        </div>
+                    </div>
+                    <div id="site-links-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                 </div>
             </section>
         </div>
@@ -4346,6 +4369,7 @@
                     <li><a href="#" onclick="window.switchAdminTab('news')" id="tab-btn-news" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-newspaper mr-3 w-4 text-center"></i> Bản tin, lịch tiêm &amp; thông báo</span></a></li>
                     <li class="hidden"><a href="#" onclick="window.switchAdminTab('vaccine')" id="tab-btn-vaccine" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-bullhorn mr-3 w-4 text-center"></i> Quản lý Thông báo Trạm</span></a></li>
                     <li><a href="#" onclick="window.switchAdminTab('docs')" id="tab-btn-docs" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-file-pdf mr-3 w-4 text-center"></i> Tài liệu &amp; Biểu mẫu</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('links')" id="tab-btn-links" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-link mr-3 w-4 text-center"></i> Liên kết trang</span></a></li>
                     <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fab fa-youtube mr-3 w-4 text-center"></i> Video Y khoa</span></a></li>
 
                     <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1" data-nav-group="people">Nhân sự &amp; dịch vụ</li>
@@ -4366,6 +4390,10 @@
 
                 <!-- ADMIN TAB: NEWS & NOTICES -->
                 <div id="admin-news-section" class="admin-tab active space-y-6">
+                    <div id="news-img-optimize-box" class="hidden bg-amber-50 border border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="text-sm text-amber-900"><b><i class="fas fa-gauge-high mr-1"></i> Trang tải chậm vì ảnh tin tức quá nặng.</b> <span id="news-img-optimize-info"></span></div>
+                        <button type="button" id="news-img-optimize-btn" onclick="window.tytOptimizeNewsImages()" class="shrink-0 bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition disabled:opacity-50"><i class="fas fa-compress mr-1"></i> Tối ưu ảnh tin tức</button>
+                    </div>
                     <div class="bg-white rounded-2xl shadow-sm p-6 lg:p-8 border border-gray-200 relative overflow-hidden">
                         <!-- CMS Header & Navigation Tabs -->
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-100 gap-4">
@@ -4565,6 +4593,36 @@
                             <table class="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden">
                                 <thead class="bg-gray-100 text-gray-600 text-xs uppercase"><tr><th class="p-3 font-bold">Họ tên Cán bộ</th><th class="p-3 font-bold">Chức vụ / Bộ phận</th><th class="p-3 font-bold">Số điện thoại</th><th class="p-3 font-bold text-center">Hành động</th></tr></thead>
                                 <tbody id="admin-contact-list" class="divide-y divide-gray-100 text-gray-900"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADMIN TAB: LIÊN KẾT TRANG -->
+                <div id="admin-links-section" class="admin-tab space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+                        <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Liên kết trang</h2><p class="text-sm text-gray-600 mt-1">Banner liên kết tới Sở Y tế, UBND xã, Trung tâm Y tế khu vực... hiện ở cuối trang chủ. Có ảnh banner thì hiện ảnh; không có ảnh thì hiện khung màu kèm tên.</p></div>
+                        <form onsubmit="window.handleSaveSiteLink(event)" class="bg-sky-50 p-5 rounded-xl border border-sky-200 mb-6">
+                            <input type="hidden" id="link-edit-index" value="">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="link-title">Tên cơ quan / trang</label><input type="text" id="link-title" required maxlength="120" placeholder="VD: Sở Y tế tỉnh Lào Cai" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-950 bg-white"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="link-subtitle">Dòng phụ (không bắt buộc)</label><input type="text" id="link-subtitle" maxlength="160" placeholder="VD: Cổng thông tin điện tử" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-950 bg-white"></div>
+                                <div class="md:col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1" for="link-url">Đường dẫn</label><input type="text" id="link-url" placeholder="https://... hoặc tel:19009095" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-950 bg-white"><p class="text-[11px] text-gray-500 mt-1">Để trống nếu chưa có: liên kết được lưu nhưng chưa hiện ngoài trang.</p></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="link-color">Màu khung (khi không có ảnh)</label><select id="link-color" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-950 bg-white"><option value="navy">Xanh đậm</option><option value="red">Đỏ</option><option value="blue">Xanh dương</option><option value="green">Xanh lá</option><option value="amber">Vàng cam</option><option value="teal">Xanh ngọc</option></select></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="link-icon">Biểu tượng (khi không có ảnh)</label><select id="link-icon" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-950 bg-white"><option value="fa-globe">Cổng thông tin</option><option value="fa-hospital">Bệnh viện, Sở Y tế</option><option value="fa-landmark">Cơ quan nhà nước</option><option value="fa-building-columns">Trụ sở</option><option value="fa-briefcase-medical">Y tế</option><option value="fa-phone-volume">Đường dây nóng</option><option value="fa-file-signature">Thủ tục, văn bản</option><option value="fa-user-tie">Tuyển dụng</option></select></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="link-image-file">Ảnh banner từ máy (không bắt buộc)</label><input type="file" id="link-image-file" accept="image/*" class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-950 bg-white"><p class="text-[11px] text-gray-500 mt-1">Ảnh tự thu nhỏ trước khi tải lên. Nên dùng ảnh ngang, khoảng 600 x 160.</p></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="link-image-url">Hoặc đường dẫn ảnh (https://)</label><input type="text" id="link-image-url" placeholder="https://..." class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-950 bg-white"></div>
+                                <label id="link-keep-image-row" class="hidden md:col-span-2 flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" id="link-keep-image" checked> Giữ ảnh banner hiện tại (bỏ chọn để chuyển sang khung màu)</label>
+                            </div>
+                            <div class="flex gap-3">
+                                <button type="submit" id="link-submit-btn" class="bg-sky-600 text-white font-bold px-5 py-2.5 rounded-lg hover:bg-sky-700 transition"><i class="fas fa-plus mr-1"></i> Thêm liên kết</button>
+                                <button type="button" id="link-cancel-btn" onclick="this.form.reset(); window.cancelEditSiteLink()" class="hidden bg-white text-gray-700 font-bold px-5 py-2.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition">Hủy sửa</button>
+                            </div>
+                        </form>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden">
+                                <thead class="bg-gray-100 text-gray-600 text-xs uppercase"><tr><th class="p-3 font-bold">Xem trước</th><th class="p-3 font-bold">Tên &amp; đường dẫn</th><th class="p-3 font-bold text-center">Thao tác</th></tr></thead>
+                                <tbody id="admin-links-list" class="divide-y divide-gray-100 text-gray-900"></tbody>
                             </table>
                         </div>
                     </div>
@@ -7218,19 +7276,22 @@
             }
             
             if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                /* Ảnh được thu nhỏ trên máy rồi lưu thành tệp riêng (/api/attachment),
+                   không nhúng base64 vào bản tin nữa - xem "ẢNH NHẸ CHO MẠNG YẾU". */
                 for (let i = 0; i < fileInput.files.length; i++) {
                     const file = fileInput.files[i];
-                    if (file.size > 2 * 1024 * 1024) {
-                        window.showToast(`Ảnh "${file.name}" quá lớn! Vui lòng chọn ảnh dưới 2MB.`);
+                    if (file.size > 25 * 1024 * 1024) {
+                        window.showToast(`Ảnh "${file.name}" quá lớn! Vui lòng chọn ảnh dưới 25MB.`);
                         return;
                     }
-                    const reader = new FileReader();
-                    const base64Promise = new Promise((resolve) => {
-                        reader.onload = (event) => resolve(reader.result);
-                        reader.readAsDataURL(file);
-                    });
-                    const base64Data = await base64Promise;
-                    finalImages.push(base64Data);
+                    try {
+                        window.showToast(`Đang thu nhỏ và tải ảnh ${i + 1}/${fileInput.files.length}...`);
+                        finalImages.push(await window.tytStoreImage(file, file.name));
+                    } catch (err) {
+                        console.error(err);
+                        window.showToast(`Không tải được ảnh "${file.name}": ${err.message}`);
+                        return;
+                    }
                 }
             }
 
@@ -8849,7 +8910,7 @@
 
             if (isStationUser) {
                 // Phân quyền nghiêm ngặt cho Cán bộ Điểm trạm: Ẩn toàn bộ các tab quản trị khác
-                ['news', 'vaccine', 'docs', 'service', 'contact', 'video', 'config', 'signature', 'appointments'].forEach(key => {
+                ['news', 'vaccine', 'docs', 'links', 'service', 'contact', 'video', 'config', 'signature', 'appointments'].forEach(key => {
                     const btn = document.getElementById(`tab-btn-${key}`);
                     if (btn && btn.parentElement) btn.parentElement.style.display = 'none';
                 });
@@ -8862,7 +8923,7 @@
                 }
             } else {
                 // Tài khoản Admin/Editor: Hiển thị đầy đủ menu
-                ['news', 'vaccine', 'docs', 'service', 'contact', 'video', 'config', 'signature', 'appointments', 'telehealth'].forEach(key => {
+                ['news', 'vaccine', 'docs', 'links', 'service', 'contact', 'video', 'config', 'signature', 'appointments', 'telehealth'].forEach(key => {
                     const btn = document.getElementById(`tab-btn-${key}`);
                     if (btn && btn.parentElement) btn.parentElement.style.display = '';
                 });
@@ -13903,6 +13964,310 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
            chỉ gọi /api/cms một lần thay vì hai lượt trùng nhau. */
         window.cmsBootstrapPromise = cmsBootstrapPromise;
 
+        /* ================= ẢNH NHẸ CHO MẠNG YẾU VÙNG CAO =================
+           Trước đây ảnh tin tức được nhúng thẳng vào cơ sở dữ liệu dưới dạng chuỗi
+           base64 (data:image/...), nên MỖI lượt mở trang phải tải toàn bộ ảnh của
+           mọi bản tin (~32 MB). Nay:
+             - Ảnh tải lên được thu nhỏ ngay trên máy (cạnh dài tối đa 1280px, JPEG)
+               rồi lưu thành tệp riêng ở /api/attachment (trình duyệt và CDN lưu đệm
+               1 năm), cơ sở dữ liệu chỉ giữ đường dẫn.
+             - Nút "Tối ưu ảnh tin tức" trong CMS chuyển các ảnh base64 cũ sang cách
+               lưu mới, bản tin nào xong là lưu ngay bản tin đó. */
+        window.tytCompressImage = function(source, opts) {
+            const o = Object.assign({ maxSide: 1280, quality: 0.8 }, opts || {});
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                let objectUrl = null;
+                img.onload = () => {
+                    try {
+                        const scale = Math.min(1, o.maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+                        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+                        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w; canvas.height = h;
+                        const ctx2 = canvas.getContext('2d');
+                        ctx2.fillStyle = '#ffffff'; ctx2.fillRect(0, 0, w, h);
+                        ctx2.drawImage(img, 0, 0, w, h);
+                        canvas.toBlob(blob => {
+                            if (objectUrl) URL.revokeObjectURL(objectUrl);
+                            blob ? resolve(blob) : reject(new Error('Không nén được ảnh'));
+                        }, 'image/jpeg', o.quality);
+                    } catch (err) { reject(err); }
+                };
+                img.onerror = () => { if (objectUrl) URL.revokeObjectURL(objectUrl); reject(new Error('Không đọc được ảnh')); };
+                if (source instanceof Blob) { objectUrl = URL.createObjectURL(source); img.src = objectUrl; }
+                else img.src = String(source);
+            });
+        };
+
+        window.tytUploadPublicImage = async function(blob, fileName) {
+            const dataUrl = await new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result);
+                r.onerror = () => reject(new Error('Không đọc được ảnh'));
+                r.readAsDataURL(blob);
+            });
+            const fileId = 'IMG_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+            const res = await fetch('/api/cms', {
+                method: 'POST',
+                headers: window.cmsAuthHeaders(),
+                body: JSON.stringify({ action: 'upload_attachment_chunk', id: fileId, index: 0, total: 1, chunk: dataUrl, mimeType: blob.type || 'image/jpeg', fileName: fileName || (fileId + '.jpg') })
+            });
+            const out = await res.json().catch(() => null);
+            if (!res.ok || !out || !out.url) throw new Error((out && out.error) || 'Tải ảnh lên thất bại');
+            return out.url;
+        };
+
+        /** Thu nhỏ rồi tải lên một ảnh (File hoặc chuỗi data:image), trả về đường dẫn /api/attachment. */
+        window.tytStoreImage = async function(source, fileName, opts) {
+            const blob = await window.tytCompressImage(source, opts);
+            return window.tytUploadPublicImage(blob, fileName);
+        };
+
+        const TYT_DATA_IMG_RE = /data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=\s]+/gi;
+        function tytNewsInlineBytes(n) {
+            let total = 0;
+            for (const f of [n.image, n.description]) {
+                const s = String(f || '');
+                const m = s.match(TYT_DATA_IMG_RE);
+                if (m) m.forEach(x => { total += x.length; });
+            }
+            return total;
+        }
+
+        window.tytRenderImgOptimizeBox = function() {
+            const box = document.getElementById('news-img-optimize-box');
+            if (!box) return;
+            const heavy = newsData.filter(n => tytNewsInlineBytes(n) > 0);
+            if (!heavy.length) { box.classList.add('hidden'); return; }
+            const mb = heavy.reduce((s, n) => s + tytNewsInlineBytes(n), 0) / (1024 * 1024);
+            box.classList.remove('hidden');
+            const info = document.getElementById('news-img-optimize-info');
+            if (info) info.textContent = `${heavy.length} bản tin còn ảnh nhúng trực tiếp, khoảng ${mb.toFixed(1)} MB phải tải lại ở mỗi lượt mở trang.`;
+        };
+
+        window.tytOptimizeNewsImages = async function() {
+            const btn = document.getElementById('news-img-optimize-btn');
+            const heavy = newsData.filter(n => tytNewsInlineBytes(n) > 0);
+            if (!heavy.length) { window.showToast('Ảnh tin tức đã được tối ưu.'); return; }
+            if (!confirm(`Thu nhỏ và chuyển ảnh của ${heavy.length} bản tin sang dạng tệp riêng?\n\nẢnh được thu nhỏ còn cạnh dài tối đa 1280px. Nội dung chữ không đổi. Giữ trang này mở tới khi xong.`)) return;
+            if (btn) btn.disabled = true;
+            let done = 0, failed = 0;
+            for (const n of heavy) {
+                window.showToast(`Đang tối ưu ảnh bản tin ${done + failed + 1}/${heavy.length}...`);
+                try {
+                    const cache = new Map();
+                    const convert = async (dataUri) => {
+                        const key = dataUri.replace(/\s+/g, '');
+                        if (!cache.has(key)) cache.set(key, await window.tytStoreImage(key, 'tin-' + n.id + '.jpg'));
+                        return cache.get(key);
+                    };
+                    const replaceAll = async (text) => {
+                        const found = String(text || '').match(TYT_DATA_IMG_RE) || [];
+                        let out = String(text || '');
+                        for (const uri of found) out = out.split(uri).join(await convert(uri));
+                        return out;
+                    };
+                    const record = Object.assign({}, n);
+                    if (n.image && String(n.image).includes('data:image')) {
+                        let list;
+                        try { list = JSON.parse(n.image); } catch (e) { list = null; }
+                        if (Array.isArray(list)) {
+                            const outList = [];
+                            for (const u of list) outList.push(String(u).startsWith('data:image') ? await convert(String(u)) : u);
+                            record.image = JSON.stringify(outList);
+                        } else {
+                            record.image = await replaceAll(n.image);
+                        }
+                    }
+                    if (n.description && String(n.description).includes('data:image')) record.description = await replaceAll(n.description);
+                    const res = await fetch('/api/cms', { method: 'POST', headers: window.cmsAuthHeaders(), body: JSON.stringify({ action: 'save', type: 'news', data: record }) });
+                    if (!res.ok) throw new Error('save ' + res.status);
+                    Object.assign(n, record);
+                    done++;
+                } catch (err) {
+                    console.error('optimize news image', n.id, err);
+                    failed++;
+                }
+            }
+            if (btn) btn.disabled = false;
+            window.renderAll();
+            window.showToast(failed ? `Đã tối ưu ${done} bản tin, ${failed} bản tin lỗi. Bấm lại để thử tiếp.` : `Đã tối ưu ảnh của ${done} bản tin.`);
+        };
+
+        /* ================= LIÊN KẾT TRANG =================
+           Danh sách banner liên kết tới các cơ quan liên quan, lưu trong
+           siteConfigs với mã "site-links" (một chuỗi JSON) nên không cần thêm bảng.
+           Quản trị CMS thêm / sửa / xoá / đổi thứ tự trong tab "Liên kết trang".
+           Mục chưa có đường dẫn chỉ hiện trong CMS, không hiện ngoài trang. */
+        const TYT_LINK_COLORS = {
+            red: ['#b91c1c', '#ef4444'], blue: ['#1d4ed8', '#3b82f6'], green: ['#047857', '#10b981'],
+            amber: ['#b45309', '#f59e0b'], teal: ['#0f766e', '#14b8a6'], navy: ['#0b416b', '#1e6aa8']
+        };
+        const TYT_LINK_COLOR_NAMES = { red: 'Đỏ', blue: 'Xanh dương', green: 'Xanh lá', amber: 'Vàng cam', teal: 'Xanh ngọc', navy: 'Xanh đậm' };
+        const TYT_LINK_ICONS = { 'fa-hospital': 'Bệnh viện', 'fa-landmark': 'Cơ quan nhà nước', 'fa-building-columns': 'Trụ sở', 'fa-phone-volume': 'Đường dây nóng', 'fa-globe': 'Cổng thông tin', 'fa-briefcase-medical': 'Y tế', 'fa-file-signature': 'Thủ tục, văn bản', 'fa-user-tie': 'Tuyển dụng' };
+        const TYT_DEFAULT_LINKS = [
+            { id: 'L1', title: 'Sở Y tế tỉnh Lào Cai', subtitle: 'Cổng thông tin điện tử', url: 'https://soyte.laocai.gov.vn', color: 'red', icon: 'fa-hospital', image: '' },
+            { id: 'L2', title: 'UBND xã Bát Xát', subtitle: 'Cổng thông tin điện tử', url: 'https://batxat.laocai.gov.vn', color: 'navy', icon: 'fa-landmark', image: '' },
+            { id: 'L3', title: 'Trung tâm Y tế khu vực Bát Xát', subtitle: 'Hỗ trợ chuyên môn', url: '', color: 'green', icon: 'fa-briefcase-medical', image: '' },
+            { id: 'L4', title: 'Đường dây nóng ngành Y tế', subtitle: '1900 9095', url: 'tel:19009095', color: 'amber', icon: 'fa-phone-volume', image: '' },
+            { id: 'L5', title: 'Bộ Y tế', subtitle: 'Cổng thông tin điện tử', url: 'https://moh.gov.vn', color: 'red', icon: 'fa-hospital', image: '' },
+            { id: 'L6', title: 'UBND tỉnh Lào Cai', subtitle: 'Cổng thông tin điện tử', url: 'https://www.laocai.gov.vn', color: 'teal', icon: 'fa-building-columns', image: '' },
+            { id: 'L7', title: 'Cổng Dịch vụ công quốc gia', subtitle: 'Thủ tục hành chính trực tuyến', url: 'https://dichvucong.gov.vn', color: 'blue', icon: 'fa-globe', image: '' }
+        ];
+        let siteLinksData = TYT_DEFAULT_LINKS.map(x => Object.assign({}, x));
+
+        const tytEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const tytSafeLinkUrl = u => { const s = String(u || '').trim(); return /^(https?:\/\/|tel:|mailto:)/i.test(s) ? s : ''; };
+        const tytSafeImgUrl = u => { const s = String(u || '').trim(); return /^(https:\/\/|\/api\/attachment\?id=)/i.test(s) ? s : ''; };
+        function tytNormalizeLink(x, i) {
+            const color = TYT_LINK_COLORS[x && x.color] ? x.color : 'navy';
+            const icon = TYT_LINK_ICONS[x && x.icon] ? x.icon : 'fa-globe';
+            return {
+                id: String((x && x.id) || ('L' + Date.now() + '_' + i)).slice(0, 60),
+                title: String((x && x.title) || '').slice(0, 120),
+                subtitle: String((x && x.subtitle) || '').slice(0, 160),
+                url: tytSafeLinkUrl(x && x.url), image: tytSafeImgUrl(x && x.image), color, icon
+            };
+        }
+
+        window.tytApplySiteLinksFromConfigs = function(configs) {
+            const conf = (configs || []).find(c => c && c.id === 'site-links');
+            if (conf && conf.value) {
+                try {
+                    const list = JSON.parse(conf.value);
+                    if (Array.isArray(list)) siteLinksData = list.map(tytNormalizeLink).filter(x => x.title || x.image);
+                } catch (e) { console.warn('site-links: dữ liệu không hợp lệ'); }
+            }
+            window.tytRenderSiteLinks();
+        };
+
+        function tytLinkBannerHtml(l) {
+            const [c1, c2] = TYT_LINK_COLORS[l.color] || TYT_LINK_COLORS.navy;
+            const ext = /^https?:/i.test(l.url) ? ' target="_blank" rel="noopener noreferrer"' : '';
+            const inner = l.image
+                ? `<img src="${tytEsc(l.image)}" alt="${tytEsc(l.title)}" loading="lazy" decoding="async" class="tyt-link-img">`
+                : `<span class="tyt-link-ico" aria-hidden="true"><i class="fas ${tytEsc(l.icon)}"></i></span><span class="tyt-link-txt"><b>${tytEsc(l.title)}</b>${l.subtitle ? `<small>${tytEsc(l.subtitle)}</small>` : ''}</span>`;
+            const style = l.image ? '' : ` style="background:linear-gradient(120deg, ${c1}, ${c2})"`;
+            return `<a href="${tytEsc(l.url)}"${ext} class="tyt-link-banner${l.image ? ' has-img' : ''}"${style} title="${tytEsc(l.title)}">${inner}</a>`;
+        }
+
+        window.tytRenderSiteLinks = function() {
+            const grid = document.getElementById('site-links-grid');
+            if (grid) {
+                const shown = siteLinksData.filter(l => l.url);
+                grid.innerHTML = shown.map(tytLinkBannerHtml).join('');
+                const sec = document.getElementById('lien-ket-trang');
+                if (sec) sec.classList.toggle('hidden', shown.length === 0);
+            }
+            const adm = document.getElementById('admin-links-list');
+            if (adm) {
+                adm.innerHTML = siteLinksData.length ? siteLinksData.map((l, i) => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 w-56">${l.url ? tytLinkBannerHtml(l) : `<div class="opacity-60">${tytLinkBannerHtml(Object.assign({}, l, { url: '#' }))}</div>`}</td>
+                        <td class="p-3 text-sm"><b>${tytEsc(l.title)}</b><div class="text-xs text-gray-500 break-all">${l.url ? tytEsc(l.url) : '<span class="text-red-600 font-bold">Chưa có đường dẫn - chưa hiện ngoài trang</span>'}</div></td>
+                        <td class="p-3 text-center whitespace-nowrap">
+                            <button type="button" onclick="window.moveSiteLink(${i}, -1)" class="px-2 py-1 text-gray-600 hover:text-gray-900" title="Lên trên" ${i === 0 ? 'disabled' : ''}><i class="fas fa-arrow-up"></i></button>
+                            <button type="button" onclick="window.moveSiteLink(${i}, 1)" class="px-2 py-1 text-gray-600 hover:text-gray-900" title="Xuống dưới" ${i === siteLinksData.length - 1 ? 'disabled' : ''}><i class="fas fa-arrow-down"></i></button>
+                            <button type="button" onclick="window.editSiteLink(${i})" class="px-2 py-1 text-blue-600 hover:text-blue-800 font-bold text-sm"><i class="fas fa-pen"></i> Sửa</button>
+                            <button type="button" onclick="window.deleteSiteLink(${i})" class="px-2 py-1 text-red-500 hover:text-red-700" title="Xoá"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>`).join('') : '<tr><td colspan="3" class="p-4 text-center text-gray-500 text-sm">Chưa có liên kết nào.</td></tr>';
+            }
+        };
+
+        async function tytSaveSiteLinks(message) {
+            const value = JSON.stringify(siteLinksData.map(tytNormalizeLink));
+            window.tytRenderSiteLinks();
+            try {
+                const res = await fetch('/api/cms', { method: 'POST', headers: window.cmsAuthHeaders(), body: JSON.stringify({ action: 'save', type: 'siteConfigs', data: { id: 'site-links', value } }) });
+                if (!res.ok) {
+                    const info = await res.json().catch(() => null);
+                    throw new Error((info && info.error) || 'Lưu thất bại');
+                }
+                window.showToast(message || 'Đã lưu Liên kết trang.');
+            } catch (err) {
+                console.error(err);
+                window.showToast('Không lưu được Liên kết trang: ' + err.message);
+            }
+        }
+
+        window.handleSaveSiteLink = async function(e) {
+            e.preventDefault();
+            const f = e.target;
+            const title = document.getElementById('link-title').value.trim();
+            const url = document.getElementById('link-url').value.trim();
+            if (url && !tytSafeLinkUrl(url)) { window.showToast('Đường dẫn phải bắt đầu bằng https://, http:// hoặc tel:'); return; }
+            const editIdx = document.getElementById('link-edit-index').value;
+            const old = editIdx !== '' ? siteLinksData[Number(editIdx)] : null;
+            let image = document.getElementById('link-image-url').value.trim();
+            if (image && !tytSafeImgUrl(image)) { window.showToast('Đường dẫn ảnh phải bắt đầu bằng https://'); return; }
+            const file = document.getElementById('link-image-file').files[0];
+            if (file) {
+                try {
+                    window.showToast('Đang thu nhỏ và tải ảnh banner...');
+                    image = await window.tytStoreImage(file, file.name, { maxSide: 800, quality: 0.85 });
+                } catch (err) { window.showToast('Không tải được ảnh: ' + err.message); return; }
+            } else if (!image && old && document.getElementById('link-keep-image').checked) {
+                image = old.image || '';
+            }
+            const item = tytNormalizeLink({
+                id: old ? old.id : 'L' + Date.now(), title, url, image,
+                subtitle: document.getElementById('link-subtitle').value.trim(),
+                color: document.getElementById('link-color').value, icon: document.getElementById('link-icon').value
+            });
+            if (old) siteLinksData[Number(editIdx)] = item; else siteLinksData.push(item);
+            f.reset();
+            window.cancelEditSiteLink();
+            await tytSaveSiteLinks(old ? 'Đã lưu thay đổi liên kết.' : 'Đã thêm liên kết.');
+        };
+
+        window.editSiteLink = function(i) {
+            const l = siteLinksData[i];
+            if (!l) return;
+            document.getElementById('link-edit-index').value = String(i);
+            document.getElementById('link-title').value = l.title;
+            document.getElementById('link-subtitle').value = l.subtitle;
+            document.getElementById('link-url').value = l.url;
+            document.getElementById('link-color').value = l.color;
+            document.getElementById('link-icon').value = l.icon;
+            document.getElementById('link-image-url').value = '';
+            const keep = document.getElementById('link-keep-image');
+            keep.checked = !!l.image;
+            document.getElementById('link-keep-image-row').classList.toggle('hidden', !l.image);
+            document.getElementById('link-submit-btn').innerHTML = '<i class="fas fa-save mr-1"></i> Lưu thay đổi';
+            document.getElementById('link-cancel-btn').classList.remove('hidden');
+            document.getElementById('link-title').focus();
+        };
+        window.cancelEditSiteLink = function() {
+            document.getElementById('link-edit-index').value = '';
+            document.getElementById('link-keep-image-row').classList.add('hidden');
+            document.getElementById('link-submit-btn').innerHTML = '<i class="fas fa-plus mr-1"></i> Thêm liên kết';
+            document.getElementById('link-cancel-btn').classList.add('hidden');
+        };
+        window.moveSiteLink = async function(i, dir) {
+            const j = i + dir;
+            if (j < 0 || j >= siteLinksData.length) return;
+            [siteLinksData[i], siteLinksData[j]] = [siteLinksData[j], siteLinksData[i]];
+            await tytSaveSiteLinks('Đã đổi thứ tự.');
+        };
+        window.deleteSiteLink = async function(i) {
+            const l = siteLinksData[i];
+            if (!l || !confirm(`Xoá liên kết "${l.title}"?`)) return;
+            siteLinksData.splice(i, 1);
+            await tytSaveSiteLinks('Đã xoá liên kết.');
+        };
+
+        /* Vẽ lại ô tối ưu ảnh và Liên kết trang mỗi khi giao diện vẽ lại. */
+        (function() {
+            const baseRenderAll = window.renderAll;
+            window.renderAll = function() {
+                baseRenderAll.apply(this, arguments);
+                try { window.tytRenderImgOptimizeBox(); window.tytRenderSiteLinks(); } catch (e) { console.error(e); }
+            };
+        })();
+        window.tytRenderSiteLinks();
+
         // KÍCH HOẠT HỆ THỐNG
         window.onload = async () => {
             try {
@@ -13928,6 +14293,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                             }
                         });
                     }
+                    if (typeof window.tytApplySiteLinksFromConfigs === 'function') window.tytApplySiteLinksFromConfigs(data.siteConfigs || []);
 
                     // Rải tên phòng khám vừa nạp ra Module Bảng điều khiển trạm & lối vào chân trang.
                     window.applyStationClinicName();
