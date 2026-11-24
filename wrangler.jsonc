@@ -5,7 +5,7 @@
 // Variables and Secrets), KHÔNG ghi vào tệp này:
 //   DATABASE_URL          chuỗi kết nối Postgres mới (bỏ qua nếu đã gắn Hyperdrive)
 //   CF_TURN_KEY_ID, CF_TURN_API_TOKEN   máy chủ TURN cho cuộc gọi video
-//   GEMINI_API_KEY        (tuỳ chọn) trợ lý AI
+//   GOOGLE_API_KEY        (tuỳ chọn) trợ lý AI - khoá Google AI Studio (cổng AI của Netlify không có trên Cloudflare)
 //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT   (tuỳ chọn) thông báo đẩy
 //   Chỉ dùng lúc chép dữ liệu, xoá sau khi chép xong:
 //   MIGRATE_KEY, SOURCE_DATABASE_URL, NETLIFY_TOKEN, NETLIFY_SITE_ID
