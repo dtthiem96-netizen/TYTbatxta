@@ -14,7 +14,8 @@
     "test:smoke": "node tools/smoke-test.mjs",
     "test:antifraud": "node tools/anti-fraud-tests.mjs",
     "test:security": "node tools/security-tests.mjs",
-    "test:preview": "node tools/preview-security-check.mjs"
+    "test:preview": "node tools/preview-security-check.mjs",
+    "build:css": "tailwindcss -c tailwind.config.cjs -i tools/tailwind.input.css -o assets/tailwind.css --minify && cp assets/tailwind.css public/assets/tailwind.css"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "drizzle-kit": "beta",
     "jsdom": "^26.1.0",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.4.5"
   }
 }

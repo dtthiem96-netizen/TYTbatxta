@@ -16,11 +16,11 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
 
     <!-- THƯ VIỆN GIAO DIỆN - dùng đúng bộ của trang chính để hai module nhìn giống nhau.
-         Tailwind nạp đồng bộ rồi mới tới khối cấu hình: đặt tailwind.config trước khi
-         thư viện có mặt sẽ ném lỗi và bảng màu tuỳ biến không được áp dụng. -->
+         Tailwind dùng CSS biên dịch sẵn (assets/tailwind.css, npm run build:css)
+         thay cho CDN sinh CSS lúc chạy. -->
     <!-- Hộp đổi mật khẩu dùng chung: bắt buộc đổi mật khẩu tạm ở mọi cổng đăng nhập. -->
     <script src="/assets/password-change.js" defer></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
 
@@ -46,18 +46,6 @@
             });
     </script>
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'], },
-                    colors: {
-                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' }
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         /* Thanh cuộn mảnh cho các cột dữ liệu dài trong buồng khám. */

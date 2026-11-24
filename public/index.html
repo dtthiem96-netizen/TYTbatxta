@@ -84,26 +84,10 @@
     <!-- THƯ VIỆN GIAO DIỆN -->
     <!-- Hộp đổi mật khẩu dùng chung: bắt buộc đổi mật khẩu tạm ở mọi cổng đăng nhập. -->
     <script src="/assets/password-change.js" defer></script>
-    <script src="https://cdn.tailwindcss.com" defer onload="if (window.__tytTailwindConfig) tailwind.config = window.__tytTailwindConfig"></script>
+    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     
-    <script>
-        // Tailwind CDN được nạp với "defer" nên chưa tồn tại tại thời điểm này.
-        // Gán thẳng tailwind.config ở đây sẽ ném ReferenceError và làm mất bảng màu
-        // "medical" (tiêu đề cửa sổ trắng trên nền trắng). Lưu cấu hình lại và áp
-        // dụng trong onload của thẻ script CDN ở trên.
-        window.__tytTailwindConfig = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'], },
-                    colors: {
-                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' }
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         @font-face {
             font-family: 'Inter';
