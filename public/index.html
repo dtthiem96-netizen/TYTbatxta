@@ -4815,6 +4815,32 @@
                                         </button>
                                     </div>
 
+                                    <!-- Micro & lọc tạp âm của cán bộ CMS: vạch mức cho biết micro có đang
+                                         bắt tiếng không, kèm chọn mức lọc tạp âm và giảm vang. -->
+                                    <div id="cms-audio-strip" class="flex flex-wrap items-center gap-3 bg-slate-900 px-4 py-3 rounded-2xl border border-slate-800 text-xs text-slate-300">
+                                        <span class="flex items-center gap-2 font-bold text-white"><i class="fas fa-microphone text-emerald-400"></i> Micro</span>
+                                        <div class="h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700" style="flex:1 1 8rem;min-width:8rem">
+                                            <div id="cms-mic-meter" class="h-full rounded-full bg-slate-600 transition-all duration-75" style="width: 0%"></div>
+                                        </div>
+                                        <span id="cms-audio-status" class="text-slate-400" style="flex:1 1 14rem">Chưa gọi - micro và bộ lọc chạy khi tiếp nhận cuộc gọi.</span>
+                                        <label class="flex items-center gap-2" for="cms-noise-select">
+                                            <i class="fas fa-wave-square text-blue-400"></i> Lọc tạp âm
+                                            <select id="cms-noise-select" onchange="window.setPatientNoiseProfile(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
+                                                <option value="off">Tắt</option>
+                                                <option value="medium" selected>Vừa (khuyến nghị)</option>
+                                                <option value="strong">Mạnh (phòng ồn)</option>
+                                            </select>
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer" for="cms-duck-check">
+                                            <input type="checkbox" id="cms-duck-check" checked onchange="window.CallAudio &amp;&amp; window.CallAudio.setDuck(this.checked)" class="accent-blue-500">
+                                            Giảm vang
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer" for="cms-howl-check">
+                                            <input type="checkbox" id="cms-howl-check" checked onchange="window.CallAudio &amp;&amp; window.CallAudio.setAntiHowl(this.checked)" class="accent-blue-500">
+                                            Chống hú
+                                        </label>
+                                    </div>
+
                                     <!-- Sinh hiệu nhận từ điểm trạm (đồng bộ thời gian thực) -->
                                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
                                         <div class="flex items-center justify-between mb-3">
@@ -10307,13 +10333,55 @@
             if (sel && sel.value !== s.profile) sel.value = s.profile;
             const hint = document.getElementById('patient-audio-hint');
             if (hint) {
-                if (s.howling) hint.textContent = 'Đang có tiếng hú - máy đã tự hạ loa. Hãy đưa điện thoại ra xa loa ngoài.';
+                if (s.suspended) hint.textContent = 'Micro đang bị trình duyệt tạm dừng - chạm vào màn hình một lần để bật lại.';
+                else if (s.howling) hint.textContent = 'Đang có tiếng hú - máy đã tự hạ loa. Hãy đưa điện thoại ra xa loa ngoài.';
                 else if (s.ducking) hint.textContent = 'Cán bộ y tế đang nói - micro tạm hạ để không dội tiếng.';
                 else hint.textContent = 'Nếu nghe vang hoặc hú: hạ âm lượng loa hoặc dùng tai nghe.';
             }
         }
 
+        /* Vạch mức micro + trạng thái lọc trên màn hình khám của CMS. */
+        function cmsPaintAudioStrip(s) {
+            const meter = document.getElementById('cms-mic-meter');
+            if (!meter) return;
+            meter.style.width = `${Math.round(Math.min(1, s.micLevel || 0) * 100)}%`;
+            meter.className = 'h-full rounded-full transition-all duration-75 ' + (s.howling ? 'bg-rose-500' : (s.gateOpen ? 'bg-emerald-500' : 'bg-slate-600'));
+            const status = document.getElementById('cms-audio-status');
+            if (status) {
+                let text;
+                if (!s.active) text = 'Chưa gọi - micro và bộ lọc chạy khi tiếp nhận cuộc gọi.';
+                else if (s.suspended) text = 'Trình duyệt đang tạm dừng micro - bấm vào bất kỳ đâu trên trang để bật lại.';
+                else if (s.howling) text = `Vừa chặn tiếng hú ~${s.howlHz} Hz.`;
+                else if (s.ducking) text = 'Đầu bên kia đang nói - micro tạm hạ để không dội tiếng.';
+                else if (s.gateOpen) text = 'Micro đang bắt tiếng nói.';
+                // Nền ồn chạm đáy -88 dB trở xuống = tín hiệu gần như bằng 0 tuyệt đối:
+                // phòng yên tĩnh đến đâu cũng không im đến thế, đó là micro không thu.
+                else if (s.noiseFloorDb <= -88) text = 'Micro chưa nhận được âm thanh - kiểm tra micro đã cắm/bật, hoặc quyền micro của trình duyệt.';
+                else text = `Đang lọc tiếng nền (nền ~${Math.round(s.noiseFloorDb)} dB).`;
+                status.textContent = text;
+            }
+            const sel = document.getElementById('cms-noise-select');
+            if (sel && sel.value !== s.profile) sel.value = s.profile;
+            const duck = document.getElementById('cms-duck-check');
+            if (duck) duck.checked = !!s.duck;
+            const howl = document.getElementById('cms-howl-check');
+            if (howl) howl.checked = !!s.antiHowl;
+        }
+        function cmsBindAudioStrip() {
+            const engine = window.CallAudio;
+            if (!engine || !engine.onUpdate || cmsBindAudioStrip.done) return;
+            cmsBindAudioStrip.done = true;
+            engine.onUpdate(cmsPaintAudioStrip);
+            cmsPaintAudioStrip(engine.getState());
+        }
+        // app.js (nơi có bộ xử lý tiếng) nạp kiểu defer, chạy xong trước DOMContentLoaded.
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cmsBindAudioStrip);
+        else cmsBindAudioStrip();
+        window.addEventListener('load', cmsBindAudioStrip);
+
         async function teleAcquireMedia() {
+            // Đánh thức bộ xử lý tiếng càng sớm càng tốt, khi cú bấm gọi còn hiệu lực.
+            if (teleAudio().prime) teleAudio().prime();
             const audioConstraints = teleAudio().constraints();
             // Xin đúng một cấu hình khung hình ngay từ đầu (khuôn góc rộng, kèm
             // trần số khung hình) để trình duyệt không phải khởi động lại camera
@@ -12207,6 +12275,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
         function cmsEnsureSharedMedia() {
             if (cmsSharedStream) return Promise.resolve(cmsSharedStream);
             if (cmsSharedStreamPromise) return cmsSharedStreamPromise;
+            // Gọi ngay trong cú bấm "Tiếp nhận": bộ xử lý tiếng phải được đánh thức
+            // lúc này, nếu không Safari để nó tạm dừng và bệnh nhân không nghe thấy gì.
+            if (teleAudio().prime) teleAudio().prime();
+            cmsBindAudioStrip();
             const audioConstraints = teleAudio().constraints();
             const videoConstraints = teleWideVideo();
             cmsSharedStreamPromise = navigator.mediaDevices
@@ -13261,6 +13333,17 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             window.renderCmsRingBanner([]);
             cmsStopRingLoop();
 
+            /* Mở camera/micro NGAY lúc bấm, song song với lượt xin quyền tiếp nhận.
+               Trước đây phải đợi máy chủ trả lời xong mới bắt đầu mở thiết bị, nên
+               hình lên chậm thêm đúng một vòng mạng. Máy chủ không trao cuộc gọi
+               thì trả lại thiết bị (nếu không còn cuộc gọi nào khác đang mở). */
+            cmsEnsureSharedMedia();
+            const dropWarmMedia = () => {
+                Promise.resolve(cmsSharedStreamPromise).then(() => {
+                    if (CMS_CALLS.size === 0) cmsReleaseSharedMedia();
+                });
+            };
+
             try {
                 const res = await fetch('/api/signal', {
                     method: 'POST',
@@ -13281,11 +13364,13 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                     if (data && data.code === 'ALREADY_TAKEN') {
                         window.showToast(data.error || 'Cuộc gọi đã được cán bộ khác tiếp nhận.');
                         window.refreshCmsIncomingCalls(false);
+                        dropWarmMedia();
                         return;
                     }
                     if (data && data.code === 'GONE') {
                         window.showToast('Người dân đã ngắt máy, cuộc gọi không còn trong hàng đợi.');
                         window.refreshCmsIncomingCalls(false);
+                        dropWarmMedia();
                         return;
                     }
                     /* Máy chủ chặn hẳn: cuộc gọi này thuộc điểm trạm khác, hoặc tài
@@ -13294,6 +13379,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                     if (res.status === 401 || res.status === 403) {
                         window.showToast((data && data.error) || 'Tài khoản không được phép tiếp nhận cuộc gọi của điểm trạm này.');
                         window.refreshCmsIncomingCalls(false);
+                        dropWarmMedia();
                         return;
                     }
                     throw new Error((data && data.error) || 'Máy chủ từ chối lượt tiếp nhận.');
@@ -14452,6 +14538,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                                 playBtn.className = 'w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md';
                                 musicWave.classList.add('animate-pulse');
                                 localStorage.setItem('bg_music_muted', 'false');
+                                isMuted = false;
                             }).catch(e => console.log("Không thể tự động phát nhạc do chính sách bảo mật trình duyệt:", e));
                         } else {
                             audio.pause();
@@ -14459,6 +14546,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                             playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
                             musicWave.classList.remove('animate-pulse');
                             localStorage.setItem('bg_music_muted', 'true');
+                            isMuted = true;
                         }
                     };
 
@@ -14476,37 +14564,47 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                         }
                     };
 
-                    // Play music on interaction if blocked by autoplay policy
-                    const startAudioOnInteraction = () => {
-                        if (!isMuted) {
-                            audio.play().then(() => {
-                                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                                playBtn.className = 'w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md';
-                                musicWave.classList.add('animate-pulse');
-                            }).catch(e => console.log("Autoplay policy still active", e));
-                        } else {
-                            audio.pause();
-                            playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
-                            playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
-                            musicWave.classList.remove('animate-pulse');
-                        }
-                        document.removeEventListener('click', startAudioOnInteraction);
-                        document.removeEventListener('scroll', startAudioOnInteraction);
+                    const showPlaying = () => {
+                        playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                        playBtn.className = 'w-7 h-7 bg-medical-600 hover:bg-medical-700 text-white rounded-full flex items-center justify-center text-xs transition shadow-md';
+                        musicWave.classList.add('animate-pulse');
                     };
-
-                    document.addEventListener('click', startAudioOnInteraction);
-                    document.addEventListener('scroll', startAudioOnInteraction);
-
-                    // Initial load
-                    if (!isMuted) {
-                        audio.play().catch(err => {
-                            console.log("Trình duyệt yêu cầu tương tác của người dùng để bắt đầu phát nhạc.", err);
-                        });
-                    } else {
-                        audio.pause();
+                    const showPaused = () => {
                         playBtn.innerHTML = '<i class="fas fa-play ml-0.5"></i>';
                         playBtn.className = 'w-7 h-7 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center text-xs transition border border-gray-300';
                         musicWave.classList.remove('animate-pulse');
+                    };
+                    audio.addEventListener('play', showPlaying);
+                    audio.addEventListener('pause', showPaused);
+
+                    /* TỰ PHÁT NHẠC Ở THAO TÁC ĐẦU TIÊN
+                       Mọi trình duyệt đều chặn phát nhạc có tiếng khi người xem chưa
+                       chạm vào trang, nên không thể phát ngay lúc trang vừa mở. Bản
+                       trước có hai lỗi khiến nhạc gần như không bao giờ tự phát:
+                         - nghe sự kiện "scroll": cuộn trang KHÔNG được trình duyệt
+                           tính là thao tác cho phép phát tiếng, nên lần thử đầu luôn
+                           thất bại;
+                         - rồi gỡ luôn bộ nghe sau lần thử thất bại đó, nên cú bấm
+                           chuột sau này cũng không kích hoạt nhạc nữa.
+                       Nay chỉ nghe các thao tác được tính (bấm, chạm, nhấn phím) và
+                       chỉ gỡ bộ nghe khi nhạc đã thật sự phát. Người đã chủ động tắt
+                       nhạc thì vẫn tôn trọng lựa chọn đó. */
+                    const unlockEvents = ['pointerdown', 'touchend', 'keydown'];
+                    const stopListening = () => unlockEvents.forEach(ev => document.removeEventListener(ev, startAudioOnInteraction, true));
+                    const startAudioOnInteraction = (ev) => {
+                        if (isMuted || !audio.paused) { stopListening(); return; }
+                        // Bấm vào chính khung nhạc thì để nút Phát/Tạm dừng tự xử lý.
+                        if (ev && ev.target && ev.target.closest && ev.target.closest('#bg-music-player')) { stopListening(); return; }
+                        audio.play().then(stopListening).catch(e => console.log("Trình duyệt vẫn chặn tự phát nhạc:", e && e.message));
+                    };
+                    unlockEvents.forEach(ev => document.addEventListener(ev, startAudioOnInteraction, true));
+
+                    // Thử phát ngay khi mở trang (được phép nếu người xem đã tương tác với trang trước đó).
+                    showPaused();
+                    if (!isMuted) {
+                        audio.play().then(stopListening).catch(() => {
+                            console.log("Trình duyệt yêu cầu người xem chạm vào trang trước khi phát nhạc.");
+                        });
                     }
                 }
             } catch (err) {

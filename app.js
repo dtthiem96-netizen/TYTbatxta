@@ -134,6 +134,11 @@ let peerMesh = null;
 /** Đầu cầu đang chiếm khung hình lớn; những đầu cầu khác nằm ở dải ô nhỏ. */
 let activePeerId = null;
 let localStream = null;
+/* Camera/micro mở sẵn ngay lúc bấm "Tiếp nhận", chạy song song với lượt xin quyền
+   tiếp nhận ở máy chủ. Trước đây hai bước nối tiếp nhau: chờ máy chủ trả lời
+   (một vòng mạng, lâu hơn nhiều khi hàm vừa "ngủ dậy") rồi mới bắt đầu mở camera
+   (thường 1-2 giây) - nên hình lên chậm cả hai khoảng đó cộng lại. */
+let cameraPrewarm = null;
 /**
  * Luồng THỰC SỰ gửi đi: tiếng đã qua chuỗi lọc chống vang/chống hú của
  * CallAudio, kèm nguyên các track hình. Tách khỏi `localStream` vì `localStream`
@@ -302,6 +307,7 @@ async function startTeleconsultation(targetRoomId) {
   if (!roomId) roomId = defaultRoomForStation(stationCode);
 
   callActive = true;
+  CallAudio.prime();
   // Lời mời hội chẩn của lượt khám trước không được dính sang bệnh nhân mới.
   consultRequested = false;
   consultRequestedBy = '';
@@ -378,6 +384,7 @@ function endTeleconsultation(options) {
 
 /** Trả camera/micro về cho hệ điều hành và xoá hình xem trước tại chỗ. */
 function releaseLocalMedia() {
+  discardCameraPrewarm();
   try { CallAudio.release(); } catch (err) {}
   if (localStream) {
     localStream.getTracks().forEach(track => {
@@ -1091,8 +1098,12 @@ async function claimPatientCall(targetRoomId) {
 async function acceptPatientCall(targetRoomId, patientName, symptoms, patientIdCardValue) {
   if (!targetRoomId) return;
 
+  // Đánh thức bộ xử lý tiếng ngay trong cú bấm (xem CallAudio.prime).
+  CallAudio.prime();
+  // Mở camera song song với lượt xin quyền tiếp nhận (xem cameraPrewarm).
+  prewarmLocalCamera();
   const claim = await claimPatientCall(targetRoomId);
-  if (!claim.ok) return;
+  if (!claim.ok) { discardCameraPrewarm(); return; }
   if (claim.offline) {
     showAlertBanner('Không liên lạc được máy chủ điều phối, vẫn đang kết nối trực tiếp với người dân.');
   }
@@ -1824,7 +1835,11 @@ const CallAudio = (function createCallAudioEngine() {
   }
 
   function getState() {
-    return Object.assign({}, settings, metrics, { profileLabel: profile().label });
+    return Object.assign({}, settings, metrics, {
+      profileLabel: profile().label,
+      // Đang gọi mà bộ xử lý tiếng bị trình duyệt tạm dừng = đầu kia không nghe thấy gì.
+      suspended: !!(chain && ctx && ctx.state !== 'running')
+    });
   }
 
   function ensureContext() {
@@ -1838,7 +1853,40 @@ const CallAudio = (function createCallAudioEngine() {
     } catch (err) {
       try { ctx = new Ctor(); } catch (err2) { ctx = null; }
     }
+    if (ctx) {
+      try { ctx.onstatechange = () => notify(true); } catch (err) {}
+    }
     return ctx;
+  }
+
+  /*
+   * MICRO "IM LẶNG" VÌ BỘ XỬ LÝ ÂM THANH BỊ TẠM DỪNG
+   *
+   * Tiếng mic đi qua chuỗi lọc Web Audio rồi mới sang đầu kia. Trình duyệt (rõ
+   * nhất là Safari trên iPad/iPhone/Mac) chỉ cho bộ xử lý này chạy nếu nó được
+   * tạo hoặc "đánh thức" ngay trong một cú bấm của người dùng. Trước đây bộ xử
+   * lý được tạo SAU khi chờ máy chủ và chờ mở camera - lúc đó cú bấm "Tiếp nhận"
+   * đã hết hiệu lực, bộ xử lý nằm ở trạng thái tạm dừng và đầu kia nhận được
+   * một luồng tiếng câm: "micro không bắt âm thanh".
+   *
+   * Nay: (1) prime() tạo và đánh thức bộ xử lý ngay trong cú bấm tiếp nhận/bắt
+   * đầu gọi; (2) bất kỳ cú bấm/phím nào sau đó cũng đánh thức lại nếu nó vẫn bị
+   * dừng; (3) trạng thái "bị tạm dừng" được báo lên giao diện để cán bộ biết.
+   */
+  function prime() {
+    const c = ensureContext();
+    if (c && c.state === 'suspended' && typeof c.resume === 'function') c.resume().catch(() => {});
+  }
+
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    const wake = () => {
+      if (ctx && ctx.state !== 'running' && ctx.state !== 'closed' && typeof ctx.resume === 'function') {
+        ctx.resume().catch(() => {});
+      }
+    };
+    ['pointerdown', 'touchend', 'keydown'].forEach(ev => {
+      try { document.addEventListener(ev, wake, { capture: true, passive: true }); } catch (err) {}
+    });
   }
 
   function resumeContext() {
@@ -2407,6 +2455,7 @@ const CallAudio = (function createCallAudioEngine() {
   return {
     profiles: CALL_AUDIO_PROFILES,
     constraints,
+    prime,
     attachLocal,
     detachLocal,
     attachRemote,
@@ -2526,6 +2575,7 @@ function renderAudioPanel(state) {
   if (status) {
     let text;
     if (!s.active) text = 'Chưa gọi - bộ lọc sẽ chạy khi bắt đầu cuộc gọi.';
+    else if (s.suspended) text = 'Trình duyệt đang tạm dừng micro - bấm vào bất kỳ đâu trên trang để bật lại.';
     else if (s.howling) text = `Vừa chặn một cú hú ở ~${s.howlHz} Hz - đã hạ loa một nấc.`;
     else if (s.ducking) text = 'Bác sĩ đang nói - mic hạ tạm để không dội tiếng ngược lại.';
     else if (s.gateOpen) text = 'Đang truyền lời thoại.';
@@ -3465,12 +3515,32 @@ function unregisterPeer(peerIdLeft) {
   renderPeerLayout();
 }
 
+/** Bắt đầu mở camera/micro sớm (không chặn). Chỉ dùng cho lượt mở đầu tiên. */
+function prewarmLocalCamera() {
+  if (cameraPrewarm || localStream || callActive) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  cameraPrewarm = navigator.mediaDevices.getUserMedia({
+    audio: CallAudio.constraints(),
+    video: wideVideoConstraints()
+  }).catch(() => null);
+}
+
+/** Máy chủ không trao cuộc gọi: trả lại camera/micro đã mở sẵn. */
+function discardCameraPrewarm() {
+  const pending = cameraPrewarm;
+  cameraPrewarm = null;
+  if (pending) pending.then(stream => {
+    if (stream) stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+  });
+}
+
 // 3. Local Camera & Dual-Camera Switcher Logic
 async function initLocalCamera(deviceId = null) {
   // Chỉ mở thiết bị khi đang trong phiên gọi. Đây là nơi duy nhất gọi
   // getUserMedia trong bảng điều khiển, nên rào ở đây là rào được tất cả.
   if (!callActive) {
     console.warn('Bỏ qua initLocalCamera(): chưa bắt đầu cuộc gọi khám từ xa.');
+    discardCameraPrewarm();
     return;
   }
 
@@ -3531,7 +3601,13 @@ async function initLocalCamera(deviceId = null) {
   }
   CallAudio.detachLocal();
 
-  try {
+  // Luồng đã mở sẵn lúc bấm "Tiếp nhận" thì dùng luôn, khỏi xin lại thiết bị.
+  const warmed = (!deviceId && cameraPrewarm) ? await cameraPrewarm : null;
+  cameraPrewarm = null;
+
+  if (warmed) {
+    localStream = warmed;
+  } else try {
     // Xin đúng một cấu hình ngay từ đầu (khuôn góc rộng + trần số khung hình)
     // để trình duyệt không phải khởi động camera lần hai - đây là khâu chiếm
     // nhiều thời gian nhất khi bắt đầu cuộc gọi.
