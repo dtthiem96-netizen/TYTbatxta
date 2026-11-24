@@ -1773,7 +1773,9 @@ const CallAudio = (function createCallAudioEngine() {
     howlHz: 0,
     howlCount: 0,
     active: false,
-    processing: false   // true khi tiếng đi thực sự chạy qua chuỗi lọc
+    processing: false,  // true khi tiếng đi thực sự chạy qua chuỗi lọc
+    bypassed: false,    // true khi đã chuyển sang gửi thẳng tiếng micro gốc
+    micSilent: false    // true khi micro không đưa ra tín hiệu nào suốt vài giây
   };
 
   let ctx = null;
@@ -1838,7 +1840,7 @@ const CallAudio = (function createCallAudioEngine() {
     return Object.assign({}, settings, metrics, {
       profileLabel: profile().label,
       // Đang gọi mà bộ xử lý tiếng bị trình duyệt tạm dừng = đầu kia không nghe thấy gì.
-      suspended: !!(chain && ctx && ctx.state !== 'running')
+      suspended: !!(chain && !metrics.bypassed && ctx && ctx.state !== 'running')
     });
   }
 
@@ -1849,7 +1851,10 @@ const CallAudio = (function createCallAudioEngine() {
     try {
       // 48 kHz là tần số lấy mẫu gốc của Opus/WebRTC: khớp sẵn thì không phải
       // đổi tần số lấy mẫu giữa chừng, tránh méo tiếng và tốn CPU vô ích.
-      ctx = new Ctor({ latencyHint: 'interactive', sampleRate: 48000 });
+      // KHÔNG ép tần số lấy mẫu: Safari (iPhone/iPad, nhất là khi dùng tai nghe
+      // Bluetooth) và Firefox không chịu nối micro vào một bộ xử lý chạy khác tần
+      // số của phần cứng - Firefox báo lỗi, còn Safari lặng lẽ trả về tiếng câm.
+      ctx = new Ctor({ latencyHint: 'interactive' });
     } catch (err) {
       try { ctx = new Ctor(); } catch (err2) { ctx = null; }
     }
@@ -1883,6 +1888,14 @@ const CallAudio = (function createCallAudioEngine() {
       if (ctx && ctx.state !== 'running' && ctx.state !== 'closed' && typeof ctx.resume === 'function') {
         ctx.resume().catch(() => {});
       }
+      /* Tiếng của đầu bên kia phát qua thẻ <video>. Nếu trình duyệt chặn phát
+         có tiếng (chưa có thao tác nào đủ "mới"), khung hình đứng yên và KHÔNG có
+         tiếng - cú bấm kế tiếp ở bất kỳ đâu sẽ phát lại. */
+      try {
+        document.querySelectorAll('video').forEach(v => {
+          if (v.srcObject && v.paused && !v.muted) v.play().catch(() => {});
+        });
+      } catch (err) {}
     };
     ['pointerdown', 'touchend', 'keydown'].forEach(ev => {
       try { document.addEventListener(ev, wake, { capture: true, passive: true }); } catch (err) {}
@@ -2004,8 +2017,14 @@ const CallAudio = (function createCallAudioEngine() {
       analyser.fftSize = 2048;
       analyser.smoothingTimeConstant = 0.5;
 
+      // Bộ đo thứ hai đặt NGAY sau micro, trước mọi bộ lọc: phân biệt được micro
+      // không thu gì (lỗi thiết bị/quyền) với bộ lọc làm mất tiếng (lỗi phần mềm).
+      const rawAnalyser = audioCtx.createAnalyser();
+      rawAnalyser.fftSize = 2048;
+
       const dest = audioCtx.createMediaStreamDestination();
 
+      source.connect(rawAnalyser);
       source.connect(highpass);
       highpass.connect(notch);
       notch.connect(lowpass);
@@ -2016,7 +2035,9 @@ const CallAudio = (function createCallAudioEngine() {
       makeup.connect(dest);
 
       chain = {
-        source, highpass, notch, lowpass, comp, gate, makeup, analyser, dest,
+        source, highpass, notch, lowpass, comp, gate, makeup, analyser, rawAnalyser, dest,
+        rawData: new Float32Array(rawAnalyser.fftSize),
+        silentMs: 0,
         micOnly,
         freqData: new Float32Array(analyser.frequencyBinCount),
         timeData: new Float32Array(analyser.fftSize),
@@ -2041,8 +2062,15 @@ const CallAudio = (function createCallAudioEngine() {
         stream.getVideoTracks().forEach(t => outbound.addTrack(t));
       }
 
+      chain.outbound = outbound;
+      chain.filteredTrack = outbound.getAudioTracks()[0] || null;
+      chain.rawTrack = audioTracks[0];
+      chain.attachedAt = Date.now();
+      chain.deadMs = 0;
+
       metrics.active = true;
       metrics.processing = true;
+      metrics.bypassed = false;
       resumeContext();
       startTicker();
       notify(true);
@@ -2069,6 +2097,8 @@ const CallAudio = (function createCallAudioEngine() {
     muted = false;
     metrics.active = false;
     metrics.processing = false;
+    metrics.bypassed = false;
+    metrics.micSilent = false;
     metrics.micLevel = 0;
     metrics.remoteLevel = 0;
     metrics.gateOpen = false;
@@ -2144,6 +2174,13 @@ const CallAudio = (function createCallAudioEngine() {
     if (ticker) { clearInterval(ticker); ticker = null; }
   }
 
+  /** Quy dBFS ra 0..1 cho vạch mức: -70 dB (lặng) -> 0, -20 dB (nói to) -> 1.
+      Thang tuyến tính cũ (rms x 6) khiến giọng nói thường chỉ nhích vài phần
+      trăm, trông như micro "không chạy". */
+  function levelFromDb(db) {
+    return Math.max(0, Math.min(1, (db + 70) / 50));
+  }
+
   /** Mức hiệu dụng (RMS) của một khung mẫu, quy ra dBFS. */
   function rmsDb(analyser, buffer) {
     if (!analyser || typeof analyser.getFloatTimeDomainData !== 'function') return { db: -120, rms: 0 };
@@ -2154,11 +2191,66 @@ const CallAudio = (function createCallAudioEngine() {
     return { db: rms > 0 ? 20 * Math.log10(rms) : -120, rms };
   }
 
+  /*
+   * LỐI DỰ PHÒNG: CHUYỂN SANG MICRO TRỰC TIẾP
+   *
+   * Tiếng gửi đi chỉ có khi bộ xử lý Web Audio chạy thật. Có những máy mà nó
+   * không chạy: trình duyệt giữ ở trạng thái tạm dừng, hoặc chạy nhưng trả về
+   * tiếng câm tuyệt đối (lỗi tần số lấy mẫu trên Safari, tai nghe Bluetooth).
+   * Khi đó người bên kia không nghe thấy gì dù micro vẫn thu bình thường.
+   *
+   * Sau 2,5 giây kể từ lúc vào cuộc gọi, nếu bộ xử lý vẫn tạm dừng, hoặc đầu
+   * ra im lặng tuyệt đối (đúng bằng 0, điều mà micro thật không bao giờ cho ra)
+   * suốt 2,5 giây, thì gửi thẳng tiếng micro gốc - vẫn có khử vọng, khử ồn và
+   * tự cân mức của chính trình duyệt - trên MỌI kết nối đang mở.
+   */
+  function bypassFilters(reason) {
+    if (!chain || metrics.bypassed) return;
+    const from = chain.filteredTrack;
+    const to = chain.rawTrack;
+    if (!to) return;
+    console.warn('Bộ lọc âm thanh không chạy (' + reason + ') - chuyển sang tiếng micro trực tiếp.');
+    try {
+      if (from) chain.outbound.removeTrack(from);
+      chain.outbound.addTrack(to);
+    } catch (err) {}
+    try {
+      (window.__teleMeshes || new Set()).forEach(mesh => {
+        try { mesh.swapTrack(from, to); } catch (e) {}
+      });
+    } catch (err) {}
+    to.enabled = !muted;
+    metrics.bypassed = true;
+    metrics.processing = false;
+    metrics.gateOpen = true;
+    notify(true);
+  }
+
   function tick() {
     if (!chain) return;
     const now = Date.now();
     const dt = chain.lastTick ? now - chain.lastTick : 45;
     chain.lastTick = now;
+
+    const ctxDown = !ctx || ctx.state !== 'running';
+
+    let raw = { db: -120, rms: 0 };
+    try { raw = rmsDb(chain.rawAnalyser, chain.rawData); } catch (err) {}
+
+    // Micro không đưa ra tín hiệu nào (đúng bằng 0) trong khi bộ xử lý vẫn chạy:
+    // lỗi ở thiết bị/quyền micro, không phải ở bộ lọc - báo cho người dùng.
+    if (!ctxDown) {
+      chain.silentMs = raw.rms === 0 ? chain.silentMs + dt : 0;
+      const silent = chain.silentMs > 3000;
+      if (silent !== !!metrics.micSilent) { metrics.micSilent = silent; notify(true); }
+    }
+
+    if (metrics.bypassed) {
+      // Không còn bộ lọc: vạch mức đo thẳng tiếng micro (nếu bộ xử lý còn chạy).
+      metrics.micLevel = ctxDown ? 0 : levelFromDb(raw.db);
+      notify(false);
+      return;
+    }
 
     let mic;
     try {
@@ -2166,7 +2258,15 @@ const CallAudio = (function createCallAudioEngine() {
     } catch (err) {
       return;
     }
-    metrics.micLevel = Math.min(1, mic.rms * 6);
+
+    // Bộ lọc hỏng: bộ xử lý bị tạm dừng, hoặc micro có tiếng mà đầu ra lọc im bặt.
+    const filterDead = ctxDown || (raw.rms > 0 && mic.rms === 0);
+    chain.deadMs = filterDead ? chain.deadMs + dt : 0;
+    if (now - chain.attachedAt > 2500 && chain.deadMs > 2500) {
+      bypassFilters(ctxDown ? 'trình duyệt tạm dừng bộ xử lý' : 'bộ lọc trả về tiếng câm');
+      return;
+    }
+    metrics.micLevel = levelFromDb(mic.db);
 
     // Nền ồn: tụt nhanh theo chỗ lặng, dâng lên rất chậm. Nhờ vậy ngưỡng mở cổng
     // tự bám theo phòng khám lúc vắng lẫn lúc đông mà không cần chỉnh tay.
@@ -2407,9 +2507,19 @@ const CallAudio = (function createCallAudioEngine() {
         try { chain.source.disconnect(); } catch (e) {}
         chain.micOnly = new MediaStream([newTrack]);
         chain.source = ctx.createMediaStreamSource(chain.micOnly);
+        chain.source.connect(chain.rawAnalyser);
         chain.source.connect(chain.highpass);
         chain.noiseFloorDb = -70;
         chain.calibrateUntil = Date.now() + 1200;
+        chain.silentMs = 0;
+        metrics.micSilent = false;
+        const oldRaw = chain.rawTrack;
+        chain.rawTrack = newTrack;
+        // Đã chuyển sang micro trực tiếp thì phải thay luôn track đang gửi đi.
+        if (metrics.bypassed) {
+          try { chain.outbound.removeTrack(oldRaw); chain.outbound.addTrack(newTrack); } catch (e) {}
+          try { (window.__teleMeshes || new Set()).forEach(m => { try { m.swapTrack(oldRaw, newTrack); } catch (e) {} }); } catch (e) {}
+        }
       }
       notify(true);
       // Chuỗi lọc vẫn phát ra đúng track cũ nên WebRTC không cần thương lượng lại.
@@ -2575,7 +2685,9 @@ function renderAudioPanel(state) {
   if (status) {
     let text;
     if (!s.active) text = 'Chưa gọi - bộ lọc sẽ chạy khi bắt đầu cuộc gọi.';
+    else if (s.micSilent) text = 'Micro không thu được âm thanh - kiểm tra micro đã cắm, chưa bị tắt tiếng trong máy, hoặc chọn micro khác.';
     else if (s.suspended) text = 'Trình duyệt đang tạm dừng micro - bấm vào bất kỳ đâu trên trang để bật lại.';
+    else if (s.bypassed) text = 'Đang gửi thẳng tiếng micro (bộ lọc của trang không chạy trên trình duyệt này).';
     else if (s.howling) text = `Vừa chặn một cú hú ở ~${s.howlHz} Hz - đã hạ loa một nấc.`;
     else if (s.ducking) text = 'Bác sĩ đang nói - mic hạ tạm để không dội tiếng ngược lại.';
     else if (s.gateOpen) text = 'Đang truyền lời thoại.';
@@ -3139,6 +3251,16 @@ window.TeleMesh = function createPeerMesh(config) {
       });
     },
 
+    /** Đổi đúng track `from` sang `to` trên mọi kết nối (lối dự phòng của CallAudio). */
+    swapTrack(from, to) {
+      links.forEach(link => {
+        const senders = (link.pc.getSenders && link.pc.getSenders()) || [];
+        senders.forEach(sender => {
+          if (sender.track && sender.track === from && sender.replaceTrack) sender.replaceTrack(to).catch(() => {});
+        });
+      });
+    },
+
     /** Thay track tiếng đang gửi trên MỌI kết nối (đổi micro, bật lại sau khi lọc). */
     replaceAudioTrack(track) {
       links.forEach(link => {
@@ -3184,9 +3306,14 @@ window.TeleMesh = function createPeerMesh(config) {
 
     close() {
       all().forEach(link => remove(link.peerId));
+      try { window.__teleMeshes.delete(api); } catch (err) {}
     }
   };
 
+  // Sổ các lưới đang mở: CallAudio dùng để đổi track tiếng trên mọi kết nối khi
+  // phải chuyển sang micro trực tiếp (xem bypassFilters).
+  window.__teleMeshes = window.__teleMeshes || new Set();
+  window.__teleMeshes.add(api);
   return api;
 };
 
