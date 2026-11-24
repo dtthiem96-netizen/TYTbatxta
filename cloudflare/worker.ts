@@ -98,6 +98,47 @@ function primeProcessEnv(env: Env) {
   }
 }
 
+/** Đường dẫn trả tệp (video, tệp đính kèm) cần hỗ trợ tải từng đoạn. */
+const RANGE_PATHS = new Set(["/api/video", "/api/attachment"]);
+
+/**
+ * Trả từng đoạn tệp (HTTP Range, mã 206). Trên Netlify, CDN tự cắt đoạn từ
+ * phản hồi đầy đủ của hàm; Cloudflare Workers thì không. Thiếu phần này, Safari
+ * trên iPhone không phát hoặc không tua được video, vì nó luôn xin từng đoạn
+ * (bắt đầu bằng "bytes=0-1"). Chỉ xử lý một đoạn; yêu cầu nhiều đoạn nhận cả tệp.
+ */
+async function withRange(request: Request, res: Response): Promise<Response> {
+  if (res.status !== 200 || !res.body) return res;
+  const headers = new Headers(res.headers);
+  headers.set("Accept-Ranges", "bytes");
+  const range = request.headers.get("range");
+  const match = range && request.method === "GET" ? /^bytes=(\d*)-(\d*)$/.exec(range.trim()) : null;
+  if (!match || (!match[1] && !match[2])) {
+    return new Response(res.body, { status: 200, headers });
+  }
+
+  const blob = await res.blob();
+  const size = blob.size;
+  let start: number;
+  let end: number;
+  if (match[1]) {
+    start = Number(match[1]);
+    end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+  } else {
+    const suffix = Number(match[2]);
+    start = Math.max(size - suffix, 0);
+    end = size - 1;
+  }
+  if (start >= size || end < start) {
+    headers.set("Content-Range", `bytes */${size}`);
+    headers.delete("Content-Length");
+    return new Response(null, { status: 416, headers });
+  }
+  headers.set("Content-Range", `bytes ${start}-${end}/${size}`);
+  headers.set("Content-Length", String(end - start + 1));
+  return new Response(blob.slice(start, end + 1), { status: 206, headers });
+}
+
 function jsonError(message: string, status: number) {
   return new Response(JSON.stringify({ success: false, error: message }), {
     status,
@@ -117,7 +158,9 @@ export default {
 
     primeProcessEnv(env);
     try {
-      return await runInScope(env, ctx, async () => handler(asNetlifyRequest(request)));
+      const res = await runInScope(env, ctx, async () => handler(asNetlifyRequest(request)));
+      const clean = url.pathname.replace(/\/+$/, "");
+      return RANGE_PATHS.has(clean) ? await withRange(request, res) : res;
     } catch (err) {
       console.error("Lỗi API", url.pathname, err);
       return jsonError("Lỗi máy chủ. Vui lòng thử lại sau.", 500);
