@@ -10,7 +10,7 @@
  * Máy chủ TURN chuyển tiếp luồng hình trong những trường hợp đó.
  *
  * Cấu hình (biến môi trường Netlify, không cái nào bắt buộc - thiếu thì chỉ có STUN):
- *   - Cloudflare Realtime TURN (khuyến nghị, có hạn mức miễn phí):
+ *   - TURN của Cloudflare (dịch vụ Realtime; khuyến nghị, có hạn mức miễn phí):
  *       CF_TURN_KEY_ID, CF_TURN_API_TOKEN
  *     -> mỗi lần gọi sinh thông tin đăng nhập TURN ngắn hạn (mặc định 6 giờ).
  *   - Hoặc một máy chủ TURN bất kỳ, thông tin cố định:
