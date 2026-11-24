@@ -1,0 +1,43 @@
+// Cấu hình Cloudflare Workers cho trang Trạm Y tế Bát Xát.
+// Xem cloudflare/worker.ts (điểm vào) và tools/build-cloudflare.mjs (dựng tệp tĩnh).
+//
+// Khoá bí mật đặt trong Cloudflare (Workers & Pages > tytbatxat > Settings >
+// Variables and Secrets), KHÔNG ghi vào tệp này:
+//   DATABASE_URL          chuỗi kết nối Postgres mới (bỏ qua nếu đã gắn Hyperdrive)
+//   CF_TURN_KEY_ID, CF_TURN_API_TOKEN   máy chủ TURN cho cuộc gọi video
+//   GOOGLE_API_KEY        (tuỳ chọn) trợ lý AI - khoá Google AI Studio (cổng AI của Netlify không có trên Cloudflare)
+//   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT   (tuỳ chọn) thông báo đẩy
+//   Chỉ dùng lúc chép dữ liệu, xoá sau khi chép xong:
+//   MIGRATE_KEY, SOURCE_DATABASE_URL, NETLIFY_TOKEN, NETLIFY_SITE_ID
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "tytbatxat",
+  "main": "cloudflare/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "build": {
+    "command": "node tools/build-cloudflare.mjs"
+  },
+  "assets": {
+    "directory": ".cf-dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Mã gốc viết cho Netlify: thay hai thư viện riêng của Netlify bằng lớp đệm.
+  "alias": {
+    "@netlify/blobs": "./cloudflare/shims/blobs.ts",
+    "drizzle-orm/netlify-db": "./cloudflare/shims/netlify-db.ts"
+  },
+  "r2_buckets": [
+    { "binding": "BLOBS", "bucket_name": "tytbatxat-tep" }
+  ],
+  // Bảo trì chấm công mỗi ngày lúc 00:00 UTC (07:00 giờ Việt Nam), như "@daily" trên Netlify.
+  "triggers": {
+    "crons": ["0 0 * * *"]
+  },
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true
+}

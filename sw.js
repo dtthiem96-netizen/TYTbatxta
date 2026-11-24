@@ -73,6 +73,14 @@ async function pendingCalls() {
 self.addEventListener("push", (event) => {
   event.waitUntil(
     (async () => {
+      /* Màn hình trực đang mở hỏi hàng đợi theo nhịp vài giây (để tiết kiệm
+         credit Netlify thay vì giữ long-poll liên tục). Báo cho mọi tab đang mở
+         hỏi lại ngay, để chuông đổ tức thì như trước. */
+      try {
+        const open = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        open.forEach((client) => client.postMessage({ type: "QUEUE_CHANGED" }));
+      } catch (err) { /* không chặn việc hiện thông báo */ }
+
       const calls = await pendingCalls();
 
       /* Không lấy được chi tiết (phiếu hết hạn, mất mạng, hoặc cuộc gọi vừa được
