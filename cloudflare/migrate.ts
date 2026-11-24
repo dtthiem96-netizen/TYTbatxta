@@ -24,7 +24,7 @@
  * kho R2 của Worker.
  */
 import postgres from "postgres";
-import { currentScope, requestSql } from "./runtime";
+import { cleanDatabaseUrl, currentScope, requestSql } from "./runtime";
 import { MIGRATIONS } from "./generated/migrations";
 
 const PAGE = 300;
@@ -85,7 +85,7 @@ async function sourceUrl(): Promise<string> {
 async function sourceSql(): Promise<postgres.Sql> {
   const url = await sourceUrl();
   const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
-  return postgres(url, { max: 1, ssl: local ? false : "require", prepare: false, fetch_types: false, connect_timeout: 15 });
+  return postgres(cleanDatabaseUrl(url), { max: 1, ssl: local ? false : "require", prepare: false, fetch_types: false, connect_timeout: 15 });
 }
 
 async function withSource<T>(fn: (src: postgres.Sql) => Promise<T>): Promise<T> {
@@ -141,13 +141,29 @@ async function primaryKey(sql: postgres.Sql, table: string): Promise<string[]> {
   return rows.map((r) => String(r.column_name));
 }
 
-async function countRows(sql: postgres.Sql, table: string): Promise<number | null> {
-  try {
-    const [row] = await sql.unsafe(`SELECT count(*)::int AS n FROM ${ident(table)}`);
-    return Number(row.n);
-  } catch {
-    return null;
+/** Số dòng của mọi bảng trong MỘT câu lệnh: mỗi câu lệnh là một vòng đi về máy chủ. */
+async function countAll(sql: postgres.Sql): Promise<Record<string, number>> {
+  const tables = (await sql`
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> ${TRACKING_TABLE}`)
+    .map((r) => String(r.table_name));
+  if (!tables.length) return {};
+  const rows = await sql.unsafe(
+    tables.map((t) => `SELECT '${t.replace(/'/g, "''")}' AS t, count(*)::int AS n FROM ${ident(t)}`).join(" UNION ALL ")
+  );
+  return Object.fromEntries(rows.map((r) => [String(r.t), Number(r.n)]));
+}
+
+/** Diễn giải lỗi kết nối thường gặp cho người quản trị, giữ nguyên thông báo gốc. */
+function explain(err: unknown): string {
+  const e = err as { code?: string; message?: string };
+  const msg = String(e?.message || err);
+  if (e?.code === "CONNECTION_CLOSED") {
+    return `máy chủ đóng kết nối ngay khi bắt tay (${msg}). Thường do chuỗi kết nối sai: sai cổng, sai tên người dùng, hoặc chép nhầm loại kết nối.`;
   }
+  if (e?.code === "CONNECT_TIMEOUT") return `quá thời gian chờ kết nối (${msg}). Kiểm tra tên máy chủ và cổng.`;
+  if (/password authentication failed/i.test(msg)) return `sai mật khẩu hoặc tên người dùng (${msg}).`;
+  return msg;
 }
 
 async function status() {
@@ -161,16 +177,28 @@ async function status() {
   const out: Record<string, unknown> = { config, migrations: MIGRATIONS.length };
   if (config.target) {
     const sql = requestSql();
-    const [t] = await sql`SELECT to_regclass(${"public." + TRACKING_TABLE}) IS NOT NULL AS ok`;
-    out.appliedMigrations = t.ok ? Number((await sql.unsafe(`SELECT count(*)::int AS n FROM ${ident(TRACKING_TABLE)}`))[0].n) : 0;
-    const tables = await orderedTables(sql);
-    const counts: Record<string, { target: number | null; source?: number | null }> = {};
-    for (const table of tables) counts[table] = { target: await countRows(sql, table) };
-    if (config.source) {
-      await withSource(async (src) => {
-        for (const table of tables) counts[table].source = await countRows(src, table);
-      });
+    let tables: string[];
+    let target: Record<string, number>;
+    try {
+      const [t] = await sql`SELECT to_regclass(${"public." + TRACKING_TABLE}) IS NOT NULL AS ok`;
+      out.appliedMigrations = t.ok ? Number((await sql.unsafe(`SELECT count(*)::int AS n FROM ${ident(TRACKING_TABLE)}`))[0].n) : 0;
+      tables = await orderedTables(sql);
+      target = await countAll(sql);
+    } catch (err) {
+      throw new Error(`Không kết nối được cơ sở dữ liệu mới (DATABASE_URL): ${explain(err)}`);
     }
+    let source: Record<string, number> | null = null;
+    if (config.source) {
+      try {
+        source = await withSource(countAll);
+      } catch (err) {
+        out.sourceError = `Không đọc được Netlify Database: ${explain(err)}`;
+      }
+    }
+    // Bảng chỉ có ở nguồn (chưa dựng bảng ở đích) vẫn hiện để so sánh.
+    for (const name of Object.keys(source || {}).sort()) if (!tables.includes(name)) tables.push(name);
+    const counts: Record<string, { target: number | null; source: number | null }> = {};
+    for (const table of tables) counts[table] = { target: target[table] ?? null, source: source ? source[table] ?? null : null };
     out.tables = counts;
   }
   return out;

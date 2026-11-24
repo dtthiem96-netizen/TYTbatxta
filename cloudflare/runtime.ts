@@ -97,12 +97,25 @@ export function databaseUrl(env: Env): string {
   return String(env.HYPERDRIVE?.connectionString || env.DATABASE_URL || "").trim();
 }
 
+/**
+ * Bỏ các tham số chỉ libpq hiểu khỏi chuỗi kết nối. postgres.js gửi mọi tham số
+ * lạ lên máy chủ như một thiết lập, và Postgres từ chối kết nối ("unrecognized
+ * configuration parameter"). Chuỗi Neon (Netlify Database) thường kèm
+ * channel_binding=require.
+ */
+export function cleanDatabaseUrl(url: string): string {
+  const q = url.indexOf("?");
+  if (q < 0) return url;
+  const kept = url.slice(q + 1).split("&").filter((p) => p && !/^channel_binding=/i.test(p));
+  return url.slice(0, q) + (kept.length ? `?${kept.join("&")}` : "");
+}
+
 /** Kết nối postgres.js của lượt yêu cầu hiện tại, tạo lần đầu khi có truy vấn. */
 export function requestSql(): postgres.Sql {
   const scope = currentScope();
   if (scope.sql) return scope.sql;
 
-  const url = databaseUrl(scope.env);
+  const url = cleanDatabaseUrl(databaseUrl(scope.env));
   if (!url) {
     throw new Error(
       "Chưa cấu hình cơ sở dữ liệu cho Worker: gắn Hyperdrive (binding HYPERDRIVE) "

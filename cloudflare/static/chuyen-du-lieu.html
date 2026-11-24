@@ -100,6 +100,12 @@
     var html = '<div>Cơ sở dữ liệu mới: ' + yes(c.target) + ' · Netlify Database (nguồn): ' + yes(c.source)
       + ' · Kho R2: ' + yes(c.blobsTarget) + ' · Netlify Blobs (nguồn): ' + yes(c.blobsSource) + '</div>';
     if (typeof s.appliedMigrations === 'number') html += '<div>Bản di trú đã chạy: ' + s.appliedMigrations + '/' + s.migrations + '</div>';
+    if (s.sourceError) {
+      var note = document.createElement('div');
+      note.className = 'bad';
+      note.textContent = s.sourceError;
+      html += note.outerHTML;
+    }
     if (s.tables) {
       html += '<table><thead><tr><th>Bảng</th><th class="num-cell">Netlify</th><th class="num-cell">Cloudflare</th></tr></thead><tbody>';
       Object.keys(s.tables).forEach(function (t) {

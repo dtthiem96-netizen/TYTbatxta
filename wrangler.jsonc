@@ -1,7 +1,7 @@
 // Cấu hình Cloudflare Workers cho trang Trạm Y tế Bát Xát.
 // Xem cloudflare/worker.ts (điểm vào) và tools/build-cloudflare.mjs (dựng tệp tĩnh).
 //
-// Khoá bí mật đặt trong Cloudflare (Workers & Pages > tytbatxat > Settings >
+// Khoá bí mật đặt trong Cloudflare (Workers & Pages > tytbatxta > Settings >
 // Variables and Secrets), KHÔNG ghi vào tệp này:
 //   DATABASE_URL          chuỗi kết nối Postgres mới (bỏ qua nếu đã gắn Hyperdrive)
 //   CF_TURN_KEY_ID, CF_TURN_API_TOKEN   máy chủ TURN cho cuộc gọi video
@@ -11,10 +11,18 @@
 //   MIGRATE_KEY, SOURCE_DATABASE_URL, NETLIFY_TOKEN, NETLIFY_SITE_ID
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "tytbatxat",
+  "name": "tytbatxta",
   "main": "cloudflare/worker.ts",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Giữ các biến đặt tay trong Cloudflare (kiểu Text) khi Workers Builds triển
+  // khai bản mới. Không có dòng này, mỗi lần dựng sẽ xoá chúng; khoá bí mật
+  // (kiểu Secret) thì luôn được giữ.
+  "keep_vars": true,
+  // Workers Builds dựng nhánh khác main bằng `wrangler preview`, lệnh này đòi có
+  // khối previews. Để trống: bản xem thử không có biến, khoá hay kho R2 nào,
+  // nên không chạm vào dữ liệu thật và không in giá trị biến ra log dựng.
+  "previews": {},
   "build": {
     "command": "node tools/build-cloudflare.mjs"
   },
