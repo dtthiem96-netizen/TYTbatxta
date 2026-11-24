@@ -84,7 +84,7 @@
     <!-- THƯ VIỆN GIAO DIỆN -->
     <!-- Hộp đổi mật khẩu dùng chung: bắt buộc đổi mật khẩu tạm ở mọi cổng đăng nhập. -->
     <script src="/assets/password-change.js" defer></script>
-    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124e">
+    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124f">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     
@@ -3132,6 +3132,24 @@
                 <textarea id="ai-interaction-input" aria-label="Nhập thuốc cần kiểm tra tương tác" rows="3" class="w-full border-2 border-rose-200 rounded-xl px-4 py-3 mb-3 focus:ring-2 focus:ring-rose-100 outline-none" placeholder="Ví dụ: Uống thuốc tiểu đường Metformin chung với nước lá sâm đất..."></textarea>
                 <button onclick="window.checkDrugInteractionsAI()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 rounded-xl shadow-md transition">✨ Kiểm Tra An Toàn Ngay</button>
                 <div id="ai-interaction-result" class="mt-4 markdown-body hidden text-sm bg-rose-50 p-4 rounded-xl border border-rose-100 max-h-60 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <!-- ĐỌC TRỌN BÀI BẢN TIN
+             Thẻ ở trang chủ chỉ hiện tóm tắt. Trước đây bấm "Mở rộng" thì bài dài
+             bung ngay trong thẻ hẹp: một cột chữ dài cả màn hình, các thẻ cùng
+             hàng bị kéo cao theo và để trống. Nay bài được đọc trong cửa sổ rộng. -->
+        <div id="modal-news-reader" class="modal-content hidden bg-white rounded-3xl w-full max-w-3xl mx-auto my-auto overflow-hidden shadow-2xl transform transition-all flex flex-col" style="max-height:92vh" role="dialog" aria-modal="true" aria-labelledby="news-reader-title">
+            <div class="bg-gradient-to-r from-medical-600 to-medical-500 px-5 py-4 flex justify-between items-start gap-3 text-white">
+                <h3 id="news-reader-title" class="font-black text-lg md:text-xl leading-snug">Bản tin</h3>
+                <button onclick="window.closeModal()" class="text-white hover:text-gray-200 bg-white/10 w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label="Đóng cửa sổ"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="news-reader-body" class="px-5 md:px-8 py-5 overflow-y-auto" style="flex:1 1 auto;min-height:0"></div>
+            <div class="px-5 md:px-8 py-3 border-t border-gray-100 flex items-center justify-between gap-2 bg-gray-50">
+                <span id="news-reader-date" class="text-sm font-bold text-gray-600"></span>
+                <button id="news-reader-share" class="text-medical-700 hover:text-white hover:bg-medical-600 transition flex items-center gap-1.5 bg-medical-50 px-3 py-2 rounded-xl border border-medical-300 text-sm font-bold">
+                    <i class="fas fa-share-alt"></i> Chia sẻ
+                </button>
             </div>
         </div>
 
@@ -6627,20 +6645,52 @@
             window.openModal('modal-tailieu');
         };
 
-        window.toggleNewsDescription = function(id) {
-            const p = document.getElementById(`news-desc-${id}`);
-            const btn = document.getElementById(`news-btn-${id}`);
-            if(p && btn) {
-                const isClamped = p.classList.contains('line-clamp-2');
-                if(isClamped) {
-                    p.classList.remove('line-clamp-2');
-                    btn.innerHTML = `<span>Thu gọn</span> <i class="fas fa-chevron-up text-[9px]"></i>`;
-                } else {
-                    p.classList.add('line-clamp-2');
-                    btn.innerHTML = `<span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>`;
-                }
+        /** Danh sách ảnh của một bản tin (trường image có thể là 1 địa chỉ hoặc mảng JSON). */
+        window.newsImageList = function(n) {
+            if (!n || !n.image) return [];
+            if (n.image.startsWith('[') && n.image.endsWith(']')) {
+                try { const arr = JSON.parse(n.image); return Array.isArray(arr) ? arr.filter(Boolean) : []; } catch (e) {}
             }
+            return [n.image];
         };
+
+        /** Ảnh đại diện cỡ cố định cho thẻ tóm tắt: mọi thẻ cùng chiều cao, bấm mở bài. */
+        window.renderNewsThumb = function(n) {
+            const imgs = window.newsImageList(n);
+            if (!imgs.length) return '';
+            const more = imgs.length > 1 ? `<span class="absolute bottom-2 right-2 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded-full"><i class="far fa-images mr-1"></i>${imgs.length} ảnh</span>` : '';
+            return `<button type="button" onclick="window.openNewsReader('${n.id}')" class="relative block w-full mt-3 overflow-hidden rounded-xl border border-gray-100 bg-gray-50" style="height:11rem" aria-label="Xem bài và ảnh">
+                    <img src="${imgs[0]}" alt="" loading="lazy" class="object-cover w-full h-full transition hover:scale-105 duration-300">${more}
+                </button>`;
+        };
+
+        /** Mở cửa sổ đọc trọn bài: toàn văn, mọi ảnh cỡ lớn, tệp đính kèm. */
+        window.openNewsReader = function(id) {
+            const n = newsData.find(x => String(x.id) === String(id));
+            if (!n) return;
+            const title = document.getElementById('news-reader-title');
+            const body = document.getElementById('news-reader-body');
+            const date = document.getElementById('news-reader-date');
+            const share = document.getElementById('news-reader-share');
+            if (title) title.innerHTML = n.title || 'Bản tin';
+            if (date) date.innerHTML = `<i class="far fa-clock mr-1"></i> ${n.date || ''}`;
+            if (share) share.onclick = () => window.openShareNewsModal(n.id);
+            if (body) {
+                const imgs = window.newsImageList(n);
+                body.innerHTML = `
+                    ${n.description ? `<div class="text-base md:text-lg text-gray-800 leading-relaxed whitespace-pre-line">${n.description}</div>` : ''}
+                    ${imgs.map(img => `
+                        <figure class="mt-5 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 cursor-zoom-in" onclick="window.viewImageFull('${img}')">
+                            <img src="${img}" alt="${(n.title || '').replace(/"/g, '&quot;')}" loading="lazy" class="w-full h-auto">
+                        </figure>`).join('')}
+                    ${window.renderNewsAttachments(n)}`;
+                body.scrollTop = 0;
+            }
+            window.openModal('modal-news-reader');
+        };
+
+        // Tên cũ vẫn được gọi ở vài nơi (liên kết chia sẻ, mã CMS): trỏ về cửa sổ đọc.
+        window.toggleNewsDescription = function(id) { window.openNewsReader(id); };
 
         window.renderNewsImages = function(n) {
             if (!n.image) return '';
@@ -6760,20 +6810,7 @@
             }
         };
 
-        window.toggleArchiveNewsDescription = function(id) {
-            const p = document.getElementById(`archive-news-desc-${id}`);
-            const btn = document.getElementById(`archive-news-btn-${id}`);
-            if(p && btn) {
-                const isClamped = p.classList.contains('line-clamp-2');
-                if(isClamped) {
-                    p.classList.remove('line-clamp-2');
-                    btn.innerHTML = `<span>Thu gọn</span> <i class="fas fa-chevron-up text-[9px]"></i>`;
-                } else {
-                    p.classList.add('line-clamp-2');
-                    btn.innerHTML = `<span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>`;
-                }
-            }
-        };
+        window.toggleArchiveNewsDescription = function(id) { window.openNewsReader(id); };
 
         window.renderNewsArchive = function() {
             const archivePub = document.getElementById('archive-news-container');
@@ -6822,17 +6859,14 @@
                             <i class="fas ${n.icon||'fa-bullhorn'}"></i>
                         </div>
                         <div class="flex-1 pr-16 md:pr-20">
-                            <h4 class="font-bold text-gray-900 leading-tight mb-1">${n.title}</h4>
+                            <h4 class="font-bold text-gray-900 leading-tight mb-1"><button type="button" onclick="window.openNewsReader('${n.id}')" class="text-left hover:text-medical-700 transition">${n.title}</button></h4>
                             ${n.description ? `
-                                <p id="archive-news-desc-${n.id}" class="text-sm text-gray-600 mb-2 leading-relaxed whitespace-pre-line ${isLong ? 'line-clamp-2' : ''}">${n.description}</p>
-                                ${isLong ? `
-                                    <button onclick="window.toggleArchiveNewsDescription('${n.id}')" id="archive-news-btn-${n.id}" class="text-xs font-bold text-medical-600 hover:text-medical-800 transition mb-2 focus:outline-none flex items-center gap-1 uppercase tracking-wider">
-                                        <span>Mở rộng</span> <i class="fas fa-chevron-down text-[9px]"></i>
-                                    </button>
-                                ` : ''}
+                                <p id="archive-news-desc-${n.id}" class="text-sm text-gray-600 mb-1 leading-relaxed whitespace-pre-line line-clamp-3">${n.description}</p>
                             ` : ''}
-                            ${window.renderNewsImages(n)}
-                            ${window.renderNewsAttachments(n)}
+                            <button onclick="window.openNewsReader('${n.id}')" id="archive-news-btn-${n.id}" class="text-sm font-bold text-medical-600 hover:text-medical-800 transition focus:outline-none flex items-center gap-1 py-1">
+                                <span>Đọc tiếp</span> <i class="fas fa-arrow-right text-[9px]"></i>
+                            </button>
+                            ${window.renderNewsThumb(n)}
                             <div class="text-xs font-bold text-gray-400 mt-3 uppercase tracking-wider flex items-center justify-between">
                                 <span><i class="far fa-clock mr-1"></i> ${n.date}</span>
                                 <button onclick="window.openShareNewsModal('${n.id}')" class="text-medical-600 hover:text-medical-800 transition flex items-center gap-1.5 bg-medical-50 hover:bg-medical-100 px-3 py-1.5 rounded-xl border border-medical-200">
@@ -6894,19 +6928,16 @@
                             <div class="w-12 h-12 bg-${n.color||'medical'}-100 rounded-xl flex items-center justify-center text-${n.color||'medical'}-700 text-xl shrink-0">
                                 <i class="fas ${n.icon||'fa-bullhorn'}"></i>
                             </div>
-                            <h4 class="flex-1 text-lg font-black text-gray-900 leading-snug">${n.title}</h4>
+                            <h4 class="flex-1 text-lg font-black text-gray-900 leading-snug"><button type="button" onclick="window.openNewsReader('${n.id}')" class="text-left hover:text-medical-700 transition">${n.title}</button></h4>
                         </div>
                         <div class="flex-1 tyt-news-card-body">
                             ${n.description ? `
-                                <p id="news-desc-${n.id}" class="text-base text-gray-700 mb-2 leading-relaxed whitespace-pre-line ${isLong ? 'line-clamp-2' : ''}">${n.description}</p>
-                                ${isLong ? `
-                                    <button onclick="window.toggleNewsDescription('${n.id}')" id="news-btn-${n.id}" class="text-sm font-black text-medical-700 hover:text-medical-900 transition mb-2 focus:outline-none flex items-center gap-1 uppercase tracking-wide py-1">
-                                        <span>Mở rộng</span> <i class="fas fa-chevron-down text-[10px]"></i>
-                                    </button>
-                                ` : ''}
+                                <p id="news-desc-${n.id}" class="text-base text-gray-700 mb-1 leading-relaxed whitespace-pre-line line-clamp-3">${n.description}</p>
                             ` : ''}
-                            ${window.renderNewsImages(n)}
-                            ${window.renderNewsAttachments(n)}
+                            <button onclick="window.openNewsReader('${n.id}')" id="news-btn-${n.id}" class="text-sm font-black text-medical-700 hover:text-medical-900 transition focus:outline-none flex items-center gap-1 py-1">
+                                <span>Đọc tiếp</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                            </button>
+                            ${window.renderNewsThumb(n)}
                         </div>
                         <div class="text-sm font-bold text-gray-600 mt-3 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
                             <span><i class="far fa-clock mr-1"></i> ${n.date}</span>
@@ -14485,11 +14516,8 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                                 el.classList.remove('border-gray-100');
                                 el.classList.add('ring-4', 'ring-medical-500', 'border-medical-500', 'bg-medical-50/50');
 
-                                // Mở rộng phần nội dung nếu nó quá dài
-                                const descEl = document.getElementById(`archive-news-desc-${sharedNewsId}`);
-                                if (descEl && descEl.classList.contains('line-clamp-2')) {
-                                    window.toggleArchiveNewsDescription(sharedNewsId);
-                                }
+                                // Người mở liên kết chia sẻ là để đọc bài đó: mở luôn cửa sổ đọc trọn bài.
+                                window.openNewsReader(sharedNewsId);
 
                                 // Hủy hiệu ứng nổi bật sau 4 giây
                                 setTimeout(() => {
