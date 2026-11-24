@@ -21,6 +21,11 @@
   # Cố ý KHÔNG chạy npm run test:smoke ở đây: bộ nạp thử cần jsdom và chạy lâu
   # hơn, chỗ của nó là GitHub Actions. Một điểm khác biệt của jsdom giữa hai môi
   # trường không được phép chặn bản triển khai của trạm y tế.
+  #
+  # Bỏ qua bản dựng Netlify (đỡ tốn credit) khi lần gộp chỉ đổi phần chạy trên
+  # Cloudflare. Lệnh trả 0 = bỏ qua. Không có commit đã dựng trước đó, dựng lại
+  # đúng commit cũ (Trigger deploy) hay git báo lỗi đều trả khác 0: vẫn dựng.
+  ignore = "[ -n \"$CACHED_COMMIT_REF\" ] && [ \"$CACHED_COMMIT_REF\" != \"$COMMIT_REF\" ] && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)cloudflare' ':(exclude)wrangler.jsonc' ':(exclude)tools/build-cloudflare.mjs'"
 
 [build.environment]
   NODE_VERSION = "24"

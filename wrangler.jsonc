@@ -1,7 +1,7 @@
 // Cấu hình Cloudflare Workers cho trang Trạm Y tế Bát Xát.
 // Xem cloudflare/worker.ts (điểm vào) và tools/build-cloudflare.mjs (dựng tệp tĩnh).
 //
-// Khoá bí mật đặt trong Cloudflare (Workers & Pages > tytbatxat > Settings >
+// Khoá bí mật đặt trong Cloudflare (Workers & Pages > tytbatxta > Settings >
 // Variables and Secrets), KHÔNG ghi vào tệp này:
 //   DATABASE_URL          chuỗi kết nối Postgres mới (bỏ qua nếu đã gắn Hyperdrive)
 //   CF_TURN_KEY_ID, CF_TURN_API_TOKEN   máy chủ TURN cho cuộc gọi video
@@ -11,7 +11,7 @@
 //   MIGRATE_KEY, SOURCE_DATABASE_URL, NETLIFY_TOKEN, NETLIFY_SITE_ID
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "tytbatxat",
+  "name": "tytbatxta",
   "main": "cloudflare/worker.ts",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],

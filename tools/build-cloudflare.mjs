@@ -84,6 +84,35 @@ fs.writeFileSync(
     + `export const MIGRATIONS: { name: string; sql: string }[] = ${JSON.stringify(migrations, null, 1)};\n`
 );
 
+/* Vá postgres.js 3.4.x (bản cho workerd). Khi máy chủ cơ sở dữ liệu đóng kết
+   nối ngay lúc bắt tay mà không gửi thông báo lỗi (chuỗi kết nối sai cổng/sai
+   loại, bộ gộp kết nối từ chối, TLS không thành...), thư viện kết nối lại ngay
+   lập tức và không giới hạn. Trên Workers mỗi lần mở kết nối là một subrequest:
+   khoảng 20 giây là chạm trần 10.000 và người dùng chỉ thấy "Too many
+   subrequests" thay vì lỗi thật. Bản vá cho thử tối đa 3 lần rồi báo lỗi
+   CONNECTION_CLOSED. Đổi phiên bản postgres thì phải xem lại đoạn này. */
+const PG_CONN = path.join(ROOT, "node_modules", "postgres", "cf", "src", "connection.js");
+const pgPatches = [
+  ["    , initial = null\n", "    , initial = null\n    , initialCloses = 0\n"],
+  [
+    "    if (initial)\n      return reconnect()\n",
+    "    if (initial && ++initialCloses < 3)\n      return reconnect()\n"
+      + "    initial && errored(Errors.connection('CONNECTION_CLOSED', options))\n"
+  ],
+  ["      options.shared.retries = retries = 0\n", "      options.shared.retries = retries = initialCloses = 0\n"]
+];
+let pgSource = fs.readFileSync(PG_CONN, "utf8");
+if (!pgSource.includes("initialCloses")) {
+  for (const [from, to] of pgPatches) {
+    if (pgSource.split(from).length !== 2) {
+      console.error(`Không vá được ${path.relative(ROOT, PG_CONN)}: đoạn mã cần sửa đã đổi. Xem lại bản vá trong tools/build-cloudflare.mjs.`);
+      process.exit(1);
+    }
+    pgSource = pgSource.replace(from, to);
+  }
+  fs.writeFileSync(PG_CONN, pgSource);
+}
+
 const count = (dir) => fs.readdirSync(dir, { withFileTypes: true })
   .reduce((n, e) => n + (e.isDirectory() ? count(path.join(dir, e.name)) : 1), 0);
 console.log(`Bản Cloudflare: ${count(OUT)} tệp tĩnh trong .cf-dist, ${migrations.length} bản di trú lược đồ.`);
