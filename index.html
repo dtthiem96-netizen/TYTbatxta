@@ -84,7 +84,7 @@
     <!-- THƯ VIỆN GIAO DIỆN -->
     <!-- Hộp đổi mật khẩu dùng chung: bắt buộc đổi mật khẩu tạm ở mọi cổng đăng nhập. -->
     <script src="/assets/password-change.js" defer></script>
-    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124c">
+    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124d">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     
@@ -885,14 +885,14 @@
            dưới trùng lặp với chính sự đổi nền đó nên đã được bỏ. */
         .tyt-home-sec-alt { background: #f4f7fb; }
         /* Liên kết trang: banner tới các cơ quan liên quan (CMS quản lý). */
-        .tyt-link-banner { display: flex; align-items: center; gap: .85rem; min-height: 5.25rem; padding: .9rem 1.1rem; border-radius: 1rem; color: #fff; text-decoration: none; box-shadow: 0 4px 14px rgba(15, 23, 42, .12); transition: transform .15s ease, box-shadow .15s ease; overflow: hidden; }
+        .tyt-link-banner { display: flex; align-items: center; gap: .75rem; min-height: 4.5rem; padding: .75rem .95rem; border-radius: 1rem; color: #fff; text-decoration: none; box-shadow: 0 4px 14px rgba(15, 23, 42, .12); transition: transform .15s ease, box-shadow .15s ease; overflow: hidden; }
         .tyt-link-banner:hover, .tyt-link-banner:focus-visible { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15, 23, 42, .18); }
         .tyt-link-banner.has-img { padding: 0; background: #fff; border: 1px solid #e5e7eb; }
-        .tyt-link-img { display: block; width: 100%; height: 5.25rem; object-fit: contain; }
-        .tyt-link-ico { flex: none; display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 9999px; background: rgba(255, 255, 255, .18); font-size: 1.35rem; }
+        .tyt-link-img { display: block; width: 100%; height: 4.5rem; object-fit: contain; }
+        .tyt-link-ico { flex: none; display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 9999px; background: rgba(255, 255, 255, .18); font-size: 1.35rem; }
         .tyt-link-txt { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
-        .tyt-link-txt b { font-size: 1.05rem; font-weight: 900; text-transform: uppercase; letter-spacing: .01em; }
-        .tyt-link-txt small { font-size: .85rem; opacity: .92; font-weight: 600; }
+        .tyt-link-txt b { font-size: .95rem; font-weight: 900; text-transform: uppercase; letter-spacing: .01em; }
+        .tyt-link-txt small { font-size: .8rem; opacity: .92; font-weight: 600; }
         @media (min-width: 768px) { .tyt-home-sec { padding: 3rem 0; } }
         .tyt-sec-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 1.5rem; margin-bottom: 1.25rem; }
         .tyt-sec-kicker { font-size: 0.8125rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: #1976d2; }
@@ -1527,7 +1527,10 @@
 
             <!-- THÔNG BÁO & BẢNG TIN (dữ liệu từ CMS) -->
             <section id="tin-tuc" class="tyt-home-sec tyt-home-sec-alt">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+                <!-- Tin tức bên trái, cột "Liên kết trang" bên phải (máy tính); trên điện
+                     thoại cột liên kết tự xuống dưới tin tức. -->
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem] gap-6 items-start">
+                <div class="space-y-6 min-w-0">
                     <div id="thong-bao" class="tyt-panel">
                         <div class="tyt-panel-head">
                             <span class="tyt-panel-icon bg-blue-100 text-[#1976d2]"><i class="fas fa-calendar-alt"></i></span>
@@ -1556,7 +1559,7 @@
                             <span class="tyt-panel-icon bg-amber-100 text-amber-700"><i class="fas fa-bullhorn"></i></span>
                             <h3 data-cms-id="news-title" class="text-gray-900">Bảng tin Y tế</h3>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" id="news-container">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5" id="news-container">
                             <!-- Dữ liệu được đẩy từ Admin CMS: 6 bài mới nhất, xếp thành 2 hàng trên máy tính -->
                         </div>
                         <div class="tyt-panel-foot sm:justify-end">
@@ -1565,6 +1568,17 @@
                             </button>
                         </div>
                     </div>
+                </div>
+
+                <!-- LIÊN KẾT TRANG: banner tới các cơ quan liên quan. Quản trị CMS thêm/sửa/xoá
+                     trong tab "Liên kết trang"; dữ liệu ở siteConfigs "site-links". -->
+                <aside id="lien-ket-trang" class="tyt-panel" aria-labelledby="lien-ket-trang-h">
+                    <div class="tyt-panel-head">
+                        <span class="tyt-panel-icon bg-sky-100 text-sky-700"><i class="fas fa-link"></i></span>
+                        <h3 id="lien-ket-trang-h" data-cms-id="links-title" class="text-gray-900">Liên kết trang</h3>
+                    </div>
+                    <div id="site-links-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3"></div>
+                </aside>
                 </div>
             </section>
 
@@ -1641,19 +1655,6 @@
                 </div>
             </section>
 
-            <!-- LIÊN KẾT TRANG: banner tới các cơ quan liên quan. Quản trị CMS thêm/sửa/xoá
-                 trong tab "Liên kết trang"; dữ liệu ở siteConfigs "site-links". -->
-            <section id="lien-ket-trang" class="tyt-home-sec" aria-labelledby="lien-ket-trang-h">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div class="tyt-sec-head">
-                        <div>
-                            <p class="tyt-sec-kicker" data-cms-id="links-kicker">Cơ quan liên quan</p>
-                            <h3 id="lien-ket-trang-h" data-cms-id="links-title">Liên kết trang</h3>
-                        </div>
-                    </div>
-                    <div id="site-links-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-                </div>
-            </section>
         </div>
 
         <!-- ================= KHU VỰC KHOA PHÒNG & CHỨC NĂNG (TÁCH BIỆT) ================= -->
@@ -4601,7 +4602,7 @@
                 <!-- ADMIN TAB: LIÊN KẾT TRANG -->
                 <div id="admin-links-section" class="admin-tab space-y-6">
                     <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
-                        <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Liên kết trang</h2><p class="text-sm text-gray-600 mt-1">Banner liên kết tới Sở Y tế, UBND xã, Trung tâm Y tế khu vực... hiện ở cuối trang chủ. Có ảnh banner thì hiện ảnh; không có ảnh thì hiện khung màu kèm tên.</p></div>
+                        <div class="mb-6 pb-4 border-b border-gray-100"><h2 class="text-2xl font-black text-gray-900">Liên kết trang</h2><p class="text-sm text-gray-600 mt-1">Banner liên kết tới Sở Y tế, UBND xã, Trung tâm Y tế khu vực... hiện ở cột bên phải trang chủ (trên điện thoại nằm dưới tin tức). Có ảnh banner thì hiện ảnh; không có ảnh thì hiện khung màu kèm tên.</p></div>
                         <form onsubmit="window.handleSaveSiteLink(event)" class="bg-sky-50 p-5 rounded-xl border border-sky-200 mb-6">
                             <input type="hidden" id="link-edit-index" value="">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
