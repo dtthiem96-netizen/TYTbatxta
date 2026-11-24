@@ -19,6 +19,10 @@
   // khai bản mới. Không có dòng này, mỗi lần dựng sẽ xoá chúng; khoá bí mật
   // (kiểu Secret) thì luôn được giữ.
   "keep_vars": true,
+  // Workers Builds dựng nhánh khác main bằng `wrangler preview`, lệnh này đòi có
+  // khối previews. Để trống: bản xem thử không có biến, khoá hay kho R2 nào,
+  // nên không chạm vào dữ liệu thật và không in giá trị biến ra log dựng.
+  "previews": {},
   "build": {
     "command": "node tools/build-cloudflare.mjs"
   },
