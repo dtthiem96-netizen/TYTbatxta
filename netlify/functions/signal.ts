@@ -130,6 +130,15 @@ function pollInterval(elapsedMs: number) {
   return elapsedMs < POLL_FAST_PHASE_MS ? POLL_FAST_INTERVAL_MS : POLL_SLOW_INTERVAL_MS;
 }
 
+/** Thời gian được giữ yêu cầu chờ bản tin: mặc định POLL_WINDOW_MS, hold=0 là trả ngay. */
+function holdWindow(url: URL) {
+  const raw = url.searchParams.get("hold");
+  if (raw === null) return POLL_WINDOW_MS;
+  const ms = Number(raw);
+  if (!Number.isFinite(ms) || ms <= 0) return 0;
+  return Math.min(ms, POLL_WINDOW_MS);
+}
+
 const headers = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store"
@@ -505,7 +514,10 @@ async function handleGet(req: Request) {
 
   // Long-poll ngắn: chờ tối đa POLL_WINDOW_MS để trả bản tin ngay khi có,
   // giúp bắt tay WebRTC nhanh gần bằng WebSocket mà vẫn chạy trên serverless.
-  const deadline = now + POLL_WINDOW_MS;
+  // Máy khách gửi hold=0 khi mọi kết nối trong phòng đã thông: lúc đó trả lời
+  // ngay, không giữ hàm chờ. Netlify tính credit theo thời gian hàm chạy, nên
+  // giữ hàm suốt cả buổi khám là khoản tốn nhất của trang.
+  const deadline = now + holdWindow(url);
   let messages = firstBatch;
   while (messages.length === 0 && Date.now() < deadline) {
     await sleep(pollInterval(Date.now() - now));

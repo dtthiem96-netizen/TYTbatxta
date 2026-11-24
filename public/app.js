@@ -112,6 +112,134 @@ async function stationApiFetch(url, options) {
 const SIGNAL_URL = '/api/signal';
 // Sàn nghỉ tối thiểu giữa hai lượt long-poll, chống quay vòng không nghỉ.
 const POLL_MIN_GAP_MS = 500;
+
+/* TIẾT KIỆM CREDIT NETLIFY.
+   Gói Netlify tính tiền hàm theo THỜI GIAN hàm chạy (10 credit mỗi GB-giờ), kể
+   cả lúc hàm chỉ ngồi chờ. Một lượt long-poll giữ hàm tới 7 giây, nên một màn
+   hình hỏi liên tục kiểu đó tốn trọn một giờ hàm cho mỗi giờ mở - khoảng 10
+   credit/giờ, đủ làm cạn gói Free 300 credit/tháng trong vài ngày.
+
+   Vì vậy chỉ giữ long-poll ở đúng lúc cần tốc độ: lúc đang bắt tay WebRTC (có
+   đầu cầu chưa nối xong). Khi mọi kết nối trong phòng đã thông, kênh signaling
+   gần như im lặng, nên hỏi ngắn (hold=0, hàm trả về ngay) và nghỉ vài giây giữa
+   hai lượt: tốn khoảng 1/30 so với trước. */
+const SIGNAL_QUIET_GAP_MS = 2500;
+
+/** Mọi đầu cầu trong phòng đều đã nối thông - không còn bắt tay nào đang chạy. */
+window.teleSignalQuiet = function (mesh) {
+  if (!mesh || typeof mesh.list !== 'function') return false;
+  const links = mesh.list();
+  return links.length > 0 && links.every(l => l && l.connected);
+};
+
+/** Thêm hold=0 khi phòng đã yên: máy chủ trả lời ngay thay vì giữ hàm chờ. */
+window.teleSignalUrl = function (url, quiet) {
+  return quiet ? `${url}&hold=0` : url;
+};
+
+/** Nghỉ giữa hai lượt hỏi ngắn. Có bản tin mới thì hỏi tiếp ngay. */
+window.teleSignalRest = function (quiet, gotMessages) {
+  if (!quiet || gotMessages) return Promise.resolve();
+  return new Promise(r => setTimeout(r, SIGNAL_QUIET_GAP_MS));
+};
+
+/* Nhịp hỏi hàng đợi cho màn hình trực (CMS và Bảng điều khiển điểm trạm).
+   Trước đây là long-poll liên tục (mỗi màn hình trực giữ một hàm chạy suốt), nay
+   là lượt hỏi ngắn theo nhịp. Cuộc gọi mới vẫn báo ngay qua thông báo đẩy: Service
+   Worker gửi QUEUE_CHANGED cho trang đang mở để trang hỏi lại tức thì. */
+const STANDBY_POLL_VISIBLE_MS = 8000;
+const STANDBY_POLL_HIDDEN_MS = 20000;
+const STANDBY_POLL_RINGING_MS = 4000;
+
+/**
+ * Bộ hẹn giờ hỏi hàng đợi. Chạy nhịp trong một Web Worker nhỏ vì Chrome bóp hẹn
+ * giờ của tab ẩn xuống một lần mỗi phút, lâu hơn hạn 45 giây máy chủ giữ trạng
+ * thái "đang trực" - cán bộ để CMS ở tab nền sẽ bị người dân thấy là vắng mặt.
+ * Hẹn giờ trong Worker không bị bóp như vậy. Không tạo được Worker thì quay về
+ * setTimeout thường.
+ *
+ * run(): hàm hỏi một lượt, trả về Promise<boolean> (true = thành công).
+ * opts.ringing(): true khi đang có cuộc gọi chờ tiếp nhận (hỏi dày hơn).
+ */
+window.createStandbyPoller = function (run, opts) {
+  const options = opts || {};
+  let stopped = false;
+  let busy = false;
+  let failures = 0;
+  let timer = null;
+  let worker = null;
+  let onTick = null;
+
+  try {
+    const src = 'let t=null;onmessage=function(e){clearTimeout(t);if(e.data>0)t=setTimeout(function(){postMessage(1)},e.data)};';
+    const blobUrl = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+    worker = new Worker(blobUrl);
+    URL.revokeObjectURL(blobUrl);
+    worker.onmessage = () => { if (onTick) onTick(); };
+    worker.onerror = () => { try { worker.terminate(); } catch (err) {} worker = null; };
+  } catch (err) {
+    worker = null;
+  }
+
+  function delay() {
+    if (failures) return Math.min(2000 * Math.pow(2, failures - 1), 15000);
+    let ringing = false;
+    try { ringing = typeof options.ringing === 'function' && options.ringing(); } catch (err) {}
+    if (ringing) return STANDBY_POLL_RINGING_MS;
+    return document.visibilityState === 'hidden' ? STANDBY_POLL_HIDDEN_MS : STANDBY_POLL_VISIBLE_MS;
+  }
+
+  function schedule(ms) {
+    if (stopped) return;
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (worker) { worker.postMessage(ms); return; }
+    timer = setTimeout(() => { timer = null; if (onTick) onTick(); }, ms);
+  }
+
+  async function tick() {
+    if (stopped) return;
+    if (busy) { schedule(delay()); return; }
+    busy = true;
+    let ok = false;
+    try { ok = (await run()) !== false; } catch (err) { ok = false; }
+    busy = false;
+    failures = ok ? 0 : Math.min(failures + 1, 5);
+    schedule(delay());
+  }
+  onTick = tick;
+
+  function onVisible() {
+    if (document.visibilityState === 'visible') tick();
+  }
+  document.addEventListener('visibilitychange', onVisible);
+
+  tick();
+
+  return {
+    /** Hỏi lại ngay (thông báo đẩy báo có thay đổi, tab vừa hiện lại...). */
+    kick() { tick(); },
+    stop() {
+      stopped = true;
+      onTick = null;
+      document.removeEventListener('visibilitychange', onVisible);
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (worker) { try { worker.terminate(); } catch (err) {} worker = null; }
+    }
+  };
+};
+
+/* Thông báo đẩy về cuộc gọi mới: Service Worker gửi QUEUE_CHANGED cho mọi tab
+   đang mở để màn hình trực hỏi lại hàng đợi ngay, không đợi tới nhịp kế tiếp. */
+window.__standbyPollers = window.__standbyPollers || new Set();
+if ('serviceWorker' in navigator) {
+  try {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      const data = event.data || {};
+      if (data.type !== 'QUEUE_CHANGED') return;
+      window.__standbyPollers.forEach(p => { try { p.kick(); } catch (err) {} });
+    });
+  } catch (err) {}
+}
 let peerId = null;
 /* Mã đầu cầu ở "sảnh" (__lobby__) - chỉ Module Bác sĩ tuyến trên dùng.
    Bảng điều khiển điểm trạm nằm trong trang chính, nơi CMS đã tự bật trực bằng
@@ -180,12 +308,10 @@ let currentVitals = {
 let cmsUsers = [];
 let cmsSigners = [];
 let loggedInCmsUser = null;
+/* Bộ hỏi hàng đợi cuộc gọi (createStandbyPoller) và token để bỏ qua lượt hỏi
+   của phiên cũ khi đăng xuất/đăng nhập lại. */
 let queuePollInterval = null;
-/* Vòng chờ dài hàng đợi cuộc gọi: token để huỷ vòng cũ khi đăng xuất/đăng nhập
-   lại, cờ chống chạy hai vòng song song, và chữ ký hàng đợi lần trước gửi lên
-   máy chủ để nó chỉ trả lời khi có thay đổi thật. */
 let queuePollToken = 0;
-let queueLoopRunning = false;
 let queueSignature = null;
 
 /* Số thẻ BHYT/CCCD của bệnh nhân đang khám.
@@ -516,27 +642,33 @@ function onCmsAccountSelect(username) {
 
 /* Quét hàng đợi các cuộc gọi từ người dân (User Video Calls).
 
-   Trước đây đây là một hẹn giờ 3,5 giây: một người dân bấm gọi xong có thể phải
-   đợi gần trọn chu kỳ đó thẻ cuộc gọi mới hiện trên bảng điều khiển. Nay vòng
-   quét tự nối tiếp và mang theo "chữ ký" của hàng đợi lần trước - máy chủ giữ
-   yêu cầu cho tới khi hàng đợi thực sự đổi rồi mới trả lời, nên thẻ cuộc gọi
-   xuất hiện gần như ngay lúc người dân bấm nút. Hẹn giờ chỉ còn là lưới an toàn. */
+   Từng là vòng long-poll liên tục (máy chủ giữ yêu cầu tới khi hàng đợi đổi).
+   Cách đó báo cuộc gọi tức thì nhưng giữ một hàm Netlify chạy suốt thời gian màn
+   hình trực mở, và chính nó làm cạn credit Netlify. Nay hỏi ngắn: 8 giây khi tab
+   đang mở, 4 giây khi có cuộc gọi đang đổ chuông, 20 giây khi tab ẩn; thông báo
+   đẩy về cuộc gọi mới làm trang hỏi lại ngay. */
 function startQueuePolling() {
   stopQueuePolling();
   queuePollToken += 1;
-  queueLoop(queuePollToken);
-  // Lưới an toàn: nếu vòng chờ dài bị đứt (ngủ tab, đổi mạng) thì vẫn có nhịp quét.
-  queuePollInterval = setInterval(() => {
-    if (!queueLoopRunning) queueLoop(queuePollToken);
-  }, 8000);
+  const token = queuePollToken;
+  /* Hỏi ngắn theo nhịp (xem createStandbyPoller): một màn hình trực không còn
+     giữ một hàm Netlify chạy suốt như vòng long-poll cũ. */
+  queuePollInterval = window.createStandbyPoller(async () => {
+    if (queuePollToken !== token) return true;
+    await refreshIncomingCallsQueue(false);
+    return true;
+  }, { ringing: () => pendingCallQueue.some(r => r && !r.hasDoctor) });
+  window.__standbyPollers.add(queuePollInterval);
 }
 
 /** Dừng quét hàng đợi khi cán bộ đăng xuất khỏi Bảng điều khiển. */
 function stopQueuePolling() {
-  if (queuePollInterval) clearInterval(queuePollInterval);
+  if (queuePollInterval) {
+    window.__standbyPollers.delete(queuePollInterval);
+    queuePollInterval.stop();
+  }
   queuePollInterval = null;
   queuePollToken += 1;
-  queueLoopRunning = false;
 
   /* Rời sảnh trực ngay thay vì đợi bản ghi hết hạn: bác sĩ tuyến trên đăng xuất
      mà vẫn còn hiện "đang trực" thì điểm trạm sẽ mời hội chẩn vào chỗ trống. */
@@ -549,29 +681,6 @@ function stopQueuePolling() {
       body: JSON.stringify({ action: 'leave', roomId: '__lobby__', peerId: leavingPeerId }),
       keepalive: true
     }).catch(() => {});
-  }
-}
-
-/** Vòng chờ dài: mỗi lượt trả về là hàng đợi vừa có thay đổi thật. */
-async function queueLoop(token) {
-  if (queueLoopRunning) return;
-  queueLoopRunning = true;
-  let backoff = 0;
-  try {
-    // Lượt đầu không chờ - vẽ ngay hàng đợi hiện có rồi mới bước vào chờ dài.
-    await refreshIncomingCallsQueue(false);
-    while (queuePollToken === token) {
-      try {
-        await refreshIncomingCallsQueue(true);
-        backoff = 0;
-      } catch (err) {
-        if (queuePollToken !== token) return;
-        backoff = backoff ? Math.min(backoff * 2, 15000) : 2000;
-        await new Promise(r => setTimeout(r, backoff));
-      }
-    }
-  } finally {
-    queueLoopRunning = false;
   }
 }
 
@@ -1406,7 +1515,9 @@ async function pollLoop(token) {
   let backoff = 0;
   while (polling && pollToken === token) {
     try {
-      const url = `${SIGNAL_URL}?roomId=${encodeURIComponent(roomId)}&peerId=${encodeURIComponent(peerId)}&cursor=${signalCursor}`;
+      // Phòng đã nối thông hết: hỏi ngắn, không giữ hàm chờ (xem teleSignalQuiet).
+      const quiet = window.teleSignalQuiet(peerMesh);
+      const url = window.teleSignalUrl(`${SIGNAL_URL}?roomId=${encodeURIComponent(roomId)}&peerId=${encodeURIComponent(peerId)}&cursor=${signalCursor}`, quiet);
       const startedAt = Date.now();
       const res = await fetch(url);
       if (!res.ok) throw new Error('poll ' + res.status);
@@ -1438,7 +1549,9 @@ async function pollLoop(token) {
       // trả ngay mà không có bản tin nào (hàm bị cấu hình sai, phản hồi đổi
       // dạng...) thì vòng lặp này sẽ quay không nghỉ và gọi hàm hàng trăm lần
       // mỗi phút - nên đặt sàn nghỉ tối thiểu giữa hai lượt hỏi.
-      if (!messages.length && Date.now() - startedAt < POLL_MIN_GAP_MS) {
+      if (quiet) {
+        await window.teleSignalRest(true, messages.length > 0);
+      } else if (!messages.length && Date.now() - startedAt < POLL_MIN_GAP_MS) {
         await new Promise(r => setTimeout(r, POLL_MIN_GAP_MS));
       }
     } catch (err) {

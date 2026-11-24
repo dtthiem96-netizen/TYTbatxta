@@ -111,7 +111,10 @@ for (const file of ['app.js', 'public/app.js', 'doctor.js', 'public/doctor.js', 
 const SYNC_TARGETS = [
   'index.html', 'app.js', 'bacsi.html', 'doctor.js', 'logo.png', 'admin', 'assets',
   'chamcong.html', 'chamcong.js', 'chamcong-sw.js', 'chamcong.webmanifest',
-  'chinh-sach-bao-mat.html', 'robots.txt', 'sitemap.xml'
+  'chinh-sach-bao-mat.html', 'robots.txt', 'sitemap.xml',
+  // Service Worker nhận thông báo đẩy cuộc gọi: thiếu trong public/ thì /sw.js
+  // rơi vào luật bắt-tất-cả, trả về trang chủ và không đăng ký được.
+  'sw.js'
 ];
 
 /** Liệt kê đường dẫn tương đối của mọi tệp trong một thư mục. */

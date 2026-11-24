@@ -10828,7 +10828,12 @@
         async function telePollLoop(token) {
             while (TELE.polling && TELE.pollToken === token) {
                 try {
-                    const url = `/api/signal?roomId=${encodeURIComponent(TELE.roomId)}&peerId=${encodeURIComponent(TELE.peerId)}&cursor=${TELE.cursor}`;
+                    /* Tiết kiệm credit Netlify: phòng đã nối thông hết thì hỏi
+                       ngắn (hold=0) và nghỉ giữa hai lượt, xem teleSignalQuiet
+                       trong app.js. Đang bắt tay thì vẫn long-poll cho hình lên nhanh. */
+                    const quiet = typeof window.teleSignalQuiet === 'function' && window.teleSignalQuiet(TELE.mesh);
+                    const base = `/api/signal?roomId=${encodeURIComponent(TELE.roomId)}&peerId=${encodeURIComponent(TELE.peerId)}&cursor=${TELE.cursor}`;
+                    const url = quiet ? window.teleSignalUrl(base, true) : base;
                     const res = await fetch(url);
                     if (!res.ok) throw new Error('poll ' + res.status);
                     const data = await res.json();
@@ -10852,6 +10857,7 @@
                         teleUpdateRouting(data.room);
                         if (data.room.vitals && TELE.role === 'doctor') teleRenderVitals(data.room.vitals);
                     }
+                    if (quiet) await window.teleSignalRest(true, (data.messages || []).length > 0);
                 } catch (err) {
                     console.warn('Mất tín hiệu signaling, đang thử lại...', err);
                     await new Promise(r => setTimeout(r, 2000));
@@ -11313,7 +11319,9 @@
         async function ghostPollLoop(token) {
             while (GHOST.polling && GHOST.pollToken === token) {
                 try {
-                    const url = `/api/signal?roomId=${encodeURIComponent(GHOST.roomId)}&peerId=${encodeURIComponent(GHOST.peerId)}&cursor=${GHOST.cursor}`;
+                    const quiet = typeof window.teleSignalQuiet === 'function' && window.teleSignalQuiet(GHOST.mesh);
+                    const base = `/api/signal?roomId=${encodeURIComponent(GHOST.roomId)}&peerId=${encodeURIComponent(GHOST.peerId)}&cursor=${GHOST.cursor}`;
+                    const url = quiet ? window.teleSignalUrl(base, true) : base;
                     const res = await fetch(url);
                     if (!res.ok) throw new Error('poll ' + res.status);
                     const data = await res.json();
@@ -11352,6 +11360,7 @@
                     ghostStatus(count
                         ? `Đang giám sát ${count} đầu cầu — các bên trong phòng không thấy sự có mặt của bạn.`
                         : 'Đã vào phòng ẩn danh, đang bắt tay nhận luồng...');
+                    if (quiet) await window.teleSignalRest(true, (data.messages || []).length > 0);
                 } catch (err) {
                     if (!GHOST.polling || GHOST.pollToken !== token) return;
                     console.warn('giám sát: mất tín hiệu, đang thử lại...', err && err.message);
@@ -12606,7 +12615,9 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
         async function cmsPollLoop(session, token) {
             while (session.polling && session.pollToken === token) {
                 try {
-                    const url = `/api/signal?roomId=${encodeURIComponent(session.roomId)}&peerId=${encodeURIComponent(session.peerId)}&cursor=${session.cursor}`;
+                    const quiet = typeof window.teleSignalQuiet === 'function' && window.teleSignalQuiet(session.mesh);
+                    const base = `/api/signal?roomId=${encodeURIComponent(session.roomId)}&peerId=${encodeURIComponent(session.peerId)}&cursor=${session.cursor}`;
+                    const url = quiet ? window.teleSignalUrl(base, true) : base;
                     const res = await fetch(url);
                     if (!res.ok) throw new Error('poll ' + res.status);
                     const data = await res.json();
@@ -12624,6 +12635,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                         session.vitals = data.room.vitals;
                         if (session.roomId === cmsFocusedRoomId) teleRenderVitals(session.vitals);
                     }
+                    if (quiet) await window.teleSignalRest(true, (data.messages || []).length > 0);
                 } catch (err) {
                     console.warn('Mất tín hiệu phòng', session.roomId, err);
                     await new Promise(r => setTimeout(r, 2000));
@@ -13142,12 +13154,13 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
         let cmsRingSoundOn = true;
         let cmsRingDismissed = [];
         let cmsKnownRooms = [];
-        /* Vân tay hàng đợi lần trước, gửi kèm lượt hỏi sau. Máy chủ giữ yêu cầu lại
-           cho tới khi hàng đợi thực sự đổi rồi mới trả lời, nên chuông đổ gần như
-           ngay lúc người dân bấm gọi thay vì phải đợi hết một chu kỳ 5 giây. */
+        // Số cuộc gọi chưa ai tiếp nhận - khi còn, màn trực hỏi dày hơn (4 giây).
+        let cmsUnansweredCount = 0;
+        /* Vân tay hàng đợi lần trước do máy chủ trả về. Màn trực nay hỏi ngắn theo
+           nhịp (không gửi lại vân tay để máy chủ giữ yêu cầu chờ), nên giá trị này
+           chỉ còn để đối chiếu. */
         let cmsQueueSig = null;
         let cmsWatchToken = 0;
-        let cmsWatchRunning = false;
 
         window.startCmsIncomingWatcher = function() {
             if (!cmsStandbyPeerId) {
@@ -13157,35 +13170,31 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
             // Bật trực là lúc hợp lý nhất để dựng đường thông báo đẩy.
             window.initCmsPushNotify();
             cmsWatchToken += 1;
-            cmsWatchLoop(cmsWatchToken);
-            // Lưới an toàn: vòng chờ dài đứt (tab ngủ, đổi mạng) thì vẫn có nhịp quét.
-            cmsIncomingTimer = setInterval(() => {
-                if (!cmsWatchRunning) cmsWatchLoop(cmsWatchToken);
-            }, 12000);
+            const token = cmsWatchToken;
+            /* Hỏi ngắn theo nhịp thay cho vòng long-poll liên tục cũ: vòng cũ giữ
+               một hàm Netlify chạy suốt thời gian CMS bật trực (khoảng 10 credit
+               mỗi giờ) và là nguyên nhân chính làm cạn credit. Nhịp: 8 giây khi tab
+               đang mở, 4 giây khi có cuộc gọi đang đổ chuông, 20 giây khi tab ẩn
+               (vẫn trong hạn 45 giây giữ trạng thái "đang trực"). Thông báo đẩy về
+               cuộc gọi mới làm trang hỏi lại ngay. */
+            const run = () => (cmsWatchToken === token ? window.refreshCmsIncomingCalls(false) : Promise.resolve(true));
+            if (typeof window.createStandbyPoller === 'function') {
+                cmsIncomingTimer = window.createStandbyPoller(run, { ringing: () => cmsUnansweredCount > 0 });
+                if (window.__standbyPollers) window.__standbyPollers.add(cmsIncomingTimer);
+            } else {
+                // app.js chưa nạp được: vẫn giữ một nhịp quét đơn giản.
+                run();
+                const id = setInterval(run, 8000);
+                cmsIncomingTimer = { kick: run, stop: () => clearInterval(id) };
+            }
         };
 
-        /** Vòng chờ dài: mỗi lượt trả về là hàng đợi vừa có thay đổi thật. */
-        async function cmsWatchLoop(token) {
-            if (cmsWatchRunning) return;
-            cmsWatchRunning = true;
-            let backoff = 0;
-            try {
-                // Lượt đầu không chờ - vẽ ngay hàng đợi hiện có.
-                await window.refreshCmsIncomingCalls(false);
-                while (cmsWatchToken === token && cmsIncomingTimer) {
-                    const ok = await window.refreshCmsIncomingCalls(true);
-                    if (ok) { backoff = 0; continue; }
-                    if (cmsWatchToken !== token) return;
-                    backoff = backoff ? Math.min(backoff * 2, 15000) : 2000;
-                    await new Promise(r => setTimeout(r, backoff));
-                }
-            } finally {
-                cmsWatchRunning = false;
-            }
-        }
-
         window.stopCmsIncomingWatcher = function() {
-            if (cmsIncomingTimer) { clearInterval(cmsIncomingTimer); cmsIncomingTimer = null; }
+            if (cmsIncomingTimer) {
+                if (window.__standbyPollers) window.__standbyPollers.delete(cmsIncomingTimer);
+                cmsIncomingTimer.stop();
+                cmsIncomingTimer = null;
+            }
             cmsWatchToken += 1;
             cmsQueueSig = null;
             if (cmsStandbyPeerId) {
@@ -13199,6 +13208,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                 cmsStandbyPeerId = null;
             }
             cmsKnownRooms = [];
+            cmsUnansweredCount = 0;
             cmsRingDismissed = [];
             cmsStopRingLoop();
             window.renderCmsRingBanner([]);
@@ -13568,6 +13578,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                     window.showToast(`Có ${fresh.length} cuộc gọi khám từ xa đang chờ tiếp nhận!`);
                 }
                 cmsKnownRooms = roomIds;
+                cmsUnansweredCount = rooms.filter(r => !r.hasDoctor).length;
                 cmsRingDismissed = cmsRingDismissed.filter(id => roomIds.includes(id));
                 window.renderCmsRingBanner(rooms);
 
