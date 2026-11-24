@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /bacsi
+Disallow: /chamcong
+Disallow: /cham-cong
+Disallow: /tram
+Disallow: /api/
+
+Sitemap: https://tytbatxat.org.vn/sitemap.xml

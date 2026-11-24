@@ -30,7 +30,7 @@ const PRIVATE_CONFIG_IDS = new Set(['auth-jwt-secret']);
 
 const defaultSigners = [
   { id: 'SIG1', name: 'BS. Nguyễn Thị Mai (Tư vấn Telehealth)', title: 'Bác sĩ', license: '001234/LCA-CCHN', workplace: 'Trạm Y tế Bát Xát', signature: '', isDefault: 'true', ts: Date.now() },
-  { id: 'SIG2', name: 'Trạm trưởng', title: 'BS. Trạm Trưởng', license: '001000/LCA-CCHN', workplace: 'Trạm Y tế Bát Xát', signature: '', isDefault: 'false', ts: Date.now() }
+  { id: 'SIG2', name: 'Phó giám đốc phụ trách', title: 'Phó giám đốc phụ trách', license: '001000/LCA-CCHN', workplace: 'Trạm Y tế Bát Xát', signature: '', isDefault: 'false', ts: Date.now() }
 ];
 
 const defaultNews = [
@@ -49,13 +49,13 @@ const defaultVaccines = [
 ];
 
 const defaultServices = [
-  { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'BS. Trạm Trưởng', zalo: '0382103002', ts: 3 },
+  { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'Phó giám đốc phụ trách', zalo: '0382103002', ts: 3 },
   { id: 'S2', name: 'Phòng Khám Sản - Phụ Khoa', person: 'Nữ hộ sinh chuyên trách', zalo: '0382103002', ts: 2 },
   { id: 'S3', name: 'Phòng Y Học Cổ Truyền', person: 'Cán bộ Đông Y', zalo: '0382103002', ts: 1 }
 ];
 
 const defaultContacts = [
-  { id: 'C1', name: 'BS. Trạm Trưởng', role: 'Trạm trưởng Trạm Y tế', phone: '0382103002', ts: 3 },
+  { id: 'C1', name: 'Phó giám đốc phụ trách', role: 'Phó giám đốc phụ trách Trạm Y tế', phone: '0382103002', ts: 3 },
   { id: 'C2', name: 'Nữ hộ sinh chuyên trách', role: 'Phòng Khám Sản - Phụ Khoa', phone: '0382103002', ts: 2 },
   { id: 'C3', name: 'Cán bộ Đông Y', role: 'Phòng Y Học Cổ Truyền', phone: '0382103002', ts: 1 }
 ];

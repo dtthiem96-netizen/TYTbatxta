@@ -2167,7 +2167,7 @@
                                 <span><a href="mailto:tytbatxat@laocai.gov.vn" class="font-bold break-all">tytbatxat@laocai.gov.vn</a></span>
                             </li>
                         </ul>
-                        <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="tyt-footer-btn mt-3">
+                        <a href="https://www.google.com/maps/search/?api=1&amp;query=Tr%E1%BA%A1m+Y+t%E1%BA%BF+B%C3%A1t+X%C3%A1t%2C+x%C3%A3+B%C3%A1t+X%C3%A1t%2C+L%C3%A0o+Cai" target="_blank" rel="noopener noreferrer" class="tyt-footer-btn mt-3">
                             <i class="fas fa-map-marked-alt"></i> <span>Xem bản đồ chỉ đường</span>
                         </a>
                     </div>
@@ -2240,7 +2240,7 @@
 
                 <div class="tyt-footer-bottom">
                     <p>&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
-                    <a href="#">Chính sách bảo mật</a>
+                    <a href="/chinh-sach-bao-mat.html">Chính sách bảo mật</a>
                 </div>
             </div>
         </footer>
@@ -2795,7 +2795,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">Địa chỉ người gửi</label>
-                                <input type="text" id="sender-address" name="sender_address" aria-label="Địa chỉ người gửi" required placeholder="Thôn bản, xã, thị trấn..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
+                                <input type="text" id="sender-address" name="sender_address" aria-label="Địa chỉ người gửi" required placeholder="Thôn/bản, xã/phường..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">Vị trí nơi phản ánh</label>
@@ -4152,7 +4152,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-address">5. Địa chỉ (số nhà, thôn/tổ, xã/phường, huyện, tỉnh):</label>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-address">5. Địa chỉ (số nhà, thôn/tổ, xã/phường, tỉnh):</label>
                         <input type="text" id="rpt-edit-address" placeholder="Thôn ..., Xã Bát Xát, tỉnh Lào Cai" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -4556,7 +4556,7 @@
                         <form onsubmit="window.handleAddContact(event)" class="bg-emerald-50 p-5 rounded-xl border border-emerald-200 mb-6">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-name">Họ tên Cán bộ</label><input type="text" id="cnt-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: BS. Nguyễn Văn A"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-role">Chức vụ/ Bộ phận</label><input type="text" id="cnt-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: Trạm trưởng Trạm Y tế"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-role">Chức vụ/ Bộ phận</label><input type="text" id="cnt-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: Phó giám đốc phụ trách"></div>
                                 <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-phone">Số điện thoại liên hệ</label><input type="tel" id="cnt-phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: 0382103002"></div>
                             </div>
                             <div class="flex gap-3">
@@ -4647,7 +4647,7 @@
                         <!-- Cảnh báo nếu tài khoản không có quyền -->
                         <div id="cms-no-permission-alert" class="hidden bg-amber-50 border-l-4 border-amber-500 text-amber-900 p-4 rounded-r-xl mb-6 text-sm font-medium">
                             <div class="flex items-center gap-2 font-bold mb-1"><i class="fas fa-exclamation-triangle text-amber-600 text-lg"></i> Chưa được cấp quyền nhận cuộc gọi Video Telehealth!</div>
-                            Tài khoản hiện tại chưa được phân quyền tiếp nhận cuộc gọi video trực tiếp. Vui lòng liên hệ Trạm trưởng hoặc Quản trị viên tại mục <b>Phân quyền Hệ thống</b> để kích hoạt quyền <code>canReceiveVideo</code>.
+                            Tài khoản hiện tại chưa được phân quyền tiếp nhận cuộc gọi video trực tiếp. Vui lòng liên hệ Phó giám đốc phụ trách hoặc Quản trị viên tại mục <b>Phân quyền Hệ thống</b> để kích hoạt quyền <code>canReceiveVideo</code>.
                         </div>
 
                         <!-- HÀNG ĐỢI CUỘC GỌI ĐANG CHỜ BÁC SĨ TIẾP NHẬN -->
@@ -5356,7 +5356,7 @@
 
         // 1. CƠ SỞ DỮ LIỆU LOCAL/FALLBACK
         let serviceManagers = [
-            { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'BS. Trạm Trưởng', zalo: '0382103002' },
+            { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'Phó giám đốc phụ trách', zalo: '0382103002' },
             { id: 'S2', name: 'Phòng Khám Sản - Phụ Khoa', person: 'Nữ hộ sinh chuyên trách', zalo: '0382103002' },
             { id: 'S3', name: 'Phòng Y Học Cổ Truyền', person: 'Cán bộ Đông Y', zalo: '0382103002' }
         ];
@@ -5390,7 +5390,7 @@
         ];
 
         let contactsData = [
-            { id: 'C1', name: 'BS. Trạm Trưởng', role: 'Trạm trưởng Trạm Y tế', phone: '0382103002', ts: 3 },
+            { id: 'C1', name: 'Phó giám đốc phụ trách', role: 'Phó giám đốc phụ trách Trạm Y tế', phone: '0382103002', ts: 3 },
             { id: 'C2', name: 'Nữ hộ sinh chuyên trách', role: 'Phòng Khám Sản - Phụ Khoa', phone: '0382103002', ts: 2 },
             { id: 'C3', name: 'Cán bộ Đông Y', role: 'Phòng Y Học Cổ Truyền', phone: '0382103002', ts: 1 }
         ];
@@ -13327,7 +13327,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
         window.handleBookingSubmit = function(e) {
             e.preventDefault();
             const deptSelect = document.getElementById('booking-dept');
-            const dept = serviceManagers.find(s => s.id === (deptSelect ? deptSelect.value : '')) || { name: 'Khoa Khám Bệnh', person: 'BS. Trạm Trưởng', zalo: '0382103002' };
+            const dept = serviceManagers.find(s => s.id === (deptSelect ? deptSelect.value : '')) || { name: 'Khoa Khám Bệnh', person: 'Phó giám đốc phụ trách', zalo: '0382103002' };
             
             const name = document.getElementById('booking-name').value;
             const phone = document.getElementById('booking-phone').value;
