@@ -14591,7 +14591,26 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
                        nhạc thì vẫn tôn trọng lựa chọn đó. */
                     const unlockEvents = ['pointerdown', 'touchend', 'keydown'];
                     const stopListening = () => unlockEvents.forEach(ev => document.removeEventListener(ev, startAudioOnInteraction, true));
+                    /* Nhạc nền KHÔNG được chạy khi đang gọi khám từ xa hay đang làm việc
+                       trong CMS: tiếng nhạc lọt vào micro, lấn tiếng nói, và bộ chống
+                       hú coi giai điệu là tiếng hú nên ghìm luôn micro. Mọi lần mở
+                       camera/micro đều dừng nhạc ngay. */
+                    const inCallOrAdmin = () => {
+                        try {
+                            if (document.querySelector('#admin-dashboard:not(.hidden)')) return true;
+                            return [...document.querySelectorAll('video')].some(v => v.srcObject);
+                        } catch (e) { return false; }
+                    };
+                    try {
+                        const md = navigator.mediaDevices;
+                        if (md && md.getUserMedia && !md.__tytMusicHook) {
+                            const orig = md.getUserMedia.bind(md);
+                            md.getUserMedia = function(c) { try { audio.pause(); } catch (e) {} return orig(c); };
+                            md.__tytMusicHook = true;
+                        }
+                    } catch (e) {}
                     const startAudioOnInteraction = (ev) => {
+                        if (inCallOrAdmin()) return;
                         if (isMuted || !audio.paused) { stopListening(); return; }
                         // Bấm vào chính khung nhạc thì để nút Phát/Tạm dừng tự xử lý.
                         if (ev && ev.target && ev.target.closest && ev.target.closest('#bg-music-player')) { stopListening(); return; }
