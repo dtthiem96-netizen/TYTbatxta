@@ -69,17 +69,41 @@ async function sourceUrl(): Promise<string> {
     throw new Error("Chưa có NETLIFY_TOKEN và NETLIFY_SITE_ID (hoặc SOURCE_DATABASE_URL) để đọc Netlify Database.");
   }
   const base = env("NETLIFY_API_URL") || "https://api.netlify.com";
-  const res = await fetch(`${base}/api/v1/sites/${site}/database`, { headers: { authorization: `Bearer ${token}` } });
+  const res = await fetch(`${base}/api/v1/sites/${site}/database`, {
+    headers: { authorization: `Bearer ${token}`, accept: "application/json" }
+  });
   if (!res.ok) {
     const hint = res.status === 401 || res.status === 403
       ? "mã truy cập Netlify sai hoặc không đủ quyền"
-      : res.status === 404 ? "không tìm thấy cơ sở dữ liệu của site (kiểm tra NETLIFY_SITE_ID)" : "Netlify chưa trả lời được";
-    throw new Error(`Netlify API trả ${res.status}: ${hint}.`);
+      : res.status === 404 ? "không tìm thấy cơ sở dữ liệu của site (kiểm tra NETLIFY_SITE_ID)" : "Netlify từ chối yêu cầu";
+    const said = await netlifyMessage(res);
+    throw new Error(`Netlify API trả ${res.status}: ${hint}.${said ? ` Netlify ghi: "${said}".` : ""}`);
   }
   const data = await res.json() as Record<string, unknown>;
   const url = String(data.connection_string || data.connectionString || "");
   if (!url) throw new Error("Netlify API không trả chuỗi kết nối (cơ sở dữ liệu có thể đang bị tắt).");
   return url;
+}
+
+/**
+ * Lời giải thích Netlify gửi kèm mã lỗi (thường là JSON {code, message}), để
+ * người quản trị thấy lý do thật thay vì chỉ một con số. Cắt ngắn và che mọi
+ * thứ trông như chuỗi kết nối, phòng khi Netlify trả kèm mật khẩu.
+ */
+async function netlifyMessage(res: Response): Promise<string> {
+  const raw = await res.text().catch(() => "");
+  let text = raw;
+  try {
+    const data = JSON.parse(raw) as Record<string, unknown>;
+    text = String(data.message || data.error || data.errors || raw);
+  } catch {
+    // Không phải JSON: giữ nguyên văn bản.
+  }
+  return text
+    .replace(/postgres(ql)?:\/\/\S+/gi, "[chuỗi kết nối]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 300);
 }
 
 async function sourceSql(): Promise<postgres.Sql> {
