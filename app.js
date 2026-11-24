@@ -307,6 +307,7 @@ async function startTeleconsultation(targetRoomId) {
   if (!roomId) roomId = defaultRoomForStation(stationCode);
 
   callActive = true;
+  CallAudio.prime();
   // Lời mời hội chẩn của lượt khám trước không được dính sang bệnh nhân mới.
   consultRequested = false;
   consultRequestedBy = '';
@@ -1097,6 +1098,8 @@ async function claimPatientCall(targetRoomId) {
 async function acceptPatientCall(targetRoomId, patientName, symptoms, patientIdCardValue) {
   if (!targetRoomId) return;
 
+  // Đánh thức bộ xử lý tiếng ngay trong cú bấm (xem CallAudio.prime).
+  CallAudio.prime();
   // Mở camera song song với lượt xin quyền tiếp nhận (xem cameraPrewarm).
   prewarmLocalCamera();
   const claim = await claimPatientCall(targetRoomId);
@@ -1832,7 +1835,11 @@ const CallAudio = (function createCallAudioEngine() {
   }
 
   function getState() {
-    return Object.assign({}, settings, metrics, { profileLabel: profile().label });
+    return Object.assign({}, settings, metrics, {
+      profileLabel: profile().label,
+      // Đang gọi mà bộ xử lý tiếng bị trình duyệt tạm dừng = đầu kia không nghe thấy gì.
+      suspended: !!(chain && ctx && ctx.state !== 'running')
+    });
   }
 
   function ensureContext() {
@@ -1846,7 +1853,40 @@ const CallAudio = (function createCallAudioEngine() {
     } catch (err) {
       try { ctx = new Ctor(); } catch (err2) { ctx = null; }
     }
+    if (ctx) {
+      try { ctx.onstatechange = () => notify(true); } catch (err) {}
+    }
     return ctx;
+  }
+
+  /*
+   * MICRO "IM LẶNG" VÌ BỘ XỬ LÝ ÂM THANH BỊ TẠM DỪNG
+   *
+   * Tiếng mic đi qua chuỗi lọc Web Audio rồi mới sang đầu kia. Trình duyệt (rõ
+   * nhất là Safari trên iPad/iPhone/Mac) chỉ cho bộ xử lý này chạy nếu nó được
+   * tạo hoặc "đánh thức" ngay trong một cú bấm của người dùng. Trước đây bộ xử
+   * lý được tạo SAU khi chờ máy chủ và chờ mở camera - lúc đó cú bấm "Tiếp nhận"
+   * đã hết hiệu lực, bộ xử lý nằm ở trạng thái tạm dừng và đầu kia nhận được
+   * một luồng tiếng câm: "micro không bắt âm thanh".
+   *
+   * Nay: (1) prime() tạo và đánh thức bộ xử lý ngay trong cú bấm tiếp nhận/bắt
+   * đầu gọi; (2) bất kỳ cú bấm/phím nào sau đó cũng đánh thức lại nếu nó vẫn bị
+   * dừng; (3) trạng thái "bị tạm dừng" được báo lên giao diện để cán bộ biết.
+   */
+  function prime() {
+    const c = ensureContext();
+    if (c && c.state === 'suspended' && typeof c.resume === 'function') c.resume().catch(() => {});
+  }
+
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    const wake = () => {
+      if (ctx && ctx.state !== 'running' && ctx.state !== 'closed' && typeof ctx.resume === 'function') {
+        ctx.resume().catch(() => {});
+      }
+    };
+    ['pointerdown', 'touchend', 'keydown'].forEach(ev => {
+      try { document.addEventListener(ev, wake, { capture: true, passive: true }); } catch (err) {}
+    });
   }
 
   function resumeContext() {
@@ -2415,6 +2455,7 @@ const CallAudio = (function createCallAudioEngine() {
   return {
     profiles: CALL_AUDIO_PROFILES,
     constraints,
+    prime,
     attachLocal,
     detachLocal,
     attachRemote,
@@ -2534,6 +2575,7 @@ function renderAudioPanel(state) {
   if (status) {
     let text;
     if (!s.active) text = 'Chưa gọi - bộ lọc sẽ chạy khi bắt đầu cuộc gọi.';
+    else if (s.suspended) text = 'Trình duyệt đang tạm dừng micro - bấm vào bất kỳ đâu trên trang để bật lại.';
     else if (s.howling) text = `Vừa chặn một cú hú ở ~${s.howlHz} Hz - đã hạ loa một nấc.`;
     else if (s.ducking) text = 'Bác sĩ đang nói - mic hạ tạm để không dội tiếng ngược lại.';
     else if (s.gateOpen) text = 'Đang truyền lời thoại.';

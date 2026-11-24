@@ -4813,6 +4813,32 @@
                                         </button>
                                     </div>
 
+                                    <!-- Micro & lọc tạp âm của cán bộ CMS: vạch mức cho biết micro có đang
+                                         bắt tiếng không, kèm chọn mức lọc tạp âm và giảm vang. -->
+                                    <div id="cms-audio-strip" class="flex flex-wrap items-center gap-3 bg-slate-900 px-4 py-3 rounded-2xl border border-slate-800 text-xs text-slate-300">
+                                        <span class="flex items-center gap-2 font-bold text-white"><i class="fas fa-microphone text-emerald-400"></i> Micro</span>
+                                        <div class="h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700" style="flex:1 1 8rem;min-width:8rem">
+                                            <div id="cms-mic-meter" class="h-full rounded-full bg-slate-600 transition-all duration-75" style="width: 0%"></div>
+                                        </div>
+                                        <span id="cms-audio-status" class="text-slate-400" style="flex:1 1 14rem">Chưa gọi - micro và bộ lọc chạy khi tiếp nhận cuộc gọi.</span>
+                                        <label class="flex items-center gap-2" for="cms-noise-select">
+                                            <i class="fas fa-wave-square text-blue-400"></i> Lọc tạp âm
+                                            <select id="cms-noise-select" onchange="window.setPatientNoiseProfile(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500">
+                                                <option value="off">Tắt</option>
+                                                <option value="medium" selected>Vừa (khuyến nghị)</option>
+                                                <option value="strong">Mạnh (phòng ồn)</option>
+                                            </select>
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer" for="cms-duck-check">
+                                            <input type="checkbox" id="cms-duck-check" checked onchange="window.CallAudio &amp;&amp; window.CallAudio.setDuck(this.checked)" class="accent-blue-500">
+                                            Giảm vang
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer" for="cms-howl-check">
+                                            <input type="checkbox" id="cms-howl-check" checked onchange="window.CallAudio &amp;&amp; window.CallAudio.setAntiHowl(this.checked)" class="accent-blue-500">
+                                            Chống hú
+                                        </label>
+                                    </div>
+
                                     <!-- Sinh hiệu nhận từ điểm trạm (đồng bộ thời gian thực) -->
                                     <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
                                         <div class="flex items-center justify-between mb-3">
@@ -10305,13 +10331,55 @@
             if (sel && sel.value !== s.profile) sel.value = s.profile;
             const hint = document.getElementById('patient-audio-hint');
             if (hint) {
-                if (s.howling) hint.textContent = 'Đang có tiếng hú - máy đã tự hạ loa. Hãy đưa điện thoại ra xa loa ngoài.';
+                if (s.suspended) hint.textContent = 'Micro đang bị trình duyệt tạm dừng - chạm vào màn hình một lần để bật lại.';
+                else if (s.howling) hint.textContent = 'Đang có tiếng hú - máy đã tự hạ loa. Hãy đưa điện thoại ra xa loa ngoài.';
                 else if (s.ducking) hint.textContent = 'Cán bộ y tế đang nói - micro tạm hạ để không dội tiếng.';
                 else hint.textContent = 'Nếu nghe vang hoặc hú: hạ âm lượng loa hoặc dùng tai nghe.';
             }
         }
 
+        /* Vạch mức micro + trạng thái lọc trên màn hình khám của CMS. */
+        function cmsPaintAudioStrip(s) {
+            const meter = document.getElementById('cms-mic-meter');
+            if (!meter) return;
+            meter.style.width = `${Math.round(Math.min(1, s.micLevel || 0) * 100)}%`;
+            meter.className = 'h-full rounded-full transition-all duration-75 ' + (s.howling ? 'bg-rose-500' : (s.gateOpen ? 'bg-emerald-500' : 'bg-slate-600'));
+            const status = document.getElementById('cms-audio-status');
+            if (status) {
+                let text;
+                if (!s.active) text = 'Chưa gọi - micro và bộ lọc chạy khi tiếp nhận cuộc gọi.';
+                else if (s.suspended) text = 'Trình duyệt đang tạm dừng micro - bấm vào bất kỳ đâu trên trang để bật lại.';
+                else if (s.howling) text = `Vừa chặn tiếng hú ~${s.howlHz} Hz.`;
+                else if (s.ducking) text = 'Đầu bên kia đang nói - micro tạm hạ để không dội tiếng.';
+                else if (s.gateOpen) text = 'Micro đang bắt tiếng nói.';
+                // Nền ồn chạm đáy -88 dB trở xuống = tín hiệu gần như bằng 0 tuyệt đối:
+                // phòng yên tĩnh đến đâu cũng không im đến thế, đó là micro không thu.
+                else if (s.noiseFloorDb <= -88) text = 'Micro chưa nhận được âm thanh - kiểm tra micro đã cắm/bật, hoặc quyền micro của trình duyệt.';
+                else text = `Đang lọc tiếng nền (nền ~${Math.round(s.noiseFloorDb)} dB).`;
+                status.textContent = text;
+            }
+            const sel = document.getElementById('cms-noise-select');
+            if (sel && sel.value !== s.profile) sel.value = s.profile;
+            const duck = document.getElementById('cms-duck-check');
+            if (duck) duck.checked = !!s.duck;
+            const howl = document.getElementById('cms-howl-check');
+            if (howl) howl.checked = !!s.antiHowl;
+        }
+        function cmsBindAudioStrip() {
+            const engine = window.CallAudio;
+            if (!engine || !engine.onUpdate || cmsBindAudioStrip.done) return;
+            cmsBindAudioStrip.done = true;
+            engine.onUpdate(cmsPaintAudioStrip);
+            cmsPaintAudioStrip(engine.getState());
+        }
+        // app.js (nơi có bộ xử lý tiếng) nạp kiểu defer, chạy xong trước DOMContentLoaded.
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cmsBindAudioStrip);
+        else cmsBindAudioStrip();
+        window.addEventListener('load', cmsBindAudioStrip);
+
         async function teleAcquireMedia() {
+            // Đánh thức bộ xử lý tiếng càng sớm càng tốt, khi cú bấm gọi còn hiệu lực.
+            if (teleAudio().prime) teleAudio().prime();
             const audioConstraints = teleAudio().constraints();
             // Xin đúng một cấu hình khung hình ngay từ đầu (khuôn góc rộng, kèm
             // trần số khung hình) để trình duyệt không phải khởi động lại camera
@@ -12205,6 +12273,10 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
         function cmsEnsureSharedMedia() {
             if (cmsSharedStream) return Promise.resolve(cmsSharedStream);
             if (cmsSharedStreamPromise) return cmsSharedStreamPromise;
+            // Gọi ngay trong cú bấm "Tiếp nhận": bộ xử lý tiếng phải được đánh thức
+            // lúc này, nếu không Safari để nó tạm dừng và bệnh nhân không nghe thấy gì.
+            if (teleAudio().prime) teleAudio().prime();
+            cmsBindAudioStrip();
             const audioConstraints = teleAudio().constraints();
             const videoConstraints = teleWideVideo();
             cmsSharedStreamPromise = navigator.mediaDevices
