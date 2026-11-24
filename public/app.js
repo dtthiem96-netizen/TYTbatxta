@@ -134,6 +134,11 @@ let peerMesh = null;
 /** Đầu cầu đang chiếm khung hình lớn; những đầu cầu khác nằm ở dải ô nhỏ. */
 let activePeerId = null;
 let localStream = null;
+/* Camera/micro mở sẵn ngay lúc bấm "Tiếp nhận", chạy song song với lượt xin quyền
+   tiếp nhận ở máy chủ. Trước đây hai bước nối tiếp nhau: chờ máy chủ trả lời
+   (một vòng mạng, lâu hơn nhiều khi hàm vừa "ngủ dậy") rồi mới bắt đầu mở camera
+   (thường 1-2 giây) - nên hình lên chậm cả hai khoảng đó cộng lại. */
+let cameraPrewarm = null;
 /**
  * Luồng THỰC SỰ gửi đi: tiếng đã qua chuỗi lọc chống vang/chống hú của
  * CallAudio, kèm nguyên các track hình. Tách khỏi `localStream` vì `localStream`
@@ -378,6 +383,7 @@ function endTeleconsultation(options) {
 
 /** Trả camera/micro về cho hệ điều hành và xoá hình xem trước tại chỗ. */
 function releaseLocalMedia() {
+  discardCameraPrewarm();
   try { CallAudio.release(); } catch (err) {}
   if (localStream) {
     localStream.getTracks().forEach(track => {
@@ -1091,8 +1097,10 @@ async function claimPatientCall(targetRoomId) {
 async function acceptPatientCall(targetRoomId, patientName, symptoms, patientIdCardValue) {
   if (!targetRoomId) return;
 
+  // Mở camera song song với lượt xin quyền tiếp nhận (xem cameraPrewarm).
+  prewarmLocalCamera();
   const claim = await claimPatientCall(targetRoomId);
-  if (!claim.ok) return;
+  if (!claim.ok) { discardCameraPrewarm(); return; }
   if (claim.offline) {
     showAlertBanner('Không liên lạc được máy chủ điều phối, vẫn đang kết nối trực tiếp với người dân.');
   }
@@ -3465,12 +3473,32 @@ function unregisterPeer(peerIdLeft) {
   renderPeerLayout();
 }
 
+/** Bắt đầu mở camera/micro sớm (không chặn). Chỉ dùng cho lượt mở đầu tiên. */
+function prewarmLocalCamera() {
+  if (cameraPrewarm || localStream || callActive) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  cameraPrewarm = navigator.mediaDevices.getUserMedia({
+    audio: CallAudio.constraints(),
+    video: wideVideoConstraints()
+  }).catch(() => null);
+}
+
+/** Máy chủ không trao cuộc gọi: trả lại camera/micro đã mở sẵn. */
+function discardCameraPrewarm() {
+  const pending = cameraPrewarm;
+  cameraPrewarm = null;
+  if (pending) pending.then(stream => {
+    if (stream) stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+  });
+}
+
 // 3. Local Camera & Dual-Camera Switcher Logic
 async function initLocalCamera(deviceId = null) {
   // Chỉ mở thiết bị khi đang trong phiên gọi. Đây là nơi duy nhất gọi
   // getUserMedia trong bảng điều khiển, nên rào ở đây là rào được tất cả.
   if (!callActive) {
     console.warn('Bỏ qua initLocalCamera(): chưa bắt đầu cuộc gọi khám từ xa.');
+    discardCameraPrewarm();
     return;
   }
 
@@ -3531,7 +3559,13 @@ async function initLocalCamera(deviceId = null) {
   }
   CallAudio.detachLocal();
 
-  try {
+  // Luồng đã mở sẵn lúc bấm "Tiếp nhận" thì dùng luôn, khỏi xin lại thiết bị.
+  const warmed = (!deviceId && cameraPrewarm) ? await cameraPrewarm : null;
+  cameraPrewarm = null;
+
+  if (warmed) {
+    localStream = warmed;
+  } else try {
     // Xin đúng một cấu hình ngay từ đầu (khuôn góc rộng + trần số khung hình)
     // để trình duyệt không phải khởi động camera lần hai - đây là khâu chiếm
     // nhiều thời gian nhất khi bắt đầu cuộc gọi.
