@@ -2632,6 +2632,129 @@ CallAudio.onUpdate((state) => {
    Dấu `hidden` chỉ được đặt từ cờ `ghost` do MÁY CHỦ đóng vào bản tin (xem
    netlify/functions/signal.ts), không phải từ lời khai của bên gửi.
    ========================================================================== */
+/* ==========================================================================
+   CHẤT LƯỢNG ĐƯỜNG TRUYỀN KHÁM TỪ XA
+   --------------------------------------------------------------------------
+   Mỗi 3 giây đọc getStats() của các kết nối đang thông, tính độ trễ khứ hồi
+   (RTT), tỷ lệ mất gói, băng thông gửi/nhận và loại đường đi (nối thẳng hay
+   chuyển tiếp qua TURN). Kết quả hiện ở một nhãn nhỏ góc trên màn hình trong
+   lúc gọi, để cán bộ biết ngay hình giật là do mạng chứ không phải do máy, và
+   phát sự kiện window 'tele-quality' cho màn hình nào muốn tự hiển thị.
+   Kết nối ẩn (giám sát) không được tính và không làm nhãn hiện ra.
+   ========================================================================== */
+window.TeleQuality = (function () {
+  const meshes = new Map(); // id lưới -> tóm tắt mới nhất
+  let pill = null;
+
+  function grade(s) {
+    if (s.rttMs == null && s.lossPct == null) return 'unknown';
+    const rtt = s.rttMs == null ? 0 : s.rttMs;
+    const loss = s.lossPct == null ? 0 : s.lossPct;
+    if (rtt < 250 && loss < 2) return 'good';
+    if (rtt < 500 && loss < 8) return 'fair';
+    return 'poor';
+  }
+  const LABEL = { good: 'Tốt', fair: 'Trung bình', poor: 'Yếu', unknown: 'Đang đo' };
+  const COLOR = { good: '#059669', fair: '#d97706', poor: '#dc2626', unknown: '#475569' };
+  const mbps = (kbps) => kbps == null ? '–' : (kbps >= 1000 ? (kbps / 1000).toFixed(1) + ' Mb/s' : Math.round(kbps) + ' kb/s');
+
+  function render() {
+    const all = Array.from(meshes.values()).filter(Boolean);
+    if (!all.length) { if (pill) pill.style.display = 'none'; return; }
+    // Hiện kết nối tệ nhất: một bên yếu là cả buổi khám bị ảnh hưởng.
+    const order = { poor: 3, fair: 2, unknown: 1, good: 0 };
+    const worst = all.sort((a, b) => order[b.grade] - order[a.grade])[0];
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.id = 'tele-quality-pill';
+      pill.setAttribute('role', 'status');
+      pill.setAttribute('aria-live', 'polite');
+      pill.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:10050;' +
+        'background:rgba(15,23,42,.92);color:#fff;font:600 12px/1.3 Inter,system-ui,sans-serif;' +
+        'padding:6px 12px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;' +
+        'max-width:calc(100vw - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      document.body.appendChild(pill);
+    }
+    const parts = [
+      `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLOR[worst.grade]};margin-right:6px"></span>Đường truyền: <b>${LABEL[worst.grade]}</b>`,
+      worst.rttMs != null ? `${Math.round(worst.rttMs)} ms` : null,
+      `↑ ${mbps(worst.sendKbps)} ↓ ${mbps(worst.recvKbps)}`,
+      worst.lossPct != null ? `mất gói ${worst.lossPct.toFixed(1)}%` : null,
+      worst.relay ? 'qua máy chủ chuyển tiếp' : null,
+      worst.limited === 'bandwidth' ? 'đang hạ chất lượng hình vì mạng chậm' : (worst.limited === 'cpu' ? 'máy đang quá tải' : null)
+    ].filter(Boolean);
+    pill.innerHTML = parts.join(' · ');
+    pill.title = parts.join(' · ').replace(/<[^>]+>/g, '');
+    pill.style.display = 'block';
+  }
+
+  /** Đọc số liệu của một RTCPeerConnection; prev giữ mốc lần trước để tính chênh lệch. */
+  async function sample(pc, prev) {
+    const out = { rttMs: null, lossPct: null, sendKbps: null, recvKbps: null, relay: false, limited: null, availKbps: null };
+    let report;
+    try { report = await pc.getStats(); } catch (err) { return { out, mark: prev }; }
+    const now = performance.now();
+    const mark = { t: now, sent: 0, recv: 0, lost: 0, got: 0 };
+    let pairId = null;
+    report.forEach(r => { if (r.type === 'transport' && r.selectedCandidatePairId) pairId = r.selectedCandidatePairId; });
+    report.forEach(r => {
+      if (r.type === 'candidate-pair' && (r.id === pairId || (!pairId && r.nominated && r.state === 'succeeded'))) {
+        if (typeof r.currentRoundTripTime === 'number') out.rttMs = r.currentRoundTripTime * 1000;
+        if (typeof r.availableOutgoingBitrate === 'number') out.availKbps = r.availableOutgoingBitrate / 1000;
+        const local = report.get(r.localCandidateId);
+        const remote = report.get(r.remoteCandidateId);
+        out.relay = !!((local && local.candidateType === 'relay') || (remote && remote.candidateType === 'relay'));
+      }
+      if (r.type === 'outbound-rtp' && !r.isRemote) {
+        mark.sent += r.bytesSent || 0;
+        if (r.kind === 'video' && r.qualityLimitationReason && r.qualityLimitationReason !== 'none') out.limited = r.qualityLimitationReason;
+      }
+      if (r.type === 'inbound-rtp' && !r.isRemote) {
+        mark.recv += r.bytesReceived || 0;
+        mark.lost += Math.max(0, r.packetsLost || 0);
+        mark.got += r.packetsReceived || 0;
+      }
+    });
+    if (prev && now > prev.t) {
+      const sec = (now - prev.t) / 1000;
+      out.sendKbps = Math.max(0, (mark.sent - prev.sent) * 8 / 1000 / sec);
+      out.recvKbps = Math.max(0, (mark.recv - prev.recv) * 8 / 1000 / sec);
+      const lost = mark.lost - prev.lost, got = mark.got - prev.got;
+      if (lost + got > 20) out.lossPct = Math.max(0, lost * 100 / (lost + got));
+    }
+    return { out, mark };
+  }
+
+  let seq = 0;
+  return {
+    /** Gắn bộ đo vào một lưới; getLinks() trả về các kết nối đang có. */
+    watch(getLinks) {
+      const id = ++seq;
+      const marks = new WeakMap();
+      let timer = null;
+      async function tick() {
+        const links = getLinks().filter(l => l && l.pc && !l.hidden && l.connected);
+        if (!links.length) { meshes.delete(id); render(); return; }
+        let worst = null;
+        for (const link of links) {
+          const { out, mark } = await sample(link.pc, marks.get(link.pc));
+          marks.set(link.pc, mark);
+          out.grade = grade(out);
+          out.peer = link.name;
+          if (!worst || ({ poor: 3, fair: 2, unknown: 1, good: 0 })[out.grade] > ({ poor: 3, fair: 2, unknown: 1, good: 0 })[worst.grade]) worst = out;
+        }
+        meshes.set(id, worst);
+        render();
+        try { window.dispatchEvent(new CustomEvent('tele-quality', { detail: worst })); } catch (err) {}
+      }
+      return {
+        start() { if (!timer) timer = setInterval(tick, 3000); },
+        stop() { if (timer) { clearInterval(timer); timer = null; } meshes.delete(id); render(); }
+      };
+    }
+  };
+})();
+
 window.TeleMesh = function createPeerMesh(config) {
   const cfg = Object.assign({
     selfId: '',
@@ -2646,6 +2769,7 @@ window.TeleMesh = function createPeerMesh(config) {
   }, config || {});
 
   const links = new Map();
+  const quality = window.TeleQuality ? window.TeleQuality.watch(() => Array.from(links.values())) : null;
 
   const supported = typeof RTCPeerConnection === 'function'
     && typeof RTCSessionDescription === 'function'
@@ -2775,7 +2899,7 @@ window.TeleMesh = function createPeerMesh(config) {
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       link.connected = state === 'connected';
-      if (state === 'connected') link.negotiationArmed = true;
+      if (state === 'connected') { link.negotiationArmed = true; if (quality && !link.hidden) quality.start(); }
       notify(link, () => cfg.onStateChange(link, state));
       if (state === 'failed') {
         try { pc.restartIce(); } catch (err) {}
@@ -2839,6 +2963,7 @@ window.TeleMesh = function createPeerMesh(config) {
       link.pc.close();
     } catch (err) {}
     links.delete(peerId);
+    if (quality && !Array.from(links.values()).some(l => l.connected && !l.hidden)) quality.stop();
     notify(link, () => cfg.onPeersChanged(list()));
   }
 
@@ -3114,6 +3239,17 @@ const TELE_ICE_CONFIG = {
   bundlePolicy: 'max-bundle',
   rtcpMuxPolicy: 'require'
 };
+
+/* Thay danh sách STUN mặc định bằng danh sách do máy chủ cấp (/api/ice), có thêm
+   TURN khi đã cấu hình - mạng 4G/CGNAT không nối thẳng được thì luồng hình đi
+   qua máy chủ chuyển tiếp. Trang chính đã khởi động lượt tải này sớm hơn
+   (window.tytIceServersPromise); trang bác sĩ thì tải ở đây. Lỗi mạng giữ nguyên STUN. */
+window.tytIceServersPromise = window.tytIceServersPromise || fetch('/api/ice', { cache: 'no-store' })
+  .then(res => (res.ok ? res.json() : null))
+  .catch(() => null);
+window.tytIceServersPromise.then(data => {
+  if (data && Array.isArray(data.iceServers) && data.iceServers.length) TELE_ICE_CONFIG.iceServers = data.iceServers;
+});
 
 /** Vai trò mà khung hình lớn của màn hình này ưu tiên hiển thị. */
 function preferredPrimaryRole() {

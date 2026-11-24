@@ -84,7 +84,7 @@
     <!-- THƯ VIỆN GIAO DIỆN -->
     <!-- Hộp đổi mật khẩu dùng chung: bắt buộc đổi mật khẩu tạm ở mọi cổng đăng nhập. -->
     <script src="/assets/password-change.js" defer></script>
-    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124">
+    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     
@@ -113,6 +113,9 @@
         .markdown-body br { margin-bottom: 8px; content: ""; display: block; }
         .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
         .admin-tab { display: none; }
+        /* Trong CMS: ẩn các nút nổi của trang công khai (góp ý, trợ lý AI, Zalo, nhạc nền)
+           - chúng đè lên nút Sửa/Xóa ở góc bảng quản trị. */
+        body:has(#admin-dashboard:not(.hidden)) :is(.feedback-btn, #tyt-fab-ai, #tyt-fab-zalo, #bg-music-player, #ai-chat-window) { display: none !important; }
         .admin-tab.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -4325,26 +4328,34 @@
         
         <div class="flex-1 flex flex-col lg:flex-row max-w-[1400px] mx-auto w-full p-4 gap-6 mt-2 relative">
             
-            <!-- ADMIN SIDEBAR NAVIGATION -->
-            <div class="w-full lg:w-72 bg-white rounded-2xl shadow-sm p-5 h-fit border border-gray-200">
-                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 pl-2">Hạng mục cấu hình</h2>
-                <ul class="space-y-2">
-                    <li><a href="#" onclick="window.switchAdminTab('news')" id="tab-btn-news" class="block p-3.5 bg-medical-50 text-medical-700 rounded-xl font-bold border-l-4 border-medical-600 shadow-sm transition"><i class="fas fa-newspaper mr-3"></i> Quản lý Bản tin & Thông báo</a></li>
-                    <li class="hidden"><a href="#" onclick="window.switchAdminTab('vaccine')" id="tab-btn-vaccine" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-bullhorn mr-3"></i> Quản lý Thông báo Trạm</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('docs')" id="tab-btn-docs" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-pdf mr-3"></i> Kho Tài liệu & Biểu mẫu</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('service')" id="tab-btn-service" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-list mr-3"></i> Quản lý Dịch vụ (Luồng Zalo)</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-address-book mr-3"></i> Quản lý Danh bạ Cán bộ</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('telehealth')" id="tab-btn-telehealth" class="block p-3.5 text-blue-700 bg-blue-50/80 hover:bg-blue-100 rounded-xl font-bold border-l-4 border-blue-600 shadow-sm transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-video text-blue-600 mr-3 animate-pulse"></i> Cuộc gọi Video & Khám Từ xa</span> <span class="flex items-center gap-1"><span id="cms-live-call-badge" class="hidden bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-black animate-pulse">0 đang gọi</span> <span id="cms-telehealth-count" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></span></a></li>
+            <!-- ADMIN SIDEBAR NAVIGATION
+                 Gom theo nhóm việc: việc cần xử lý ngay (khám từ xa) lên đầu, rồi nội
+                 dung trang, nhân sự, hệ thống. Thanh bên dính theo khi cuộn trang dài. -->
+            <nav aria-label="Danh mục quản trị" class="w-full lg:w-72 shrink-0 bg-white rounded-2xl shadow-sm p-4 h-fit border border-gray-200 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+                <ul class="space-y-1">
+                    <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1 !pt-0" data-nav-group="tele">Khám từ xa</li>
+                    <li><a href="#" onclick="window.switchAdminTab('telehealth')" id="tab-btn-telehealth" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-video text-blue-600 mr-3 w-4 text-center"></i> Cuộc gọi Video &amp; Khám từ xa</span> <span class="flex items-center gap-1"><span id="cms-live-call-badge" class="hidden bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-black animate-pulse">0 đang gọi</span> <span id="cms-telehealth-count" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></span></a></li>
                     <!-- Mục "Bảng điều khiển điểm trạm" đã gộp vào Module Bảng điều khiển trạm y tế
                          (khu làm việc "Quản trị điểm trạm"). Giữ lại một lối tắt để Quản trị đang ở
                          trong CMS mở thẳng khu đó, thay vì phải quay ra chân trang. -->
-                    <li><a href="#" onclick="window.openStationControlCenter({ workspace: 'admin' }); return false;" id="tab-btn-stations" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-tower-broadcast mr-3"></i> Quản trị điểm trạm <span class="ml-2 text-[9px] font-black text-cyan-700 bg-cyan-100 px-1.5 py-0.5 rounded-full uppercase">Mở bảng điều khiển</span></span> <span id="stations-issue-badge-cms" class="hidden bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fab fa-youtube mr-3"></i> Quản lý Video Y khoa</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-users-cog mr-3"></i> Phân quyền Hệ thống</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('signature')" id="tab-btn-signature" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-signature mr-3"></i> Chữ ký số &amp; Người ký đơn</a></li>
-                    <li><a href="#" onclick="window.enableVisualEditingMode()" class="block p-3.5 text-purple-600 hover:bg-purple-50 rounded-xl font-black border border-purple-200 shadow-sm transition"><i class="fas fa-laptop-code mr-3"></i> Chỉnh sửa Giao diện trực quan</a></li>
+                    <li><a href="#" onclick="window.openStationControlCenter({ workspace: 'admin' }); return false;" id="tab-btn-stations" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-tower-broadcast mr-3 w-4 text-center"></i> Quản trị điểm trạm <i class="fas fa-arrow-up-right-from-square ml-2 text-[10px] text-cyan-700" title="Mở bảng điều khiển"></i></span> <span id="stations-issue-badge-cms" class="hidden bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('signature')" id="tab-btn-signature" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-file-signature mr-3 w-4 text-center"></i> Chữ ký số &amp; Người ký đơn</span></a></li>
+
+                    <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1" data-nav-group="content">Nội dung trang</li>
+                    <li><a href="#" onclick="window.switchAdminTab('news')" id="tab-btn-news" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-newspaper mr-3 w-4 text-center"></i> Bản tin, lịch tiêm &amp; thông báo</span></a></li>
+                    <li class="hidden"><a href="#" onclick="window.switchAdminTab('vaccine')" id="tab-btn-vaccine" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-bullhorn mr-3 w-4 text-center"></i> Quản lý Thông báo Trạm</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('docs')" id="tab-btn-docs" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-file-pdf mr-3 w-4 text-center"></i> Tài liệu &amp; Biểu mẫu</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fab fa-youtube mr-3 w-4 text-center"></i> Video Y khoa</span></a></li>
+                    <li><a href="#" onclick="window.enableVisualEditingMode()" class="flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-sm text-purple-700 hover:bg-purple-50 border border-purple-200 transition"><i class="fas fa-laptop-code mr-1 w-4 text-center"></i> Sửa chữ trên trang (trực quan)</a></li>
+
+                    <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1" data-nav-group="people">Nhân sự &amp; dịch vụ</li>
+                    <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-address-book mr-3 w-4 text-center"></i> Danh bạ Cán bộ &amp; Ban lãnh đạo</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('service')" id="tab-btn-service" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-list mr-3 w-4 text-center"></i> Dịch vụ &amp; người phụ trách (Zalo)</span></a></li>
+
+                    <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1" data-nav-group="system">Hệ thống</li>
+                    <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-users-cog mr-3 w-4 text-center"></i> Tài khoản &amp; Phân quyền</span></a></li>
                 </ul>
-            </div>
+            </nav>
             
             <!-- ADMIN MAIN CONTENT AREA -->
             <div class="flex-1 space-y-6 overflow-hidden">
@@ -8869,9 +8880,24 @@
             const targetSection = document.getElementById(`admin-${tabName}-section`);
             if (targetSection) targetSection.classList.add('active');
 
-            document.querySelectorAll('[id^="tab-btn-"]').forEach(b => b.className = "block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition");
+            /* Chỉ bật/tắt lớp màu, giữ nguyên bố cục flex của từng mục (huy hiệu số cuộc
+               gọi, số sự cố điểm trạm nằm bên phải) - trước đây gán lại cả className nên
+               huy hiệu bị rớt xuống dòng dưới. */
+            const NAV_IDLE = ['text-gray-600', 'hover:bg-gray-50', 'hover:text-gray-900'];
+            const NAV_ACTIVE = ['bg-medical-50', 'text-medical-700', 'border-l-4', 'border-medical-600', 'shadow-sm'];
+            document.querySelectorAll('[id^="tab-btn-"]').forEach(b => { b.classList.remove(...NAV_ACTIVE); b.classList.add(...NAV_IDLE); b.removeAttribute('aria-current'); });
             const activeBtn = document.getElementById(`tab-btn-${tabName}`);
-            if (activeBtn) activeBtn.className = "block p-3.5 bg-medical-50 text-medical-700 rounded-xl font-bold border-l-4 border-medical-600 shadow-sm transition";
+            if (activeBtn) { activeBtn.classList.remove(...NAV_IDLE); activeBtn.classList.add(...NAV_ACTIVE); activeBtn.setAttribute('aria-current', 'page'); }
+
+            /* Ẩn tiêu đề nhóm khi mọi mục trong nhóm đều bị ẩn (VD: tài khoản điểm trạm). */
+            document.querySelectorAll('#admin-dashboard .cms-nav-heading').forEach(h => {
+                let el = h.nextElementSibling, any = false;
+                while (el && !el.classList.contains('cms-nav-heading')) {
+                    if (!el.classList.contains('hidden') && el.style.display !== 'none') { any = true; break; }
+                    el = el.nextElementSibling;
+                }
+                h.style.display = any ? '' : 'none';
+            });
 
             if (tabName === 'telehealth') {
                 window.checkCmsVideoPermission();
@@ -9873,6 +9899,14 @@
             bundlePolicy: 'max-bundle',
             rtcpMuxPolicy: 'require'
         };
+        /* Danh sách máy chủ ICE do máy chủ cấp (/api/ice): STUN + TURN khi đã cấu hình.
+           Tải ngay khi mở trang để sẵn sàng trước lúc gọi; /app.js dùng lại lời hứa này. */
+        window.tytIceServersPromise = fetch('/api/ice', { cache: 'no-store' })
+            .then(res => (res.ok ? res.json() : null))
+            .catch(() => null);
+        window.tytIceServersPromise.then(data => {
+            if (data && Array.isArray(data.iceServers) && data.iceServers.length) TELE_ICE.iceServers = data.iceServers;
+        });
 
         /* Thông số luồng hình gửi đi: ưu tiên giữ số khung hình để hình ảnh mượt,
            chấp nhận giảm độ nét khi đường truyền yếu (thay vì giật cục). */
