@@ -128,9 +128,10 @@ export function requestSql(): postgres.Sql {
     max: 5,
     // Hyperdrive tự lo TLS tới máy chủ gốc; kết nối thẳng thì bắt buộc TLS.
     ssl: viaHyperdrive || local ? false : "require",
-    // Bộ gộp kết nối kiểu PgBouncer (Supabase, Neon) không giữ được câu lệnh
-    // chuẩn bị sẵn giữa các giao dịch; Hyperdrive thì hỗ trợ.
-    prepare: viaHyperdrive,
+    // Không dùng câu lệnh chuẩn bị sẵn có tên: phía sau Hyperdrive có thể còn
+    // một bộ gộp kết nối kiểu giao dịch (Supabase Transaction pooler, Neon
+    // pooler) vốn không giữ được chúng giữa các giao dịch.
+    prepare: false,
     fetch_types: false,
     connect_timeout: 10,
     idle_timeout: 5
