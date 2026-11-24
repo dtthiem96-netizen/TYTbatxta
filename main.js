@@ -110,7 +110,8 @@ for (const file of ['app.js', 'public/app.js', 'doctor.js', 'public/doctor.js', 
 // thư mục gốc sẽ không bao giờ được triển khai - /chamcong trả 404.
 const SYNC_TARGETS = [
   'index.html', 'app.js', 'bacsi.html', 'doctor.js', 'logo.png', 'admin', 'assets',
-  'chamcong.html', 'chamcong.js', 'chamcong-sw.js', 'chamcong.webmanifest'
+  'chamcong.html', 'chamcong.js', 'chamcong-sw.js', 'chamcong.webmanifest',
+  'chinh-sach-bao-mat.html', 'robots.txt', 'sitemap.xml'
 ];
 
 /** Liệt kê đường dẫn tương đối của mọi tệp trong một thư mục. */

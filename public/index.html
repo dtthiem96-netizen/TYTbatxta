@@ -84,26 +84,10 @@
     <!-- THƯ VIỆN GIAO DIỆN -->
     <!-- Hộp đổi mật khẩu dùng chung: bắt buộc đổi mật khẩu tạm ở mọi cổng đăng nhập. -->
     <script src="/assets/password-change.js" defer></script>
-    <script src="https://cdn.tailwindcss.com" defer onload="if (window.__tytTailwindConfig) tailwind.config = window.__tytTailwindConfig"></script>
+    <link rel="stylesheet" href="/assets/tailwind.css?v=20261124b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     
-    <script>
-        // Tailwind CDN được nạp với "defer" nên chưa tồn tại tại thời điểm này.
-        // Gán thẳng tailwind.config ở đây sẽ ném ReferenceError và làm mất bảng màu
-        // "medical" (tiêu đề cửa sổ trắng trên nền trắng). Lưu cấu hình lại và áp
-        // dụng trong onload của thẻ script CDN ở trên.
-        window.__tytTailwindConfig = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'], },
-                    colors: {
-                        medical: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' }
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         @font-face {
             font-family: 'Inter';
@@ -129,6 +113,9 @@
         .markdown-body br { margin-bottom: 8px; content: ""; display: block; }
         .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
         .admin-tab { display: none; }
+        /* Trong CMS: ẩn các nút nổi của trang công khai (góp ý, trợ lý AI, Zalo, nhạc nền)
+           - chúng đè lên nút Sửa/Xóa ở góc bảng quản trị. */
+        body:has(#admin-dashboard:not(.hidden)) :is(.feedback-btn, #tyt-fab-ai, #tyt-fab-zalo, #bg-music-player, #ai-chat-window) { display: none !important; }
         .admin-tab.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -1292,7 +1279,7 @@
                                 <a href="#attp" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.openSupportModal(&#x27;Tư vấn An toàn Thực phẩm&#x27;); })"><i class="fas fa-utensils" aria-hidden="true"></i><span><b>An toàn thực phẩm</b><small>Tư vấn an toàn thực phẩm</small></span></a>
                                 <a href="#phong-benh-mua" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.openSupportModal(&#x27;Phòng bệnh theo mùa/ Thiên tai&#x27;); })"><i class="fas fa-cloud-showers-heavy" aria-hidden="true"></i><span><b>Phòng bệnh theo mùa, thiên tai</b><small>Hướng dẫn phòng bệnh mùa mưa lũ</small></span></a>
                                 <a href="#so-cuu" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.openModal(&#x27;modal-socuu&#x27;); })"><i class="fas fa-briefcase-medical" aria-hidden="true"></i><span><b>Sơ cứu khẩn cấp</b><small>Hướng dẫn sơ cứu ban đầu</small></span></a>
-                                <a href="#y-te-du-phong" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.tytShowTab(&#x27;phong-benh&#x27;); })"><i class="fas fa-shield-halved" aria-hidden="true"></i><span><b>Khoa Phòng bệnh và ATTP</b><small>Các dịch vụ y tế dự phòng</small></span></a>
+                                <a href="#y-te-du-phong" class="tyt-dd-link" onclick="return window.tytNav(event, function(){ window.tytShowTab(&#x27;phong-benh&#x27;); })"><i class="fas fa-shield-halved" aria-hidden="true"></i><span><b>Khoa Phòng bệnh, An toàn thực phẩm</b><small>Các dịch vụ y tế dự phòng</small></span></a>
                             </div>
                         </li>
                         <li class="tyt-mainnav-item" data-nav="van-ban-menu">
@@ -1668,7 +1655,7 @@
                         <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-green-100 text-green-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-stethoscope"></i></div>
                             <div>
-                                <h3 data-cms-id="dept-khambenh-title" class="text-2xl font-black text-gray-900">Khoa Khám Bệnh & Lâm Sàng</h3>
+                                <h3 data-cms-id="dept-khambenh-title" class="text-2xl font-black text-gray-900">Khoa Khám bệnh, chữa bệnh, Dân số, Trẻ em, Bảo trợ xã hội</h3>
                                 <p data-cms-id="dept-khambenh-desc" class="text-sm font-bold text-gray-500">Chăm sóc sức khỏe, tiêm chủng, tư vấn dinh dưỡng</p>
                             </div>
                         </div>
@@ -1697,7 +1684,7 @@
                         <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-blue-100 text-blue-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-building"></i></div>
                             <div>
-                                <h3 data-cms-id="dept-hanhchinh-title" class="text-2xl font-black text-gray-900">Phòng Hành Chính & Tổng Hợp</h3>
+                                <h3 data-cms-id="dept-hanhchinh-title" class="text-2xl font-black text-gray-900">Phòng Hành chính, Tài chính, Nhân sự, Dược, Thiết bị y tế, Cận lâm sàng</h3>
                                 <p data-cms-id="dept-hanhchinh-desc" class="text-sm font-bold text-gray-500">Thủ tục BHYT, tra cứu thuốc, tiếp nhận phản ánh</p>
                             </div>
                         </div>
@@ -1719,7 +1706,7 @@
                         <div class="flex items-center gap-4 mb-5 pb-4 border-b border-gray-100">
                             <div class="w-14 h-14 bg-orange-100 text-orange-600 flex items-center justify-center rounded-2xl text-3xl shadow-sm"><i class="fas fa-shield-virus"></i></div>
                             <div>
-                                <h3 data-cms-id="dept-phongbenh-title" class="text-2xl font-black text-gray-900">Khoa Phòng bệnh và ATTP</h3>
+                                <h3 data-cms-id="dept-phongbenh-title" class="text-2xl font-black text-gray-900">Khoa Phòng bệnh, An toàn thực phẩm</h3>
                                 <p data-cms-id="dept-phongbenh-desc" class="text-sm font-bold text-gray-500">Phòng chống dịch bệnh truyền nhiễm, an toàn thực phẩm</p>
                             </div>
                         </div>
@@ -2167,7 +2154,7 @@
                                 <span><a href="mailto:tytbatxat@laocai.gov.vn" class="font-bold break-all">tytbatxat@laocai.gov.vn</a></span>
                             </li>
                         </ul>
-                        <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="tyt-footer-btn mt-3">
+                        <a href="https://www.google.com/maps/search/?api=1&amp;query=Tr%E1%BA%A1m+Y+t%E1%BA%BF+B%C3%A1t+X%C3%A1t%2C+x%C3%A3+B%C3%A1t+X%C3%A1t%2C+L%C3%A0o+Cai" target="_blank" rel="noopener noreferrer" class="tyt-footer-btn mt-3">
                             <i class="fas fa-map-marked-alt"></i> <span>Xem bản đồ chỉ đường</span>
                         </a>
                     </div>
@@ -2240,7 +2227,7 @@
 
                 <div class="tyt-footer-bottom">
                     <p>&copy; 2026 Trạm Y tế Bát Xát. Tất cả quyền được bảo lưu.</p>
-                    <a href="#">Chính sách bảo mật</a>
+                    <a href="/chinh-sach-bao-mat.html">Chính sách bảo mật</a>
                 </div>
             </div>
         </footer>
@@ -2795,7 +2782,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">Địa chỉ người gửi</label>
-                                <input type="text" id="sender-address" name="sender_address" aria-label="Địa chỉ người gửi" required placeholder="Thôn bản, xã, thị trấn..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
+                                <input type="text" id="sender-address" name="sender_address" aria-label="Địa chỉ người gửi" required placeholder="Thôn/bản, xã/phường..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100 font-medium">
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1.5">Vị trí nơi phản ánh</label>
@@ -4152,7 +4139,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-address">5. Địa chỉ (số nhà, thôn/tổ, xã/phường, huyện, tỉnh):</label>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-0.5" for="rpt-edit-address">5. Địa chỉ (số nhà, thôn/tổ, xã/phường, tỉnh):</label>
                         <input type="text" id="rpt-edit-address" placeholder="Thôn ..., Xã Bát Xát, tỉnh Lào Cai" class="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:outline-none focus:border-blue-500">
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -4341,26 +4328,34 @@
         
         <div class="flex-1 flex flex-col lg:flex-row max-w-[1400px] mx-auto w-full p-4 gap-6 mt-2 relative">
             
-            <!-- ADMIN SIDEBAR NAVIGATION -->
-            <div class="w-full lg:w-72 bg-white rounded-2xl shadow-sm p-5 h-fit border border-gray-200">
-                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 pl-2">Hạng mục cấu hình</h2>
-                <ul class="space-y-2">
-                    <li><a href="#" onclick="window.switchAdminTab('news')" id="tab-btn-news" class="block p-3.5 bg-medical-50 text-medical-700 rounded-xl font-bold border-l-4 border-medical-600 shadow-sm transition"><i class="fas fa-newspaper mr-3"></i> Quản lý Bản tin & Thông báo</a></li>
-                    <li class="hidden"><a href="#" onclick="window.switchAdminTab('vaccine')" id="tab-btn-vaccine" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-bullhorn mr-3"></i> Quản lý Thông báo Trạm</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('docs')" id="tab-btn-docs" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-pdf mr-3"></i> Kho Tài liệu & Biểu mẫu</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('service')" id="tab-btn-service" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-list mr-3"></i> Quản lý Dịch vụ (Luồng Zalo)</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-address-book mr-3"></i> Quản lý Danh bạ Cán bộ</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('telehealth')" id="tab-btn-telehealth" class="block p-3.5 text-blue-700 bg-blue-50/80 hover:bg-blue-100 rounded-xl font-bold border-l-4 border-blue-600 shadow-sm transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-video text-blue-600 mr-3 animate-pulse"></i> Cuộc gọi Video & Khám Từ xa</span> <span class="flex items-center gap-1"><span id="cms-live-call-badge" class="hidden bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-black animate-pulse">0 đang gọi</span> <span id="cms-telehealth-count" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></span></a></li>
+            <!-- ADMIN SIDEBAR NAVIGATION
+                 Gom theo nhóm việc: việc cần xử lý ngay (khám từ xa) lên đầu, rồi nội
+                 dung trang, nhân sự, hệ thống. Thanh bên dính theo khi cuộn trang dài. -->
+            <nav aria-label="Danh mục quản trị" class="w-full lg:w-72 shrink-0 bg-white rounded-2xl shadow-sm p-4 h-fit border border-gray-200 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+                <ul class="space-y-1">
+                    <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1 !pt-0" data-nav-group="tele">Khám từ xa</li>
+                    <li><a href="#" onclick="window.switchAdminTab('telehealth')" id="tab-btn-telehealth" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-video text-blue-600 mr-3 w-4 text-center"></i> Cuộc gọi Video &amp; Khám từ xa</span> <span class="flex items-center gap-1"><span id="cms-live-call-badge" class="hidden bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-black animate-pulse">0 đang gọi</span> <span id="cms-telehealth-count" class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></span></a></li>
                     <!-- Mục "Bảng điều khiển điểm trạm" đã gộp vào Module Bảng điều khiển trạm y tế
                          (khu làm việc "Quản trị điểm trạm"). Giữ lại một lối tắt để Quản trị đang ở
                          trong CMS mở thẳng khu đó, thay vì phải quay ra chân trang. -->
-                    <li><a href="#" onclick="window.openStationControlCenter({ workspace: 'admin' }); return false;" id="tab-btn-stations" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition flex justify-between items-center"><span class="flex items-center"><i class="fas fa-tower-broadcast mr-3"></i> Quản trị điểm trạm <span class="ml-2 text-[9px] font-black text-cyan-700 bg-cyan-100 px-1.5 py-0.5 rounded-full uppercase">Mở bảng điều khiển</span></span> <span id="stations-issue-badge-cms" class="hidden bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fab fa-youtube mr-3"></i> Quản lý Video Y khoa</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-users-cog mr-3"></i> Phân quyền Hệ thống</a></li>
-                    <li><a href="#" onclick="window.switchAdminTab('signature')" id="tab-btn-signature" class="block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition"><i class="fas fa-file-signature mr-3"></i> Chữ ký số &amp; Người ký đơn</a></li>
-                    <li><a href="#" onclick="window.enableVisualEditingMode()" class="block p-3.5 text-purple-600 hover:bg-purple-50 rounded-xl font-black border border-purple-200 shadow-sm transition"><i class="fas fa-laptop-code mr-3"></i> Chỉnh sửa Giao diện trực quan</a></li>
+                    <li><a href="#" onclick="window.openStationControlCenter({ workspace: 'admin' }); return false;" id="tab-btn-stations" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-tower-broadcast mr-3 w-4 text-center"></i> Quản trị điểm trạm <i class="fas fa-arrow-up-right-from-square ml-2 text-[10px] text-cyan-700" title="Mở bảng điều khiển"></i></span> <span id="stations-issue-badge-cms" class="hidden bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-black">0</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('signature')" id="tab-btn-signature" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-file-signature mr-3 w-4 text-center"></i> Chữ ký số &amp; Người ký đơn</span></a></li>
+
+                    <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1" data-nav-group="content">Nội dung trang</li>
+                    <li><a href="#" onclick="window.switchAdminTab('news')" id="tab-btn-news" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-newspaper mr-3 w-4 text-center"></i> Bản tin, lịch tiêm &amp; thông báo</span></a></li>
+                    <li class="hidden"><a href="#" onclick="window.switchAdminTab('vaccine')" id="tab-btn-vaccine" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-bullhorn mr-3 w-4 text-center"></i> Quản lý Thông báo Trạm</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('docs')" id="tab-btn-docs" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-file-pdf mr-3 w-4 text-center"></i> Tài liệu &amp; Biểu mẫu</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('video')" id="tab-btn-video" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fab fa-youtube mr-3 w-4 text-center"></i> Video Y khoa</span></a></li>
+                    <li><a href="#" onclick="window.enableVisualEditingMode()" class="flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-sm text-purple-700 hover:bg-purple-50 border border-purple-200 transition"><i class="fas fa-laptop-code mr-1 w-4 text-center"></i> Sửa chữ trên trang (trực quan)</a></li>
+
+                    <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1" data-nav-group="people">Nhân sự &amp; dịch vụ</li>
+                    <li><a href="#" onclick="window.switchAdminTab('contact')" id="tab-btn-contact" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-address-book mr-3 w-4 text-center"></i> Danh bạ Cán bộ &amp; Ban lãnh đạo</span></a></li>
+                    <li><a href="#" onclick="window.switchAdminTab('service')" id="tab-btn-service" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-list mr-3 w-4 text-center"></i> Dịch vụ &amp; người phụ trách (Zalo)</span></a></li>
+
+                    <li class="cms-nav-heading text-[11px] font-black text-gray-400 uppercase tracking-widest px-3 pt-4 pb-1" data-nav-group="system">Hệ thống</li>
+                    <li><a href="#" onclick="window.switchAdminTab('config')" id="tab-btn-config" class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition text-gray-600 hover:bg-gray-50 hover:text-gray-900"><span class="flex items-center"><i class="fas fa-users-cog mr-3 w-4 text-center"></i> Tài khoản &amp; Phân quyền</span></a></li>
                 </ul>
-            </div>
+            </nav>
             
             <!-- ADMIN MAIN CONTENT AREA -->
             <div class="flex-1 space-y-6 overflow-hidden">
@@ -4556,11 +4551,14 @@
                         <form onsubmit="window.handleAddContact(event)" class="bg-emerald-50 p-5 rounded-xl border border-emerald-200 mb-6">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-name">Họ tên Cán bộ</label><input type="text" id="cnt-name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: BS. Nguyễn Văn A"></div>
-                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-role">Chức vụ/ Bộ phận</label><input type="text" id="cnt-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: Trạm trưởng Trạm Y tế"></div>
+                                <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-role">Chức vụ/ Bộ phận</label><input type="text" id="cnt-role" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: Phó giám đốc phụ trách"></div>
                                 <div><label class="block text-xs font-bold text-gray-700 mb-1" for="cnt-phone">Số điện thoại liên hệ</label><input type="tel" id="cnt-phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 font-medium text-sm text-gray-900" placeholder="VD: 0382103002"></div>
                             </div>
+                            <p class="text-xs text-gray-600 mb-4"><i class="fas fa-circle-info text-emerald-600 mr-1"></i> Trang Giới thiệu tự xếp cán bộ theo chức vụ: chức vụ có chữ <b>"Giám đốc"</b> (VD: "Phó Giám đốc phụ trách") vào mục <b>Ban lãnh đạo</b>; chức vụ có tên điểm trạm (VD: "Y sỹ - Điểm trạm Bản Qua") vào nhóm của điểm trạm đó; còn lại vào đội ngũ chung. Cán bộ nghỉ hưu, chuyển công tác thì bấm <b>Xóa</b>.</p>
+                            <input type="hidden" id="cnt-edit-id" value="">
                             <div class="flex gap-3">
-                                <button type="submit" class="bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-lg hover:bg-emerald-700 transition"><i class="fas fa-plus mr-1"></i> Thêm Cán bộ</button>
+                                <button type="submit" id="cnt-submit-btn" class="bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-lg hover:bg-emerald-700 transition"><i class="fas fa-plus mr-1"></i> Thêm Cán bộ</button>
+                                <button type="button" id="cnt-cancel-btn" onclick="this.form.reset(); window.cancelEditContact()" class="hidden bg-white text-gray-700 font-bold px-5 py-2.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition">Hủy sửa</button>
                             </div>
                         </form>
                         <div class="overflow-x-auto">
@@ -4647,7 +4645,7 @@
                         <!-- Cảnh báo nếu tài khoản không có quyền -->
                         <div id="cms-no-permission-alert" class="hidden bg-amber-50 border-l-4 border-amber-500 text-amber-900 p-4 rounded-r-xl mb-6 text-sm font-medium">
                             <div class="flex items-center gap-2 font-bold mb-1"><i class="fas fa-exclamation-triangle text-amber-600 text-lg"></i> Chưa được cấp quyền nhận cuộc gọi Video Telehealth!</div>
-                            Tài khoản hiện tại chưa được phân quyền tiếp nhận cuộc gọi video trực tiếp. Vui lòng liên hệ Trạm trưởng hoặc Quản trị viên tại mục <b>Phân quyền Hệ thống</b> để kích hoạt quyền <code>canReceiveVideo</code>.
+                            Tài khoản hiện tại chưa được phân quyền tiếp nhận cuộc gọi video trực tiếp. Vui lòng liên hệ Phó giám đốc phụ trách hoặc Quản trị viên tại mục <b>Phân quyền Hệ thống</b> để kích hoạt quyền <code>canReceiveVideo</code>.
                         </div>
 
                         <!-- HÀNG ĐỢI CUỘC GỌI ĐANG CHỜ BÁC SĨ TIẾP NHẬN -->
@@ -5356,7 +5354,7 @@
 
         // 1. CƠ SỞ DỮ LIỆU LOCAL/FALLBACK
         let serviceManagers = [
-            { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'BS. Trạm Trưởng', zalo: '0382103002' },
+            { id: 'S1', name: 'Phòng Khám Chung / Đa Khoa', person: 'Phó giám đốc phụ trách', zalo: '0382103002' },
             { id: 'S2', name: 'Phòng Khám Sản - Phụ Khoa', person: 'Nữ hộ sinh chuyên trách', zalo: '0382103002' },
             { id: 'S3', name: 'Phòng Y Học Cổ Truyền', person: 'Cán bộ Đông Y', zalo: '0382103002' }
         ];
@@ -5390,7 +5388,7 @@
         ];
 
         let contactsData = [
-            { id: 'C1', name: 'BS. Trạm Trưởng', role: 'Trạm trưởng Trạm Y tế', phone: '0382103002', ts: 3 },
+            { id: 'C1', name: 'Phó giám đốc phụ trách', role: 'Phó giám đốc phụ trách Trạm Y tế', phone: '0382103002', ts: 3 },
             { id: 'C2', name: 'Nữ hộ sinh chuyên trách', role: 'Phòng Khám Sản - Phụ Khoa', phone: '0382103002', ts: 2 },
             { id: 'C3', name: 'Cán bộ Đông Y', role: 'Phòng Y Học Cổ Truyền', phone: '0382103002', ts: 1 }
         ];
@@ -7002,8 +7000,9 @@
                     <td class="p-3 font-bold text-gray-900">${c.name}</td>
                     <td class="p-3 text-gray-700">${c.role}</td>
                     <td class="p-3 font-bold text-green-600"><i class="fas fa-phone mr-1"></i> ${c.phone}</td>
-                    <td class="p-3 text-center">
-                        <button type="button" onclick="window.deleteItem('contacts', '${c.id}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button>
+                    <td class="p-3 text-center whitespace-nowrap">
+                        <button type="button" onclick="window.editContact('${c.id}')" class="text-blue-600 hover:text-blue-800 mr-3" title="Sửa" aria-label="Sửa cán bộ"><i class="fas fa-pen"></i></button>
+                        <button type="button" onclick="window.deleteItem('contacts', '${c.id}')" class="text-red-500 hover:text-red-700" title="Xóa" aria-label="Xóa cán bộ"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -7376,14 +7375,40 @@
         };
         window.handleAddContact = function(e) {
             e.preventDefault();
+            /* Đang sửa thì giữ nguyên mã và thứ tự (ts) của bản ghi cũ - máy chủ
+               ghi đè theo mã; thêm mới thì cấp mã mới như trước. */
+            const editId = (document.getElementById('cnt-edit-id') || {}).value || '';
+            const old = editId ? contactsData.find(x => x.id === editId) : null;
             window.saveToDb('contacts', {
-                id: 'C'+Date.now(),
+                id: old ? old.id : 'C'+Date.now(),
                 name: document.getElementById('cnt-name').value,
                 role: document.getElementById('cnt-role').value,
                 phone: document.getElementById('cnt-phone').value,
-                ts: Date.now()
+                ts: old && old.ts ? old.ts : Date.now()
             });
             e.target.reset();
+            window.cancelEditContact();
+        };
+        window.editContact = function(id) {
+            const c = contactsData.find(x => x.id === id);
+            if (!c) return;
+            document.getElementById('cnt-edit-id').value = c.id;
+            document.getElementById('cnt-name').value = c.name || '';
+            document.getElementById('cnt-role').value = c.role || '';
+            document.getElementById('cnt-phone').value = c.phone || '';
+            const btn = document.getElementById('cnt-submit-btn');
+            if (btn) btn.innerHTML = '<i class="fas fa-save mr-1"></i> Lưu thay đổi';
+            const cancel = document.getElementById('cnt-cancel-btn');
+            if (cancel) cancel.classList.remove('hidden');
+            document.getElementById('cnt-name').focus();
+        };
+        window.cancelEditContact = function() {
+            const f = document.getElementById('cnt-edit-id');
+            if (f) f.value = '';
+            const btn = document.getElementById('cnt-submit-btn');
+            if (btn) btn.innerHTML = '<i class="fas fa-plus mr-1"></i> Thêm Cán bộ';
+            const cancel = document.getElementById('cnt-cancel-btn');
+            if (cancel) cancel.classList.add('hidden');
         };
         window.handleAddService = function(e) { e.preventDefault(); window.saveToDb('services', { id: 'S'+Date.now(), name: document.getElementById('srv-name').value, person: document.getElementById('srv-person').value, zalo: document.getElementById('srv-zalo').value, ts: Date.now() }); e.target.reset(); };
         /* =====================================================================
@@ -8855,9 +8880,24 @@
             const targetSection = document.getElementById(`admin-${tabName}-section`);
             if (targetSection) targetSection.classList.add('active');
 
-            document.querySelectorAll('[id^="tab-btn-"]').forEach(b => b.className = "block p-3.5 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-xl font-bold transition");
+            /* Chỉ bật/tắt lớp màu, giữ nguyên bố cục flex của từng mục (huy hiệu số cuộc
+               gọi, số sự cố điểm trạm nằm bên phải) - trước đây gán lại cả className nên
+               huy hiệu bị rớt xuống dòng dưới. */
+            const NAV_IDLE = ['text-gray-600', 'hover:bg-gray-50', 'hover:text-gray-900'];
+            const NAV_ACTIVE = ['bg-medical-50', 'text-medical-700', 'border-l-4', 'border-medical-600', 'shadow-sm'];
+            document.querySelectorAll('[id^="tab-btn-"]').forEach(b => { b.classList.remove(...NAV_ACTIVE); b.classList.add(...NAV_IDLE); b.removeAttribute('aria-current'); });
             const activeBtn = document.getElementById(`tab-btn-${tabName}`);
-            if (activeBtn) activeBtn.className = "block p-3.5 bg-medical-50 text-medical-700 rounded-xl font-bold border-l-4 border-medical-600 shadow-sm transition";
+            if (activeBtn) { activeBtn.classList.remove(...NAV_IDLE); activeBtn.classList.add(...NAV_ACTIVE); activeBtn.setAttribute('aria-current', 'page'); }
+
+            /* Ẩn tiêu đề nhóm khi mọi mục trong nhóm đều bị ẩn (VD: tài khoản điểm trạm). */
+            document.querySelectorAll('#admin-dashboard .cms-nav-heading').forEach(h => {
+                let el = h.nextElementSibling, any = false;
+                while (el && !el.classList.contains('cms-nav-heading')) {
+                    if (!el.classList.contains('hidden') && el.style.display !== 'none') { any = true; break; }
+                    el = el.nextElementSibling;
+                }
+                h.style.display = any ? '' : 'none';
+            });
 
             if (tabName === 'telehealth') {
                 window.checkCmsVideoPermission();
@@ -9859,6 +9899,14 @@
             bundlePolicy: 'max-bundle',
             rtcpMuxPolicy: 'require'
         };
+        /* Danh sách máy chủ ICE do máy chủ cấp (/api/ice): STUN + TURN khi đã cấu hình.
+           Tải ngay khi mở trang để sẵn sàng trước lúc gọi; /app.js dùng lại lời hứa này. */
+        window.tytIceServersPromise = fetch('/api/ice', { cache: 'no-store' })
+            .then(res => (res.ok ? res.json() : null))
+            .catch(() => null);
+        window.tytIceServersPromise.then(data => {
+            if (data && Array.isArray(data.iceServers) && data.iceServers.length) TELE_ICE.iceServers = data.iceServers;
+        });
 
         /* Thông số luồng hình gửi đi: ưu tiên giữ số khung hình để hình ảnh mượt,
            chấp nhận giảm độ nét khi đường truyền yếu (thay vì giật cục). */
@@ -13327,7 +13375,7 @@ table.lay td { border: none; padding: 0; vertical-align: top; }
         window.handleBookingSubmit = function(e) {
             e.preventDefault();
             const deptSelect = document.getElementById('booking-dept');
-            const dept = serviceManagers.find(s => s.id === (deptSelect ? deptSelect.value : '')) || { name: 'Khoa Khám Bệnh', person: 'BS. Trạm Trưởng', zalo: '0382103002' };
+            const dept = serviceManagers.find(s => s.id === (deptSelect ? deptSelect.value : '')) || { name: 'Khoa Khám Bệnh', person: 'Phó giám đốc phụ trách', zalo: '0382103002' };
             
             const name = document.getElementById('booking-name').value;
             const phone = document.getElementById('booking-phone').value;
