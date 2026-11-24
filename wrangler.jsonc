@@ -15,6 +15,10 @@
   "main": "cloudflare/worker.ts",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Giữ các biến đặt tay trong Cloudflare (kiểu Text) khi Workers Builds triển
+  // khai bản mới. Không có dòng này, mỗi lần dựng sẽ xoá chúng; khoá bí mật
+  // (kiểu Secret) thì luôn được giữ.
+  "keep_vars": true,
   "build": {
     "command": "node tools/build-cloudflare.mjs"
   },
