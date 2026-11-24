@@ -147,6 +147,20 @@
   status = 404
   force = true
 
+# Mã nguồn bản Cloudflare Workers (cloudflare/, wrangler.jsonc): chỉ dùng khi
+# dựng trên Cloudflare, trang trên Netlify không bao giờ gọi tới.
+[[redirects]]
+  from = "/cloudflare/*"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/wrangler.jsonc"
+  to = "/"
+  status = 404
+  force = true
+
 [[redirects]]
   from = "/main.js"
   to = "/"
