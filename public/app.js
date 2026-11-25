@@ -1876,6 +1876,20 @@ const CallAudio = (function createCallAudioEngine() {
     speakerDeviceId: ''
   };
 
+  /*
+   * Né vọng (lớp 4). Bộ khử vọng của trình duyệt không bao giờ khử sạch, nhất là
+   * trong phòng trạm tường gạch, trần phẳng: phần dư cộng với đuôi vang của
+   * phòng (kéo dài nửa giây sau khi loa đã im) vẫn quay ngược sang đầu kia,
+   * nghe thành "vang vọng". Vì vậy khi đầu kia đang nói, và thêm một quãng sau
+   * khi họ ngừng, mic bên này được hạ sâu; chỉ khi người bên này nói to hẳn
+   * (nói chen) thì mới hạ nhẹ để hai bên vẫn ngắt lời nhau được.
+   */
+  const DUCK_REMOTE_DB = -50;        // đầu kia to hơn mức này = đang nói
+  const DUCK_TAIL_MS = 450;          // giữ né thêm sau khi đầu kia ngừng: đuôi vang của phòng
+  const DUCK_GAIN = 0.12;            // khoảng -18 dB khi chỉ đầu kia nói
+  const DOUBLE_TALK_GAIN = 0.5;      // khoảng -6 dB khi cả hai cùng nói
+  const DOUBLE_TALK_MARGIN_DB = 22;  // bên này to hơn nền ồn chừng này = đang nói thật, không phải tiếng vọng
+
   const metrics = {
     micLevel: 0,        // 0..1, mức tiếng vào mic sau khi lọc
     remoteLevel: 0,     // 0..1, mức tiếng ra loa
@@ -2414,12 +2428,18 @@ const CallAudio = (function createCallAudioEngine() {
     }
 
     // --- Né vọng khi đầu bên kia đang nói -----------------------------------
-    // Đây là thứ cắt đứt tiếng vang: loa đang phát thì mic chỉ còn 40%, nên
-    // tiếng loa dội lại không đủ sức quay ngược sang đầu kia.
+    // Đây là thứ cắt đứt tiếng vang: loa đang phát (và thêm DUCK_TAIL_MS sau đó,
+    // lúc phòng còn dội) thì mic bị hạ sâu, nên tiếng loa dội lại không đủ sức
+    // quay ngược sang đầu kia. Trước đây chỉ hạ còn 40% và nhả ngay khi đầu kia
+    // ngắt hơi giữa hai chữ, nên đuôi vang của phòng vẫn lọt qua nguyên vẹn.
     metrics.ducking = false;
-    if (settings.duck && remote.db > -50) {
-      metrics.ducking = true;
-      target *= 0.4;
+    if (settings.duck) {
+      if (remote.db > DUCK_REMOTE_DB) chain.duckUntil = now + DUCK_TAIL_MS;
+      if (now < (chain.duckUntil || 0)) {
+        metrics.ducking = true;
+        const nearTalk = mic.db > chain.noiseFloorDb + DOUBLE_TALK_MARGIN_DB;
+        target *= nearTalk ? DOUBLE_TALK_GAIN : DUCK_GAIN;
+      }
     }
 
     // --- Chống hú ------------------------------------------------------------
@@ -2431,8 +2451,10 @@ const CallAudio = (function createCallAudioEngine() {
     try {
       const t = ctx.currentTime;
       // Mở nhanh (12ms) để không cụt chữ đầu, đóng chậm (140ms) để đuôi câu
-      // không bị cắt ngang nghe như máy bộ đàm.
-      chain.gate.gain.setTargetAtTime(target, t, target < 0.99 ? 0.14 : 0.012);
+      // không bị cắt ngang nghe như máy bộ đàm. Riêng lúc né vọng thì hạ nhanh
+      // (30ms): tiếng loa dội vào mic gần như tức thì, hạ chậm là lọt mất câu đầu.
+      const tc = target >= 0.99 ? 0.012 : (metrics.ducking ? 0.03 : 0.14);
+      chain.gate.gain.setTargetAtTime(target, t, tc);
     } catch (err) {}
 
     notify(false);
