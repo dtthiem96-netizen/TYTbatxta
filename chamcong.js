@@ -61,7 +61,8 @@
   var SEC = {
     keyPromise: null, keyPair: null, publicJwk: null, deviceHash: '',
     device: null, deviceError: '', requirements: null,
-    stream: null, scanTimer: null, pendingReject: null, busy: false, retry: null
+    stream: null, scanTimer: null, pendingReject: null, busy: false, retry: null,
+    pendingQr: null
   };
 
   var WEEKDAY_NAMES = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
@@ -1184,16 +1185,128 @@
   }
 
   // --- Mã QR động -----------------------------------------------------------
+  //
+  //  Màn hình tại Trạm vẽ QR là đường dẫn https://<trang>/chamcong#qr=<MÃ>, nên
+  //  quét bằng camera điện thoại (hoặc Zalo) sẽ mở thẳng trang Chấm công và điền
+  //  sẵn mã. Trước đây QR chỉ chứa chữ "TYTBX-CC:<MÃ>" nên camera điện thoại báo
+  //  "không có dữ liệu". Dạng chữ cũ vẫn được nhận. Mã nằm sau dấu # nên không
+  //  đi vào nhật ký máy chủ khi mở trang.
+
+  var QR_LINK_KEY = 'tyt-chamcong-qr';
+  var QR_LINK_MAX_AGE_MS = 10 * 60 * 1000;
+
+  /** Lấy mã tại Trạm từ nội dung QR quét được; trả '' nếu không phải QR chấm công. */
+  function scannedQrCode(raw) {
+    var s = String(raw || '').trim();
+    var m = /[#?&]qr=([A-Za-z0-9]{8,32})(?:[&#]|$)/.exec(s) || /^TYTBX-CC:([A-Za-z0-9]{8,32})$/i.exec(s) ||
+      /^([A-Za-z0-9]{8,32})$/.exec(s);
+    return m ? m[1].toUpperCase() : '';
+  }
+
+  /** Mã gõ tay: bỏ khoảng trắng (mã trên màn hình hiển thị giãn chữ), viết hoa. */
+  function typedQrCode(raw) {
+    var s = String(raw || '').trim();
+    return scannedQrCode(s) || s.replace(/\s+/g, '').toUpperCase().slice(0, 64);
+  }
+
+  /** Trang được mở từ QR tại Trạm: giữ mã để điền sẵn, rồi xoá mã khỏi thanh địa chỉ. */
+  function takeQrFromLink() {
+    var m = /[#&]qr=([A-Za-z0-9]{8,32})/.exec(window.location.hash || '') ||
+      /[?&]qr=([A-Za-z0-9]{8,32})/.exec(window.location.search || '');
+    if (!m) return false;
+    SEC.pendingQr = { code: m[1].toUpperCase(), at: Date.now() };
+    try { window.sessionStorage.setItem(QR_LINK_KEY, JSON.stringify(SEC.pendingQr)); } catch (err) { /* chế độ riêng tư */ }
+    try { window.history.replaceState(null, '', window.location.pathname); } catch (err) { /* trình duyệt cũ */ }
+    return true;
+  }
+
+  function pendingQrCode() {
+    var p = SEC.pendingQr;
+    if (!p) {
+      try { p = JSON.parse(window.sessionStorage.getItem(QR_LINK_KEY) || 'null'); } catch (err) { p = null; }
+    }
+    if (!p || !p.code || Date.now() - Number(p.at || 0) > QR_LINK_MAX_AGE_MS) {
+      clearPendingQr();
+      return '';
+    }
+    SEC.pendingQr = p;
+    return p.code;
+  }
+
+  function clearPendingQr() {
+    SEC.pendingQr = null;
+    try { window.sessionStorage.removeItem(QR_LINK_KEY); } catch (err) { /* chế độ riêng tư */ }
+  }
+
+  function announceQrFromLink() {
+    toast(S.session
+      ? 'Đã nhận mã tại Trạm. Bấm Chấm vào hoặc Chấm ra ngay, mã chỉ dùng được trong ít phút.'
+      : 'Đã nhận mã tại Trạm. Đăng nhập rồi chấm công ngay, mã chỉ dùng được trong ít phút.', 'success', 8000);
+  }
+
+  /* Bộ đọc QR dự phòng cho máy không có BarcodeDetector (Safari trên iPhone/iPad,
+     Firefox, Chrome máy tính): jsQR tải từ CDN khi cần. */
+  var JSQR_LIB = null;
+
+  function loadJsQr() {
+    if (typeof window.jsQR === 'function') return Promise.resolve(window.jsQR);
+    if (JSQR_LIB) return JSQR_LIB;
+    JSQR_LIB = new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+      script.crossOrigin = 'anonymous';
+      script.onload = function () {
+        if (typeof window.jsQR === 'function') resolve(window.jsQR);
+        else { JSQR_LIB = null; reject(new Error('Không tải được bộ đọc QR. Hãy nhập mã chữ bên dưới mã QR.')); }
+      };
+      script.onerror = function () { JSQR_LIB = null; reject(new Error('Không tải được bộ đọc QR. Hãy nhập mã chữ bên dưới mã QR.')); };
+      document.head.appendChild(script);
+    });
+    return JSQR_LIB;
+  }
+
+  /** Trả hàm đọc một khung hình video -> nội dung QR ('' nếu chưa thấy). */
+  function qrReader() {
+    if ('BarcodeDetector' in window) {
+      try {
+        var detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        return Promise.resolve(function (video) {
+          return detector.detect(video).then(function (codes) {
+            return codes && codes.length && codes[0].rawValue ? String(codes[0].rawValue) : '';
+          });
+        });
+      } catch (err) { /* máy khai báo nhưng không hỗ trợ QR: dùng jsQR */ }
+    }
+    return loadJsQr().then(function (jsQR) {
+      var canvas = document.createElement('canvas');
+      var ctx2d = canvas.getContext('2d', { willReadFrequently: true });
+      return function (video) {
+        var w = video.videoWidth;
+        var h = video.videoHeight;
+        if (!w || !h) return Promise.resolve('');
+        var scale = Math.min(1, 480 / Math.max(w, h));
+        canvas.width = Math.round(w * scale);
+        canvas.height = Math.round(h * scale);
+        ctx2d.drawImage(video, 0, 0, canvas.width, canvas.height);
+        var img = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
+        var hit = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+        return Promise.resolve(hit && hit.data ? String(hit.data) : '');
+      };
+    });
+  }
 
   function askQr(mode) {
     return new Promise(function (resolve, reject) {
-      var canScan = 'BarcodeDetector' in window;
+      var canScan = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      var preset = pendingQrCode();
       openModal('Mã QR tại Trạm',
         '<p class="text-sm text-slate-600 mb-3">Quét mã QR đang hiển thị trên màn hình tại Trạm, hoặc nhập mã chữ bên dưới mã QR. ' +
         'Mã đổi liên tục và chỉ dùng được một lần.</p>' +
+        (preset ? '<p class="text-sm text-emerald-800 bg-emerald-50 rounded-lg px-3 py-2 mb-3"><i class="fas fa-check-circle mr-1"></i>' +
+          'Đã điền sẵn mã bạn vừa quét bằng camera điện thoại. Bấm Tiếp tục.</p>' : '') +
         '<div id="ccQrScanBox" class="hidden mb-3 rounded-xl overflow-hidden bg-black mx-auto" style="max-width:320px;aspect-ratio:1/1">' +
         '<video id="ccQrVideo" playsinline muted autoplay class="w-full h-full object-cover"></video></div>' +
-        field('Mã tại Trạm', input('qr', '', 'text', 'autocomplete="off" autocapitalize="characters" maxlength="64"')) +
+        field('Mã tại Trạm', input('qr', preset, 'text', 'autocomplete="off" autocapitalize="characters" maxlength="64"')) +
         '<div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200 mt-3">' +
         '<button type="button" id="ccQrOk" class="px-4 py-2 bg-medical-600 text-white rounded-lg text-sm font-semibold">Tiếp tục</button>' +
         (canScan ? '<button type="button" id="ccQrScan" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm"><i class="fas fa-qrcode mr-1"></i>Quét bằng camera</button>' : '') +
@@ -1206,7 +1319,7 @@
         resolve(value);
       };
       el('ccQrOk').addEventListener('click', function () {
-        var v = String(modalValues().qr || '').trim();
+        var v = typedQrCode(modalValues().qr);
         if (!v && mode === 'REQUIRED') { toast('Trạm yêu cầu nhập hoặc quét mã QR.', 'warn'); return; }
         done(v);
       });
@@ -1215,19 +1328,37 @@
         el('ccQrScan').addEventListener('click', function () {
           var box = el('ccQrScanBox');
           var video = el('ccQrVideo');
-          box.classList.remove('hidden');
-          var detector;
-          try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (err) { toast('Máy không hỗ trợ quét QR, hãy nhập mã.', 'warn'); return; }
-          openCamera(video, 'environment').then(function () {
-            SEC.scanTimer = setInterval(function () {
-              detector.detect(video).then(function (codes) {
-                if (codes && codes.length && codes[0].rawValue) {
-                  stopCamera(false);
-                  done(String(codes[0].rawValue).slice(0, 120));
-                }
-              }).catch(function () { /* khung hình chưa sẵn sàng */ });
-            }, 350);
-          }).catch(fail);
+          var scanBtn = el('ccQrScan');
+          if (SEC.stream) return;
+          scanBtn.disabled = true;
+          qrReader().then(function (read) {
+            box.classList.remove('hidden');
+            return openCamera(video, 'environment').then(function () {
+              var reading = false;
+              var warned = false;
+              if (SEC.scanTimer) clearInterval(SEC.scanTimer);
+              SEC.scanTimer = setInterval(function () {
+                if (reading) return;
+                reading = true;
+                read(video).then(function (raw) {
+                  reading = false;
+                  if (!raw) return;
+                  var code = scannedQrCode(raw);
+                  if (code) {
+                    stopCamera(false);
+                    done(code);
+                  } else if (!warned) {
+                    warned = true;
+                    toast('Đây không phải mã QR chấm công của Trạm.', 'warn');
+                  }
+                }).catch(function () { reading = false; /* khung hình chưa sẵn sàng */ });
+              }, 350);
+            });
+          }).catch(function (err) {
+            scanBtn.disabled = false;
+            box.classList.add('hidden');
+            fail(err);
+          });
         });
       }
     });
@@ -1300,13 +1431,17 @@
         device: devicePlatform()
       };
       Object.keys(body).forEach(function (k) { full[k] = body[k]; });
+      ctx.sent = true;
       return api('staff', { body: full });
     }).then(function (data) {
       SEC.busy = false;
+      if (ctx.qr) clearPendingQr();
       closeModal();
       return data;
     }, function (err) {
       SEC.busy = false;
+      // Máy chủ đã xét lượt chấm thì mã điền sẵn không dùng lại được nữa.
+      if (ctx.sent && ctx.qr) clearPendingQr();
       if (err && err.message !== 'CANCELLED') closeModal();
       throw err;
     });
@@ -5915,7 +6050,7 @@
     host.id = 'ccKiosk';
     host.className = 'fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center p-6 text-center';
     host.innerHTML = '<p class="text-lg font-bold text-medical-800 mb-2">' + esc((S.settings && S.settings.org && S.settings.org.name) || 'TRẠM Y TẾ BÁT XÁT') + '</p>' +
-      '<p class="text-sm text-slate-600 mb-4">Quét mã khi chấm công. Mã đổi liên tục, mỗi mã chỉ dùng một lần.</p>' +
+      '<p class="text-sm text-slate-600 mb-4">Quét mã bằng camera điện thoại hoặc nút Quét trong trang Chấm công. Mã đổi liên tục, mỗi mã chỉ dùng một lần.</p>' +
       '<div id="ccKioskQr" class="w-72 h-72 md:w-96 md:h-96 flex items-center justify-center"></div>' +
       '<p id="ccKioskCode" class="mt-4 text-4xl md:text-6xl font-black tracking-[0.3em] tabular-nums text-slate-900">------</p>' +
       '<p id="ccKioskTimer" class="text-xs text-slate-500 mt-2">&nbsp;</p>' +
@@ -5931,7 +6066,8 @@
         el('ccKioskCode').textContent = d.code;
         loadQrLib().then(function (qrcode) {
           var qr = qrcode(0, 'M');
-          qr.addData(d.payload);
+          // Đường dẫn để camera điện thoại mở thẳng trang Chấm công với mã điền sẵn.
+          qr.addData(window.location.origin + '/chamcong#qr=' + encodeURIComponent(d.code));
           qr.make();
           el('ccKioskQr').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
           var svg = qs('svg', el('ccKioskQr'));
@@ -6397,6 +6533,12 @@
     var org = (S.settings && S.settings.org && S.settings.org.name) || 'TRẠM Y TẾ BÁT XÁT';
     el('ccLoginOrg').textContent = org;
 
+    var fromLink = takeQrFromLink();
+    /* Trang đang mở sẵn mà cán bộ quét QR lần nữa trong cùng thẻ. */
+    window.addEventListener('hashchange', function () {
+      if (takeQrFromLink()) announceQrFromLink();
+    });
+
     var saved = null;
     try {
       saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || 'null');
@@ -6406,7 +6548,9 @@
     if (saved && saved.token && saved.expiresAt > Date.now()) {
       S.session = saved;
       boot();
+      if (fromLink) announceQrFromLink();
     } else {
+      if (fromLink) announceQrFromLink();
       window.localStorage.removeItem(SESSION_KEY);
       el('ccLogin').classList.remove('hidden');
       el('ccLoginUsername').focus();
