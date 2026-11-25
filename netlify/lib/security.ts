@@ -283,12 +283,17 @@ export function qrPayload(code: string) {
   return `TYTBX-CC:${code}`;
 }
 
-/** Tách mã từ nội dung QR quét được hoặc từ mã gõ tay. */
+/**
+ * Tách mã từ nội dung QR quét được hoặc từ mã gõ tay. Nhận cả đường dẫn
+ * .../chamcong#qr=<MÃ> (màn hình tại Trạm vẽ QR dạng này để camera điện thoại
+ * mở thẳng trang Chấm công) và dạng chữ cũ TYTBX-CC:<MÃ>.
+ */
 export function parseQrInput(value: unknown): string {
   const s = String(value || "").trim().toUpperCase();
-  const m = /^TYTBX-CC:([A-Z0-9]{8,32})$/.exec(s);
+  const m = /^TYTBX-CC:([A-Z0-9]{8,32})$/.exec(s) || /[#?&]QR=([A-Z0-9]{8,32})(?:[&#]|$)/.exec(s);
   if (m) return m[1];
-  return /^[A-Z0-9]{8,32}$/.test(s) ? s : "";
+  const bare = s.replace(/\s+/g, "");
+  return /^[A-Z0-9]{8,32}$/.test(bare) ? bare : "";
 }
 
 /** Phát mã QR mới cho màn hình tại Trạm. Máy chủ chỉ giữ dấu băm của mã. */
