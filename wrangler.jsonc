@@ -51,6 +51,14 @@
   "triggers": {
     "crons": ["0 0 * * *"]
   },
+  // Chạy phần /api/* ở trung tâm dữ liệu gần Sydney, cạnh cơ sở dữ liệu Supabase
+  // (ap-southeast-2). Hai lý do: (1) người dùng Việt Nam hay vào trạm Cloudflare
+  // Hồng Kông, mà Google AI từ chối yêu cầu từ Hồng Kông ("User location is not
+  // supported"), làm trợ lý AI báo lỗi 502; (2) mỗi lượt API có nhiều truy vấn,
+  // chạy gần cơ sở dữ liệu thì nhanh hơn. Tệp tĩnh vẫn phục vụ từ trạm gần nhất.
+  "placement": {
+    "region": "aws:ap-southeast-2"
+  },
   "observability": {
     "enabled": true
   },
